@@ -78,11 +78,13 @@ fn ModuleSection* new_module_section(Project* project, Module* mod, String path)
 	return section;
 }
 
+<*
+	@return? file::load!, parser::parse_module!, INVALID_MODULE
+*>
 fn void? parse_file(Project* project, Path path)
 {
 	String src = (String)file::load(tmem, path.path_string)!;
-
-	FileID file_id = diagnostics::add_file(tmem, path.path_string, src);
+	FileID file_id = diagnostics::add_file(path.path_string, src);
 
 	Lexer lexer;
 	lexer.init(src);
@@ -104,32 +106,24 @@ fn void? parse_file(Project* project, Path path)
 		if (parser::token_is(&parser, TokenType.MODULE))
 		{
 			Decl* module_decl = parser::parse_module(&parser)!;
-			Module* mod = get_or_create_module(project, diagnostics::get_string(module_decl.span));
+			Module* mod = get_or_create_module(project, module_decl.mod.path.name);
 
 			current_section = new_module_section(project, mod, path.path_string);
-
 			parser.section = current_section;
 
 			continue;
 		}
 
-		if (current_section == null)
-		{
-			log::error("can't parse Declerations without a valid module.");
-			return INVALID_MODULE~;
-		}
+		if (parser.section == null)
+        {
+            parser.error("Code found before 'module' declaration.");
+            return INVALID_MODULE~;
+        }
 
-		if (catch excuse = parser::parse(&parser))
+		if (catch err = parser::parse(&parser))
 		{
-			if (excuse == parser::FOUND_MODULE)
-			{
-				continue;
-			}
-			else
-			{
-				//io::printn(excuse);
-				return excuse~;
-			}
+			if (err == parser::FOUND_MODULE) continue; 
+            return err~;
 		}
 	}
 }

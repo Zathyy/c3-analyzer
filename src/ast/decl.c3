@@ -1,11 +1,15 @@
 module c3_parser::ast;
 
 import std::io;
+import std::collections::list;
 
 import c3_parser::common;
 
+Decl bad_decl = { .type = DeclType.BAD };
+
 enum DeclType
 {
+	BAD,
 	MODULE,
 	IMPORT,
 	FUNC,
@@ -16,10 +20,12 @@ enum DeclType
 
 struct Decl (Printable)
 {
-	DeclType type;
-	SourceSpan span;
-	Ident name;
 	SourceSpan[] attributes;
+	String name;
+	String extname;
+	String comment;
+	SourceSpan span;
+	DeclType type;
 
 	union
 	{
@@ -33,10 +39,11 @@ struct Decl (Printable)
 
 struct FuncDecl
 {
-	Ident ret_type;
+	//TODO: string for now
+	String ret_type;
 	// range of whole args definition of function (includes parentheses)
 	// TODO: turn this into a slice of AST node variables
-	SourceSpan args;
+	String args;
 	Stmt* block;
 }
 
@@ -59,23 +66,22 @@ struct VarDecl
 
 struct EnumDecl 
 {
-	Decl[] values;
-	Decl[] parameters;
+	Decl*[] values;
+	Decl*[] parameters;
 }
 
 struct ModuleDecl 
 {
-	SourceSpan name;
+	CPath path;
 }
 
 struct ImportDecl 
 {
-	Ident name;
+	CPath path;
 }
 
 struct AliasDecl 
 {
-	Ident name;
 	Decl* decl;
 	bool is_func;
 	bool is_redef;
@@ -83,6 +89,12 @@ struct AliasDecl
 
 struct TypedefDecl
 {
-	Ident name;
 	Decl* decl;
+}
+
+struct ContractDecl
+{
+	List{ Expr* } requires;
+	List{ Expr* } ensures;
+	bool pure;
 }

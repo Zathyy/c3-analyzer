@@ -4,46 +4,32 @@ import c3_parser::ast;
 import c3::lexer;
 import c3_parser::common;
 
-fn Stmt*? parse_block(Parser* parser)
+<*
+	'{' ... '}'
+*>
+fn Stmt*? parse_compound(Parser* parser)
 {
- 	if (catch expect(parser, TokenType.LBRACE))
-	{
-		// TODO: what error msg?
-		parser.error("invalid 'body' no LBRACE");
-		return UNEXPECTED_TOKEN~;
-	}
+ 	expect(parser, TokenType.LBRACE)!;
 
 	Stmt* stmt = mem::tnew(Stmt);
-	stmt.type = StmtType.BLOCK;
+	stmt.type = StmtType.COMPOUND;
 
 	SourceSpan start = parser.span;
 
-	// advance away from '{'
-	advance(parser)!;
-
-	Lexer temp_lexer = parser.lexer;
-	Token token @noinit;
 	do
 	{
-		token = temp_lexer.next()!;
+		advance(parser)!;
 	} 
-	while (token.type != TokenType.RBRACE);
+	while (parser.token.type != TokenType.RBRACE);
 
-	stmt.block.body = start.combine(parser.span);
+	stmt.compound.body = start.combine(parser.span);
 
 	return stmt;
 }
 
 fn Stmt*? parse_defer(Parser* parser)
 {
-	if (catch expect(parser, TokenType.DEFER))
-	{
-		// TODO: what error msg?
-		parser.error("Expected 'defer'");
-		return UNEXPECTED_TOKEN~;
-	}
-
-	advance(parser)!;
+	expect(parser, TokenType.DEFER)!;
 
 	Stmt* stmt = mem::tnew(Stmt);
 	stmt.type = StmtType.DEFER;
@@ -82,7 +68,7 @@ fn Stmt*? parse_defer(Parser* parser)
 
 		advance(parser)!;
 
-		stmt.defer_stmt.block = parse_block(parser)!;
+		stmt.defer_stmt.compound = parse_compound(parser)!;
 		stmt.defer_stmt.is_catch = true;
 	}
 

@@ -5,7 +5,8 @@ import c3_parser::common;
 
 enum StmtType
 {
-	BLOCK, // the body of a function
+	BAD,
+	COMPOUND, // the body of a function
 	RETURN,
 	DECL,
 	VAR,
@@ -18,17 +19,17 @@ struct Stmt
 
 	union
 	{
-		BlockStmt block;
+		CompoundStmt compound;
 		ReturnStmt return_stmt;
 		DeclStmt decl_stmt;
 		DeferStmt defer_stmt;
 	}
 }
 
-struct BlockStmt
+struct CompoundStmt
 {
 	SourceSpan body;
-	Stmt[] stmts;
+	Stmt*[] stmts;
 }
 
 <*
@@ -57,7 +58,7 @@ struct ReturnStmt
 struct DeferStmt 
 {
 	SourceSpan def;
-	Stmt* block;
+	Stmt* compound;
 	bool is_try;
 	bool is_catch;
 }

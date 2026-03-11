@@ -13,9 +13,9 @@ faultdef
 	CONTRACT_NOT_ALLOWED,
 	UNEXPECTED_TOKEN,
 	FOUND_MODULE,
-	PARSER_EOF
 ;
 
+//TODO?: store Token[] instead of lexer?
 struct Parser
 {
 	Lexer lexer;
@@ -26,21 +26,45 @@ struct Parser
 	SourceSpan span;
 }
 
-macro void Parser.error(self, String fmt, ...)
+macro void Parser.info(self, String fmt, ...)
 {    
-    Position pos = diagnostics::get_pos(self.span.file_id, (uint)self.span.start);
-    FileEntry* file = diagnostics::files[(usz)self.span.file_id];
-
-    io::printf("%s:%d:%d: Error: ", file.name, pos.line, pos.column);
-    io::printf(fmt, $vasplat);
-    io::printf("\n");
+	if (diagnostics::use_diagnostics)
+	{
+		diagnostics::report(INFO, self.span, format, $vasplat);
+	}
+	$if $defined (env::DEBUG_SYMBOLS):
+		log::info("at: %s %s:%s", $$FILE, $$FUNC, $$LINE);
+	$endif
 }
 
-fn bool Parser.eof(&self) @inline 
+macro void Parser.warn(self, String fmt, ...)
+{    
+	if (diagnostics::use_diagnostics)
+	{
+		diagnostics::report(WARN, self.span, fmt, $vasplat);
+	}
+	$if $defined (env::DEBUG_SYMBOLS):
+		log::warn("at: %s %s:%s", $$FILE, $$FUNC, $$LINE);
+	$endif
+}
+
+macro void Parser.error(self, String format, ...)
+{   
+	if (diagnostics::use_diagnostics)
+	{
+		diagnostics::report(ERROR, self.span, format, $vasplat);
+	}
+	$if $defined (env::DEBUG_SYMBOLS):
+		log::error("at: %s %s:%s", $$FILE, $$FUNC, $$LINE);
+	$endif
+}
+
+fn bool Parser.eof(&self) @inline
 {
 	return token_is(self, TokenType.EOF);
 }
 
+//TODO: better way?
 fn bool is_keyword_ident(TokenType type) 
 {
 	switch (type) 
@@ -111,16 +135,22 @@ fn bool is_some_ident(TokenType type)
 	return false;
 }
 
+<*
+	@param [&inout] parser
+*>
 fn bool token_is(Parser* parser, TokenType type) @inline 
 {
 	return parser.token.type == type;
 }
 
+<*
+	@param [&inout] parser
+*>
 fn void? advance(Parser* parser)
 {
 	if (parser.eof())
 	{
-		return PARSER_EOF~;
+		return io::EOF~;
 	}
 
 	parser.token = parser.lexer.next()!;
@@ -128,6 +158,9 @@ fn void? advance(Parser* parser)
 	parser.span.end =  parser.token.offset + parser.token.len - 1;
 }
 
+<*
+	@param [&inout] parser
+*>
 fn void? expect(Parser* parser, TokenType type) @inline
 {
 	if (!token_is(parser, type))
@@ -135,8 +168,14 @@ fn void? expect(Parser* parser, TokenType type) @inline
 		parser.error("Expected '%s' got '%s'", type, parser.token.type);
 		return UNEXPECTED_TOKEN~;
 	}
+
+	advance(parser)!;
 }
 
+<*
+	@param [&inout] parser
+	@param type : "type to consume"
+*>
 fn bool? consume(Parser* parser, TokenType type)
 {
 	if (token_is(parser, type))
@@ -148,65 +187,77 @@ fn bool? consume(Parser* parser, TokenType type)
 	return false;
 }
 
-macro Ident Parser.ident(&self)
+<*
+	@param [&inout] parser
+*>
+fn CPath? parse_path(Parser* parser)
 {
-	return (Ident){
-		.range = self.span,
-		.id = 0
-	};
+	SourceSpan start = parser.span;
+    SourceSpan end = parser.span;
+
+	CPath path;
+
+    while (true) 
+    {
+		String string = parser.token.text;
+        expect(parser, TokenType.IDENT)!;
+
+		path.name = path.name.concat(tmem, string);
+
+        if (!consume(parser, TokenType.SCOPE)!) 
+		{
+        	end = parser.span;
+			break;
+		}
+
+		path.name = path.name.concat(tmem, "::");
+    }
+
+    path.span = start.combine(end);
+	return path;
 }
 
 <*
+	@param [&inout] parser
 	@require parser.section != null
 *>
 fn void? parse(Parser* parser)
 {
 	while (!parser.eof())
 	{
-		Decl*? decl = parse_top_level_statement(parser);
-
-		if (catch err = decl)
+		if (token_is(parser, TokenType.MODULE)) 
 		{
-			if (err == FOUND_MODULE)
-			{
-				return FOUND_MODULE~;
-			}
-			else
-			{
-				continue;
-			}
-		}
+			return FOUND_MODULE~;
+		};
 
-		// no decleration was parsed, skip this one!
-		if (decl == null) 
+		if (catch parse_top_level_statement(parser))
 		{
 			advance(parser)!;
 			continue;
-		};
-		(void)parser.section.ast.decls.push(decl);
+		}
 	}
 }
 
-fn Decl*? parse_top_level_statement(Parser* parser)
+<*
+	@param [&inout] parser
+*>
+fn void? parse_top_level_statement(Parser* parser)
 {
-	Decl* decl;
+	//TODO: refine this loop and add more cases.
 
 	TokenType type = parser.token.type;
 	bool attach_contracts = false;
+	log::debug("parse_top_level_statement: %s", parser.token);
 
 	switch (type)
 	{
 	case TokenType.FUNC:
-		decl = parse_function(parser)!;
-		break;
-	case TokenType.MODULE:
-		return FOUND_MODULE~;
+		return parse_function(parser)!;
 	case TokenType.IMPORT: 
-		decl = parse_import(parser)!;
-		break;
+		return parse_import(parser)!;
 	default:
 		break;
 	}
 
-	return decl;
+	return UNEXPECTED_TOKEN~;
 }

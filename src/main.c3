@@ -7,11 +7,16 @@ import c3_parser::project;
 
 char[*] test_file = $embed("../test/test_file.c3");
 
-fn int main(String[] args)
+fn int main(String[] args) => @pool()
 {
 	String src = (String)&test_file;
 
 	log::set_priority_all(LogPriority.VERBOSE);
+
+	log::debug("init..");
+
+	diagnostics::init(tmem);
+	defer diagnostics::free();
 
 	Project* project = project::init(tmem);
 	defer project::free(project);
@@ -28,7 +33,6 @@ fn int main(String[] args)
 	{
 		io::printn(err);
 	}
-
 
 	project.modules.@each(; name, mod)
 	{

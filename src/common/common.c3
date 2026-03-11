@@ -19,3 +19,10 @@ struct Position
 	usz line;
 	usz column;
 }
+
+//TODO: what name? Path clashes with std::io::path
+struct CPath
+{
+	SourceSpan span;
+	String name;
+}

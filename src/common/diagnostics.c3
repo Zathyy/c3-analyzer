@@ -21,11 +21,13 @@ struct FileEntry
 
 Allocator alloc;
 List{ FileEntry* } files;
+bool use_diagnostics = false;
 
-fn void init(Allocator alloc)
+fn void init(Allocator allocator)
 {
-	alloc = alloc;
+	alloc = allocator;
 	files.init(alloc);
+	use_diagnostics = true;
 }
 
 fn void free()
@@ -36,14 +38,17 @@ fn void free()
 <*
 	add a file to be recognized by the diangostics.
 	adds support to map a 'SourceSpan' to (line, culumn)
+
+	@require files.is_initialized() : "files list is not initialized"
 *>
-fn FileID add_file(Allocator alloc, String name, String source)
+fn FileID add_file(String name, String source)
 {
 	FileEntry* entry = allocator::new(alloc, FileEntry);
 	entry.name = name;
 	entry.source = source;
-
-	entry.line_starts.init(alloc);
+	
+	//TODO?: calculate approximate num of line endings before allocating
+	entry.line_starts.init(alloc, 100);
 	entry.line_starts.push(0);
 	
 	for (uint i = 0; i < (uint)source.len; i++)
@@ -92,15 +97,21 @@ fn Position get_pos(FileID id, uint offset)
 
 fn String get_string(SourceSpan span)
 {
+	if (span.start > span.end)
+	{
+		return "Invalid";
+	}
+
 	FileEntry* entry = files[(usz)span.file_id];
-	assert(span.start < span.end);
 	return entry.source[span.start..span.end];
 }
 
-fn void report_error(SourceSpan span, String msg)
+fn void report(DiagnosticLevel level, SourceSpan span, String format, args...)
 {
 	Position pos = get_pos(span.file_id, (uint)span.start);
     FileEntry* file = files[(usz)span.file_id];
-    
-    (void)io::printf("%s:%d:%d: Error: %s\n", file.name, pos.line, pos.column, msg);
+
+    (void)io::printf("%s:%d:%d: ", file.name, pos.line, pos.column);
+	(void)io::printf("[%s] ", level);
+    (void)io::printfn(format, args);
 }

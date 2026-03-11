@@ -6,6 +6,7 @@ import c3_parser::common;
 
 enum ExprType
 {
+	BAD,
 	TYPE_IDENT,
 }
 
@@ -20,6 +21,5 @@ struct Expr
 
 struct ExprTypeIdent
 {
-	// range for entire type ("MyType"), even for generics ("HashSet{int}")
 	SourceSpan type;
 }
