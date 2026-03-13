@@ -1,25 +1,88 @@
 module c3_parser::ast;
 
 import std::io;
+import std::collections::list;
 
 import c3_parser::common;
 
-enum ExprType
+fn bool expr_ok(Expr* expr)
 {
-	BAD,
-	TYPE_IDENT,
+	return expr != null && expr.kind != ExprKind.INVALID;
+}
+
+enum ExprKind
+{
+	INVALID,
+	BINARY,
+	BUILTIN,
+	CALL,
+	CAST,
+	CATCH,
+	UNARY,
+	SWIZZLE,
 }
 
 struct Expr
 {
-	ExprType type;
+	ExprKind kind;
+	SourceSpan span;
+	
 	union
 	{
-		ExprTypeIdent type_ident;
+		TryExpr try_expr;
+		CatchExpr catch_expr;
+		CallExpr call_expr;
+		SwizzleExpr swizzle_expr;
+		CastExpr cast_expr;
+		BuiltinExpr builtin_expr;
+		List{ Expr* } initializer_list;
 	}
 }
 
-struct ExprTypeIdent
+struct TryExpr
 {
-	SourceSpan type;
+	Expr* optional;
+	union 
+	{
+		Decl* decl;
+		Expr* lhs;
+	}
+
+	bool assign_existing;
+}
+
+struct CatchExpr
+{
+	Decl* decl;
+	List{ Expr* } exprs;
+}
+
+struct BuiltinExpr
+{
+	String ident;
+	BuiltinFunction builtin;
+}
+
+struct SwizzleExpr
+{
+	Expr* parent;
+	String swizzle;
+	bool is_overlapping;
+}
+
+struct CallExpr
+{
+	List{ Expr* } args;
+
+	union 
+	{
+		Expr* function;
+		Decl* func_ref;
+	}
+}
+
+struct CastExpr
+{
+	Expr* expr;
+	TypeInfo* type_info;
 }

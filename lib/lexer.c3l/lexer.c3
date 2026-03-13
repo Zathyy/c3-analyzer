@@ -4,77 +4,237 @@ import std::io, std::ascii;
 
 faultdef INVALID_CHAR;
 
-enum TokenType : inline ushort
+enum TokenType : ushort (String name)
 {
-	INVALID,
+    INVALID      { "Invalid" },
 
-	// Operators
-	AMP, BIT_OR, BIT_XOR, BIT_NOT, BANG, PLUS, MINUS, STAR, DIV, MOD,
-	QUESTION, QUESTQUEST, ELVIS, BANGBANG, BUILTIN, SHR_OP, SHL_OP,
-	PLUSPLUS, MINUSMINUS, CT_CONCAT_OP, CT_TERNARY,
+    // Operators
+    AMP          { "&" }, 
+    BIT_OR       { "|" }, 
+    BIT_XOR      { "^" }, 
+    BIT_NOT      { "~" }, 
+    BANG         { "!" }, 
+    PLUS         { "+" }, 
+    MINUS        { "-" }, 
+    STAR         { "*" },
+    DIV          { "/" }, 
+    MOD          { "%" },
+    QUESTION     { "?" }, 
+    QUESTQUEST   { "??" }, 
+    ELVIS        { "?:" }, 
+    BANGBANG     { "!!" }, 
+    BUILTIN      { "$$" }, 
+    SHR_OP       { ">>" }, 
+    SHL_OP       { "<<" },
+    PLUSPLUS     { "++" }, 
+    MINUSMINUS   { "--" }, 
+    CT_CONCAT_OP { "+++" }, 
+    CT_TERNARY   { "???" },
 
-	// Assignment
-	EQ, SHR_ASSIGN, SHL_ASSIGN, PLUS_ASSIGN, MINUS_ASSIGN, MULT_ASSIGN,
-	DIV_ASSIGN, MOD_ASSIGN, BIT_AND_ASSIGN, BIT_XOR_ASSIGN, BIT_OR_ASSIGN,
-	CT_CONCAT_ASSIGN,
+    // Assignment
+    EQ               { "=" }, 
+    SHR_ASSIGN       { ">>=" }, 
+    SHL_ASSIGN       { "<<=" }, 
+    PLUS_ASSIGN      { "+=" }, 
+    MINUS_ASSIGN     { "-=" }, 
+    MULT_ASSIGN      { "*=" },
+    DIV_ASSIGN       { "/=" }, 
+    MOD_ASSIGN       { "%=" }, 
+    BIT_AND_ASSIGN   { "&=" },
+    BIT_XOR_ASSIGN   { "^=" }, 
+    BIT_OR_ASSIGN    { "|=" },
+    CT_CONCAT_ASSIGN { "+++=" },
 
-	// Comparison
-	LESS, GREATER, AND, OR, LESS_EQ, GREATER_EQ, EQEQ, NOT_EQUAL, CT_AND_OP,
-	CT_OR_OP,
+    // Comparison
+    LESS        { "<" }, 
+    GREATER     { ">" }, 
+    AND         { "&&" }, 
+    OR          { "||" }, 
+    LESS_EQ     { "<=" }, 
+    GREATER_EQ  { ">=" }, 
+    EQEQ        { "==" }, 
+    NOT_EQUAL   { "!=" }, 
+    CT_AND_OP   { "&&&" },
+    CT_OR_OP    { "|||" },
 
-	// Punctuation
-	EOS, COLON, SCOPE, COMMA, DOT, DOTDOT, ELLIPSIS,
+    // Punctuation
+    EOS       { ";" }, 
+    COLON     { ":" }, 
+    SCOPE     { "::" }, 
+    COMMA     { "," }, 
+    DOT       { "." }, 
+    DOTDOT    { ".." }, 
+    ELLIPSIS  { "..." },
 
-	// Structure
-	LBRACE, RBRACE, LBRACKET, RBRACKET, LPAREN, RPAREN, ARROW, IMPLIES,
-	LVEC, RVEC,
+    // Structure
+    LBRACE    { "{" }, 
+    RBRACE    { "}" }, 
+    LBRACKET  { "[" },
+    RBRACKET  { "]" }, 
+    LPAREN    { "(" }, 
+    RPAREN    { ")" }, 
+    ARROW     { "->" }, 
+    IMPLIES   { "=>" },
+    LVEC      { "[<" }, 
+    RVEC      { ">]" },
 
-	// Comments and Contracts
-	CONTRACT, LINE_COMMENT, BLOCK_COMMENT,
+    // Comments and Contracts
+    CONTRACT      { "<*" }, 
+    LINE_COMMENT  { "//" }, 
+    BLOCK_COMMENT { "/*" },
 
-	// Literals (Identifiers and Strings)
-	STRING, CHAR_LITERAL, BYTES, INTEGER, REAL, IDENT, TYPE_IDENT,
-	CONST_IDENT, AT_IDENT, AT_TYPE_IDENT, AT_CONST_IDENT, HASH_IDENT,
-	HASH_TYPE_IDENT, HASH_CONST_IDENT, CT_IDENT, CT_TYPE_IDENT,
-	CT_CONST_IDENT,
+    // Literals (Identifiers and Strings)
+    STRING           { "STRING" }, 
+    CHAR_LITERAL     { "CHAR" }, 
+    BYTES            { "BYTES" }, 
+    INTEGER          { "INTEGER" }, 
+    REAL             { "REAL" }, 
+    IDENT            { "IDENT" }, 
+    TYPE_IDENT       { "TYPE_IDENT" },
+    CONST_IDENT      { "CONST_IDENT" }, 
+    AT_IDENT         { "MACRO_IDENT" }, 
+    AT_TYPE_IDENT    { "MACRO_TYPE_IDENT" }, 
+    AT_CONST_IDENT   { "MACRO_CONST_IDENT" }, 
+    HASH_IDENT       { "HASH_IDENT" },
+    HASH_TYPE_IDENT  { "TYPE_IDENT" }, 
+    HASH_CONST_IDENT { "CONST_IDENT" }, 
+    CT_IDENT         { "CT_IDENT" }, 
+    CT_TYPE_IDENT    { "CT_TYPE_IDENT" },
+    CT_CONST_IDENT   { "CT_TYPE_IDENT" },
 
-	// Base Types (base_type_no_generic)
-	VOID, BOOL, CHAR, ICHAR, SHORT, USHORT, INT, UINT, LONG, ULONG, INT128,
-	UINT128, FLOAT, DOUBLE, FLOAT16, BFLOAT16, FLOAT128, IPTR, UPTR, ISZ,
-	USZ, FAULT, ANY, TYPEID,
+    // Base Types
+    VOID     { "void" }, 
+    BOOL     { "bool" }, 
+    CHAR     { "char" }, 
+    ICHAR    { "ichar" }, 
+    SHORT    { "short" }, 
+    USHORT   { "ushort" }, 
+    INT      { "int" }, 
+    UINT     { "uint" }, 
+    LONG     { "long" }, 
+    ULONG    { "ulong" }, 
+    INT128   { "int128" },
+    UINT128  { "uint128" }, 
+    FLOAT    { "float" }, 
+    DOUBLE   { "double" }, 
+    FLOAT16  { "float16" }, 
+    BFLOAT16 { "bfloat16" }, 
+    FLOAT128 { "float128" }, 
+    IPTR     { "iptr" }, 
+    UPTR     { "uptr" }, 
+    ISZ      { "isz" },
+    USZ      { "usz" }, 
+    FAULT    { "fault" }, 
+    ANY      { "any" }, 
+    TYPEID   { "typeid" },
 
-	// Keywords
-	ALIAS, ASM, ASSERT, ATTRDEF, BITSTRUCT, CONST, CONSTDEF, ENUM,
-	FAULTDEF, FUNC, IMPORT, INTERFACE, MACRO, MODULE, STRUCT, UNION,
-	TYPEDEF, BREAK, CASE, CATCH, CONTINUE, DEFAULT, DEFER, DO, ELSE,
-	EXTERN, FALSE, FOR, FOREACH, FOREACH_R, IF, INLINE, LENGTHOF, NEXTCASE,
-	NULL, RETURN, STATIC, SWITCH, TLOCAL, TRUE, TRY, VAR, WHILE,
+    // Keywords
+    ALIAS      { "alias" }, 
+    ASM        { "asm" }, 
+    ASSERT     { "assert" }, 
+    ATTRDEF    { "attrdef" }, 
+    BITSTRUCT  { "bitstruct" }, 
+    CONST      { "const" }, 
+    CONSTDEF   { "constdef" }, 
+    ENUM       { "enum" },
+    FAULTDEF   { "faultdef" }, 
+    FUNC       { "fn" }, 
+    IMPORT     { "import" }, 
+    INTERFACE  { "interface" }, 
+    MACRO      { "macro" }, 
+    MODULE     { "module" }, 
+    STRUCT     { "struct" }, 
+    UNION      { "union" },
+    TYPEDEF    { "typedef" }, 
+    BREAK      { "break" }, 
+    CASE       { "case" }, 
+    CATCH      { "catch" }, 
+    CONTINUE   { "continue" }, 
+    DEFAULT    { "default" }, 
+    DEFER      { "defer" }, 
+    DO         { "do" }, 
+    ELSE       { "else" },
+    EXTERN     { "extern" }, 
+    FALSE      { "false" }, 
+    FOR        { "for" }, 
+    FOREACH    { "foreach" }, 
+    FOREACH_R  { "foreach_r" }, 
+    IF         { "if" }, 
+    INLINE     { "inline" }, 
+    LENGTHOF   { "lengthof" }, 
+    NEXTCASE   { "nextcase" },
+    NULL       { "null" }, 
+    RETURN     { "return" }, 
+    STATIC     { "static" }, 
+    SWITCH     { "switch" }, 
+    TLOCAL     { "tlocal" }, 
+    TRUE       { "true" }, 
+    TRY        { "try" }, 
+    VAR        { "var" }, 
+    WHILE      { "while" },
 
-	CT_ALIGNOF, CT_ASSERT, CT_ASSIGNABLE, CT_CASE, CT_DEFAULT, CT_DEFINED,
-	CT_ECHO, CT_ELSE, CT_ENDFOR, CT_ENDFOREACH, CT_ENDIF, CT_ENDSWITCH,
-	CT_ERROR, CT_EVAL, CT_EVALTYPE, CT_EXEC, CT_EXTNAMEOF, CT_FEATURE,
-	CT_FOR, CT_FOREACH, CT_IF, CT_IS_CONST, CT_INCLUDE, CT_KINDOF,
-	CT_NAMEOF, CT_OFFSETOF, CT_QNAMEOF, CT_SIZEOF, CT_STRINGIFY, CT_SWITCH,
-	CT_TYPEFROM, CT_TYPEOF, CT_VAARG, CT_VACONST, CT_VACOUNT, CT_VAEXPR,
-	CT_VAREF, CT_VATYPE, CT_VASPLAT, AT_INLINE, AT_PURE, AT_NOINLINE,
+    CT_ALIGNOF     { "$alignof" }, 
+    CT_ASSERT      { "$assert" }, 
+    CT_ASSIGNABLE  { "$assignable" }, 
+    CT_CASE        { "$case" }, 
+    CT_DEFAULT     { "$default" }, 
+    CT_DEFINED     { "$defined" },
+    CT_ECHO        { "$echo" }, 
+    CT_ELSE        { "$else" }, 
+    CT_ENDFOR      { "$endfor" }, 
+    CT_ENDFOREACH  { "$endforeach" }, 
+    CT_ENDIF       { "$endif" }, 
+    CT_ENDSWITCH   { "$endswitch" },
+    CT_ERROR       { "$error" }, 
+    CT_EVAL        { "$eval" }, 
+    CT_EVALTYPE    { "$evaltype" }, 
+    CT_EXEC        { "$exec" }, 
+    CT_EXTNAMEOF   { "$extnameof" }, 
+    CT_FEATURE     { "$feature" },
+    CT_FOR         { "$for" }, 
+    CT_FOREACH     { "$foreach" }, 
+    CT_IF          { "$if" }, 
+    CT_IS_CONST    { "$is_const" }, 
+    CT_INCLUDE     { "$include" }, 
+    CT_KINDOF      { "$kindof" },
+    CT_NAMEOF      { "$nameof" }, 
+    CT_OFFSETOF    { "$offsetof" }, 
+    CT_QNAMEOF     { "$qnameof" }, 
+    CT_SIZEOF      { "$sizeof" }, 
+    CT_STRINGIFY   { "$stringify" }, 
+    CT_SWITCH      { "$switch" },
+    CT_TYPEFROM    { "$typefrom" }, 
+    CT_TYPEOF      { "$typeof" }, 
+    CT_VAARG       { "$vaarg" }, 
+    CT_VACONST     { "$vaconst" }, 
+    CT_VACOUNT     { "$vacount" }, 
+    CT_VAEXPR      { "$vaexpr" },
+    CT_VAREF       { "$varef" }, 
+    CT_VATYPE      { "$vatype" }, 
+    CT_VASPLAT     { "$vasplat" }, 
 
-	EOL, EOF,
+	AT_INLINE    { "@inline" },
+	AT_PURE      { "@pure"   },
+	AT_NOINLINE  { "@noinline" },
+
+    EOL { "EOL" }, 
+    EOF { "EOF" },
 }
 
 struct Token (Printable)
 {
-	TokenType type;
 	String    text;
 	usz       offset;
 	usz       len;
 	usz       ln, col;
 	usz       nl_before;
+	TokenType type;
 }
 
 fn usz? Token.to_format(&self, Formatter *f) @dynamic
 {
 	usz n;
-	n += f.printf("<%s>", self.type)!;
+	n += f.printf("<%s>", self.type.name)!;
 	if (self.text.len)
 	{
 		@pool() {
@@ -87,11 +247,11 @@ fn usz? Token.to_format(&self, Formatter *f) @dynamic
 struct Lexer
 {
 	String input;
-	bool emit_eol;
 	usz  pos;
 	usz  ln, col;
 	usz  token_start;
 	usz  nl_before;
+	bool emit_eol;
 }
 
 fn Lexer* Lexer.init(&self, String input, bool emit_eol = false)

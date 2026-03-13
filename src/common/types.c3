@@ -1,4 +1,8 @@
-module c3_parser;
+module c3_parser::common;
+
+import std::collections::list;
+
+import c3_parser::ast @norecurse;
 
 enum VarDeclKind 
 {
@@ -16,4 +20,261 @@ enum VarDeclKind
 	PARAM_CT_TYPE,
 	LOCAL_CT,
 	LOCAL_CT_TYPE
+}
+
+enum TypeInfoKind
+{
+	INVALID,
+	IDENTIFIER,
+	CT_IDENTIFIER,
+	TYPEOF,
+	VATYPE,
+	EVALTYPE,
+	TYPEFROM,
+	ARRAY,
+	VECTOR,
+	INFERRED_ARRAY,
+	INFERRED_VECTOR,
+	SLICE,
+	POINTER,
+	GENERIC
+}
+
+enum AttributeKind 
+{
+	ALIGN,
+	ALLOW_DEPRECATED,
+	BENCHMARK,
+	BIGENDIAN,
+	BUILTIN,
+	CALLCONV,
+	CNAME,
+	COMPACT,
+	CONST,
+	CONSTINIT,
+	DEPRECATED,
+	DYNAMIC,
+	EXPORT,
+	EXTERN,
+	FINALIZER,
+	FORMAT,
+	IF,
+	INLINE,
+	INIT,
+	JUMP,
+	LINK,
+	LITTLEENDIAN,
+	LOCAL,
+	MAYDISCARD,
+	NAKED,
+	NOALIAS,
+	NODISCARD,
+	NOINIT,
+	NOINLINE,
+	NOPADDING,
+	NORECURSE,
+	NORETURN,
+	NOSANITIZE,
+	NOSTRIP,
+	OBFUSCATE,
+	OPERATOR,
+	OPERATOR_R,
+	OPERATOR_S,
+	OPTIONAL,
+	OVERLAP,
+	PACKED,
+	PRIVATE,
+	PUBLIC,
+	PURE,
+	REFLECT,
+	SAFEINFER,
+	SAFEMACRO,
+	SIMD,
+	SECTION,
+	STRUCTLIKE,
+	TAG,
+	TEST,
+	UNUSED,
+	USED,
+	WASM,
+	WEAK,
+	WINMAIN,
+	NONE,
+}
+
+enum BuiltinFunction 
+{
+	ABS,
+	ANY_MAKE,
+	ATOMIC_LOAD,
+	ATOMIC_STORE,
+	ATOMIC_FETCH_EXCHANGE,
+	ATOMIC_FETCH_ADD,
+	ATOMIC_FETCH_SUB,
+	ATOMIC_FETCH_AND,
+	ATOMIC_FETCH_NAND,
+	ATOMIC_FETCH_OR,
+	ATOMIC_FETCH_XOR,
+	ATOMIC_FETCH_MAX,
+	ATOMIC_FETCH_MIN,
+	ATOMIC_FETCH_INC_WRAP,
+	ATOMIC_FETCH_DEC_WRAP,
+	BITREVERSE,
+	BREAKPOINT,
+	BSWAP,
+	CEIL,
+	COMPARE_EXCHANGE,
+	COPYSIGN,
+	COS,
+	CTLZ,
+	CTTZ,
+	EXACT_ADD,
+	EXACT_DIV,
+	EXACT_MOD,
+	EXACT_MUL,
+	EXACT_NEG,
+	EXACT_SUB,
+	EXP,
+	EXP2,
+	EXPECT,
+	EXPECT_WITH_PROBABILITY,
+	FENCE,
+	FLOOR,
+	FMA,
+	FMULADD,
+	FRAMEADDRESS,
+	FSHL,
+	FSHR,
+	GATHER,
+	GET_ROUNDING_MODE,
+	INT_TO_MASK,
+	LOG,
+	LOG10,
+	LOG2,
+	MATRIX_MUL,
+	MATRIX_TRANSPOSE,
+	MASK_TO_INT,
+	MASKED_LOAD,
+	MASKED_STORE,
+	MAX,
+	MEMCOPY,
+	MEMCOPY_INLINE,
+	MEMMOVE,
+	MEMSET,
+	MEMSET_INLINE,
+	MIN,
+	NEARBYINT,
+	OVERFLOW_ADD,
+	OVERFLOW_MUL,
+	OVERFLOW_SUB,
+	POPCOUNT,
+	POW,
+	POW_INT,
+	PREFETCH,
+	REDUCE_ADD,
+	REDUCE_AND,
+	REDUCE_FADD,
+	REDUCE_FMUL,
+	REDUCE_MAX,
+	REDUCE_MIN,
+	REDUCE_MUL,
+	REDUCE_OR,
+	REDUCE_XOR,
+	REVERSE,
+	RETURNADDRESS,
+	RINT,
+	RND,
+	ROUND,
+	ROUNDEVEN,
+	SAT_ADD,
+	SAT_SHL,
+	SAT_SUB,
+	SAT_MUL,
+	SCATTER,
+	SELECT,
+	SET_ROUNDING_MODE,
+	SPRINTF,
+	STR_FIND,
+	STR_HASH,
+	STR_LOWER,
+	STR_PASCALCASE,
+	STR_REPLACE,
+	STR_UPPER,
+	STR_SNAKECASE,
+	SWIZZLE,
+	SWIZZLE2,
+	SIN,
+	SQRT,
+	SYSCALL,
+	SYSCLOCK,
+	TRAP,
+	TRUNC,
+	UNALIGNED_LOAD,
+	UNALIGNED_STORE,
+	UNREACHABLE,
+	VECCOMPLT,
+	VECCOMPLE,
+	VECCOMPGT,
+	VECCOMPGE,
+	VECCOMPEQ,
+	VECCOMPNE,
+	VOLATILE_LOAD,
+	VOLATILE_STORE,
+	WASM_MEMORY_SIZE,
+	WASM_MEMORY_GROW,
+	WIDESTRING_16,
+	WIDESTRING_32,
+	NONE,
+
+	// Disabled for now!
+	LLRINT,
+	LLROUND,
+	LRINT,
+	LROUND,
+}
+
+struct TypeInfo 
+{
+	TypeInfoKind kind;
+	SourceSpan span;
+	String msg; // used when is TypeInfoKind.BAD
+
+	union 
+	{
+		struct unresolved 
+		{
+			CPath* path;
+			String name;
+		}
+
+		Expr* unresolved_type_expr;
+
+		struct array 
+		{
+			TypeInfo* base;
+			Expr* len;
+		}
+
+		TypeInfo* pointer;
+
+		struct generic 
+		{
+			TypeInfo* base;
+			List{ Expr* } params;
+		}
+	}
+
+	bool optional;
+	bool in_def;
+	bool is_simd;
+}
+
+struct Attribute 
+{
+	List{ Expr* } exprs;
+	CPath path;
+	String name;
+	SourceSpan span;
+	AttributeKind kind;
+	bool is_custom;
 }

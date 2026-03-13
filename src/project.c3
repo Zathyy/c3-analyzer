@@ -100,6 +100,7 @@ fn void? parse_file(Project* project, Path path)
 
 	// prime
 	parser::advance(&parser)!;
+	parser::advance(&parser)!;
 
 	while (!parser.eof())
 	{

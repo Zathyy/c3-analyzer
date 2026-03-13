@@ -5,12 +5,8 @@ import std::io;
 import c3_parser::parser;
 import c3_parser::project;
 
-char[*] test_file = $embed("../test/test_file.c3");
-
 fn int main(String[] args) => @pool()
 {
-	String src = (String)&test_file;
-
 	log::set_priority_all(LogPriority.VERBOSE);
 
 	log::debug("init..");

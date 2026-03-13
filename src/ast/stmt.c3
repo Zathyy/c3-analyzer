@@ -1,11 +1,18 @@
 module c3_parser::ast;
 
 import std::io;
+import std::collections::list;
+
 import c3_parser::common;
 
-enum StmtType
+fn bool stmt_ok(Stmt* stmt)
 {
-	BAD,
+	return stmt != null && stmt.kind != StmtKind.INVALID;
+}
+
+enum StmtKind
+{
+	INVALID,
 	COMPOUND, // the body of a function
 	RETURN,
 	DECL,
@@ -15,7 +22,8 @@ enum StmtType
 
 struct Stmt
 {
-	StmtType type;
+	StmtKind kind;
+	SourceSpan span;
 
 	union
 	{
@@ -28,16 +36,14 @@ struct Stmt
 
 struct CompoundStmt
 {
-	SourceSpan body;
-	Stmt*[] stmts;
+	List{ Stmt* } stmts;
 }
 
 <*
-	// a Decleration which is inside a Block
-		BlockStmt
-		{ 
-			int my_var = 1; <- DeclStmt
-		}
+	// a Decleration which is inside a Compound
+	{ 
+		int my_var = 1; <- DeclStmt
+	}
 *>
 struct DeclStmt
 {	

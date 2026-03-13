@@ -5,118 +5,157 @@ import c3::lexer;
 import c3_parser::common;
 import std::collections::list;
 
-fn Decl*? parse_module(Parser* parser)
+macro Decl* make_invalid_decl(Parser* p, Decl* decl)
 {
-	expect(parser, TokenType.MODULE)!;
+	decl.kind = DeclKind.INVALID;
+	decl.span = p.span;
+	return decl;
+}
+
+//TODO: make use of DeclKind.INVALID
+fn Decl*? parse_module(Parser* p)
+{
+	expect(p, TokenType.MODULE)!;
     
     Decl* decl = mem::tnew(Decl);
-    decl.type = DeclType.MODULE;
-	decl.span = parser.span;
-    decl.mod.path = parse_path(parser)!;
+	defer (catch err)
+	{
+		allocator::free(tmem, decl);
+	}
+    decl.kind = DeclKind.MODULE;
+	decl.span = p.span;
+    decl.mod.path = parse_path(p)!;
 	//TODO: generics, attributes
-    expect(parser, TokenType.EOS)!;
-	decl.span = decl.span.combine(parser.span);
+    expect(p, TokenType.EOS)!;
+	decl.span = decl.span.combine(p.span);
     return decl;
 }
 
-fn void? parse_import(Parser* parser)
+//TODO: make use of DeclKind.INVALID
+fn void? parse_import(Parser* p)
 {
-	expect(parser, TokenType.IMPORT)!;
-    
+	expect(p, TokenType.IMPORT)!;
     Decl* decl = mem::tnew(Decl);
-    decl.type = DeclType.IMPORT;
-	decl.span = parser.span;
-    decl.imp.path = parse_path(parser)!;
-    expect(parser, TokenType.EOS)!;
-	decl.span = decl.span.combine(parser.span);
-	parser.section.ast.decls.push(decl);
-	log::debug("Token after import: %s", parser.token);
+	defer (catch err)
+	{
+		allocator::free(tmem, decl);
+	}
+    decl.kind = DeclKind.IMPORT;
+	decl.span = p.span;
+    decl.imp.path = parse_path(p)!;
+    expect(p, TokenType.EOS)!;
+	decl.span = decl.span.combine(p.span);
+	p.section.ast.decls.push(decl);
+	log::debug("Token after import: %s", p.token);
 }
 
-fn void? parse_function(Parser* parser)
+//TODO: make use of DeclKind.INVALID
+fn void? parse_function(Parser* p)
 {
-	expect(parser, TokenType.FUNC)!;
-
+	expect(p, TokenType.FUNC)!;
 	Decl* decl = mem::tnew(Decl);
-	decl.type = DeclType.FUNC;
-	SourceSpan start = parser.span;
+	defer (catch err)
+	{
+		allocator::free(tmem, decl);
+	}
+	decl.kind = DeclKind.FUNC;
+	SourceSpan start = p.span;
 	
 	//TODO: parse type
-	if (token_is(parser, TokenType.TYPE_IDENT))
+	if (token_is(p, TokenType.TYPE_IDENT))
 	{
-		consume(parser, TokenType.TYPE_IDENT)!;
+		consume(p, TokenType.TYPE_IDENT)!;
 	}
 
-	decl.func.ret_type = parser.token.text;
-	advance(parser)!;
+	decl.func.ret_type = p.token.text;
+	advance(p)!;
 
-	if (!token_is(parser, TokenType.IDENT))
+	if (!token_is(p, TokenType.IDENT))
 	{
-		parser.error("Expected function name after return type");
+		p.error("Expected function name after return type");
 		return UNEXPECTED_TOKEN~;
 	}
 
-	decl.name = parser.token.text;
-	advance(parser)!;
+	decl.name = p.token.text;
+	advance(p)!;
 
-	consume(parser, TokenType.LPAREN)!;
+	consume(p, TokenType.LPAREN)!;
 
 	// just simulate parsing args for now
-	while (!token_is(parser, TokenType.RPAREN))
+	while (!token_is(p, TokenType.RPAREN))
 	{
-		advance(parser)!;
+		advance(p)!;
 	}
 
-	advance(parser)!;
+	advance(p)!;
 
 	// skip last paren
 
-	if (token_is(parser, TokenType.LBRACE))
+	if (token_is(p, TokenType.LBRACE))
 	{
-		decl.func.block = parse_compound(parser)!;
+		decl.func.compound = parse_compound(p)!;
 	}
 
 	decl.span = decl.span.combine(start);
-	parser.section.ast.decls.push(decl);
+	p.section.ast.decls.push(decl);
 }
 
 <*
 	global ::= TLOCAL? optional_type IDENT (('=' expression)? | (',' IDENT)* opt_attributes) ';'
+	@return? consume!, expect!, UNEXPECTED_TOKEN
 *>
-fn void? parse_global(Parser* parser)
+fn void? parse_global(Parser* p)
 {
-	bool is_thread_local = consume(parser, TokenType.TLOCAL)!;
+	bool is_thread_local = consume(p, TokenType.TLOCAL)!;
     
     // Use a local list that clean up easily
     List{Decl*} decls;
     decls.init(tmem, 4); 
+	defer (catch err)
+	{
+		decls.free();
+	}
 
     do {
         Decl* decl = mem::tnew(Decl);
-        decl.type = DeclType.VAR;
+        decl.kind = DeclKind.VAR;
         decl.var_decl.kind = VarDeclKind.GLOBAL;
         decl.var_decl.is_threadlocal = is_thread_local;
 
-        expect(parser, TokenType.IDENT)!;
-        decl.name = parser.token.text;
+        expect(p, TokenType.IDENT)!;
+        decl.name = p.token.text;
         
         decls.push(decl);
-    } while (consume(parser, TokenType.COMMA)!);
+    } while (consume(p, TokenType.COMMA)!);
 
-    if (consume(parser, TokenType.EQ)!)
+    if (consume(p, TokenType.EQ)!)
     {
         if (decls.len() > 1)
         {
-            parser.error("Initialization is not allowed with multiple declarations.");
+            p.error("Initialization is not allowed with multiple declarations.");
             return UNEXPECTED_TOKEN~;
         }
         // TODO: parse_expression()
     }
 
-    expect(parser, TokenType.EOS)!;
+    expect(p, TokenType.EOS)!;
 
     foreach (d : decls) 
 	{
-		parser.section.ast.decls.push(d);
+		p.section.ast.decls.push(d);
 	}
+}
+
+fn Decl*? parse_var_decl(Parser* p)
+{
+	Decl* decl = mem::tnew(Decl);
+	defer (catch err)
+	{
+		allocator::free(tmem, decl);
+	}
+	decl.kind = DeclKind.VAR;
+	decl.var_decl.kind = VarDeclKind.GLOBAL;
+
+
+	return decl;
 }

@@ -5,11 +5,14 @@ import std::collections::list;
 
 import c3_parser::common;
 
-Decl bad_decl = { .type = DeclType.BAD };
-
-enum DeclType
+fn bool decl_ok(Decl* decl)
 {
-	BAD,
+	return decl != null && decl.kind != DeclKind.INVALID;
+}
+
+enum DeclKind
+{
+	INVALID,
 	MODULE,
 	IMPORT,
 	FUNC,
@@ -25,7 +28,7 @@ struct Decl (Printable)
 	String extname;
 	String comment;
 	SourceSpan span;
-	DeclType type;
+	DeclKind kind;
 
 	union
 	{
@@ -44,7 +47,7 @@ struct FuncDecl
 	// range of whole args definition of function (includes parentheses)
 	// TODO: turn this into a slice of AST node variables
 	String args;
-	Stmt* block;
+	Stmt* compound;
 }
 
 <*
@@ -64,20 +67,20 @@ struct VarDecl
 	}
 }
 
-struct EnumDecl 
+struct EnumDecl
 {
-	Decl*[] values;
-	Decl*[] parameters;
+	List{ Decl* } values;
+	List{ Decl* } parameters;
 }
 
 struct ModuleDecl 
 {
-	CPath path;
+	CPath* path;
 }
 
 struct ImportDecl 
 {
-	CPath path;
+	CPath* path;
 }
 
 struct AliasDecl 

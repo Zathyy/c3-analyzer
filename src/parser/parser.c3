@@ -64,60 +64,10 @@ fn bool Parser.eof(&self) @inline
 	return token_is(self, TokenType.EOF);
 }
 
-//TODO: better way?
 fn bool is_keyword_ident(TokenType type) 
 {
-	switch (type) 
-	{
-		case ALIAS:
-		case ASM:
-		case ASSERT:
-		case ATTRDEF:
-		case BITSTRUCT:
-		case CONST:
-		case CONSTDEF:
-		case ENUM:
-		case FAULTDEF:
-		case FUNC:
-		case IMPORT:
-		case INTERFACE:
-		case MACRO:
-		case MODULE:
-		case STRUCT:
-		case UNION:
-		case TYPEDEF:
-		case BREAK:
-		case CASE:
-		case CATCH:
-		case CONTINUE:
-		case DEFAULT:
-		case DEFER:
-		case DO:
-		case ELSE:
-		case EXTERN:
-		case FALSE:
-		case FOR:
-		case FOREACH:
-		case FOREACH_R:
-		case IF:
-		case INLINE:
-		case LENGTHOF:
-		case NEXTCASE:
-		case NULL:
-		case RETURN:
-		case STATIC:
-		case SWITCH:
-		case TLOCAL:
-		case TRUE:
-		case TRY:
-		case VAR:
-		case WHILE:
-			return true;
-		default:
-			break;
-	}
-
-	return false;
+	return type >= TokenType.ALIAS
+		&& type <= TokenType.WHILE;
 }
 
 fn bool is_some_ident(TokenType type) 
@@ -129,18 +79,21 @@ fn bool is_some_ident(TokenType type)
 		case CONST_IDENT:
 			return true;
 		default:
-			break;
+			return false;
 	}
-
-	return false;
 }
 
 <*
-	@param [&inout] parser
+	@param [&in] parser
 *>
 fn bool token_is(Parser* parser, TokenType type) @inline 
 {
 	return parser.token.type == type;
+}
+
+fn TokenType peek(Parser* p) @inline
+{
+	return p.next.type;
 }
 
 <*
@@ -153,9 +106,15 @@ fn void? advance(Parser* parser)
 		return io::EOF~;
 	}
 
-	parser.token = parser.lexer.next()!;
+	parser.token = parser.next;
+
 	parser.span.start = parser.token.offset;
 	parser.span.end =  parser.token.offset + parser.token.len - 1;
+
+	if (!token_is(parser, TokenType.EOF))
+	{
+		parser.next = parser.lexer.next()!;
+	}
 }
 
 <*
@@ -189,13 +148,23 @@ fn bool? consume(Parser* parser, TokenType type)
 
 <*
 	@param [&inout] parser
+	@return? expect!, consume!
 *>
-fn CPath? parse_path(Parser* parser)
+fn CPath*? parse_path(Parser* parser)
 {
+	if (!token_is(parser, TokenType.IDENT) || peek(parser) != TokenType.SCOPE)
+	{
+		return null;
+	}
+
 	SourceSpan start = parser.span;
     SourceSpan end = parser.span;
 
-	CPath path;
+	CPath* path = mem::tnew(CPath);
+	defer (catch err)
+	{
+		mem::free(path);
+	}
 
     while (true) 
     {
