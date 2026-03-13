@@ -79,7 +79,7 @@ fn void? parse_function(Parser* p)
 	decl.name = p.token.text;
 	advance(p)!;
 
-	consume(p, TokenType.LPAREN)!;
+	expect(p, TokenType.LPAREN)!;
 
 	// just simulate parsing args for now
 	while (!token_is(p, TokenType.RPAREN))
@@ -98,6 +98,7 @@ fn void? parse_function(Parser* p)
 
 	decl.span = decl.span.combine(start);
 	p.section.ast.decls.push(decl);
+	log::debug("parsed function %s", decl.name);
 }
 
 <*

@@ -113,7 +113,10 @@ fn void? advance(Parser* parser)
 
 	if (!token_is(parser, TokenType.EOF))
 	{
-		parser.next = parser.lexer.next()!;
+		if (!@ok(@try(parser.next, parser.lexer.next())))
+		{
+			parser.next.type = TokenType.EOF;
+		}
 	}
 }
 
@@ -199,8 +202,9 @@ fn void? parse(Parser* parser)
 			return FOUND_MODULE~;
 		};
 
-		if (catch parse_top_level_statement(parser))
+		if (catch err = parse_top_level_statement(parser))
 		{
+			log::debug("failed to parse top_level_stmt: %s", err);
 			advance(parser)!;
 			continue;
 		}

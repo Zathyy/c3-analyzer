@@ -11,3 +11,5 @@ fn void some_other_function(char arg)
 {
 	io::printn("hello there");
 }
+
+
