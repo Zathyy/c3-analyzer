@@ -59,6 +59,10 @@ macro void Parser.error(self, String format, ...)
 	$endif
 }
 
+<*
+	synchronize the top level/recover top level
+	@param [&inout] p
+*>
 fn void synchronize(Parser* p)
 {
     if (catch advance(p)) return;
@@ -67,7 +71,6 @@ fn void synchronize(Parser* p)
     {
         if (p.token.type == TokenType.EOS)
         {
-			// Consume ';'
             (void)advance(p);
             return;
         }
@@ -81,7 +84,7 @@ fn void synchronize(Parser* p)
             case TokenType.MODULE:
             case TokenType.CONST:
             case TokenType.ENUM:
-                return; // Stop here, the next loop iteration will handle these
+                return; // The next loop iteration will handle these
             default:
                 (void)advance(p);
                 break;
