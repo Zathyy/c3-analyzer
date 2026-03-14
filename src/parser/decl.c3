@@ -5,11 +5,10 @@ import c3::lexer;
 import c3_parser::common;
 import std::collections::list;
 
-macro Decl* make_invalid_decl(Parser* p, Decl* decl)
+macro void make_invalid_decl(Parser* p, Decl* decl)
 {
 	decl.kind = DeclKind.INVALID;
 	decl.span = p.span;
-	return decl;
 }
 
 //TODO: make use of DeclKind.INVALID

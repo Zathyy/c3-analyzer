@@ -237,7 +237,6 @@ struct TypeInfo
 {
 	TypeInfoKind kind;
 	SourceSpan span;
-	String msg; // used when is TypeInfoKind.BAD
 
 	union 
 	{

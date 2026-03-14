@@ -59,6 +59,36 @@ macro void Parser.error(self, String format, ...)
 	$endif
 }
 
+fn void synchronize(Parser* p)
+{
+    if (catch advance(p)) return;
+
+    while (!p.eof())
+    {
+        if (p.token.type == TokenType.EOS)
+        {
+			// Consume ';'
+            (void)advance(p);
+            return;
+        }
+
+        // Keywords which are top-lever (Decl)
+        switch (p.token.type)
+        {
+            case TokenType.FUNC:
+            case TokenType.STRUCT:
+            case TokenType.IMPORT:
+            case TokenType.MODULE:
+            case TokenType.CONST:
+            case TokenType.ENUM:
+                return; // Stop here, the next loop iteration will handle these
+            default:
+                (void)advance(p);
+                break;
+        }
+    }
+}
+
 fn bool Parser.eof(&self) @inline
 {
 	return token_is(self, TokenType.EOF);
@@ -111,12 +141,9 @@ fn void? advance(Parser* parser)
 	parser.span.start = parser.token.offset;
 	parser.span.end =  parser.token.offset + parser.token.len - 1;
 
-	if (!token_is(parser, TokenType.EOF))
+	if (!@ok(@try(parser.next, parser.lexer.next())))
 	{
-		if (!@ok(@try(parser.next, parser.lexer.next())))
-		{
-			parser.next.type = TokenType.EOF;
-		}
+		parser.next.type = TokenType.EOF;
 	}
 }
 
@@ -203,9 +230,14 @@ fn void? parse(Parser* parser)
 		};
 
 		if (catch err = parse_top_level_statement(parser))
-		{
+		{	
 			log::debug("failed to parse top_level_stmt: %s", err);
-			advance(parser)!;
+			
+			Decl* inv_decl = mem::tnew(Decl);
+			make_invalid_decl(parser, inv_decl);
+			parser.section.ast.decls.push(inv_decl);
+
+			synchronize(parser);
 			continue;
 		}
 	}
@@ -232,5 +264,6 @@ fn void? parse_top_level_statement(Parser* parser)
 		break;
 	}
 
+	log::debug("parse_top_level_statement - couldn't find any matching top level decleration: %s", parser.token);
 	return UNEXPECTED_TOKEN~;
 }
