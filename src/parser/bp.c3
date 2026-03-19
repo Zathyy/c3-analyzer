@@ -95,7 +95,8 @@ fn Expr*? parse_prefix(Parser* p)
 
     switch (type)
     {
-        case TokenType.IDENT: return parse_ident(p)!;
+        case TokenType.IDENT: 
+			return parse_ident(p)!;
         case TokenType.INTEGER:
 		case TokenType.REAL:
 		case TokenType.STRING:

@@ -139,7 +139,8 @@ fn void? parse_global(Parser* p)
 		}
         
         decls.push(decl);
-    } while (consume(p, TokenType.COMMA)!);
+    } 
+	while (consume(p, TokenType.COMMA)!);
 
     if (consume(p, TokenType.EQ)!)
     {
@@ -150,7 +151,15 @@ fn void? parse_global(Parser* p)
         }
 
 		// Parse the init expression, eg. int a = 2;
-		decls.first()!.var_decl.init_expr = parse_expr(p)!;
+		Expr*? expr = parse_expr(p);
+		
+		if (catch err = expr) 
+		{
+			p.error("Expected a valid expr");
+			return err~;
+		}
+
+		decls.first()!.var_decl.init_expr = expr;
     }
 
     expect(p, TokenType.EOS)!;
@@ -158,6 +167,7 @@ fn void? parse_global(Parser* p)
     foreach (d : decls) 
 	{
 		append_decl(p, d);
+		log::debug("parsed global: %s", d.name);
 	}
 }
 
@@ -261,6 +271,8 @@ fn void? parse_typedef(Parser* p)
 	expect(p, TokenType.EQ)!;
 
 	decl.typedef_decl.type = parse_type(p)!;
+
+	expect(p, TokenType.EOS)!;
 
 	append_decl(p, decl);
 }

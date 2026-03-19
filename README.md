@@ -12,6 +12,7 @@ Most of the api should be stable but its still in early developement
 
 # TODOS
 - Cleanup utils/ast.c3, its getting pretty messy
+- More tests, there should be tests for every situation the parser might be put to!.
 - Implement more features
 - More/Better error handling?
 - Custom Lexer or rewrite the current to be more memory efficient?
@@ -28,13 +29,17 @@ Types should be working aswell as generics
 Declerations aka Top level statements
 </p>
 
+✅ = Fully implemented, but that doesn't mean it's bullet proof!
+🟡 = Partially implmented
+❌ = Not yet implemented
+
 | Feature | Status | Notes |
 | :--- | :---: | :--- |
 | **module** | 🟡 | attributes, generics are not implemented
 | **import** | ✅ | 
 | **alias** | 🟡 | 
 | **typedef** | 🟡 | supports typedef MyType = 'Type'
-| **function** | ✅ | except for functions using ´=>´
+| **function** | 🟡 | except for functions using ´=>´
 | **macro** | ❌ | 
 | **struct** | ❌ | 
 | **enum** | ❌ | 

@@ -285,6 +285,13 @@ fn void? parse_top_level_statement(Parser* parser)
 	// TODO: Contracts
 
 	TokenType type = parser.token.type;
+
+	// catch forgetting to consume the EOS
+	if (type == TokenType.EOS) 
+	{
+		parser.error("<EOS> appeared in parse_top_level");
+	}
+
 	log::debug("parse_top_level_statement: %s", parser.token);
 
 	parse_comment(parser);

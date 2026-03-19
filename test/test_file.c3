@@ -8,7 +8,7 @@ alias MyListType = List{ float };
 
 typedef MyType = float;
 
-uint my_global_variable;
+uint my_global_variable = 5 * 10;
 
 <*
 	brrrrrrrrrrrrrrrrrrp

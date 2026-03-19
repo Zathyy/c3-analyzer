@@ -87,6 +87,13 @@ fn void print_decl(Decl* decl, String prefix, bool is_last)
 			(void)io::print("VarDecl: ");
 			print_type(decl.var_decl.type_info);
             io::printfn(" %s", decl.name);
+
+			if (decl.var_decl.init_expr)
+			{
+				String child_prefix = make_child_prefix(prefix, is_last);
+				print_expr(decl.var_decl.init_expr, child_prefix, false);
+			}
+
             break;
 		}
 		case ALIAS:
