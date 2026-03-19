@@ -29,14 +29,16 @@ Types should be working aswell as generics
 Declerations aka Top level statements
 </p>
 
-✅ = Fully implemented, but that doesn't mean it's bullet proof!
-🟡 = Partially implmented
-❌ = Not yet implemented
+<p>
+✅ = Fully implemented, but that doesn't mean it's bullet proof! <br>
+🟡 = Partially implmented <br>
+❌ = Not yet implemented <br>
+</p>
 
 | Feature | Status | Notes |
 | :--- | :---: | :--- |
 | **module** | 🟡 | attributes, generics are not implemented
-| **import** | ✅ | 
+| **import** | 🟡 | mostly working, missing multi decleration, attributes? (@public)
 | **alias** | 🟡 | 
 | **typedef** | 🟡 | supports typedef MyType = 'Type'
 | **function** | 🟡 | except for functions using ´=>´
@@ -45,7 +47,7 @@ Declerations aka Top level statements
 | **enum** | ❌ | 
 | **constdef** | ❌ | 
 | **contract** | ❌ | 
-| **globals** | ✅ | global variables
+| **globals** | 🟡 | global variables, missing attributes
 
 
 ## Statements

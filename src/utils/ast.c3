@@ -280,9 +280,17 @@ fn void print_expr(Expr* expr, String prefix, bool is_last)
             }
             break;
         }
+		case ExprKind.UNARY:
+		{
+			io::printf("UnaryExpr (%s)\n", expr.unary_expr.op);
+			
+			String child_prefix = make_child_prefix(prefix, is_last);
+			print_expr(expr.unary_expr.rhs, child_prefix, true); 
+			break;
+		}
 
         default:
-            io::printf("Expr (Kind: %d)\n", (int)expr.kind);
+            io::printf("Missing case for: Expr (Kind: %s)\n", expr.kind);
             break;
     }
 }
