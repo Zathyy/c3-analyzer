@@ -151,10 +151,8 @@ fn void print_func_decl(Decl* decl, String prefix)
         }
     }
 
-    // --- Body ---
     if (decl.func.compound != null)
     {
-        // Pass 'true' because the CompoundStmt is the final child of the function
         print_stmt(decl.func.compound, prefix, true);
     }
 }
@@ -181,6 +179,17 @@ fn void print_stmt(Stmt* stmt, String prefix, bool is_last)
             }
             break;
         }
+		case DEFER: 
+		{
+            io::printfn("DeferStmt: is_catch = %s", stmt.defer_stmt.is_catch);
+			
+			if (stmt.defer_stmt.stmt)
+			{
+                String child_prefix = make_child_prefix(prefix, is_last);
+				print_stmt(stmt.defer_stmt.stmt, child_prefix, true);
+			}
+			break;
+		}
 		case COMPOUND:
 		{   
 			io::print("CompoundStmt\n");
@@ -198,11 +207,15 @@ fn void print_stmt(Stmt* stmt, String prefix, bool is_last)
 		case DECL:
 		{
 			io::printn("DeclStmt");
-			String child_prefix = make_child_prefix(prefix, false);
-       		(void)io::printf("%s", child_prefix);
-			
-			io::printf("%s", stmt.decl_stmt.decl.name);
-
+			String child_prefix = make_child_prefix(prefix, true);
+       		print_decl(stmt.decl_stmt.decl, child_prefix, true);
+			break;
+		}
+		case EXPR:
+		{
+			io::printn("ExprStmt");
+			String child_prefix = make_child_prefix(prefix, true);
+       		print_expr(stmt.expr_stmt.expr, child_prefix, true);
 			break;
 		}
         default:
@@ -247,7 +260,7 @@ fn void print_expr(Expr* expr, String prefix, bool is_last)
         case ExprKind.CALL:
         {
             io::print("CallExpr\n");
-            String child_prefix = make_child_prefix(prefix, is_last);
+            String child_prefix = make_child_prefix(prefix, true);
             
             print_expr(expr.call_expr.callee, child_prefix, expr.call_expr.args.len() == 0);
             

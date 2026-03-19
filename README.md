@@ -48,7 +48,7 @@ Declerations aka Top level statements
 | :--- | :---: | :--- |
 | **compound** | ✅ |
 | **return** | ✅ |
-| **defer** | ❌ |
+| **defer** | ✅ |
 | **Decleration/DeclStmt** | ✅ | aka local variable
 | **Expression/ExprStmt** | ✅ | 
 

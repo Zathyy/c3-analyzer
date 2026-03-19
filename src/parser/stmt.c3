@@ -23,6 +23,8 @@ fn Stmt*? parse_stmt(Parser* p)
 			return parse_decl_stmt(p)!;
 		case TokenType.RETURN:
 			return parse_return(p)!;
+		case TokenType.DEFER:
+			return parse_defer(p)!;
 		default:
 		{
 			if (is_type_start(type))
@@ -128,6 +130,10 @@ fn Stmt*? parse_defer(Parser* p)
 	Stmt* stmt = mem::tnew(Stmt);
 	stmt.kind = StmtKind.DEFER;
 
+	defer (catch err) {
+		allocator::free(tmem, stmt);
+	}
+
 	if (consume(p, TokenType.TRY)!)
 	{
 		stmt.defer_stmt.is_try = true;
@@ -149,9 +155,10 @@ fn Stmt*? parse_defer(Parser* p)
 		expect(p, TokenType.IDENT)!;
 		expect(p, TokenType.RPAREN)!;
 
-		stmt.defer_stmt.compound = parse_compound(p)!;
 		stmt.defer_stmt.is_catch = true;
 	}
+	
+	stmt.defer_stmt.stmt = parse_stmt(p)!;
 
 	return stmt;
 }
@@ -164,7 +171,7 @@ fn Stmt*? parse_return(Parser* p)
     Expr* expr = null;
     if (!token_is(p, TokenType.EOS))
     {
-        expr = parse_expr(p, 0)!;
+        expr = parse_expr(p)!;
     }
 
     expect(p, TokenType.EOS)!;

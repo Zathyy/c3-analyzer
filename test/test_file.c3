@@ -25,7 +25,15 @@ fn void parse(uint value)
 *>
 fn int foo(uint value)
 {
-	return 0;
+	defer (catch err)
+	{
+
+	}
+
+	defer {
+		parse(2);
+	}
+
 }
 
 <*

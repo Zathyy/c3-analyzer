@@ -65,8 +65,7 @@ struct ReturnStmt
 
 struct DeferStmt 
 {
-	SourceSpan def;
-	Stmt* compound;
+	Stmt* stmt; //compound or normal stmt
 	bool is_try;
 	bool is_catch;
 }

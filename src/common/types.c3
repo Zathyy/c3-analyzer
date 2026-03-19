@@ -305,7 +305,7 @@ struct TypeInfoIdent
     String name; // "int", "bool", "MyStruct", etc.
 }
 
-struct TypeInfo 
+struct TypeInfo
 {
     SourceSpan span;
     void* data;           // Pointer to the specific syntax payload
