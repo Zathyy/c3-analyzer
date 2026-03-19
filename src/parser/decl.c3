@@ -148,8 +148,9 @@ fn void? parse_global(Parser* p)
             p.error("Initialization is not allowed with multiple declarations.");
             return UNEXPECTED_TOKEN~;
         }
-        
-		unreachable("blablabla");
+
+		// Parse the init expression, eg. int a = 2;
+		decls.first()!.var_decl.init_expr = parse_expr(p)!;
     }
 
     expect(p, TokenType.EOS)!;
@@ -177,8 +178,6 @@ fn Decl*? parse_var_decl(Parser* p)
 fn void? parse_alias_ident(Parser* p, Decl* decl)
 {
 	decl.name = p.token.text;
-	p.@take_comment(decl);
-
 	advance(p)!;
 
 	//TODO: Attributes.	
@@ -255,8 +254,13 @@ fn void? parse_typedef(Parser* p)
 	}
 	decl.kind = DeclKind.TYPEDEF;
 
+	decl.name = p.token.text;
+	
+	expect(p, TokenType.TYPE_IDENT)!;
 
+	expect(p, TokenType.EQ)!;
 
+	decl.typedef_decl.type = parse_type(p)!;
 
 	append_decl(p, decl);
 }

@@ -16,7 +16,6 @@ enum StmtKind
 	COMPOUND, // the body of a function
 	RETURN,
 	DECL,
-	VAR,
 	DEFER,
 	EXPR,
 }

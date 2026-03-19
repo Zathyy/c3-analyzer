@@ -112,7 +112,9 @@ fn void print_decl(Decl* decl, String prefix, bool is_last)
 		}
 		case TYPEDEF:
 		{
-			(void)io::printf("TypedefDecl: %s\n", decl.name);
+			(void)io::printf("TypedefDecl: %s = ", decl.name);
+			print_type(decl.typedef_decl.type);
+			io::printn();
             break;
 		}
 		default:

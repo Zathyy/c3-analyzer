@@ -46,6 +46,7 @@ struct Decl (Printable)
 		ImportDecl imp;
 		VarDecl var_decl;
 		AliasDecl alias_decl;
+		TypedefDecl typedef_decl;
 		ContractDecl contract;
 		// more types go here later
 	}
@@ -125,7 +126,7 @@ struct AliasDecl
 
 struct TypedefDecl
 {
-	Decl* decl;
+	TypeInfo* type;
 }
 
 struct ContractDecl
