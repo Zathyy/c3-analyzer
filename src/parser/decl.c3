@@ -11,6 +11,14 @@ macro void make_invalid_decl(Parser* p, Decl* decl)
 	decl.span = p.span;
 }
 
+<*
+	@require p.section != null
+*>
+fn void append_decl(Parser* p, Decl* decl)
+{
+	p.section.ast.decls.push(decl);	
+}
+
 //TODO: make use of DeclKind.INVALID
 fn Decl*? parse_module(Parser* p)
 {
@@ -60,14 +68,7 @@ fn void? parse_function(Parser* p)
 	decl.kind = DeclKind.FUNC;
 	SourceSpan start = p.span;
 	
-	//TODO: parse type
-	if (token_is(p, TokenType.TYPE_IDENT))
-	{
-		consume(p, TokenType.TYPE_IDENT)!;
-	}
-
-	decl.func.ret_type = p.token.text;
-	advance(p)!;
+	decl.func.ret_type = parse_type(p)!;
 
 	if (!token_is(p, TokenType.IDENT))
 	{
@@ -80,15 +81,18 @@ fn void? parse_function(Parser* p)
 
 	expect(p, TokenType.LPAREN)!;
 
-	// just simulate parsing args for now
-	while (!token_is(p, TokenType.RPAREN))
-	{
-		advance(p)!;
-	}
+	decl.func.params.tinit(4);
 
-	advance(p)!;
+	if (!token_is(p, TokenType.RPAREN))
+    {
+        do 
+		{
+            decl.func.params.push(parse_param_decl(p)!);
+        } 
+		while (consume(p, TokenType.COMMA)!);
+    }
 
-	// skip last paren
+	expect(p, TokenType.RPAREN)!;
 
 	if (token_is(p, TokenType.LBRACE))
 	{
@@ -96,7 +100,7 @@ fn void? parse_function(Parser* p)
 	}
 
 	decl.span = decl.span.combine(start);
-	p.section.ast.decls.push(decl);
+	append_decl(p, decl);
 	log::debug("parsed function %s", decl.name);
 }
 
@@ -108,22 +112,31 @@ fn void? parse_global(Parser* p)
 {
 	bool is_thread_local = consume(p, TokenType.TLOCAL)!;
     
+	TypeInfo* info = parse_type(p)!;
+
     // Use a local list that clean up easily
     List{Decl*} decls;
     decls.init(tmem, 4); 
-	defer (catch err)
-	{
-		decls.free();
-	}
+	defer decls.free();
 
-    do {
+    do 
+	{
         Decl* decl = mem::tnew(Decl);
         decl.kind = DeclKind.VAR;
         decl.var_decl.kind = VarDeclKind.GLOBAL;
         decl.var_decl.is_threadlocal = is_thread_local;
+		decl.var_decl.type_info = info;
 
-        expect(p, TokenType.IDENT)!;
-        decl.name = p.token.text;
+        if (token_is(p, TokenType.IDENT))
+		{
+        	decl.name = p.token.text;
+			advance(p)!;
+		}
+		else
+		{
+			p.error("Expected Identifier for global variable");
+			return UNEXPECTED_TOKEN~;
+		}
         
         decls.push(decl);
     } while (consume(p, TokenType.COMMA)!);
@@ -135,14 +148,15 @@ fn void? parse_global(Parser* p)
             p.error("Initialization is not allowed with multiple declarations.");
             return UNEXPECTED_TOKEN~;
         }
-        // TODO: parse_expression()
+        
+		unreachable("blablabla");
     }
 
     expect(p, TokenType.EOS)!;
 
     foreach (d : decls) 
 	{
-		p.section.ast.decls.push(d);
+		append_decl(p, d);
 	}
 }
 
@@ -158,4 +172,112 @@ fn Decl*? parse_var_decl(Parser* p)
 
 
 	return decl;
+}
+
+fn void? parse_alias_ident(Parser* p, Decl* decl)
+{
+	decl.name = p.token.text;
+	p.@take_comment(decl);
+
+	advance(p)!;
+
+	//TODO: Attributes.	
+
+	expect(p, TokenType.EQ)!;
+
+	if (token_is(p, TokenType.MODULE))
+	{
+
+	}
+}
+
+fn void? parse_alias_type(Parser* p, Decl* decl)
+{
+	decl.name = p.token.text;
+	advance(p)!;
+
+	//TODO: Attributes.
+
+	expect(p, TokenType.EQ)!;
+
+	if (consume(p, TokenType.FUNC)!)
+	{
+		decl.alias_decl.kind = AliasKind.FUNC;
+
+		Decl* decl_type = mem::tnew(Decl);
+		decl_type.kind = DeclKind.FUNC;
+		
+		decl.alias_decl.type.decl = decl_type;
+		
+		expect(p, TokenType.EOS)!;
+
+		return;
+	}
+
+	decl.alias_decl.kind = AliasKind.TYPE;
+	decl.alias_decl.type.type_info = parse_type(p)!;
+
+	expect(p, TokenType.EOS)!;
+}
+
+fn void? parse_alias(Parser* p)
+{
+	expect(p, TokenType.ALIAS)!;
+
+	Decl* decl = mem::tnew(Decl);
+	defer (catch err)
+	{
+		allocator::free(tmem, decl);
+	}
+
+	decl.kind = DeclKind.ALIAS;
+
+	if (token_is(p, TokenType.TYPE_IDENT))
+	{
+		parse_alias_type(p, decl)!;
+	}
+	else
+	{
+		parse_alias_ident(p, decl)!;
+	}
+
+	append_decl(p, decl);
+}
+
+fn void? parse_typedef(Parser* p)
+{
+	expect(p, TokenType.TYPEDEF)!;
+
+	Decl* decl = mem::tnew(Decl);
+	defer (catch err)
+	{
+		allocator::free(tmem, decl);
+	}
+	decl.kind = DeclKind.TYPEDEF;
+
+
+
+
+	append_decl(p, decl);
+}
+
+fn Decl*? parse_param_decl(Parser* p)
+{
+    TypeInfo* type = parse_type(p)!;
+    
+    if (!token_is(p, TokenType.IDENT))
+    {
+        p.error("Expected parameter name");
+        return UNEXPECTED_TOKEN~;
+    }
+    
+    String name = p.token.text;
+    SourceSpan span = type.span.combine(p.span);
+    advance(p)!;
+
+    Decl* decl = mem::tnew(Decl);
+    decl.name = name;
+    decl.var_decl.type_info = type;
+    decl.span = span;
+    return decl;
 }

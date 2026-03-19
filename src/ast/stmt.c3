@@ -18,6 +18,7 @@ enum StmtKind
 	DECL,
 	VAR,
 	DEFER,
+	EXPR,
 }
 
 struct Stmt
@@ -31,6 +32,7 @@ struct Stmt
 		ReturnStmt return_stmt;
 		DeclStmt decl_stmt;
 		DeferStmt defer_stmt;
+		ExprStmt expr_stmt;
 	}
 }
 
@@ -58,7 +60,7 @@ struct ExprStmt
 
 struct ReturnStmt
 {
-	SourceSpan ret;
+	Expr* expr;
 }
 
 struct DeferStmt 

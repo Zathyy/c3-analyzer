@@ -1,5 +1,8 @@
 module c3_parser::ast;
 
+//temp!
+import c3::lexer;
+
 import std::io;
 import std::collections::list;
 
@@ -13,12 +16,19 @@ fn bool expr_ok(Expr* expr)
 enum ExprKind
 {
 	INVALID,
+	IDENTIFIER,
+	INTEGER,
+	STRING,
+	REAL,
+	BOOL,
 	BINARY,
+	UNARY,
+	TERNARY,
 	BUILTIN,
+	TYPE,
 	CALL,
 	CAST,
 	CATCH,
-	UNARY,
 	SWIZZLE,
 }
 
@@ -29,14 +39,23 @@ struct Expr
 	
 	union
 	{
+		String value; // literal [String, Integer, Real, Bool]
+		TypeExpr type_expr;
+		BinaryExpr binary_expr;
+		UnaryExpr unary_expr;
+		TernaryExpr ternary_expr;
 		TryExpr try_expr;
 		CatchExpr catch_expr;
 		CallExpr call_expr;
 		SwizzleExpr swizzle_expr;
 		CastExpr cast_expr;
 		BuiltinExpr builtin_expr;
-		List{ Expr* } initializer_list;
 	}
+}
+
+struct TypeExpr 
+{
+	TypeInfo* type;
 }
 
 struct TryExpr
@@ -70,19 +89,34 @@ struct SwizzleExpr
 	bool is_overlapping;
 }
 
-struct CallExpr
-{
-	List{ Expr* } args;
-
-	union 
-	{
-		Expr* function;
-		Decl* func_ref;
-	}
-}
-
 struct CastExpr
 {
 	Expr* expr;
 	TypeInfo* type_info;
+}
+
+struct UnaryExpr 
+{
+    TokenType op;
+    Expr* rhs;
+}
+
+struct BinaryExpr 
+{
+    Expr* left;
+    TokenType op;
+    Expr* right;
+}
+
+struct TernaryExpr
+{
+    Expr* cond;
+    Expr* true_expr;
+    Expr* false_expr;
+}
+
+struct CallExpr 
+{
+    Expr* callee;
+    List{Expr*} args;
 }

@@ -60,9 +60,7 @@ fn void print_decl(Decl* decl, String prefix, bool is_last)
     {
 		case INVALID:
 		{
-            io::print("<INVALID>\n");
-			String child_prefix = make_child_prefix(prefix, false);
-			(void)io::printf("%s", child_prefix);
+            io::printf("<INVALID> : %s\n", diagnostics::get_string(decl.span));
 			break;
 		}
         case FUNC:
@@ -70,7 +68,7 @@ fn void print_decl(Decl* decl, String prefix, bool is_last)
             (void)io::printf("FuncDecl: %s\n", decl.name);
 
             String child_prefix = make_child_prefix(prefix, is_last);
-            print_func_decl(&decl.func, child_prefix);
+            print_func_decl(decl, child_prefix);
             break;
         }
         case MODULE:
@@ -84,26 +82,80 @@ fn void print_decl(Decl* decl, String prefix, bool is_last)
             (void)io::printf("ImportDecl: %s\n", decl.imp.path.name);
             break;
         }
+		case VAR:
+		{
+			(void)io::print("VarDecl: ");
+			print_type(decl.var_decl.type_info);
+            io::printfn(" %s", decl.name);
+            break;
+		}
+		case ALIAS:
+		{
+			(void)io::printf("AliasDecl: %s = ", decl.name);
+
+			switch (decl.alias_decl.kind)
+			{
+				case AliasKind.DEFINE:
+					break;
+				case AliasKind.FUNC:
+					break;
+				case AliasKind.MODULE:
+					break;			
+				case AliasKind.TYPE:
+					print_type(decl.alias_decl.type.type_info);
+					break;
+			}
+
+			io::print("\n");
+
+            break;
+		}
+		case TYPEDEF:
+		{
+			(void)io::printf("TypedefDecl: %s\n", decl.name);
+            break;
+		}
 		default:
 			unreachable("missing print_decl case: %s", decl.kind);
     }
 }
 
-fn void print_func_decl(FuncDecl* decl, String prefix)
+fn void print_func_decl(Decl* decl, String prefix)
 {
-    int child_count = FuncDecl.membersof.len;
-
-    // --- Return Type ---
     print_prefix(prefix, false);
-    (void)io::printfn("RetType: %s", decl.ret_type);
+    io::print("RetType: ");
+    print_type(decl.func.ret_type);
+    io::printn("");
 
-    // --- Args ---
     print_prefix(prefix, false);
-    (void)io::printfn("Args: %s", decl.args);
+    io::print("Args:\n");
 
-    if (decl.compound != null)
+    String arg_prefix = make_child_prefix(prefix, false);
+
+    if (decl.func.params.len() == 0)
     {
-		print_stmt(decl.compound, prefix, true);
+        print_prefix(arg_prefix, true);
+        io::print("<none>\n");
+    }
+    else
+    {
+        for (usz i = 0; i < decl.func.params.len(); i++)
+        {
+            bool is_last_param = (i == decl.func.params.len() - 1);
+            Decl* param = decl.func.params[i];
+
+            print_prefix(arg_prefix, is_last_param);
+            io::printf("Param: %s (Type: ", param.name);
+            print_type(param.var_decl.type_info);
+            io::print(")\n");
+        }
+    }
+
+    // --- Body ---
+    if (decl.func.compound != null)
+    {
+        // Pass 'true' because the CompoundStmt is the final child of the function
+        print_stmt(decl.func.compound, prefix, true);
     }
 }
 
@@ -122,9 +174,11 @@ fn void print_stmt(Stmt* stmt, String prefix, bool is_last)
         {
             io::print("ReturnStmt\n");
 
-			String child_prefix = make_child_prefix(prefix, is_last);
-			(void)io::printf("%s", child_prefix);
-		
+            if (stmt.return_stmt.expr != null)
+            {
+                String child_prefix = make_child_prefix(prefix, is_last);
+                print_expr(stmt.return_stmt.expr, child_prefix, true);
+            }
             break;
         }
 		case COMPOUND:
@@ -163,8 +217,126 @@ fn void print_expr(Expr* expr, String prefix, bool is_last)
 
     switch (expr.kind)
     {
+        case ExprKind.INTEGER:
+            io::printf("Literal (Int): %s\n", expr.value);
+            break;
+        case ExprKind.STRING:
+            io::printf("Literal (Int): %s\n", expr.value);
+            break;
+        case ExprKind.IDENTIFIER:
+            io::printf("IdentExpr: %s\n", expr.value);
+            break;
+
+        case ExprKind.TYPE:
+        {
+            io::print("TypeExpr: ");
+            print_type(expr.type_expr.type); 
+            io::print("\n");
+            break;
+        }
+
+        case ExprKind.BINARY:
+        {
+            io::printf("BinaryExpr (%s)\n", expr.binary_expr.op);
+            String child_prefix = make_child_prefix(prefix, is_last);
+            print_expr(expr.binary_expr.left, child_prefix, false);
+            print_expr(expr.binary_expr.right, child_prefix, true);
+            break;
+        }
+
+        case ExprKind.CALL:
+        {
+            io::print("CallExpr\n");
+            String child_prefix = make_child_prefix(prefix, is_last);
+            
+            print_expr(expr.call_expr.callee, child_prefix, expr.call_expr.args.len() == 0);
+            
+            for (usz i = 0; i < expr.call_expr.args.len(); i++)
+            {
+                bool arg_is_last = (i == expr.call_expr.args.len() - 1);
+                print_expr(expr.call_expr.args[i], child_prefix, arg_is_last);
+            }
+            break;
+        }
+
         default:
-            io::print("Expr\n");
+            io::printf("Expr (Kind: %d)\n", (int)expr.kind);
             break;
     }
+}
+
+fn void print_expr_inline(Expr* expr)
+{
+    switch (expr.kind)
+    {
+        case INTEGER:
+            io::printf("%s", expr.value);
+            break;
+        case IDENTIFIER:
+            io::printf("%s", expr.value);
+            break;
+        case TYPE:
+            print_type(expr.type_expr.type);
+            break;
+        default:
+            io::print("<expr>");
+            break;
+    }
+}
+
+fn void print_type(TypeInfo* info)
+{
+    if (info == null) 
+	{
+        io::print("null");
+        return;
+    }
+
+    switch (info.kind)
+    {
+        case TypeInfoKind.IDENTIFIER:
+            TypeInfoIdent* d = (TypeInfoIdent*)info.data;
+            io::printf("%s", d.name);
+            break;
+
+        case TypeInfoKind.POINTER:
+            TypeInfoPtr* d = (TypeInfoPtr*)info.data;
+            print_type(d.base);
+            io::print("*");
+            break;
+
+        case TypeInfoKind.ARRAY:
+            TypeInfoArray* d = (TypeInfoArray*)info.data;
+            print_type(d.base);
+            io::print("[");
+            if (d.length_expr) print_expr(d.length_expr, "", true); // Print the 10+5
+            io::print("]");
+            break;
+
+        case TypeInfoKind.GENERIC:
+            TypeInfoGeneric* d = (TypeInfoGeneric*)info.data;
+            print_type(d.base); // The "Foo"
+            io::print("{");
+	
+			foreach (param : d.params)
+			{
+				print_expr_inline(param);
+			}
+
+            io::print("}");
+            break;
+            
+        case TypeInfoKind.FUNCTION:
+            TypeInfoFunc* d = (TypeInfoFunc*)info.data;
+            io::print("fn ");
+            print_type(d.return_info);
+            io::print("(");
+            // Loop through param_types...
+            io::print(")");
+            break;
+		default:
+			return;
+    }
+    
+    if (info.is_optional) io::print("?");
 }

@@ -1,6 +1,7 @@
 module c3_parser::common;
 
 import std::collections::list;
+import std::collections::maybe;
 
 import c3_parser::ast @norecurse;
 
@@ -36,6 +37,7 @@ enum TypeInfoKind
 	INFERRED_ARRAY,
 	INFERRED_VECTOR,
 	SLICE,
+	FUNCTION,
 	POINTER,
 	GENERIC
 }
@@ -233,41 +235,6 @@ enum BuiltinFunction
 	LROUND,
 }
 
-struct TypeInfo 
-{
-	TypeInfoKind kind;
-	SourceSpan span;
-
-	union 
-	{
-		struct unresolved 
-		{
-			CPath* path;
-			String name;
-		}
-
-		Expr* unresolved_type_expr;
-
-		struct array 
-		{
-			TypeInfo* base;
-			Expr* len;
-		}
-
-		TypeInfo* pointer;
-
-		struct generic 
-		{
-			TypeInfo* base;
-			List{ Expr* } params;
-		}
-	}
-
-	bool optional;
-	bool in_def;
-	bool is_simd;
-}
-
 struct Attribute 
 {
 	List{ Expr* } exprs;
@@ -276,4 +243,72 @@ struct Attribute
 	SourceSpan span;
 	AttributeKind kind;
 	bool is_custom;
+}
+
+// structs with <>Type is the resolved type
+// structs with TypeInfo<> is the unresolved type
+
+struct Type 
+{
+    Maybe{TypeInfo*} info; // link back to the AST node that created this
+    Type* canonical;   // Points to the "true" version (ignores aliases)
+    void* data;        // Pointer to the specific payload (PointerType, StructType, etc.)
+	uint size;
+    uint alignment;
+	TypeKind kind;
+}
+
+struct TypeInfoPtr 
+{
+    TypeInfo* base;
+}
+
+struct PointerType
+{
+    Type* base;
+}
+
+struct TypeInfoArray 
+{
+    TypeInfo* base;
+    Expr* length_expr; // eg. Points to the "10 + 2 * 4" Expr node
+}
+
+struct ArrayType 
+{
+    Type* base;
+    uint length; 
+}
+
+struct TypeInfoFunc 
+{
+    TypeInfo* return_info;
+    List{TypeInfo*} params;
+    bool is_variadic;
+}
+
+struct FunctionType
+{
+    Type* return_type;
+    List{Type*} param_types;
+    bool is_variadic;
+}
+
+struct TypeInfoGeneric 
+{
+    TypeInfo* base;      // The "Foo" in Foo{int, 5}
+    List{Expr*} params; // The "int" and "5" inside the brackets
+}
+
+struct TypeInfoIdent 
+{
+    String name; // "int", "bool", "MyStruct", etc.
+}
+
+struct TypeInfo 
+{
+    SourceSpan span;
+    void* data;           // Pointer to the specific syntax payload
+    TypeInfoKind kind;
+    bool is_optional;
 }

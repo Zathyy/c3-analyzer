@@ -2,17 +2,38 @@ module test::new;
 
 import std::io;
 
+// my comment
+alias MyBasicType = uint;
+alias MyListType = List{ float };
+
+typedef MyType = float;
+
+uint my_global_variable;
+
+<*
+	brrrrrrrrrrrrrrrrrrp
+	@param value
+	@inline
+*>
 fn void parse(uint value)
 {
-	io::printn("foo");
+	return 1 + 5 * 10;
 }
 
 <*
 	test errors
 *>
-fn int int foo(uint value)
+fn int foo(uint value)
 {
 	return 0;
+}
+
+<*
+	test errors
+*>
+fn String foo2(uint value)
+{
+	return "Do you know tha way?";
 }
 
 void* type;
@@ -24,7 +45,5 @@ import std::io;
 
 fn void test(char arg)
 {
-	io::printn("hello there");
-	defer io::printn("do you know tha way");
 }
  

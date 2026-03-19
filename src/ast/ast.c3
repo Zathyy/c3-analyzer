@@ -22,4 +22,3 @@ struct Ast
 {
 	List{ Decl* } decls;
 }
-

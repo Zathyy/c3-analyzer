@@ -2,7 +2,6 @@ module c3_parser::parser;
 
 import c3::lexer;
 import c3_parser::ast;
-import c3_parser::mod;
 import c3_parser::common;
 import c3_parser::diagnostics;
 
@@ -10,18 +9,21 @@ import std::collections::list;
 import std::io;
 
 faultdef 
+	UNKNOWN,
 	CONTRACT_NOT_ALLOWED,
 	UNEXPECTED_TOKEN,
 	FOUND_MODULE,
 ;
 
-//TODO?: store Token[] instead of lexer?
+// TODO?: store Token[] instead of lexer?
+// then we dont need: lexer, token, next.
 struct Parser
 {
 	Lexer lexer;
 	Token token;
 	Token next;
 	String src;
+	String comment;
 	ModuleSection* section;
 	SourceSpan span;
 }
@@ -50,6 +52,7 @@ macro void Parser.warn(self, String fmt, ...)
 
 macro void Parser.error(self, String format, ...)
 {   
+	io::print(ansi::get_color_rgb(255, 0, 0));
 	if (diagnostics::use_diagnostics)
 	{
 		diagnostics::report(ERROR, self.span, format, $vasplat);
@@ -57,6 +60,13 @@ macro void Parser.error(self, String format, ...)
 	$if $defined (env::DEBUG_SYMBOLS):
 		log::error("at: %s %s:%s", $$FILE, $$FUNC, $$LINE);
 	$endif
+	io::print(ansi::get_color_rgb(200, 200, 200));
+}
+
+macro void Parser.@take_comment(&self, #t)
+{
+	#t.comment = self.comment;
+	self.comment = "";
 }
 
 <*
@@ -76,12 +86,15 @@ fn void synchronize(Parser* p)
         }
 
         // Keywords which are top-lever (Decl)
+		// TODO: Add more cases!
         switch (p.token.type)
         {
+            case TokenType.MODULE:
+            case TokenType.IMPORT:
+            case TokenType.ALIAS:
+            case TokenType.TYPEDEF:
             case TokenType.FUNC:
             case TokenType.STRUCT:
-            case TokenType.IMPORT:
-            case TokenType.MODULE:
             case TokenType.CONST:
             case TokenType.ENUM:
                 return; // The next loop iteration will handle these
@@ -196,7 +209,7 @@ fn CPath*? parse_path(Parser* parser)
 	CPath* path = mem::tnew(CPath);
 	defer (catch err)
 	{
-		mem::free(path);
+		allocator::free(tmem, path);
 	}
 
     while (true) 
@@ -219,6 +232,23 @@ fn CPath*? parse_path(Parser* parser)
 	return path;
 }
 
+fn void parse_comment(Parser* parser)
+{
+	if (!token_is(parser, TokenType.LINE_COMMENT) || !token_is(parser, TokenType.BLOCK_COMMENT))
+	{
+		return;
+	}
+
+	parser.comment = parser.token.text;
+	(void)advance(parser);
+
+	while (parser.token.type == TokenType.LINE_COMMENT)
+	{
+		parser.comment.tconcat(parser.token.text);
+		if (catch advance(parser)) return;
+	}
+}
+
 <*
 	@param [&inout] parser
 	@require parser.section != null
@@ -234,7 +264,7 @@ fn void? parse(Parser* parser)
 
 		if (catch err = parse_top_level_statement(parser))
 		{	
-			log::debug("failed to parse top_level_stmt: %s", err);
+			log::debug("Failed parse_top_leverl: %s. Adding as invalid...", err);
 			
 			Decl* inv_decl = mem::tnew(Decl);
 			make_invalid_decl(parser, inv_decl);
@@ -251,11 +281,13 @@ fn void? parse(Parser* parser)
 *>
 fn void? parse_top_level_statement(Parser* parser)
 {
-	//TODO: refine this loop and add more cases.
+	// TODO: Refine this loop and add more cases.
+	// TODO: Contracts
 
 	TokenType type = parser.token.type;
-	bool attach_contracts = false;
 	log::debug("parse_top_level_statement: %s", parser.token);
+
+	parse_comment(parser);
 
 	switch (type)
 	{
@@ -263,10 +295,46 @@ fn void? parse_top_level_statement(Parser* parser)
 		return parse_function(parser)!;
 	case TokenType.IMPORT: 
 		return parse_import(parser)!;
+	case TokenType.ALIAS:
+		return parse_alias(parser)!;
+	case TokenType.TYPEDEF:
+		return parse_typedef(parser)!;
+	case TokenType.BOOL: //TODO: possible to make this into a macro? like in C.
+	case TokenType.CHAR:
+	case TokenType.DOUBLE:
+	case TokenType.FLOAT:
+	case TokenType.FLOAT16:
+	case TokenType.BFLOAT16:
+	case TokenType.INT128:
+	case TokenType.ICHAR:
+	case TokenType.INT:
+	case TokenType.IPTR:
+	case TokenType.LONG:
+	case TokenType.SHORT:
+	case TokenType.UINT128:
+	case TokenType.UINT:
+	case TokenType.ULONG:
+	case TokenType.UPTR:
+	case TokenType.USHORT:
+	case TokenType.USZ:
+	case TokenType.ISZ:
+	case TokenType.FLOAT128:
+	case TokenType.TYPEID:
+	case TokenType.FAULT:
+	case TokenType.ANY:
+	case TokenType.VOID:
+	case TokenType.TYPE_IDENT:
+	case TokenType.CT_TYPE_IDENT:
+	case TokenType.CT_TYPEOF:
+	case TokenType.CT_EVALTYPE:
+	case TokenType.CT_VATYPE:
+	case TokenType.CT_TYPEFROM:
+	case TokenType.IDENT:
+		return parse_global(parser)!;
 	default:
 		break;
 	}
 
-	log::debug("parse_top_level_statement - couldn't find any matching top level decleration: %s", parser.token);
+	log::debug("%s parse_top_level_statement - couldn't find any matching top level decleration: %s", parser.token);
 	return UNEXPECTED_TOKEN~;
 }

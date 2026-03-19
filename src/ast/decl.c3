@@ -19,6 +19,15 @@ enum DeclKind
 	ALIAS,
 	TYPEDEF,
 	VAR,
+	CONTRACT,
+}
+
+enum AliasKind
+{
+	DEFINE,
+	MODULE,
+	TYPE,
+	FUNC,
 }
 
 struct Decl (Printable)
@@ -26,7 +35,7 @@ struct Decl (Printable)
 	SourceSpan[] attributes;
 	String name;
 	String extname;
-	String comment;
+	String comment; // comment && docs
 	SourceSpan span;
 	DeclKind kind;
 
@@ -36,17 +45,16 @@ struct Decl (Printable)
 		ModuleDecl mod;
 		ImportDecl imp;
 		VarDecl var_decl;
+		AliasDecl alias_decl;
+		ContractDecl contract;
 		// more types go here later
 	}
 }
 
 struct FuncDecl
 {
-	//TODO: string for now
-	String ret_type;
-	// range of whole args definition of function (includes parentheses)
-	// TODO: turn this into a slice of AST node variables
-	String args;
+	TypeInfo* ret_type;
+	List{ Decl* } params;
 	Stmt* compound;
 }
 
@@ -56,15 +64,17 @@ struct FuncDecl
 *>
 struct VarDecl
 {
-	VarDeclKind kind;
-	bool no_init;
-	bool is_threadlocal;
-
-	union 
+	union
 	{
 		Expr* init_expr;
-		Decl* alis;
+		Decl* alias_decl;
 	}
+
+	TypeInfo* type_info;
+	VarDeclKind kind;
+
+	bool no_init;
+	bool is_threadlocal;
 }
 
 struct EnumDecl
@@ -73,7 +83,7 @@ struct EnumDecl
 	List{ Decl* } parameters;
 }
 
-struct ModuleDecl 
+struct ModuleDecl
 {
 	CPath* path;
 }
@@ -85,9 +95,32 @@ struct ImportDecl
 
 struct AliasDecl 
 {
-	Decl* decl;
-	bool is_func;
-	bool is_redef;
+	union 
+	{
+		// AliasKind.TYPE -> type alias
+		// AliasKind.FUNC -> fn pointer
+		struct type
+		{
+			Decl* decl;
+			TypeInfo* type_info;
+		}
+
+		// AliasKind.DEFINE
+		struct def
+		{
+			Decl* decl;
+			Expr* expr;
+		}
+
+		// AliasKind.MODULE
+		struct mod
+		{
+			CPath* path;
+			Module* mod;
+		}
+	}
+
+	AliasKind kind;
 }
 
 struct TypedefDecl
@@ -99,5 +132,13 @@ struct ContractDecl
 {
 	List{ Expr* } requires;
 	List{ Expr* } ensures;
+	List{ ContractParam } params;
+
+	union returns
+	{
+		List{ Expr* } unresolved;
+		List{ Expr* } resolved;
+	}
+
 	bool pure;
 }

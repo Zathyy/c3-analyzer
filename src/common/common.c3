@@ -1,5 +1,9 @@
 module c3_parser::common;
 
+import c3_parser::ast @norecurse;
+
+import std::collections::list;
+
 typedef FileID = ushort;
 
 struct SourceSpan 
@@ -33,4 +37,32 @@ struct CPath
 {
 	SourceSpan span;
 	String name;
+}
+
+struct ModuleSection
+{
+    String file_path;
+    Ast* ast;
+}
+
+struct Module
+{
+    String module_name;
+    List{ ModuleSection* } sections;
+}
+
+enum InOutModifier 
+{
+	ANY,
+	IN,
+	OUT,
+	INOUT,
+}
+
+struct ContractParam 
+{
+	SourceSpan span;
+	String name;
+	InOutModifier modifier;
+	bool by_ref;
 }

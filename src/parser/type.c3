@@ -52,33 +52,6 @@ fn bool is_type_start(TokenType type)
     }
 }
 
-fn TypeInfo*? parser_ct_base_type(Parser* p, TypeInfoKind kind) @private
-{
-	TypeInfo* info = type_info_new(kind, p.span);
-	defer (catch err)
-	{
-		allocator::free(tmem, info);
-	}
-	if (!consume(p, TokenType.LPAREN)!)
-	{
-		p.error("Expected %s got %s", TokenType.LPAREN, p.token);
-		return make_invalid_type_info(p, info);
-	}
-	Expr* expr = parse_expr(p)!;
-	if (!ast::expr_ok(expr))
-	{
-		p.error("Expected %s got %s", TokenType.LPAREN, p.token);
-		return make_invalid_type_info(p, info);
-	}
-	if (!consume(p, TokenType.RPAREN)!)
-	{
-		p.error("Expected %s got %s", TokenType.RPAREN, p.token);
-		return make_invalid_type_info(p, info);
-	}
-	info.span = info.span.combine(p.span);
-	return info;
-}
-
 fn bool? consume_type_name(Parser* p, String type)
 {
 	if (token_is(p, TokenType.IDENT) || is_keyword_ident(p.token.type))
@@ -100,96 +73,187 @@ fn bool? consume_type_name(Parser* p, String type)
 	return true;
 }
 
-fn TypeInfo*? parse_base_type(Parser* p)
+fn TypeInfo* make_type_info_generic(TypeInfo* base, List{Expr*} params, SourceSpan span)
 {
-	if (consume(p, TokenType.CT_TYPEFROM)!)
-	{
-		return parser_ct_base_type(p, TypeInfoKind.TYPEFROM)!;
-	}
-	if (consume(p, TokenType.CT_TYPEOF)!)
-	{
-		return parser_ct_base_type(p, TypeInfoKind.TYPEOF)!;
-	}
-	if (consume(p, TokenType.CT_VATYPE)!)
-	{
-		return parser_ct_base_type(p, TypeInfoKind.VATYPE)!;
-	}
-	if (consume(p, TokenType.CT_EVALTYPE)!)
-	{
-		return parser_ct_base_type(p, TypeInfoKind.EVALTYPE)!;
-	}
-	SourceSpan span = p.span;
-	CPath*? path = parse_path(p);
-	if (try path && path)
-	{
-		TypeInfo* info = type_info_new(TypeInfoKind.IDENTIFIER, span);
-		info.unresolved.path = path;
-		info.unresolved.name = p.token.text;
-		if (!consume_type_name(p, "type")!)
+	TypeInfoGeneric* gen = mem::tnew(TypeInfoGeneric);
+	gen.base = base;
+	gen.params = params;
+
+    TypeInfo* info = mem::tnew(TypeInfo);
+    info.kind = TypeInfoKind.GENERIC;
+    info.data = gen;
+    info.span = span;
+    info.is_optional = false;
+
+    return info;
+}
+
+fn TypeInfo* make_type_info_ptr(TypeInfo* base, SourceSpan span)
+{
+    TypeInfoPtr* data = mem::tnew(TypeInfoPtr);
+    data.base = base;
+
+    TypeInfo* node = mem::tnew(TypeInfo);
+    node.kind = TypeInfoKind.POINTER;
+    node.data = data;
+    node.span = span; // The span of the '*' character
+    node.is_optional = false;
+
+    return node;
+}
+
+fn TypeInfo* make_type_info_ident(String name, SourceSpan span)
+{
+    TypeInfoIdent* data = mem::tnew(TypeInfoIdent);
+    data.name = name;
+
+    TypeInfo* node = mem::tnew(TypeInfo);
+    node.kind = TypeInfoKind.IDENTIFIER;
+    node.data = data;
+    node.span = span;
+    node.is_optional = false;
+
+    return node;
+}
+
+fn TypeInfo* make_type_info_func(TypeInfo* ret, List{TypeInfo*} params, bool var_, SourceSpan span)
+{
+    TypeInfoFunc* data = mem::tnew(TypeInfoFunc);
+    data.return_info = ret;
+    data.params = params;
+    data.is_variadic = var_;
+
+    TypeInfo* node = mem::tnew(TypeInfo);
+    node.kind = TypeInfoKind.FUNCTION;
+    node.data = data;
+    node.span = span;
+    node.is_optional = false;
+
+    return node;
+}
+
+fn TypeInfo* make_type_info_array(TypeInfo* base, Expr* length, SourceSpan span)
+{
+    TypeInfoArray* data = mem::tnew(TypeInfoArray);
+    data.base = base;
+    data.length_expr = length;
+
+    TypeInfo* node = mem::tnew(TypeInfo);
+    node.kind = TypeInfoKind.ARRAY;
+    node.data = data;
+    node.span = span;
+    node.is_optional = false;
+
+    return node;
+}
+
+fn TypeInfo*? parse_generic_type_params(Parser* p, TypeInfo* base)
+{
+    List{Expr*} params;
+	params.tinit();
+
+    if (!token_is(p, TokenType.RBRACE))
+    {
+        do 
 		{
-			return make_invalid_type_info(p, info);
-		}
-		info.span = info.span.combine(p.span);
-		return info;
-	}
+            params.push(parse_expr(p)!);
+        } 
+		while (consume(p, TokenType.COMMA)!);
+    }
 
-	TypeInfo* info = null;
-	switch (p.token.type)
-	{
-		case TokenType.TYPE_IDENT:
-			info = type_info_new(TypeInfoKind.IDENTIFIER, p.span);
-			info.unresolved.name = p.token.text;
-			break;
-		case TokenType.CT_TYPE_IDENT:
-			info = type_info_new(TypeInfoKind.CT_IDENTIFIER, p.span);
-			info.unresolved.name = p.token.text;
-			break;
-		case TokenType.BOOL:
-		case TokenType.CHAR:
-		case TokenType.DOUBLE:
-		case TokenType.FLOAT:
-		case TokenType.FLOAT16:
-		case TokenType.BFLOAT16:
-		case TokenType.INT128:
-		case TokenType.ICHAR:
-		case TokenType.INT:
-		case TokenType.IPTR:
-		case TokenType.LONG:
-		case TokenType.SHORT:
-		case TokenType.UINT128:
-		case TokenType.UINT:
-		case TokenType.ULONG:
-		case TokenType.UPTR:
-		case TokenType.USHORT:
-		case TokenType.USZ:
-		case TokenType.ISZ:
-		case TokenType.FLOAT128:
-		case TokenType.TYPEID:
-		case TokenType.FAULT:
-		case TokenType.ANY:
-		case TokenType.VOID:
-			info = type_info_new(TypeInfoKind.IDENTIFIER, p.span);
-			info.unresolved.name = p.token.text;
-			//TODO: Type
-			break;
-		default:
-			if (token_is(p, TokenType.IDENT))
+    expect(p, TokenType.RBRACE)!;
+    return make_type_info_generic(base, params, base.span.combine(p.span));
+}
+
+fn TypeInfo*? parse_primary_type(Parser* p)
+{
+    SourceSpan span = p.span;
+
+    if (consume(p, TokenType.FUNC)!)
+    {
+        return parse_function_type(p, span)!;
+    }
+    
+    if (is_type_start(p.token.type))
+    {
+        String name = p.token.text;
+        advance(p)!;
+        return make_type_info_ident(name, span);
+    }
+
+    p.error("Expected a type name or 'fn'");
+    return UNEXPECTED_TOKEN~;
+}
+
+fn TypeInfo*? parse_type(Parser* p)
+{
+    TypeInfo* type = parse_primary_type(p)!;
+	log::debug("parse_type()");
+
+    while (true)
+    {
+        if (consume(p, TokenType.STAR)!) 
+        {
+            type = make_type_info_ptr(type, p.span);
+        }
+        else if (consume(p, TokenType.LBRACKET)!) 
+        {
+            // Array: [ <expr> ]
+            Expr* length = null;
+            if (!token_is(p, TokenType.RBRACKET)) 
 			{
-				if (peek(p) == TokenType.IDENT)
-				{
+                length = parse_expr(p, 0)!; 
+            }
+            expect(p, TokenType.RBRACKET)!;
+            type = make_type_info_array(type, length, p.span);
+        }
+        else if (consume(p, TokenType.LBRACE)!)
+        {
+            // Generic: { ... }
+			log::debug("parse_type() - Found LBRACE");
+            type = parse_generic_type_params(p, type)!;
+        }
+        else if (consume(p, TokenType.QUESTION)!)
+        {
+            type.is_optional = true;
+        }
+        else 
+        {
+            break;
+        }
+    }
 
-				}
-			}
-			else
+    return type;
+}
+
+fn TypeInfo*? parse_function_type(Parser* p, SourceSpan start_span)
+{
+    TypeInfo* ret = parse_type(p)!;
+
+    expect(p, TokenType.LPAREN)!;
+    
+    List{TypeInfo*} params;
+	params.tinit();
+    bool variadic = false;
+
+    if (!token_is(p, TokenType.RPAREN))
+    {
+        do 
+		{
+            if (consume(p, TokenType.ELLIPSIS)!) 
 			{
-				p.error("type name expected");
-			}
-			
-			info = mem::tnew(TypeInfo);
-			return make_invalid_type_info(p, info);
-	}
+                variadic = true;
+                break; 
+            }
+            
+            params.push(parse_type(p)!);
+            
+        } 
+		while (consume(p, TokenType.COMMA)!);
+    }
 
-	advance(p)!;
-	info.span = info.span.combine(p.span);
-	return info;
+    expect(p, TokenType.RPAREN)!;
+
+    SourceSpan full_span = start_span.combine(p.span);
+    return make_type_info_func(ret, params, variadic, full_span);
 }

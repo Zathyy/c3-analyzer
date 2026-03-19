@@ -27,23 +27,25 @@ fn Stmt*? parse_stmt(Parser* p)
 		{
 			if (is_type_start(type))
 			{
-				if (is_some_ident(p.next.type))
-				{
-					return parse_decl_stmt(p)!;
-				}
+				return parse_decl_stmt(p)!;
 			}
 
-			return parse_expr_stmt(p);
+			return parse_expr_stmt(p)!;
 		}
 	}
 }
 
 fn Stmt*? parse_expr_stmt(Parser* p)
 {	
-	advance(p)!;
+	Expr* expr = parse_expr(p)!;
+    expect(p, TokenType.EOS)!;
 
-	Stmt* stmt = mem::tnew(Stmt);
-	return make_invalid_stmt(p, stmt);
+    Stmt* stmt = mem::tnew(Stmt);
+    stmt.kind = StmtKind.EXPR;
+    stmt.expr_stmt.expr = expr;
+    stmt.span = expr.span;
+    
+    return stmt;
 }
 
 <*
@@ -86,19 +88,37 @@ fn Stmt*? parse_compound(Parser* p)
 *>
 fn Stmt*? parse_decl_stmt(Parser* p)
 {
-	Stmt* stmt = mem::tnew(Stmt);
-	stmt.kind = StmtKind.VAR;
+    TypeInfo* info = null;
+    
+    // Handle 'var x = ...' (Inferred) vs 'int x = ...' (Explicit)
+    if (!consume(p, TokenType.VAR)!)
+    {
+        info = parse_type(p)!;
+    }
 
-	if (consume(p, TokenType.VAR)!)
-	{
+    Token name_tok = p.token;
+    expect(p, TokenType.IDENT)!;
 
-	}
-	else
-	{
-		
-	}
+    // Handle optional initializer: '= 10'
+    Expr* init = null;
+    if (consume(p, TokenType.EQ)!)
+    {
+        init = parse_expr(p)!;
+    }
 
-	return stmt;
+    expect(p, TokenType.EOS)!;
+
+    Decl* decl = mem::tnew(Decl);
+    decl.name = name_tok.text;
+    decl.var_decl.type_info = info; // Might be null if 'var' was used
+    decl.var_decl.init_expr = init;
+
+    Stmt* stmt = mem::tnew(Stmt);
+    stmt.kind = StmtKind.DECL;
+    stmt.decl_stmt.decl = decl;
+    stmt.span = p.span.combine(p.span);
+    
+    return stmt;
 }
 
 fn Stmt*? parse_defer(Parser* p)
@@ -138,26 +158,21 @@ fn Stmt*? parse_defer(Parser* p)
 
 fn Stmt*? parse_return(Parser* p)
 {
-	expect(p, TokenType.RETURN)!;
-	Stmt* stmt = mem::tnew(Stmt);
-	defer (catch err)
-	{
-		allocator::free(tmem, stmt);
-	}
+	SourceSpan start = p.span;
+    expect(p, TokenType.RETURN)!;
+    
+    Expr* expr = null;
+    if (!token_is(p, TokenType.EOS))
+    {
+        expr = parse_expr(p, 0)!;
+    }
 
-	stmt.kind = StmtKind.RETURN;
-	
-	while (!token_is(p, TokenType.EOS))
-	{
-		//TODO: parse_expr();
+    expect(p, TokenType.EOS)!;
 
-	}
-
-	if (!consume(p, TokenType.EOS)!)
-	{
-		p.error("Expected eos");
-		return make_invalid_stmt(p, stmt);
-	}
-
-	return stmt;
+    Stmt* stmt = mem::tnew(Stmt);
+    stmt.kind = StmtKind.RETURN;
+    stmt.return_stmt.expr = expr;
+    stmt.span = start.combine(p.span);
+    
+    return stmt;
 }
