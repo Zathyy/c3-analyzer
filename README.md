@@ -69,8 +69,8 @@ Expressions uses pratt parsing with binding power
 | **literal** | ✅ | integer, real, string, bool
 | **type** | ✅ | type inside an Expr
 | **binary** | ✅ | eg. 5 * 10
-| **unary** | ✅ | eg. 5 * 10
-| **ternary** | ✅ | 
+| **unary** | ✅ | eg. -5
+| **ternary** | ✅ | eg. value > x ? : y
 | **call** | ✅ | eg. foo()
 | **builtin** | ❌ |
 | **cast** | ❌ |

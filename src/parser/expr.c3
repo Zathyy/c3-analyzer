@@ -75,8 +75,8 @@ fn Expr* make_ternary_expr(Expr* cond, Expr* true_expr, Expr* false_expr)
     Expr* expr = mem::tnew(Expr);
     expr.kind = ExprKind.TERNARY;
     expr.ternary_expr.cond = cond;
-    expr.ternary_expr.true_expr = true_expr;
-    expr.ternary_expr.false_expr = false_expr;
+    expr.ternary_expr.then_expr = true_expr;
+    expr.ternary_expr.else_expr = false_expr;
 
     expr.span = cond.span.combine(false_expr.span);
     

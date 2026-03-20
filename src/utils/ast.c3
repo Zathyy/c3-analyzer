@@ -243,12 +243,14 @@ fn void print_expr(Expr* expr, String prefix, bool is_last)
             io::printf("Literal (Int): %s\n", expr.value);
             break;
         case ExprKind.STRING:
-            io::printf("Literal (Int): %s\n", expr.value);
+            io::printf("Literal (String): %s\n", expr.value);
             break;
         case ExprKind.IDENTIFIER:
             io::printf("IdentExpr: %s\n", expr.value);
             break;
-
+		case ExprKind.BOOL:
+            io::printf("Literal (bool): %s\n", expr.value);
+			break;
         case ExprKind.TYPE:
         {
             io::print("TypeExpr: ");
@@ -288,7 +290,25 @@ fn void print_expr(Expr* expr, String prefix, bool is_last)
 			print_expr(expr.unary_expr.rhs, child_prefix, true); 
 			break;
 		}
+		case ExprKind.TERNARY:
+		{
+			io::print("TernaryExpr\n");
+			
+			String child_prefix = make_child_prefix(prefix, is_last);
 
+			print_expr(expr.ternary_expr.cond, child_prefix, false);
+			
+			io::print(child_prefix);
+			io::print("├─ Then:\n");
+			String then_prefix = make_child_prefix(child_prefix, false);
+			print_expr(expr.ternary_expr.then_expr, then_prefix, true);
+
+			io::print(child_prefix);
+			io::print("└─ Else:\n");
+			String else_prefix = make_child_prefix(child_prefix, true);
+			print_expr(expr.ternary_expr.else_expr, else_prefix, true);
+			break;
+		}
         default:
             io::printf("Missing case for: Expr (Kind: %s)\n", expr.kind);
             break;

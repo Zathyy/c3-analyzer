@@ -270,7 +270,11 @@ fn void? parse_typedef(Parser* p)
 
 	expect(p, TokenType.EQ)!;
 
-	decl.typedef_decl.type = parse_type(p)!;
+	if (catch @try(decl.typedef_decl.type, parse_type(p)))
+	{
+		p.error("Failed to parse type for typedef!");
+		return UNEXPECTED_TOKEN~;
+	}
 
 	expect(p, TokenType.EOS)!;
 

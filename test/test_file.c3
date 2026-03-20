@@ -26,7 +26,7 @@ fn int foo(uint value)
 {
 	defer (catch err)
 	{
-
+		return value > 5 ? 5 : 1;
 	}
 
 	defer {

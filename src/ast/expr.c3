@@ -111,8 +111,8 @@ struct BinaryExpr
 struct TernaryExpr
 {
     Expr* cond;
-    Expr* true_expr;
-    Expr* false_expr;
+    Expr* then_expr;
+    Expr* else_expr;
 }
 
 struct CallExpr 

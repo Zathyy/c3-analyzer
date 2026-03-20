@@ -20,7 +20,7 @@ fn void get_binding_power(TokenType type, int* lbp, int* rbp)
             break;
 
         case TokenType.OR:
-            *lbp = 20; *rbp = 21; // Left-associative (RBP > LBP)
+            *lbp = 25; *rbp = 26; // Left-associative (RBP > LBP)
             break;
 
         case TokenType.PLUS:
@@ -33,12 +33,19 @@ fn void get_binding_power(TokenType type, int* lbp, int* rbp)
             *lbp = 60; *rbp = 61;
             break;
 
+		case TokenType.GREATER:
+		case TokenType.LESS:
+            *lbp = 30; *rbp = 31;
+			break;
+
         case TokenType.DOT:
         case TokenType.LPAREN:   // Function call
         case TokenType.LBRACKET: // Array index
             *lbp = 80; *rbp = 81;
             break;
-
+		case TokenType.QUESTION:
+			*lbp = 20; *rbp = 19; // Right-associative
+			break;
         default:
             *lbp = -1; *rbp = -1; // Not an infix operator
             break;
@@ -57,6 +64,8 @@ fn Expr*? parse_infix(Parser* p, Expr* left, int rbp)
         case TokenType.STAR:
         case TokenType.DIV:
         case TokenType.EQ:
+        case TokenType.GREATER:
+        case TokenType.LESS:
         {
             advance(p)!;
             Expr* right = parse_expr(p, rbp)!;
