@@ -30,7 +30,7 @@ Declerations aka Top level statements
 </p>
 
 <p>
-✅ = Fully implemented, but that doesn't mean it's bullet proof! <br>
+✅ = Fully implemented (should be), but that doesn't mean it's bullet proof! <br>
 🟡 = Partially implmented <br>
 ❌ = Not yet implemented <br>
 </p>
@@ -73,6 +73,6 @@ Expressions uses pratt parsing with binding power
 | **ternary** | ✅ | eg. value > x ? : y
 | **call** | ✅ | eg. foo()
 | **builtin** | ❌ |
-| **cast** | ❌ |
+| **cast** | 🟡 | should work, but not fully tested eg. (void*)my_var
 | **catch** | ❌ |
 | **swizzle** | ❌ |

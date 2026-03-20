@@ -60,6 +60,17 @@ fn Expr* make_unary_expr(TokenType op, Expr* rhs, SourceSpan op_span)
     return expr;
 }
 
+fn Expr* make_cast_expr(TypeInfo* target_type, Expr* operand)
+{
+	Expr* node = mem::tnew(Expr);
+    node.kind = ExprKind.CAST;
+    node.cast_expr.to_type = target_type;
+    node.cast_expr.expr = operand;
+    node.span = target_type.span;
+    
+    return node;
+}
+
 fn Expr* make_type_expr(TypeInfo* info)
 {
     Expr* node = mem::tnew(Expr);

@@ -91,7 +91,7 @@ fn void print_decl(Decl* decl, String prefix, bool is_last)
 			if (decl.var_decl.init_expr)
 			{
 				String child_prefix = make_child_prefix(prefix, is_last);
-				print_expr(decl.var_decl.init_expr, child_prefix, false);
+				print_expr(decl.var_decl.init_expr, child_prefix, true);
 			}
 
             break;
@@ -216,14 +216,14 @@ fn void print_stmt(Stmt* stmt, String prefix, bool is_last)
 		case DECL:
 		{
 			io::printn("DeclStmt");
-			String child_prefix = make_child_prefix(prefix, true);
+			String child_prefix = make_child_prefix(prefix, is_last);
        		print_decl(stmt.decl_stmt.decl, child_prefix, true);
 			break;
 		}
 		case EXPR:
 		{
 			io::printn("ExprStmt");
-			String child_prefix = make_child_prefix(prefix, true);
+			String child_prefix = make_child_prefix(prefix, is_last);
        		print_expr(stmt.expr_stmt.expr, child_prefix, true);
 			break;
 		}
@@ -282,6 +282,16 @@ fn void print_expr(Expr* expr, String prefix, bool is_last)
             }
             break;
         }
+		case ExprKind.CAST:
+		{
+			io::print("CastExpr <");
+			print_type(expr.cast_expr.to_type); // Should print "void*"
+			io::print(">\n");
+
+			String child_prefix = make_child_prefix(prefix, true);
+			print_expr(expr.cast_expr.expr, child_prefix, true);
+			break;
+		}
 		case ExprKind.UNARY:
 		{
 			io::printf("UnaryExpr (%s)\n", expr.unary_expr.op);

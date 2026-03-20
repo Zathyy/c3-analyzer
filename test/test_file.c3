@@ -33,6 +33,9 @@ fn int foo(uint value)
 		parse(2);
 	}
 
+	float my_local_var;
+
+	int value_as_int = (int)value;
 }
 
 fn String foo2(uint value)

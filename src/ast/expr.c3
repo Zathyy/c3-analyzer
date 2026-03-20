@@ -92,7 +92,7 @@ struct SwizzleExpr
 struct CastExpr
 {
 	Expr* expr;
-	TypeInfo* type_info;
+	TypeInfo* to_type;
 }
 
 struct UnaryExpr 

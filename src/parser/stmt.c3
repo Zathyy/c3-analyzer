@@ -111,7 +111,9 @@ fn Stmt*? parse_decl_stmt(Parser* p)
     expect(p, TokenType.EOS)!;
 
     Decl* decl = mem::tnew(Decl);
+	decl.kind = DeclKind.VAR;
     decl.name = name_tok.text;
+	decl.var_decl.kind = VarDeclKind.LOCAL;
     decl.var_decl.type_info = info; // Might be null if 'var' was used
     decl.var_decl.init_expr = init;
 

@@ -122,10 +122,23 @@ fn Expr*? parse_prefix(Parser* p)
 		   }
 
         case TokenType.LPAREN:
-            advance(p)!;
-            Expr* e = parse_expr(p, 0)!; // Reset to 0 inside parens
-            expect(p, TokenType.RPAREN)!;
-            return e;
+			{ 
+				// check if Cast
+				if (is_type_start(peek(p)))
+				{
+					advance(p)!;
+					TypeInfo* target_type = parse_type(p)!;
+        			expect(p, TokenType.RPAREN)!;
+					// A cast has very high precedence (Unary level)
+					Expr* operand = parse_expr(p, 70)!;
+					return make_cast_expr(target_type, operand);
+				}
+
+				advance(p)!;
+				Expr* e = parse_expr(p, 0)!; // Reset to 0 inside parens
+				expect(p, TokenType.RPAREN)!;
+				return e;
+			}
         default:
             return UNEXPECTED_TOKEN~;
     }
