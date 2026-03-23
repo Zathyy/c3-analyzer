@@ -2,6 +2,7 @@ module c3_parser::ast;
 
 import std::io;
 import std::collections::list;
+import std::collections::maybe;
 
 import c3_parser::common;
 
@@ -57,7 +58,7 @@ struct FuncDecl
 {
 	TypeInfo* ret_type;
 	List{ Decl* } params;
-	Stmt* compound;
+	Maybe{ Stmt* } compound;
 }
 
 <*

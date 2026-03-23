@@ -96,7 +96,7 @@ fn void? parse_function(Parser* p)
 
 	if (p.is(TokenType.LBRACE))
 	{
-		decl.func.compound = parse_compound(p)!;
+		decl.func.compound.set(parse_compound(p))!;
 	}
 
 	decl.span = decl.span.combine(start);

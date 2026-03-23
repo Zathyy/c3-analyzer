@@ -38,7 +38,7 @@ fn int foo(uint value)
 
 	int value_as_int = (int)value;
 
-	if (value_as_int > 0 && value_as_int <= 10) 
+	if FOO: (value_as_int > 0 && value_as_int <= 10) 
 	{
 
 	}

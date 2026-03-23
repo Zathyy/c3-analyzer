@@ -165,7 +165,6 @@ fn void? advance(Parser* parser)
 		log::debug("parser::advance() : eof");
 		return io::EOF~;
 	}
-
 	parser.pos++;
 }
 

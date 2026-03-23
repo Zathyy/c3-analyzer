@@ -6,6 +6,7 @@ import c3_parser::diagnostics;
 
 import std::io;
 import std::collections::list;
+import std::collections::maybe;
 
 fn void print_prefix(String prefix, bool is_last)
 {
@@ -160,9 +161,9 @@ fn void print_func_decl(Decl* decl, String prefix)
         }
     }
 
-    if (decl.func.compound != null)
+    if (try compound = decl.func.compound.get())
     {
-        print_stmt(decl.func.compound, prefix, true);
+        print_stmt(compound, prefix, true);
     }
 }
 
@@ -218,7 +219,13 @@ fn void print_stmt(Stmt* stmt, String prefix, bool is_last)
 			io::print("IfStmt\n");
 			String child_prefix = make_child_prefix(prefix, is_last);
 
+			if (try label = stmt.if_stmt.label.get())
+			{
+				io::print(child_prefix);
+				io::printfn("├─ Label: %s", label.name);
+			}
 			io::print(child_prefix);
+
 			io::print("├─ Conditions:\n");
 
 			usz len = stmt.if_stmt.conditions.len();
