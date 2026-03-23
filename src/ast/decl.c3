@@ -19,6 +19,7 @@ enum DeclKind
 	ALIAS,
 	TYPEDEF,
 	VAR,
+	LABEL,
 	CONTRACT,
 }
 

@@ -24,7 +24,7 @@ fn Expr*? parse_expr(Parser* p, int min_bp = 0)
 	while (true)
 	{
 		int lbp, rbp;
-		get_binding_power(p.token.type, &lbp, &rbp);
+		get_binding_power(p.current().type, &lbp, &rbp);
 
 		// If the next operator doesn't bind strongly enough to the left, we stop
 		if (lbp < min_bp) break;
@@ -116,7 +116,7 @@ fn Expr*? parse_call(Parser* p, Expr* callee)
     call.call_expr.callee = callee;
 	call.call_expr.args.tinit(4);
 
-    if (!token_is(p, TokenType.RPAREN))
+    if (!p.is(TokenType.RPAREN))
     {
         do 
 		{
@@ -128,15 +128,15 @@ fn Expr*? parse_call(Parser* p, Expr* callee)
 
     expect(p, TokenType.RPAREN)!;
     
-    call.span = callee.span.combine(p.span);
+    call.span = callee.span.combine(p.span());
 
     return call;
 }
 
 fn Expr*? parse_ident(Parser* p)
 {
-    String name = p.token.text;
-    SourceSpan span = p.span;
+    String name = p.current().text;
+    SourceSpan span = p.span();
 
     advance(p)!;
 
@@ -150,9 +150,9 @@ fn Expr*? parse_ident(Parser* p)
 
 fn Expr*? parse_literal(Parser* p)
 {
-    TokenType type = p.token.type;
-    String value = p.token.text;
-    SourceSpan span = p.span;
+    TokenType type = p.current().type;
+    String value = p.current().text;
+    SourceSpan span = p.span();
 
     advance(p)!;
 
@@ -188,4 +188,9 @@ fn Expr*? parse_literal(Parser* p)
     }
 
     return node;
+}
+
+fn Expr* parse_cond(Parser* p)
+{
+	unreachable("");
 }

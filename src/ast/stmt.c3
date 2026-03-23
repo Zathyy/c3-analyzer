@@ -2,6 +2,7 @@ module c3_parser::ast;
 
 import std::io;
 import std::collections::list;
+import std::collections::maybe;
 
 import c3_parser::common;
 
@@ -18,6 +19,8 @@ enum StmtKind
 	DECL,
 	DEFER,
 	EXPR,
+	IF,
+	TRY,
 }
 
 struct Stmt
@@ -32,6 +35,7 @@ struct Stmt
 		DeclStmt decl_stmt;
 		DeferStmt defer_stmt;
 		ExprStmt expr_stmt;
+		IfStmt if_stmt;
 	}
 }
 
@@ -60,6 +64,14 @@ struct ExprStmt
 struct ReturnStmt
 {
 	Expr* expr;
+}
+
+struct IfStmt
+{
+	List{ Expr* } conditions;
+    Stmt* then_stmt;
+    Stmt* else_stmt;
+	Maybe{ Decl* } label;
 }
 
 struct DeferStmt 

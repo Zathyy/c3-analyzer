@@ -15,24 +15,21 @@ faultdef
 	FOUND_MODULE,
 ;
 
-// TODO?: store Token[] instead of lexer?
-// then we dont need: lexer, token, next.
 struct Parser
 {
-	Lexer lexer;
-	Token token;
-	Token next;
+	Token[] tokens;
 	String src;
 	String comment;
 	ModuleSection* section;
-	SourceSpan span;
+	FileID file;
+	uint pos;
 }
 
 macro void Parser.info(self, String fmt, ...)
 {    
 	if (diagnostics::use_diagnostics)
 	{
-		diagnostics::report(INFO, self.span, format, $vasplat);
+		diagnostics::report(INFO, self.span(), format, $vasplat);
 	}
 	$if $defined (env::DEBUG_SYMBOLS):
 		log::info("at: %s %s:%s", $$FILE, $$FUNC, $$LINE);
@@ -43,7 +40,7 @@ macro void Parser.warn(self, String fmt, ...)
 {    
 	if (diagnostics::use_diagnostics)
 	{
-		diagnostics::report(WARN, self.span, fmt, $vasplat);
+		diagnostics::report(WARN, self.span(), fmt, $vasplat);
 	}
 	$if $defined (env::DEBUG_SYMBOLS):
 		log::warn("at: %s %s:%s", $$FILE, $$FUNC, $$LINE);
@@ -55,7 +52,7 @@ macro void Parser.error(self, String format, ...)
 	io::print(ansi::get_color_rgb(255, 0, 0));
 	if (diagnostics::use_diagnostics)
 	{
-		diagnostics::report(ERROR, self.span, format, $vasplat);
+		diagnostics::report(ERROR, self.span(), format, $vasplat);
 	}
 	$if $defined (env::DEBUG_SYMBOLS):
 		log::error("at: %s %s:%s", $$FILE, $$FUNC, $$LINE);
@@ -79,7 +76,7 @@ fn void synchronize(Parser* p)
 
     while (!p.eof())
     {
-        if (p.token.type == TokenType.EOS)
+        if (p.current().type == TokenType.EOS)
         {
             (void)advance(p);
             return;
@@ -87,7 +84,7 @@ fn void synchronize(Parser* p)
 
         // Keywords which are top-lever (Decl)
 		// TODO: Add more cases!
-        switch (p.token.type)
+        switch (p.current().type)
         {
             case TokenType.MODULE:
             case TokenType.IMPORT:
@@ -107,7 +104,21 @@ fn void synchronize(Parser* p)
 
 fn bool Parser.eof(&self) @inline
 {
-	return token_is(self, TokenType.EOF);
+	return self.pos >= self.tokens.len || self.is(TokenType.EOF);
+}
+
+<*
+	@param pos : "absolute position into tokens, 0 if use current"
+*>
+fn SourceSpan Parser.span(&self, uint pos = 0)
+{
+	Token token = pos > 0 ? self.tokens[pos] : self.tokens[self.pos];
+
+	return (SourceSpan){
+		.file_id = self.file,
+		.start = token.offset,
+		.end = token.offset + token.len - 1
+	};
 }
 
 fn bool is_keyword_ident(TokenType type) 
@@ -129,17 +140,19 @@ fn bool is_some_ident(TokenType type)
 	}
 }
 
-<*
-	@param [&in] parser
-*>
-fn bool token_is(Parser* parser, TokenType type) @inline 
+fn bool Parser.is(&self, TokenType type) 
 {
-	return parser.token.type == type;
+	return self.tokens[self.pos].type == type;
 }
 
-fn TokenType peek(Parser* p) @inline
+fn Token Parser.current(&self) @inline
 {
-	return p.next.type;
+	return self.peek(0);
+}
+
+fn Token Parser.peek(&self, uint pos = 1) @inline
+{
+	return self.tokens[self.pos + pos];
 }
 
 <*
@@ -149,18 +162,11 @@ fn void? advance(Parser* parser)
 {
 	if (parser.eof())
 	{
+		log::debug("parser::advance() : eof");
 		return io::EOF~;
 	}
 
-	parser.token = parser.next;
-
-	parser.span.start = parser.token.offset;
-	parser.span.end =  parser.token.offset + parser.token.len - 1;
-
-	if (!@ok(@try(parser.next, parser.lexer.next())))
-	{
-		parser.next.type = TokenType.EOF;
-	}
+	parser.pos++;
 }
 
 <*
@@ -168,9 +174,9 @@ fn void? advance(Parser* parser)
 *>
 fn void? expect(Parser* parser, TokenType type) @inline
 {
-	if (!token_is(parser, type))
+	if (!parser.is(type))
 	{
-		parser.error("Expected '%s' got '%s'", type, parser.token.type);
+		parser.error("Expected '%s' got '%s'", type, parser.current().type);
 		return UNEXPECTED_TOKEN~;
 	}
 
@@ -183,7 +189,7 @@ fn void? expect(Parser* parser, TokenType type) @inline
 *>
 fn bool? consume(Parser* parser, TokenType type)
 {
-	if (token_is(parser, type))
+	if (parser.is(type))
 	{
 		advance(parser)!;
 		return true;
@@ -198,13 +204,13 @@ fn bool? consume(Parser* parser, TokenType type)
 *>
 fn CPath*? parse_path(Parser* parser)
 {
-	if (!token_is(parser, TokenType.IDENT) || peek(parser) != TokenType.SCOPE)
+	if (!parser.is(TokenType.IDENT) || parser.peek().type != TokenType.SCOPE)
 	{
 		return null;
 	}
 
-	SourceSpan start = parser.span;
-    SourceSpan end = parser.span;
+	SourceSpan start = parser.span();
+    SourceSpan end = parser.span();
 
 	CPath* path = mem::tnew(CPath);
 	defer (catch err)
@@ -214,14 +220,14 @@ fn CPath*? parse_path(Parser* parser)
 
     while (true) 
     {
-		String string = parser.token.text;
+		String string = parser.current().text;
         expect(parser, TokenType.IDENT)!;
 
 		path.name = path.name.concat(tmem, string);
 
         if (!consume(parser, TokenType.SCOPE)!) 
 		{
-        	end = parser.span;
+        	end = parser.span();
 			break;
 		}
 
@@ -232,19 +238,24 @@ fn CPath*? parse_path(Parser* parser)
 	return path;
 }
 
-fn void parse_comment(Parser* parser)
+<*
+	parse comments
+*>
+fn void parse_docs(Parser* parser)
 {
-	if (!token_is(parser, TokenType.LINE_COMMENT) || !token_is(parser, TokenType.BLOCK_COMMENT))
+	if (!parser.is(TokenType.LINE_COMMENT) || !parser.is(TokenType.BLOCK_COMMENT))
 	{
 		return;
 	}
 
-	parser.comment = parser.token.text;
+	Token token = parser.current();
+	parser.comment = token.text;
 	(void)advance(parser);
 
-	while (parser.token.type == TokenType.LINE_COMMENT)
+	while (token.type == TokenType.LINE_COMMENT)
 	{
-		parser.comment.tconcat(parser.token.text);
+		token = parser.current();
+		parser.comment.tconcat(parser.current().text);
 		if (catch advance(parser)) return;
 	}
 }
@@ -257,7 +268,7 @@ fn void? parse(Parser* parser)
 {
 	while (!parser.eof())
 	{
-		if (token_is(parser, TokenType.MODULE)) 
+		if (parser.is(TokenType.MODULE)) 
 		{
 			return FOUND_MODULE~;
 		};
@@ -284,7 +295,7 @@ fn void? parse_top_level_statement(Parser* parser)
 	// TODO: Refine this loop and add more cases.
 	// TODO: Contracts
 
-	TokenType type = parser.token.type;
+	TokenType type = parser.current().type;
 
 	// catch forgetting to consume the EOS
 	if (type == TokenType.EOS) 
@@ -292,9 +303,9 @@ fn void? parse_top_level_statement(Parser* parser)
 		parser.error("<EOS> appeared in parse_top_level");
 	}
 
-	log::debug("parse_top_level_statement: %s", parser.token);
+	log::debug("parse_top_level_statement: %s", parser.current());
 
-	parse_comment(parser);
+	parse_docs(parser);
 
 	switch (type)
 	{
@@ -342,6 +353,6 @@ fn void? parse_top_level_statement(Parser* parser)
 		break;
 	}
 
-	log::debug("%s parse_top_level_statement - couldn't find any matching top level decleration: %s", parser.token);
+	log::debug("%s parse_top_level_statement - couldn't find any matching top level decleration: %s", parser.current());
 	return UNEXPECTED_TOKEN~;
 }

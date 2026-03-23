@@ -8,6 +8,7 @@ import c3_parser::common;
 import c3_parser::diagnostics;
 
 import std::collections::map;
+import std::collections::list;
 import std::io;
 
 faultdef 
@@ -85,25 +86,31 @@ fn void? parse_file(Project* project, Path path)
 	String src = (String)file::load(tmem, path.path_string)!;
 	FileID file_id = diagnostics::add_file(path.path_string, src);
 
+	List{ Token } tokens;
+	tokens.tinit(1000);
+	defer tokens.free();
+
 	Lexer lexer;
 	lexer.init(src);
 
-	Parser parser = (Parser){ 
-		.lexer = lexer,
-		.src = src,
-	};
+	Token token;
+	while (@ok(@try(token, lexer.next())))
+	{
+		tokens.push(token);
+	}
 
-	parser.span.file_id = file_id;
+	Parser parser = (Parser){ 
+		.tokens = tokens.array_view(),
+		.src = src,
+		.pos = 0,
+		.file = file_id,
+	};
 
 	ModuleSection* current_section = null;
 
-	// prime
-	parser::advance(&parser)!;
-	parser::advance(&parser)!;
-
 	while (!parser.eof())
 	{
-		if (parser::token_is(&parser, TokenType.MODULE))
+		if (parser.is(TokenType.MODULE))
 		{
 			Decl* module_decl = parser::parse_module(&parser)!;
 			Module* mod = get_or_create_module(project, module_decl.mod.path.name);

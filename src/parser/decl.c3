@@ -8,7 +8,7 @@ import std::collections::list;
 macro void make_invalid_decl(Parser* p, Decl* decl)
 {
 	decl.kind = DeclKind.INVALID;
-	decl.span = p.span;
+	decl.span = p.span();
 }
 
 <*
@@ -30,11 +30,11 @@ fn Decl*? parse_module(Parser* p)
 		allocator::free(tmem, decl);
 	}
     decl.kind = DeclKind.MODULE;
-	decl.span = p.span;
+	decl.span = p.span();
     decl.mod.path = parse_path(p)!;
 	//TODO: generics, attributes
     expect(p, TokenType.EOS)!;
-	decl.span = decl.span.combine(p.span);
+	decl.span = decl.span.combine(p.span());
     return decl;
 }
 
@@ -48,12 +48,12 @@ fn void? parse_import(Parser* p)
 		allocator::free(tmem, decl);
 	}
     decl.kind = DeclKind.IMPORT;
-	decl.span = p.span;
+	decl.span = p.span();
     decl.imp.path = parse_path(p)!;
     expect(p, TokenType.EOS)!;
-	decl.span = decl.span.combine(p.span);
+	decl.span = decl.span.combine(p.span());
 	p.section.ast.decls.push(decl);
-	log::debug("Token after import: %s", p.token);
+	log::debug("Token after import: %s", p.current());
 }
 
 //TODO: make use of DeclKind.INVALID
@@ -66,24 +66,24 @@ fn void? parse_function(Parser* p)
 		allocator::free(tmem, decl);
 	}
 	decl.kind = DeclKind.FUNC;
-	SourceSpan start = p.span;
+	SourceSpan start = p.span();
 	
 	decl.func.ret_type = parse_type(p)!;
 
-	if (!token_is(p, TokenType.IDENT))
+	if (!p.is(TokenType.IDENT))
 	{
 		p.error("Expected function name after return type");
 		return UNEXPECTED_TOKEN~;
 	}
 
-	decl.name = p.token.text;
+	decl.name = p.current().text;
 	advance(p)!;
 
 	expect(p, TokenType.LPAREN)!;
 
 	decl.func.params.tinit(4);
 
-	if (!token_is(p, TokenType.RPAREN))
+	if (!p.is(TokenType.RPAREN))
     {
         do 
 		{
@@ -94,7 +94,7 @@ fn void? parse_function(Parser* p)
 
 	expect(p, TokenType.RPAREN)!;
 
-	if (token_is(p, TokenType.LBRACE))
+	if (p.is(TokenType.LBRACE))
 	{
 		decl.func.compound = parse_compound(p)!;
 	}
@@ -127,9 +127,9 @@ fn void? parse_global(Parser* p)
         decl.var_decl.is_threadlocal = is_thread_local;
 		decl.var_decl.type_info = info;
 
-        if (token_is(p, TokenType.IDENT))
+        if (p.is(TokenType.IDENT))
 		{
-        	decl.name = p.token.text;
+        	decl.name = p.current().text;
 			advance(p)!;
 		}
 		else
@@ -187,14 +187,14 @@ fn Decl*? parse_var_decl(Parser* p)
 
 fn void? parse_alias_ident(Parser* p, Decl* decl)
 {
-	decl.name = p.token.text;
+	decl.name = p.current().text;
 	advance(p)!;
 
 	//TODO: Attributes.	
 
 	expect(p, TokenType.EQ)!;
 
-	if (token_is(p, TokenType.MODULE))
+	if (p.is(TokenType.MODULE))
 	{
 
 	}
@@ -202,7 +202,7 @@ fn void? parse_alias_ident(Parser* p, Decl* decl)
 
 fn void? parse_alias_type(Parser* p, Decl* decl)
 {
-	decl.name = p.token.text;
+	decl.name = p.current().text;
 	advance(p)!;
 
 	//TODO: Attributes.
@@ -241,7 +241,7 @@ fn void? parse_alias(Parser* p)
 
 	decl.kind = DeclKind.ALIAS;
 
-	if (token_is(p, TokenType.TYPE_IDENT))
+	if (p.is(TokenType.TYPE_IDENT))
 	{
 		parse_alias_type(p, decl)!;
 	}
@@ -264,7 +264,7 @@ fn void? parse_typedef(Parser* p)
 	}
 	decl.kind = DeclKind.TYPEDEF;
 
-	decl.name = p.token.text;
+	decl.name = p.current().text;
 	
 	expect(p, TokenType.TYPE_IDENT)!;
 
@@ -285,14 +285,14 @@ fn Decl*? parse_param_decl(Parser* p)
 {
     TypeInfo* type = parse_type(p)!;
     
-    if (!token_is(p, TokenType.IDENT))
+    if (!p.is(TokenType.IDENT))
     {
         p.error("Expected parameter name");
         return UNEXPECTED_TOKEN~;
     }
     
-    String name = p.token.text;
-    SourceSpan span = type.span.combine(p.span);
+    String name = p.current().text;
+    SourceSpan span = type.span.combine(p.span());
     advance(p)!;
 
     Decl* decl = mem::tnew(Decl);
@@ -300,4 +300,29 @@ fn Decl*? parse_param_decl(Parser* p)
     decl.var_decl.type_info = type;
     decl.span = span;
     return decl;
+}
+
+fn Decl*? parse_label(Parser* p)
+{
+	if (!p.is(TokenType.CONST_IDENT))
+	{
+		p.error("Label needs to be a CONST_IDENT");
+		return UNEXPECTED_TOKEN~;
+	}
+
+	Decl* decl = mem::tnew(Decl);
+	defer (catch err)
+	{
+		allocator::free(tmem, decl);
+	}
+
+	decl.kind = DeclKind.LABEL;
+	decl.name = p.current().text;
+
+	advance(p)!;
+
+
+	expect(p, TokenType.COLON)!;
+
+	return decl;
 }

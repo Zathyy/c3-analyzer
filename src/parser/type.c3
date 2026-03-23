@@ -11,11 +11,11 @@ fn TypeInfo* make_invalid_type_info(Parser* p, TypeInfo* info)
 	info.kind = TypeInfoKind.INVALID;
 	if (info.span.is_valid())
 	{
-		info.span = info.span.combine(p.span);
+		info.span = info.span.combine(p.span());
 	}
 	else
 	{
-		info.span = p.span;
+		info.span = p.span();
 	}
 	return info;
 }
@@ -54,12 +54,12 @@ fn bool is_type_start(TokenType type)
 
 fn bool? consume_type_name(Parser* p, String type)
 {
-	if (token_is(p, TokenType.IDENT) || is_keyword_ident(p.token.type))
+	if (p.is(TokenType.IDENT) || is_keyword_ident(p.current().type))
 	{
 		p.error("Names of %s must start with an uppercase letter", type);
 		return false;
 	}
-	if (token_is(p, TokenType.CONST_IDENT))
+	if (p.is(TokenType.CONST_IDENT))
 	{
 		p.error("Names of %s cannot be all uppercase", type);
 		return false;
@@ -152,7 +152,7 @@ fn TypeInfo*? parse_generic_type_params(Parser* p, TypeInfo* base)
     List{Expr*} params;
 	params.tinit();
 
-    if (!token_is(p, TokenType.RBRACE))
+    if (!p.is(TokenType.RBRACE))
     {
         do 
 		{
@@ -162,21 +162,21 @@ fn TypeInfo*? parse_generic_type_params(Parser* p, TypeInfo* base)
     }
 
     expect(p, TokenType.RBRACE)!;
-    return make_type_info_generic(base, params, base.span.combine(p.span));
+    return make_type_info_generic(base, params, base.span.combine(p.span()));
 }
 
 fn TypeInfo*? parse_primary_type(Parser* p)
 {
-    SourceSpan span = p.span;
+    SourceSpan span = p.span();
 
     if (consume(p, TokenType.FUNC)!)
     {
         return parse_function_type(p, span)!;
     }
     
-    if (is_type_start(p.token.type))
+    if (is_type_start(p.current().type))
     {
-        String name = p.token.text;
+        String name = p.current().text;
         advance(p)!;
         return make_type_info_ident(name, span);
     }
@@ -194,18 +194,18 @@ fn TypeInfo*? parse_type(Parser* p)
     {
         if (consume(p, TokenType.STAR)!) 
         {
-            type = make_type_info_ptr(type, p.span);
+            type = make_type_info_ptr(type, p.span());
         }
         else if (consume(p, TokenType.LBRACKET)!) 
         {
             // Array: [ <expr> ]
             Expr* length = null;
-            if (!token_is(p, TokenType.RBRACKET)) 
+            if (!p.is(TokenType.RBRACKET)) 
 			{
                 length = parse_expr(p, 0)!; 
             }
             expect(p, TokenType.RBRACKET)!;
-            type = make_type_info_array(type, length, p.span);
+            type = make_type_info_array(type, length, p.span());
         }
         else if (consume(p, TokenType.LBRACE)!)
         {
@@ -236,7 +236,7 @@ fn TypeInfo*? parse_function_type(Parser* p, SourceSpan start_span)
 	params.tinit();
     bool variadic = false;
 
-    if (!token_is(p, TokenType.RPAREN))
+    if (!p.is(TokenType.RPAREN))
     {
         do 
 		{
@@ -254,6 +254,6 @@ fn TypeInfo*? parse_function_type(Parser* p, SourceSpan start_span)
 
     expect(p, TokenType.RPAREN)!;
 
-    SourceSpan full_span = start_span.combine(p.span);
+    SourceSpan full_span = start_span.combine(p.span());
     return make_type_info_func(ret, params, variadic, full_span);
 }

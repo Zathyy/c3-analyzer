@@ -30,7 +30,7 @@ Declerations aka Top level statements
 </p>
 
 <p>
-✅ = Fully implemented (should be), but that doesn't mean it's bullet proof! <br>
+✅ = Fully implemented (should be) <br>
 🟡 = Partially implmented <br>
 ❌ = Not yet implemented <br>
 </p>
@@ -49,7 +49,6 @@ Declerations aka Top level statements
 | **contract** | ❌ | 
 | **globals** | 🟡 | global variables, missing attributes
 
-
 ## Statements
 
 | Feature | Status | Notes |
@@ -57,8 +56,12 @@ Declerations aka Top level statements
 | **compound** | ✅ |
 | **return** | ✅ |
 | **defer** | ✅ |
-| **Decleration/DeclStmt** | ✅ | aka local variable
-| **Expression/ExprStmt** | ✅ | 
+| **while** | ❌ |
+| **foreach** | ❌ |
+| **for** | ❌ |
+| **if** | 🟡 | if, else, else if. Supports only one expression right now
+| **Decleration/DeclStmt** | ✅ | local variable within a statement
+| **Expression/ExprStmt** | 🟡 | support depends on parse_expr. expr in a statement
 
 ## Expressions
 
@@ -74,5 +77,6 @@ Expressions uses pratt parsing with binding power
 | **call** | ✅ | eg. foo()
 | **builtin** | ❌ |
 | **cast** | 🟡 | should work, but not fully tested eg. (void*)my_var
+| **try** | ❌ |
 | **catch** | ❌ |
 | **swizzle** | ❌ |

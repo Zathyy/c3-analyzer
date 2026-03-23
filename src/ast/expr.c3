@@ -28,6 +28,7 @@ enum ExprKind
 	TYPE,
 	CALL,
 	CAST,
+	TRY,
 	CATCH,
 	SWIZZLE,
 }

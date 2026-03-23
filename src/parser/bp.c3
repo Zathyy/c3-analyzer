@@ -20,7 +20,11 @@ fn void get_binding_power(TokenType type, int* lbp, int* rbp)
             break;
 
         case TokenType.OR:
-            *lbp = 25; *rbp = 26; // Left-associative (RBP > LBP)
+            *lbp = 22; *rbp = 23; // Left-associative (RBP > LBP)
+            break;
+		
+		case TokenType.AND:
+			*lbp = 24; *rbp = 25;
             break;
 
         case TokenType.PLUS:
@@ -34,7 +38,9 @@ fn void get_binding_power(TokenType type, int* lbp, int* rbp)
             break;
 
 		case TokenType.GREATER:
+		case TokenType.GREATER_EQ:
 		case TokenType.LESS:
+		case TokenType.LESS_EQ:
             *lbp = 30; *rbp = 31;
 			break;
 
@@ -52,9 +58,12 @@ fn void get_binding_power(TokenType type, int* lbp, int* rbp)
     }
 }
 
+<*
+	@ensure return != null
+*>
 fn Expr*? parse_infix(Parser* p, Expr* left, int rbp)
 {
-    TokenType type = p.token.type;
+    TokenType type = p.current().type;
     SourceSpan start_span = left.span;
 
     switch (type)
@@ -65,7 +74,11 @@ fn Expr*? parse_infix(Parser* p, Expr* left, int rbp)
         case TokenType.DIV:
         case TokenType.EQ:
         case TokenType.GREATER:
+        case TokenType.GREATER_EQ:
         case TokenType.LESS:
+        case TokenType.LESS_EQ:
+        case TokenType.AND:
+        case TokenType.OR:
         {
             advance(p)!;
             Expr* right = parse_expr(p, rbp)!;
@@ -76,7 +89,6 @@ fn Expr*? parse_infix(Parser* p, Expr* left, int rbp)
         {
             return parse_call(p, left)!;
         }
-
         case TokenType.QUESTION:
         {
             return parse_ternary(p, left, rbp)!;
@@ -93,8 +105,8 @@ fn Expr*? parse_infix(Parser* p, Expr* left, int rbp)
 *>
 fn Expr*? parse_prefix(Parser* p)
 {
-    TokenType type = p.token.type;
-	SourceSpan op_span = p.span;
+    TokenType type = p.current().type;
+	SourceSpan op_span = p.span();
 
 	if (is_type_start(type))
 	{
@@ -114,31 +126,30 @@ fn Expr*? parse_prefix(Parser* p)
         case TokenType.BANG:
         case TokenType.MINUS:
         case TokenType.BIT_NOT:
-           {
-				advance(p)!;
-				// Grab the operand with high "Right Binding Power"
-				Expr* rhs = parse_expr(p, 70)!;
-				return make_unary_expr(type, rhs, op_span);
-		   }
-
+		{
+			advance(p)!;
+			// Grab the operand with high "Right Binding Power"
+			Expr* rhs = parse_expr(p, 70)!;
+			return make_unary_expr(type, rhs, op_span);
+		}
         case TokenType.LPAREN:
-			{ 
-				// check if Cast
-				if (is_type_start(peek(p)))
-				{
-					advance(p)!;
-					TypeInfo* target_type = parse_type(p)!;
-        			expect(p, TokenType.RPAREN)!;
-					// A cast has very high precedence (Unary level)
-					Expr* operand = parse_expr(p, 70)!;
-					return make_cast_expr(target_type, operand);
-				}
-
+		{ 
+			// check if Cast
+			if (is_type_start(p.peek().type))
+			{
 				advance(p)!;
-				Expr* e = parse_expr(p, 0)!; // Reset to 0 inside parens
+				TypeInfo* target_type = parse_type(p)!;
 				expect(p, TokenType.RPAREN)!;
-				return e;
+				// A cast has very high precedence (Unary level)
+				Expr* operand = parse_expr(p, 70)!;
+				return make_cast_expr(target_type, operand);
 			}
+
+			advance(p)!;
+			Expr* e = parse_expr(p, 0)!; // Reset to 0 inside parens
+			expect(p, TokenType.RPAREN)!;
+			return e;
+		}
         default:
             return UNEXPECTED_TOKEN~;
     }

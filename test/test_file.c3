@@ -31,16 +31,41 @@ fn int foo(uint value)
 
 	defer {
 		parse(2);
+		parse((int)value);
 	}
 
 	float my_local_var;
 
 	int value_as_int = (int)value;
+
+	if (value_as_int > 0 && value_as_int <= 10) 
+	{
+
+	}
+	else if (value_as_int)
+	{
+
+	}
+	else
+	{
+
+	}
 }
 
 fn String foo2(uint value)
 {
 	return "Do you know tha way?";
+}
+
+fn int foo3(uint value)
+{
+    int a = 55 * 8 / 5 * 3;
+
+	int b = (55 * 8) / (5 * 3);
+
+	int c = 55 * 8 - 1 / 5 * 3 - 1;
+
+	int d = (55 * 8) - ((1 / 5) * 3) - 1; 
 }
 
 void* type;

@@ -4,16 +4,18 @@ import c3_parser::ast;
 import c3::lexer;
 import c3_parser::common;
 
+import std::collections::list;
+
 fn Stmt* make_invalid_stmt(Parser* p, Stmt* stmt)
 {
 	stmt.kind = StmtKind.INVALID;
-	stmt.span = p.span;
+	stmt.span = p.span();
 	return stmt;
 }
 
 fn Stmt*? parse_stmt(Parser* p)
 {
-	TokenType type = p.token.type;
+	TokenType type = p.current().type;
 
 	switch (type)
 	{
@@ -25,6 +27,8 @@ fn Stmt*? parse_stmt(Parser* p)
 			return parse_return(p)!;
 		case TokenType.DEFER:
 			return parse_defer(p)!;
+		case TokenType.IF:
+			return parse_if(p)!;
 		default:
 		{
 			if (is_type_start(type))
@@ -62,7 +66,7 @@ fn Stmt*? parse_compound(Parser* p)
 	Stmt* stmt = mem::tnew(Stmt);
 	stmt.kind = StmtKind.COMPOUND;
 
-	while (p.token.type != TokenType.RBRACE)
+	while (p.current().type != TokenType.RBRACE)
 	{
 		if (p.eof()) break;
 
@@ -98,7 +102,7 @@ fn Stmt*? parse_decl_stmt(Parser* p)
         info = parse_type(p)!;
     }
 
-    Token name_tok = p.token;
+    Token name_tok = p.current();
     expect(p, TokenType.IDENT)!;
 
     // Handle optional initializer: '= 10'
@@ -120,7 +124,7 @@ fn Stmt*? parse_decl_stmt(Parser* p)
     Stmt* stmt = mem::tnew(Stmt);
     stmt.kind = StmtKind.DECL;
     stmt.decl_stmt.decl = decl;
-    stmt.span = p.span.combine(p.span);
+    stmt.span = p.span().combine(p.span());
     
     return stmt;
 }
@@ -144,7 +148,7 @@ fn Stmt*? parse_defer(Parser* p)
 	{
 		stmt.defer_stmt.is_catch = true;
 	}
-	else if (token_is(p, TokenType.LPAREN))
+	else if (p.is(TokenType.LPAREN))
 	{
 		advance(p)!;
 
@@ -167,11 +171,11 @@ fn Stmt*? parse_defer(Parser* p)
 
 fn Stmt*? parse_return(Parser* p)
 {
-	SourceSpan start = p.span;
+	SourceSpan start = p.span();
     expect(p, TokenType.RETURN)!;
     
     Expr* expr = null;
-    if (!token_is(p, TokenType.EOS))
+    if (!p.is(TokenType.EOS))
     {
         expr = parse_expr(p)!;
     }
@@ -181,7 +185,83 @@ fn Stmt*? parse_return(Parser* p)
     Stmt* stmt = mem::tnew(Stmt);
     stmt.kind = StmtKind.RETURN;
     stmt.return_stmt.expr = expr;
-    stmt.span = start.combine(p.span);
+    stmt.span = start.combine(p.span());
     
+    return stmt;
+}
+
+
+
+fn Stmt*? parse_if(Parser* p)
+{
+    SourceSpan start = p.span();
+    expect(p, TokenType.IF)!;
+
+	// labelled
+	Decl* label = null;
+	if (p.is(TokenType.CONST_IDENT))
+	{
+		label = parse_label(p)!;
+	}
+
+    // 1. Parse Condition: if (value > 5)
+    expect(p, TokenType.LPAREN)!;
+
+	List{ Expr* } exprs;
+	exprs.tinit(4);
+
+	while (true)
+	{
+		if (p.is(TokenType.TRY))
+		{
+
+		}
+
+		if (p.is(TokenType.CATCH))
+		{
+			
+		}
+
+		Expr* condition = parse_expr(p, 0)!;
+		exprs.push(condition);
+
+		if (!consume(p, TokenType.COMMA)!) break;
+	}
+
+    expect(p, TokenType.RPAREN)!;
+
+    // 2. Parse "Then" Body: { ... } or a single statement
+    Stmt* then_stmt = parse_stmt(p)!;
+
+    // 3. Handle "Else" / "Else If"
+    Stmt*? else_stmt = null;
+    if (consume(p, TokenType.ELSE)!)
+    {
+        // If the next token is 'if', parse_stmt will call 
+        // parse_if again, naturally nesting them.
+        else_stmt = parse_stmt(p)!;
+    }
+
+    Stmt* stmt = mem::tnew(Stmt);
+    stmt.kind = StmtKind.IF;
+    stmt.if_stmt.conditions = exprs;
+    stmt.if_stmt.then_stmt = then_stmt;
+
+	if (label)
+	{
+		stmt.if_stmt.label.set(label);
+	}
+
+	if (try else_stmt)
+	{
+    	stmt.if_stmt.else_stmt = else_stmt;
+	}
+	else
+	{
+    	stmt.if_stmt.else_stmt = null;
+	}
+
+    stmt.span = start.combine(p.span());
+
     return stmt;
 }

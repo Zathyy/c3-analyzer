@@ -213,6 +213,32 @@ fn void print_stmt(Stmt* stmt, String prefix, bool is_last)
 			}
 			break;
 		}
+		case IF:
+		{
+			io::print("IfStmt\n");
+			String child_prefix = make_child_prefix(prefix, is_last);
+
+			io::print(child_prefix);
+			io::print("├─ Conditions:\n");
+
+			usz len = stmt.if_stmt.conditions.len();
+			foreach (cond : stmt.if_stmt.conditions)
+			{
+				print_expr(cond, make_child_prefix(child_prefix, false), true);
+			}
+
+			io::print(child_prefix);
+			io::print("├─ Then:\n");
+			print_stmt(stmt.if_stmt.then_stmt, make_child_prefix(child_prefix, false), true);
+
+			if (stmt.if_stmt.else_stmt != null) 
+			{
+				io::print(child_prefix);
+				io::print("└─ Else:\n");
+				print_stmt(stmt.if_stmt.else_stmt, make_child_prefix(child_prefix, true), true);
+			}
+			break;
+		}
 		case DECL:
 		{
 			io::printn("DeclStmt");
