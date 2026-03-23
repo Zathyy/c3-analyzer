@@ -65,7 +65,7 @@ Declerations aka Top level statements
 
 ## Expressions
 
-Expressions uses pratt parsing with binding power 
+Expressions uses pratt parsing with [Binding Power](https://matklad.github.io/2020/04/13/simple-but-powerful-pratt-parsing.html)
 
 | Feature | Status | Notes |
 | :--- | :---: | :--- |
