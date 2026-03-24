@@ -15,6 +15,8 @@ faultdef
 	FOUND_MODULE,
 ;
 
+alias DeclBuffer = List{ Decl* };
+
 struct Parser
 {
 	Token[] tokens;
@@ -27,13 +29,15 @@ struct Parser
 
 macro void Parser.info(self, String fmt, ...)
 {    
+	io::print(ansi::get_color_rgb(0, 200, 0));
 	if (diagnostics::use_diagnostics)
 	{
-		diagnostics::report(INFO, self.span(), format, $vasplat);
+		diagnostics::report(INFO, self.span(), fmt, $vasplat);
 	}
 	$if $defined (env::DEBUG_SYMBOLS):
 		log::info("at: %s %s:%s", $$FILE, $$FUNC, $$LINE);
 	$endif
+	io::print(ansi::get_color_rgb(200, 200, 200));
 }
 
 macro void Parser.warn(self, String fmt, ...)
@@ -272,7 +276,7 @@ fn void? parse(Parser* parser)
 			return FOUND_MODULE~;
 		};
 
-		if (catch err = parse_top_level_statement(parser))
+		if (catch err = parse_top_level_statement(parser, &parser.section.ast.decls))
 		{	
 			log::debug("Failed parse_top_leverl: %s. Adding as invalid...", err);
 			
@@ -286,72 +290,49 @@ fn void? parse(Parser* parser)
 	}
 }
 
-<*
-	@param [&inout] parser
-*>
-fn void? parse_top_level_statement(Parser* parser)
+fn void? parse_top_level_statement(Parser* p, List{Decl*}* out)
 {
-	// TODO: Refine this loop and add more cases.
-	// TODO: Contracts
+    log::debug("parse_top_level_statement: %s", p.current());
 
-	TokenType type = parser.current().type;
+    // Metadata / Documentation
+    parse_docs(p);
 
-	// catch forgetting to consume the EOS
-	if (type == TokenType.EOS) 
-	{
-		parser.error("<EOS> appeared in parse_top_level");
-	}
+    TokenType type = p.current().type;
 
-	log::debug("parse_top_level_statement: %s", parser.current());
+    // Handle specific keywords
+    switch (type)
+    {
+        case TokenType.EOS:
+            p.error("<EOS> appeared in parse_top_level");
+            advance(p)!;
+            return;
 
-	parse_docs(parser);
+        case TokenType.FUNC:
+            return parse_function(p, out)!;
 
-	switch (type)
-	{
-	case TokenType.FUNC:
-		return parse_function(parser)!;
-	case TokenType.IMPORT: 
-		return parse_import(parser)!;
-	case TokenType.ALIAS:
-		return parse_alias(parser)!;
-	case TokenType.TYPEDEF:
-		return parse_typedef(parser)!;
-	case TokenType.BOOL: //TODO: possible to make this into a macro? like in C.
-	case TokenType.CHAR:
-	case TokenType.DOUBLE:
-	case TokenType.FLOAT:
-	case TokenType.FLOAT16:
-	case TokenType.BFLOAT16:
-	case TokenType.INT128:
-	case TokenType.ICHAR:
-	case TokenType.INT:
-	case TokenType.IPTR:
-	case TokenType.LONG:
-	case TokenType.SHORT:
-	case TokenType.UINT128:
-	case TokenType.UINT:
-	case TokenType.ULONG:
-	case TokenType.UPTR:
-	case TokenType.USHORT:
-	case TokenType.USZ:
-	case TokenType.ISZ:
-	case TokenType.FLOAT128:
-	case TokenType.TYPEID:
-	case TokenType.FAULT:
-	case TokenType.ANY:
-	case TokenType.VOID:
-	case TokenType.TYPE_IDENT:
-	case TokenType.CT_TYPE_IDENT:
-	case TokenType.CT_TYPEOF:
-	case TokenType.CT_EVALTYPE:
-	case TokenType.CT_VATYPE:
-	case TokenType.CT_TYPEFROM:
-	case TokenType.IDENT:
-		return parse_global(parser)!;
-	default:
-		break;
-	}
+        case TokenType.IMPORT: 
+            return parse_import(p, out)!;
 
-	log::debug("%s parse_top_level_statement - couldn't find any matching top level decleration: %s", parser.current());
-	return UNEXPECTED_TOKEN~;
+        case TokenType.ALIAS:
+            return parse_alias(p, out)!;
+
+        case TokenType.TYPEDEF:
+            return parse_typedef(p, out)!;
+
+        case TokenType.STRUCT:
+        case TokenType.UNION:
+        case TokenType.BITSTRUCT:
+            return parse_struct(p, out)!; // Passing the list we got!
+
+        default:
+            // Fallback: Is it a global variable or something else?
+            if (is_type_start(type) || type == TokenType.IDENT)
+            {
+                return parse_global(p, out)!;
+            }
+            break;
+    }
+
+    log::error("Couldn't find any matching top level declaration: %s", p.current());
+    return UNEXPECTED_TOKEN~;
 }

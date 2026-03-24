@@ -72,6 +72,21 @@ fn void print_decl(Decl* decl, String prefix, bool is_last)
             print_func_decl(decl, child_prefix);
             break;
         }
+		case BITSTRUCT:
+		case UNION:
+		case STRUCT:
+		{
+            (void)io::printf("StructDecl: (%s) %s\n", decl.kind, decl.name);
+			
+			foreach (i, member : decl.struct_decl.members)
+			{
+				bool member_is_last = (i == decl.struct_decl.members.len() - 1);
+            	String child_prefix = make_child_prefix(prefix, is_last);
+				print_decl(member, child_prefix, member_is_last);
+			}
+
+			break;
+		}
         case MODULE:
         {
             (void)io::printf("ModuleDecl: %s\n", decl.mod.path.name);

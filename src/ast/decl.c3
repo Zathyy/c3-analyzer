@@ -17,6 +17,9 @@ enum DeclKind
 	MODULE,
 	IMPORT,
 	FUNC,
+	STRUCT,
+	BITSTRUCT,
+	UNION,
 	ALIAS,
 	TYPEDEF,
 	VAR,
@@ -34,7 +37,7 @@ enum AliasKind
 
 struct Decl (Printable)
 {
-	SourceSpan[] attributes;
+	List{ Attribute } attributes;
 	String name;
 	String extname;
 	String comment; // comment && docs
@@ -50,6 +53,7 @@ struct Decl (Printable)
 		AliasDecl alias_decl;
 		TypedefDecl typedef_decl;
 		ContractDecl contract;
+		StructDecl struct_decl;
 		// more types go here later
 	}
 }
@@ -59,6 +63,12 @@ struct FuncDecl
 	TypeInfo* ret_type;
 	List{ Decl* } params;
 	Maybe{ Stmt* } compound;
+}
+
+struct StructDecl 
+{
+	List{ Decl* } members;
+	Decl* parent; // optional
 }
 
 <*

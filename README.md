@@ -43,7 +43,9 @@ Declerations aka Top level statements
 | **typedef** | 🟡 | supports typedef MyType = 'Type'
 | **function** | 🟡 | except for functions using ´=>´
 | **macro** | ❌ | 
-| **struct** | ❌ | 
+| **struct** | 🟡 | 
+| **union** | 🟡 | 
+| **bitstruct** | ❌ | 
 | **enum** | ❌ | 
 | **constdef** | ❌ | 
 | **contract** | ❌ | 
@@ -59,7 +61,7 @@ Declerations aka Top level statements
 | **while** | ❌ |
 | **foreach** | ❌ |
 | **for** | ❌ |
-| **if** | 🟡 | if, else, else if. Supports only one expression right now
+| **if** | 🟡 | if, else, else if
 | **Decleration/DeclStmt** | ✅ | local variable within a statement
 | **Expression/ExprStmt** | 🟡 | support depends on parse_expr. expr in a statement
 

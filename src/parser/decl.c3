@@ -11,15 +11,7 @@ macro void make_invalid_decl(Parser* p, Decl* decl)
 	decl.span = p.span();
 }
 
-<*
-	@require p.section != null
-*>
-fn void append_decl(Parser* p, Decl* decl)
-{
-	p.section.ast.decls.push(decl);	
-}
-
-//TODO: make use of DeclKind.INVALID
+// Should only be called by project
 fn Decl*? parse_module(Parser* p)
 {
 	expect(p, TokenType.MODULE)!;
@@ -39,7 +31,7 @@ fn Decl*? parse_module(Parser* p)
 }
 
 //TODO: make use of DeclKind.INVALID
-fn void? parse_import(Parser* p)
+fn void? parse_import(Parser* p, DeclBuffer* out)
 {
 	expect(p, TokenType.IMPORT)!;
     Decl* decl = mem::tnew(Decl);
@@ -52,12 +44,12 @@ fn void? parse_import(Parser* p)
     decl.imp.path = parse_path(p)!;
     expect(p, TokenType.EOS)!;
 	decl.span = decl.span.combine(p.span());
-	p.section.ast.decls.push(decl);
+	out.push(decl);
 	log::debug("Token after import: %s", p.current());
 }
 
 //TODO: make use of DeclKind.INVALID
-fn void? parse_function(Parser* p)
+fn void? parse_function(Parser* p, DeclBuffer* out)
 {
 	expect(p, TokenType.FUNC)!;
 	Decl* decl = mem::tnew(Decl);
@@ -100,7 +92,7 @@ fn void? parse_function(Parser* p)
 	}
 
 	decl.span = decl.span.combine(start);
-	append_decl(p, decl);
+	out.push(decl);
 	log::debug("parsed function %s", decl.name);
 }
 
@@ -108,7 +100,7 @@ fn void? parse_function(Parser* p)
 	global ::= TLOCAL? optional_type IDENT (('=' expression)? | (',' IDENT)* opt_attributes) ';'
 	@return? consume!, expect!, UNEXPECTED_TOKEN
 *>
-fn void? parse_global(Parser* p)
+fn void? parse_global(Parser* p, DeclBuffer* out)
 {
 	bool is_thread_local = consume(p, TokenType.TLOCAL)!;
     
@@ -166,11 +158,14 @@ fn void? parse_global(Parser* p)
 
     foreach (d : decls) 
 	{
-		append_decl(p, d);
+		out.push(d);
 		log::debug("parsed global: %s", d.name);
 	}
 }
 
+<*
+	This returns since it isnt going to be called by parse_top_level
+*>
 fn Decl*? parse_var_decl(Parser* p)
 {
 	Decl* decl = mem::tnew(Decl);
@@ -229,7 +224,7 @@ fn void? parse_alias_type(Parser* p, Decl* decl)
 	expect(p, TokenType.EOS)!;
 }
 
-fn void? parse_alias(Parser* p)
+fn void? parse_alias(Parser* p, DeclBuffer* out)
 {
 	expect(p, TokenType.ALIAS)!;
 
@@ -250,10 +245,10 @@ fn void? parse_alias(Parser* p)
 		parse_alias_ident(p, decl)!;
 	}
 
-	append_decl(p, decl);
+	out.push(decl);
 }
 
-fn void? parse_typedef(Parser* p)
+fn void? parse_typedef(Parser* p, DeclBuffer* out)
 {
 	expect(p, TokenType.TYPEDEF)!;
 
@@ -278,7 +273,7 @@ fn void? parse_typedef(Parser* p)
 
 	expect(p, TokenType.EOS)!;
 
-	append_decl(p, decl);
+	out.push(decl);
 }
 
 fn Decl*? parse_param_decl(Parser* p)
@@ -325,4 +320,73 @@ fn Decl*? parse_label(Parser* p)
 	expect(p, TokenType.COLON)!;
 
 	return decl;
+}
+
+fn void? parse_struct(Parser* p, DeclBuffer* out)
+{
+	p.info("parse_struct: %s", p.current());
+	if (!p.is(TokenType.STRUCT) && !p.is(TokenType.UNION) && !p.is(TokenType.BITSTRUCT))
+    {
+        p.error("Expected struct, union, or bitstruct, got: %s", p.current());
+        return UNEXPECTED_TOKEN~;
+    }
+
+	Decl* decl = mem::tnew(Decl);
+	defer (catch err)
+	{
+		allocator::free(tmem, decl);
+	}
+
+	decl.span = p.span();
+
+	switch (p.current().type)
+	{
+		case STRUCT:
+			decl.kind = DeclKind.STRUCT;
+			break;
+		case UNION:
+			decl.kind = DeclKind.UNION;
+			break;
+		case BITSTRUCT:
+			decl.kind = DeclKind.BITSTRUCT;
+			break;
+		default:
+			unreachable("Unexpected token!");
+	}
+	advance(p)!;
+
+	if (is_some_ident(p.current().type))
+    {
+        decl.name = p.current().text;
+        advance(p)!;
+    }
+
+	expect(p, TokenType.LBRACE)!;
+	decl.struct_decl.members.tinit(4);
+	
+	while (!p.is(TokenType.RBRACE))
+	{	
+		if (p.is(TokenType.STRUCT) || p.is(TokenType.UNION))
+		{
+			parse_struct(p, &decl.struct_decl.members)!;
+			continue;
+		}
+
+		TypeInfo* info = parse_type(p)!;
+		String name = p.current().text;
+		advance(p)!;
+
+		expect(p, TokenType.EOS)!;
+
+		Decl* member = mem::tnew(Decl);
+		member.kind = DeclKind.VAR;
+		member.name = name;
+		member.var_decl.type_info = info;
+		member.var_decl.kind = VarDeclKind.MEMBER;
+		decl.struct_decl.members.push(member);
+	}
+
+	expect(p, TokenType.RBRACE)!;
+
+	out.push(decl);
 }

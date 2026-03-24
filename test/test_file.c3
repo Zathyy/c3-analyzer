@@ -68,6 +68,37 @@ fn int foo3(uint value)
 	int d = (55 * 8) - ((1 / 5) * 3) - 1; 
 }
 
+struct MyStruct 
+{
+	int member;
+
+	struct 
+	{
+		int nested_member;
+	}
+
+	struct struct_named
+	{
+		int nested_member;
+	}
+
+	union 
+	{
+		int union_member;
+	}
+
+
+	union union_named 
+	{
+
+	}
+}
+
+union MyUnion 
+{
+	int my_data;
+}
+
 void* type;
 
 module foo::bar;
