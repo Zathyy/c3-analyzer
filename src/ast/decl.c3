@@ -21,6 +21,8 @@ enum DeclKind
 	BITSTRUCT,
 	UNION,
 	ALIAS,
+	ENUM,
+	ENUM_CONSTANT,
 	TYPEDEF,
 	VAR,
 	LABEL,
@@ -54,6 +56,7 @@ struct Decl (Printable)
 		TypedefDecl typedef_decl;
 		ContractDecl contract;
 		StructDecl struct_decl;
+		EnumDecl enum_decl;
 		// more types go here later
 	}
 }
@@ -83,7 +86,7 @@ struct VarDecl
 		Decl* alias_decl;
 	}
 
-	TypeInfo* type_info;
+	TypeInfo* type;
 	VarDeclKind kind;
 
 	bool no_init;
@@ -94,6 +97,7 @@ struct EnumDecl
 {
 	List{ Decl* } values;
 	List{ Decl* } parameters;
+	TypeInfo* type;
 }
 
 struct ModuleDecl

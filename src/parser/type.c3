@@ -185,7 +185,7 @@ fn TypeInfo*? parse_primary_type(Parser* p)
     return UNEXPECTED_TOKEN~;
 }
 
-fn TypeInfo*? parse_type(Parser* p)
+fn TypeInfo*? parse_type(Parser* p, bool allow_generics = true)
 {
     TypeInfo* type = parse_primary_type(p)!;
 	log::debug("parse_type()");
@@ -207,7 +207,7 @@ fn TypeInfo*? parse_type(Parser* p)
             expect(p, TokenType.RBRACKET)!;
             type = make_type_info_array(type, length, p.span());
         }
-        else if (consume(p, TokenType.LBRACE)!)
+        else if (allow_generics && consume(p, TokenType.LBRACE)!)
         {
             // Generic: { ... }
 			log::debug("parse_type() - Found LBRACE");

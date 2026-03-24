@@ -299,7 +299,6 @@ fn void? parse_top_level_statement(Parser* p, List{Decl*}* out)
 
     TokenType type = p.current().type;
 
-    // Handle specific keywords
     switch (type)
     {
         case TokenType.EOS:
@@ -322,7 +321,11 @@ fn void? parse_top_level_statement(Parser* p, List{Decl*}* out)
         case TokenType.STRUCT:
         case TokenType.UNION:
         case TokenType.BITSTRUCT:
-            return parse_struct(p, out)!; // Passing the list we got!
+            return parse_struct(p, out)!;
+
+		case TokenType.CONSTDEF:
+		case TokenType.ENUM:
+			return parse_enum(p, out)!;
 
         default:
             // Fallback: Is it a global variable or something else?
@@ -333,6 +336,6 @@ fn void? parse_top_level_statement(Parser* p, List{Decl*}* out)
             break;
     }
 
-    log::error("Couldn't find any matching top level declaration: %s", p.current());
+   	p.error("Couldn't find any matching top level declaration: %s", p.current());
     return UNEXPECTED_TOKEN~;
 }

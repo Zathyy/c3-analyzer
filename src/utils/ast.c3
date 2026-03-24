@@ -101,7 +101,7 @@ fn void print_decl(Decl* decl, String prefix, bool is_last)
 		case VAR:
 		{
 			(void)io::print("VarDecl: ");
-			print_type(decl.var_decl.type_info);
+			print_type(decl.var_decl.type);
             io::printfn(" %s", decl.name);
 
 			if (decl.var_decl.init_expr)
@@ -140,6 +140,26 @@ fn void print_decl(Decl* decl, String prefix, bool is_last)
 			io::printn();
             break;
 		}
+		case ENUM:
+		{
+			(void)io::printf("EnumDecl: %s = ", decl.name);
+			print_type(decl.enum_decl.type);
+			io::printn();
+			
+			foreach (i, member : decl.enum_decl.values)
+			{
+				bool member_is_last = (i == decl.enum_decl.values.len() - 1);
+            	String child_prefix = make_child_prefix(prefix, is_last);
+				print_decl(member, child_prefix, member_is_last);
+			}
+
+			break;
+		}
+		case ENUM_CONSTANT:
+		{
+            (void)io::printf("EnumConstant: %s\n", decl.name);
+			break;
+		}
 		default:
 			unreachable("missing print_decl case: %s", decl.kind);
     }
@@ -171,7 +191,7 @@ fn void print_func_decl(Decl* decl, String prefix)
 
             print_prefix(arg_prefix, is_last_param);
             io::printf("Param: %s (Type: ", param.name);
-            print_type(param.var_decl.type_info);
+            print_type(param.var_decl.type);
             io::print(")\n");
         }
     }

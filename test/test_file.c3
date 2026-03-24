@@ -7,6 +7,14 @@ alias MyBasicType = uint;
 alias MyListType = List{ float };
 alias MyFunctionPointer = fn String(char arg1, float arg2);
 
+enum MyEnum : uint 
+{
+	FOO,
+	BAR,
+	FOO_BAR,
+	DOOOOO,
+}
+
 typedef MyType = float;
 
 float my_first_global_var;

@@ -46,8 +46,7 @@ Declerations aka Top level statements
 | **struct** | 🟡 | 
 | **union** | 🟡 | 
 | **bitstruct** | ❌ | 
-| **enum** | ❌ | 
-| **constdef** | ❌ | 
+| **enum** | 🟡 | constdef is not supported aswell as associated values.
 | **contract** | ❌ | 
 | **globals** | 🟡 | global variables, missing attributes
 
@@ -61,7 +60,7 @@ Declerations aka Top level statements
 | **while** | ❌ |
 | **foreach** | ❌ |
 | **for** | ❌ |
-| **if** | 🟡 | if, else, else if
+| **if** | 🟡 | if, else, else if & labelled if
 | **Decleration/DeclStmt** | ✅ | local variable within a statement
 | **Expression/ExprStmt** | 🟡 | support depends on parse_expr. expr in a statement
 

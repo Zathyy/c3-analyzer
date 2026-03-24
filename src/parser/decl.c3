@@ -117,7 +117,7 @@ fn void? parse_global(Parser* p, DeclBuffer* out)
         decl.kind = DeclKind.VAR;
         decl.var_decl.kind = VarDeclKind.GLOBAL;
         decl.var_decl.is_threadlocal = is_thread_local;
-		decl.var_decl.type_info = info;
+		decl.var_decl.type = info;
 
         if (p.is(TokenType.IDENT))
 		{
@@ -292,7 +292,7 @@ fn Decl*? parse_param_decl(Parser* p)
 
     Decl* decl = mem::tnew(Decl);
     decl.name = name;
-    decl.var_decl.type_info = type;
+    decl.var_decl.type = type;
     decl.span = span;
     return decl;
 }
@@ -381,12 +381,88 @@ fn void? parse_struct(Parser* p, DeclBuffer* out)
 		Decl* member = mem::tnew(Decl);
 		member.kind = DeclKind.VAR;
 		member.name = name;
-		member.var_decl.type_info = info;
+		member.var_decl.type = info;
 		member.var_decl.kind = VarDeclKind.MEMBER;
 		decl.struct_decl.members.push(member);
 	}
 
 	expect(p, TokenType.RBRACE)!;
 
+	out.push(decl);
+}
+
+fn void? parse_enum(Parser* p, DeclBuffer* out)
+{
+	expect(p, TokenType.ENUM)!;
+
+	Decl* decl = mem::tnew(Decl);
+	defer (catch err)
+	{
+		allocator::free(tmem, decl);
+	}
+
+	decl.span = p.span();
+	decl.kind = DeclKind.ENUM;
+	decl.name = p.current().text;
+	advance(p)!;
+
+	if (p.is(TokenType.COLON))
+	{
+		advance(p)!;
+	}
+
+	if (try type = parse_type(p, false))
+	{
+		p.info("parse_enum() - found type");
+		decl.enum_decl.type = type;
+	}
+
+	bool has_associated_values;
+	if (try consume(p, TokenType.LPAREN))
+	{
+		has_associated_values = true;
+	}
+
+	p.info("425 - %s", p.current());
+	expect(p, TokenType.LBRACE)!;
+
+	decl.enum_decl.values.tinit(4);
+	decl.enum_decl.parameters.tinit(4);
+
+	while (!p.is(TokenType.RBRACE))
+	{
+		if (!p.is(TokenType.CONST_IDENT))
+		{
+			p.error("Expected a const identifier!");
+			return UNEXPECTED_TOKEN~;
+		}
+
+		Decl* value = mem::tnew(Decl);
+		value.span = p.span();
+		value.kind = DeclKind.ENUM_CONSTANT;
+
+		value.name = p.current().text;
+		
+		advance(p)!;
+
+		if (p.is(TokenType.LBRACE))
+		{
+			if (!has_associated_values)
+			{
+				p.error("Can't use associated values when not declared as one");
+				return UNEXPECTED_TOKEN~;
+			}
+		}
+		
+		expect(p, TokenType.COMMA)!;
+
+		decl.enum_decl.values.push(value);
+	}
+
+	decl.span = decl.span.combine(p.span());
+
+	advance(p)!;
+
+	p.info("added enum!");
 	out.push(decl);
 }
