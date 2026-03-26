@@ -18,6 +18,7 @@ enum NodeKind : char
     RETURN_STMT, // return
 	IDENT_EXPR,
 	MODULE_DECL,
+    IMPORT_DECL,
 }
 
 struct Ast 
@@ -26,6 +27,7 @@ struct Ast
     List{uint}     tokens;
     List{uint}     extra_indices;
     List{uint}     extra_data;
+    List{uint}     top_level_nodes; // to track what nodes are "top-level" its really hard without it
 }
 
 fn void init(Ast* ast, usz estimated_size)
@@ -34,6 +36,7 @@ fn void init(Ast* ast, usz estimated_size)
     ast.tokens.tinit(estimated_size);
     ast.extra_indices.tinit(estimated_size);
     ast.extra_data.tinit(estimated_size * 2); // Usually more extra data than nodes
+    ast.top_level_nodes.tinit(estimated_size / 4);
 }
 
 fn void free(Ast* ast)
@@ -42,6 +45,7 @@ fn void free(Ast* ast)
 	ast.tokens.free();
 	ast.extra_indices.free();
 	ast.extra_data.free();
+    ast.top_level_nodes.free();
 }
 
 fn Node add_node(Ast* ast, NodeKind kind, uint tok, uint extra_idx)
@@ -96,3 +100,4 @@ fn uint push_extra_block(Ast* ast, uint[] data)
     ast.extra_data.push_all(data);
     return start;
 }
+

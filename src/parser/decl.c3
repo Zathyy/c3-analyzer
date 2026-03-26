@@ -15,3 +15,14 @@ fn Node? parse_module(Parser* p)
     expect(p, TokenKind.EOS)!;
     return ast::add_node(p.ast, NodeKind.MODULE_DECL, start, (uint)path_node);
 }
+
+fn Node? parse_import(Parser* p)
+{
+	uint start = p.pos;
+	expect(p, TokenKind.IMPORT)!;
+
+    Node path_node = parse_path(p)!; 
+
+   	expect(p, TokenKind.EOS)!;
+    return ast::add_node(p.ast, NodeKind.IMPORT_DECL, start, (uint)path_node);
+}

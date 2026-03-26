@@ -3,7 +3,7 @@ module c3_parser::ast;
 import string_pool;
 
 // Views is a way to index into each node without having to do index calculations everytime
-// and provides an easy way to access each nodes subnodes/data
+// and provides an easy & safe way to access each nodes subnodes/data
 
 struct PathView {
     Ast* ast;
@@ -24,6 +24,38 @@ fn String PathView.get_text(PathView self, uint index, StringPool* pool) {
     uint sh = self.get_string_handle(index);
     return pool.get(sh);
 }
+
+// ---
+
+struct ModuleView 
+{
+    Ast* ast;
+    Node handle;
+}
+
+// Returns the Node index of the PATH associated with this module
+fn Node ModuleView.path(ModuleView self) 
+{
+    uint ex = self.ast.extra_indices[(usz)self.handle];
+    return (Node)ex;
+}
+
+// ---
+
+struct ImportView 
+{
+    Ast* ast;
+    Node handle;
+}
+
+// Returns the Node index of the PATH associated with this import
+fn Node ImportView.path(ImportView self) 
+{
+    uint ex = self.ast.extra_indices[(usz)self.handle];
+    return (Node)ex;
+}
+
+// ---
 
 struct ForView
 {

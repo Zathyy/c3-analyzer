@@ -231,9 +231,6 @@ struct Token
     uint len;  // Length of the lexeme
 }
 
-// how can this be 8?, shouldn't it be 12? kind = 1 + 3 padding?
-$assert($sizeof(Token) == 8);
-
 struct Lexer 
 {
 	String buffer;

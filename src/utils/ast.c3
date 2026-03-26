@@ -10,20 +10,36 @@ import std::collections::maybe;
 
 fn void dump(Ast* ast, StringPool* pool)
 {
-	foreach (i, node : ast.kinds)
+	io::printn("Tree");
+	foreach (i, node : ast.top_level_nodes)
 	{
-		io::printf("dump - %s\n", node);
-		print_node(ast, pool, (Node)i, 0);
+		bool is_last = (i == ast.top_level_nodes.len() - 1);		
+		print_node(ast, pool, (Node)node, "", is_last);
 	}
 }
 
-fn void print_node(Ast* ast, StringPool* pool, Node handle, int indent)
+fn void print_node(Ast* ast, StringPool* pool, Node handle, String prefix, bool is_last)
 {
     NodeKind kind = ast::get_kind(ast, handle);
-    for (int i = 0; i < indent; i++) io::print("  ");
+
+    io::print(prefix);
+    io::print(is_last ? "└── " : "├── ");
+    
+    String new_prefix = string::tformat("%s%s", prefix, is_last ? "    " : "│   ");
+    defer new_prefix.free(tmem);
 
     switch (kind)
     {
+		case NodeKind.MODULE_DECL:
+			io::printn("ModuleDecl");
+			ModuleView mv = (ModuleView){ ast, handle };
+			print_node(ast, pool, mv.path(), new_prefix, true);
+			break;
+		case NodeKind.IMPORT_DECL:
+			io::printn("ImportDecl");
+			ImportView mv = (ImportView){ ast, handle };
+			print_node(ast, pool, mv.path(), new_prefix, true);
+			break;
 		case NodeKind.PATH:
 			PathView v = (PathView){ ast, handle };
 			io::print("Path: ");
@@ -37,27 +53,26 @@ fn void print_node(Ast* ast, StringPool* pool, Node handle, int indent)
 			io::printn();
 			break;
         case NodeKind.FOR_STMT:
-            io::printn("FOR_LOOP");
+            io::printn("ForStmt");
             ForView v = (ForView){ ast, handle };
-            print_node(ast, pool, v.init(), indent + 1);
-            print_node(ast, pool, v.cond(), indent + 1);
-            print_node(ast, pool, v.inc(),  indent + 1);
-            print_node(ast, pool, v.body(), indent + 1);
+            print_node(ast, pool, v.init(), new_prefix, is_last);
+            print_node(ast, pool, v.cond(), new_prefix, is_last);
+            print_node(ast, pool, v.inc(), new_prefix, is_last);
+            print_node(ast, pool, v.body(), new_prefix, is_last);
 
         case NodeKind.COMPOUND_STMT:
-            io::printn("Compound {");
+            io::printn("CompoundStmt");
             CompoundView v = (CompoundView){ ast, handle };
             for (uint i = 0; i < v.len(); i++)
             {
-                print_node(ast, pool, v.get(i), indent + 1);
+                print_node(ast, pool, v.get(i), new_prefix, is_last);
             }
-            io::printn("}");
 
         case NodeKind.RETURN_STMT:
             // For simple nodes with 1 child, we can just use a helper
             Node expr = (Node)ast.extra_data[ast.extra_indices[(usz)handle]];
             io::print("RETURN ");
-            print_node(ast, pool, expr, 0); 
+            print_node(ast, pool, expr, new_prefix, is_last); 
             io::printn("");
 
         default:
