@@ -1,73 +1,46 @@
 module c3_parser::parser;
 
-import c3::lexer;
+import lexer;
+import string_pool;
+import line_map;
+
 import c3_parser::ast;
 import c3_parser::common;
-import c3_parser::diagnostics;
 
-import std::collections::list;
 import std::io;
+import std::collections::list;
 
-faultdef 
+faultdef
 	UNKNOWN,
+	UNEXPECTED_EOS,
 	CONTRACT_NOT_ALLOWED,
+	INVALID_PATH,
 	UNEXPECTED_TOKEN,
-	FOUND_MODULE,
 ;
-
-alias DeclBuffer = List{ Decl* };
 
 struct Parser
 {
+	StringPool strings;
+	LineMap line_map;
 	Token[] tokens;
 	String src;
-	String comment;
-	ModuleSection* section;
-	FileID file;
+	Ast* ast;
 	uint pos;
 }
 
-macro void Parser.info(self, String fmt, ...)
-{    
-	io::print(ansi::get_color_rgb(0, 200, 0));
-	if (diagnostics::use_diagnostics)
-	{
-		diagnostics::report(INFO, self.span(), fmt, $vasplat);
-	}
-	$if $defined (env::DEBUG_SYMBOLS):
-		log::info("at: %s %s:%s", $$FILE, $$FUNC, $$LINE);
-	$endif
-	io::print(ansi::get_color_rgb(200, 200, 200));
-}
-
-macro void Parser.warn(self, String fmt, ...)
-{    
-	if (diagnostics::use_diagnostics)
-	{
-		diagnostics::report(WARN, self.span(), fmt, $vasplat);
-	}
-	$if $defined (env::DEBUG_SYMBOLS):
-		log::warn("at: %s %s:%s", $$FILE, $$FUNC, $$LINE);
-	$endif
-}
-
-macro void Parser.error(self, String format, ...)
-{   
-	io::print(ansi::get_color_rgb(255, 0, 0));
-	if (diagnostics::use_diagnostics)
-	{
-		diagnostics::report(ERROR, self.span(), format, $vasplat);
-	}
-	$if $defined (env::DEBUG_SYMBOLS):
-		log::error("at: %s %s:%s", $$FILE, $$FUNC, $$LINE);
-	$endif
-	io::print(ansi::get_color_rgb(200, 200, 200));
-}
-
-macro void Parser.@take_comment(&self, #t)
+fn void init(Parser* p)
 {
-	#t.comment = self.comment;
-	self.comment = "";
+	p.strings.init();
+	p.line_map.init();
+
+	p.ast = mem::tnew(Ast);
+	ast::init(p.ast, 1000);
+}
+
+fn void free(Parser* p)
+{
+	p.strings.free();
+	p.line_map.free();
 }
 
 <*
@@ -80,7 +53,7 @@ fn void synchronize(Parser* p)
 
     while (!p.eof())
     {
-        if (p.current().type == TokenType.EOS)
+        if (p.current().kind == TokenKind.EOS)
         {
             (void)advance(p);
             return;
@@ -88,16 +61,16 @@ fn void synchronize(Parser* p)
 
         // Keywords which are top-lever (Decl)
 		// TODO: Add more cases!
-        switch (p.current().type)
+        switch (p.current().kind)
         {
-            case TokenType.MODULE:
-            case TokenType.IMPORT:
-            case TokenType.ALIAS:
-            case TokenType.TYPEDEF:
-            case TokenType.FUNC:
-            case TokenType.STRUCT:
-            case TokenType.CONST:
-            case TokenType.ENUM:
+            case TokenKind.MODULE:
+            case TokenKind.IMPORT:
+            case TokenKind.ALIAS:
+            case TokenKind.TYPEDEF:
+            case TokenKind.FN:
+            case TokenKind.STRUCT:
+            case TokenKind.CONST:
+            case TokenKind.ENUM:
                 return; // The next loop iteration will handle these
             default:
                 (void)advance(p);
@@ -108,45 +81,12 @@ fn void synchronize(Parser* p)
 
 fn bool Parser.eof(&self) @inline
 {
-	return self.pos >= self.tokens.len || self.is(TokenType.EOF);
+	return self.pos >= self.tokens.len || self.is(TokenKind.EOF);
 }
 
-<*
-	@param pos : "absolute position into tokens, 0 if use current"
-*>
-fn SourceSpan Parser.span(&self, uint pos = 0)
+fn bool Parser.is(&self, TokenKind kind) 
 {
-	Token token = pos > 0 ? self.tokens[pos] : self.tokens[self.pos];
-
-	return (SourceSpan){
-		.file_id = self.file,
-		.start = token.offset,
-		.end = token.offset + token.len - 1
-	};
-}
-
-fn bool is_keyword_ident(TokenType type) 
-{
-	return type >= TokenType.ALIAS
-		&& type <= TokenType.WHILE;
-}
-
-fn bool is_some_ident(TokenType type) 
-{
-	switch (type)
-	{
-		case TYPE_IDENT:
-		case IDENT:
-		case CONST_IDENT:
-			return true;
-		default:
-			return false;
-	}
-}
-
-fn bool Parser.is(&self, TokenType type) 
-{
-	return self.tokens[self.pos].type == type;
+	return self.tokens[self.pos].kind == kind;
 }
 
 fn Token Parser.current(&self) @inline
@@ -175,11 +115,11 @@ fn void? advance(Parser* parser)
 <*
 	@param [&inout] parser
 *>
-fn void? expect(Parser* parser, TokenType type) @inline
+fn void? expect(Parser* parser, TokenKind kind) @inline
 {
-	if (!parser.is(type))
+	if (!parser.is(kind))
 	{
-		parser.error("Expected '%s' got '%s'", type, parser.current().type);
+		parser.error("Expected '%s' got '%s'", kind.nameof, parser.current().kind.nameof);
 		return UNEXPECTED_TOKEN~;
 	}
 
@@ -188,11 +128,11 @@ fn void? expect(Parser* parser, TokenType type) @inline
 
 <*
 	@param [&inout] parser
-	@param type : "type to consume"
+	@param kind : "type to consume"
 *>
-fn bool? consume(Parser* parser, TokenType type)
+fn bool? consume(Parser* parser, TokenKind kind)
 {
-	if (parser.is(type))
+	if (parser.is(kind))
 	{
 		advance(parser)!;
 		return true;
@@ -201,138 +141,115 @@ fn bool? consume(Parser* parser, TokenType type)
 	return false;
 }
 
-<*
-	@param [&inout] parser
-	@return? expect!, consume!
-*>
-fn CPath*? parse_path(Parser* parser)
+fn String Parser.token_text(Parser* self, Token t) @inline
 {
-	if (!parser.is(TokenType.IDENT) || parser.peek().type != TokenType.SCOPE)
+    return self.src[t.pos:t.len];
+}
+
+fn Node? parse_path(Parser* p)
+{
+    if (!p.is(TokenKind.IDENT))
 	{
-		return null;
+		return INVALID_PATH~;
 	}
 
-	SourceSpan start = parser.span();
-    SourceSpan end = parser.span();
-
-	CPath* path = mem::tnew(CPath);
-	defer (catch err)
-	{
-		allocator::free(tmem, path);
-	}
+    uint start_tok = p.pos;
+    List{uint} parts;
+    parts.tinit(4);
+    defer parts.free();
 
     while (true) 
     {
-		String string = parser.current().text;
-        expect(parser, TokenType.IDENT)!;
-
-		path.name = path.name.concat(tmem, string);
-
-        if (!consume(parser, TokenType.SCOPE)!) 
-		{
-        	end = parser.span();
-			break;
-		}
-
-		path.name = path.name.concat(tmem, "::");
+        Token t = p.current();
+        uint sh = p.strings.intern(p.token_text(t));
+        parts.push(sh);
+        
+        expect(p, TokenKind.IDENT)!;
+        if (!consume(p, TokenKind.SCOPE)!) break;
     }
 
-    path.span = start.combine(end);
-	return path;
+    uint ex = ast::reserve_extra(p.ast, 1 + (uint)parts.len());
+    p.ast.extra_data[ex] = (uint)parts.len();
+    for (uint i = 0; i < parts.len(); i++) 
+	{
+        p.ast.extra_data[(usz)ex + 1 + i] = parts[i];
+    }
+
+    return ast::add_node(p.ast, NodeKind.PATH, start_tok, ex);
 }
 
-<*
-	parse comments
-*>
-fn void parse_docs(Parser* parser)
+fn Node? parse_ident(Parser* p)
 {
-	if (!parser.is(TokenType.LINE_COMMENT) || !parser.is(TokenType.BLOCK_COMMENT))
-	{
-		return;
-	}
+	Token t = p.current();
+	expect(p, TokenKind.IDENT)!;
 
-	Token token = parser.current();
-	parser.comment = token.text;
-	(void)advance(parser);
+	String name_str = p.token_text(t);
+	uint name_id = p.strings.intern(name_str);
 
-	while (token.type == TokenType.LINE_COMMENT)
-	{
-		token = parser.current();
-		parser.comment.tconcat(parser.current().text);
-		if (catch advance(parser)) return;
-	}
+	return ast::add_node(p.ast, NodeKind.IDENT_EXPR, (uint)p.pos - 1, name_id);
 }
 
 <*
 	@param [&inout] parser
-	@require parser.section != null
 *>
-fn void? parse(Parser* parser)
+fn void? parse(Parser* parser, String path)
 {
+	String src = (String)file::load(tmem, path)!;
+	Lexer lexer = (Lexer){
+		.buffer = src,
+		.index = 0,
+	};
+
+	parser.src = src;
+
+	log::info("parsing file: %s", path);
+
+	List{ Token } tokens;
+	tokens.tinit(1000);
+	defer tokens.free();
+	while (try token = lexer.next())
+	{
+		tokens.push(token);
+		io::printfn("Added token: <%s> - %s", token.kind, parser.token_text(token));
+	}
+
+	parser.tokens = tokens.array_view();
+	parser.line_map.build(src);
+	parser.pos = 0;
+
 	while (!parser.eof())
 	{
-		if (parser.is(TokenType.MODULE)) 
-		{
-			return FOUND_MODULE~;
-		};
-
-		if (catch err = parse_top_level_statement(parser, &parser.section.ast.decls))
-		{	
-			log::debug("Failed parse_top_leverl: %s. Adding as invalid...", err);
-			
-			Decl* inv_decl = mem::tnew(Decl);
-			make_invalid_decl(parser, inv_decl);
-			parser.section.ast.decls.push(inv_decl);
-
+		if (catch err = parse_top_level_statement(parser))
+		{			
 			synchronize(parser);
 			continue;
 		}
 	}
 }
 
-fn void? parse_top_level_statement(Parser* p, List{Decl*}* out)
+fn Node? parse_top_level_statement(Parser* p)
 {
-    log::debug("parse_top_level_statement: %s", p.current());
+    log::debug("parse_top_level_statement: %s", p.token_text(p.current()));
 
-    // Metadata / Documentation
-    parse_docs(p);
+    TokenKind kind = p.current().kind;
 
-    TokenType type = p.current().type;
-
-    switch (type)
+    switch (kind)
     {
-        case TokenType.EOS:
+        case TokenKind.EOS:
             p.error("<EOS> appeared in parse_top_level");
             advance(p)!;
-            return;
+            return UNEXPECTED_EOS~;
 
-        case TokenType.FUNC:
-            return parse_function(p, out)!;
-
-        case TokenType.IMPORT: 
-            return parse_import(p, out)!;
-
-        case TokenType.ALIAS:
-            return parse_alias(p, out)!;
-
-        case TokenType.TYPEDEF:
-            return parse_typedef(p, out)!;
-
-        case TokenType.STRUCT:
-        case TokenType.UNION:
-        case TokenType.BITSTRUCT:
-            return parse_struct(p, out)!;
-
-		case TokenType.CONSTDEF:
-		case TokenType.ENUM:
-			return parse_enum(p, out)!;
-
+		case TokenKind.MODULE:
+			return parse_module(p)!;
         default:
             // Fallback: Is it a global variable or something else?
-            if (is_type_start(type) || type == TokenType.IDENT)
+            /*
+			if (is_type_start(kind) || kind == TokenKind.IDENT)
             {
-                return parse_global(p, out)!;
+                return parse_global(p)!;
             }
+			*/
             break;
     }
 

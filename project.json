@@ -6,7 +6,7 @@
   // Directories where C3 library files may be found.
   "dependency-search-paths": [ "lib" ],
   // Libraries to use for all targets.
-  "dependencies": [ "lexer" ],
+  "dependencies": [],
   // Authors, optionally with email.
   "authors": [ "John Doe <john.doe@example.com>" ],
   // Version using semantic versioning.

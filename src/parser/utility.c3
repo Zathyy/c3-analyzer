@@ -1,0 +1,85 @@
+module c3_parser::parser;
+
+import std::io;
+import lexer;
+import line_map;
+import c3_parser::ast;
+
+fn String get_line_from_src(String src, LineMap* map, usz line_num)
+{
+    if (line_num == 0 || line_num > map.line_offsets.len()) return "";
+
+    usz start = (usz)map.line_offsets[line_num - 1];
+    usz end;
+
+    if (line_num < map.line_offsets.len())
+    {
+        end = (usz)map.line_offsets[line_num];
+    }
+    else
+    {
+        end = src.len;
+    }
+
+	if (end >= src.len) return "";
+
+    String line = src[start..end];
+    return line.trim_right(); 
+}
+
+// Colors for the terminal
+const String ANSI_RED    = "\x1b[31;1m";
+const String ANSI_YELLOW = "\x1b[33;1m";
+const String ANSI_CYAN   = "\x1b[36;1m";
+const String ANSI_RESET  = "\x1b[0m";
+const String ANSI_BOLD   = "\x1b[1m";
+
+macro void Parser.info(self, String fmt, ...)
+{
+    self.report(self.current(), "info", ANSI_CYAN, fmt, $vasplat);
+}
+
+macro void Parser.warn(self, String fmt, ...)
+{
+    self.report(self.current(), "warning", ANSI_YELLOW, fmt, $vasplat);
+}
+
+macro void Parser.error(self, String fmt, ...)
+{
+    self.report(self.current(), "error", ANSI_RED, fmt, $vasplat);
+}
+
+fn void Parser.report(Parser* self, Token token, String level, String color, String fmt, args...)
+{
+    Location loc = self.line_map.resolve(token.pos);
+
+    io::printf("%s:%s:%s: %s%s:%s ", "main.c3", loc.line, loc.col, color, level, ANSI_RESET);
+    io::printf(fmt, args);
+    io::printn("");
+
+    String line_text = get_line_from_src(self.src, &self.line_map, (usz)loc.line);
+    io::printf(" %4s | %s\n", loc.line, line_text);
+
+    io::print("      | "); 
+    for (uint i = 1; i < loc.col; i++) io::print(" ");
+    io::printf("%s^%s\n", color, ANSI_RESET);
+}
+
+fn bool is_keyword_ident(TokenKind type) 
+{
+	return type >= TokenKind.ALIAS
+		&& type <= TokenKind.WHILE;
+}
+
+fn bool is_some_ident(TokenKind type) 
+{
+	switch (type)
+	{
+		case TYPE_IDENT:
+		case IDENT:
+		case CONST_IDENT:
+			return true;
+		default:
+			return false;
+	}
+}

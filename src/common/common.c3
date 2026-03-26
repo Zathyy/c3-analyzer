@@ -50,19 +50,3 @@ struct Module
     String module_name;
     List{ ModuleSection* } sections;
 }
-
-enum InOutModifier 
-{
-	ANY,
-	IN,
-	OUT,
-	INOUT,
-}
-
-struct ContractParam 
-{
-	SourceSpan span;
-	String name;
-	InOutModifier modifier;
-	bool by_ref;
-}

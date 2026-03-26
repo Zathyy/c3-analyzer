@@ -1,267 +1,78 @@
 module c3_parser::parser;
 
 import c3_parser::ast;
-import c3::lexer;
+import lexer;
 import c3_parser::common;
 
 import std::collections::list;
 
-fn Stmt* make_invalid_stmt(Parser* p, Stmt* stmt)
+fn Node? parse_statement(Parser* p)
 {
-	stmt.kind = StmtKind.INVALID;
-	stmt.span = p.span();
-	return stmt;
+	unreachable("not implemented");
 }
 
-fn Stmt*? parse_stmt(Parser* p)
+fn Node? parse_for_statement(Parser* p)
 {
-	TokenType type = p.current().type;
+    uint for_token = p.pos;
+    expect(p, TokenKind.FOR)!;
 
-	switch (type)
+	if (!consume(p, TokenKind.LPAREN)!) 
 	{
-		case TokenType.LBRACE:
-			return parse_compound(p)!;
-		case TokenType.VAR:
-			return parse_decl_stmt(p)!;
-		case TokenType.RETURN:
-			return parse_return(p)!;
-		case TokenType.DEFER:
-			return parse_defer(p)!;
-		case TokenType.IF:
-			return parse_if(p)!;
-		default:
-		{
-			if (is_type_start(type))
-			{
-				return parse_decl_stmt(p)!;
-			}
-
-			return parse_expr_stmt(p)!;
-		}
+		p.error("Expected '(' to open for-loop header, found '%s'", p.current().kind);
+		return UNEXPECTED_TOKEN~;
 	}
-}
 
-fn Stmt*? parse_expr_stmt(Parser* p)
-{	
-	Expr* expr = parse_expr(p)!;
-    expect(p, TokenType.EOS)!;
-
-    Stmt* stmt = mem::tnew(Stmt);
-    stmt.kind = StmtKind.EXPR;
-    stmt.expr_stmt.expr = expr;
-    stmt.span = expr.span;
+    // Parse the three headers
+    Node init_stmt = parse_statement(p)!; // e.g., int i = 0;
+    expect(p, TokenKind.EOS)!;
+    Node cond_expr = parse_expression(p)!; // e.g., i < 10;
+    expect(p, TokenKind.EOS)!;
+    Node inc_expr  = parse_expression(p)!; // e.g., i++
     
-    return stmt;
-}
-
-<*
-	'{' 
-		Stmt list
-	'}'
-*>
-fn Stmt*? parse_compound(Parser* p)
-{
- 	expect(p, TokenType.LBRACE)!;
-
-	Stmt* stmt = mem::tnew(Stmt);
-	stmt.kind = StmtKind.COMPOUND;
-
-	while (p.current().type != TokenType.RBRACE)
+	if (!consume(p, TokenKind.RPAREN)!) 
 	{
-		if (p.eof()) break;
+		p.error("Expected ')' to close for-loop header, found '%s'", p.current().kind);
+		return UNEXPECTED_TOKEN~;
+	}
+    Node body = parse_statement(p)!;
 
-		Stmt*? child = parse_stmt(p);
-		if (catch err = child)
-		{
-			//TODO: handle error?
-			continue;
-		}
+    uint[] data = { 
+        (uint)init_stmt, 
+        (uint)cond_expr, 
+        (uint)inc_expr, 
+        (uint)body 
+    };
+    uint ex = ast::push_extra_block(p.ast, data);
 
-		if (!stmt.compound.stmts.is_initialized())
-		{
-			stmt.compound.stmts.tinit();
-		}
-
-		stmt.compound.stmts.push(child);
-	} 
-
-	expect(p, TokenType.RBRACE)!;
-	return stmt;
+    return ast::add_node(p.ast, NodeKind.FOR_STMT, for_token, ex);
 }
 
-<*
-	see `DeclStmt`
-*>
-fn Stmt*? parse_decl_stmt(Parser* p)
+fn Node? parse_compound(Parser* p)
 {
-    TypeInfo* info = null;
-    
-    // Handle 'var x = ...' (Inferred) vs 'int x = ...' (Explicit)
-    if (!consume(p, TokenType.VAR)!)
+    uint lbrace_tok = p.pos;
+    expect(p, TokenKind.LBRACE)!;
+
+    List{Node} statements;
+    statements.tinit(8); 
+    defer statements.free();
+
+    while (!p.is(TokenKind.RBRACE) && !p.eof())
     {
-        info = parse_type(p)!;
+        Node stmt = parse_statement(p)!;
+        statements.push(stmt);
     }
 
-    Token name_tok = p.current();
-    expect(p, TokenType.IDENT)!;
+    expect(p, TokenKind.RBRACE)!;
 
-    // Handle optional initializer: '= 10'
-    Expr* init = null;
-    if (consume(p, TokenType.EQ)!)
+    uint count = (uint)statements.len();
+    
+    uint ex = ast::reserve_extra(p.ast, 1 + count);
+    
+    p.ast.extra_data[ex] = count;
+    for (uint i = 0; i < count; i++)
     {
-        init = parse_expr(p)!;
+        p.ast.extra_data[(usz)ex + 1 + i] = (uint)statements[i];
     }
 
-    expect(p, TokenType.EOS)!;
-
-    Decl* decl = mem::tnew(Decl);
-	decl.kind = DeclKind.VAR;
-    decl.name = name_tok.text;
-	decl.var_decl.kind = VarDeclKind.LOCAL;
-    decl.var_decl.type = info; // Might be null if 'var' was used
-    decl.var_decl.init_expr = init;
-
-    Stmt* stmt = mem::tnew(Stmt);
-    stmt.kind = StmtKind.DECL;
-    stmt.decl_stmt.decl = decl;
-    stmt.span = p.span().combine(p.span());
-    
-    return stmt;
-}
-
-fn Stmt*? parse_defer(Parser* p)
-{
-	expect(p, TokenType.DEFER)!;
-
-	Stmt* stmt = mem::tnew(Stmt);
-	stmt.kind = StmtKind.DEFER;
-
-	defer (catch err) {
-		allocator::free(tmem, stmt);
-	}
-
-	if (consume(p, TokenType.TRY)!)
-	{
-		stmt.defer_stmt.is_try = true;
-	}
-	else if (consume(p, TokenType.CATCH)!)
-	{
-		stmt.defer_stmt.is_catch = true;
-	}
-	else if (p.is(TokenType.LPAREN))
-	{
-		advance(p)!;
-
-		if (!consume(p, TokenType.CATCH)!)
-		{
-			p.error("Expected 'catch' after 'defer ('");
-			return UNEXPECTED_TOKEN~;
-		}
-
-		expect(p, TokenType.IDENT)!;
-		expect(p, TokenType.RPAREN)!;
-
-		stmt.defer_stmt.is_catch = true;
-	}
-	
-	stmt.defer_stmt.stmt = parse_stmt(p)!;
-
-	return stmt;
-}
-
-fn Stmt*? parse_return(Parser* p)
-{
-	SourceSpan start = p.span();
-    expect(p, TokenType.RETURN)!;
-    
-    Expr* expr = null;
-    if (!p.is(TokenType.EOS))
-    {
-        expr = parse_expr(p)!;
-    }
-
-    expect(p, TokenType.EOS)!;
-
-    Stmt* stmt = mem::tnew(Stmt);
-    stmt.kind = StmtKind.RETURN;
-    stmt.return_stmt.expr = expr;
-    stmt.span = start.combine(p.span());
-    
-    return stmt;
-}
-
-
-
-fn Stmt*? parse_if(Parser* p)
-{
-    SourceSpan start = p.span();
-    expect(p, TokenType.IF)!;
-
-	// labelled
-	Decl* label = null;
-	if (p.is(TokenType.CONST_IDENT))
-	{
-		label = parse_label(p)!;
-	}
-
-    // 1. Parse Condition: if (value > 5)
-    expect(p, TokenType.LPAREN)!;
-
-	List{ Expr* } exprs;
-	exprs.tinit(4);
-
-	while (true)
-	{
-		if (p.is(TokenType.TRY))
-		{
-
-		}
-
-		if (p.is(TokenType.CATCH))
-		{
-			
-		}
-
-		Expr* condition = parse_expr(p, 0)!;
-		exprs.push(condition);
-
-		if (!consume(p, TokenType.COMMA)!) break;
-	}
-
-    expect(p, TokenType.RPAREN)!;
-
-    // 2. Parse "Then" Body: { ... } or a single statement
-    Stmt* then_stmt = parse_stmt(p)!;
-
-    // 3. Handle "Else" / "Else If"
-    Stmt*? else_stmt = null;
-    if (consume(p, TokenType.ELSE)!)
-    {
-        // If the next token is 'if', parse_stmt will call 
-        // parse_if again, naturally nesting them.
-        else_stmt = parse_stmt(p)!;
-    }
-
-    Stmt* stmt = mem::tnew(Stmt);
-    stmt.kind = StmtKind.IF;
-    stmt.if_stmt.conditions = exprs;
-    stmt.if_stmt.then_stmt = then_stmt;
-
-	if (label)
-	{
-		stmt.if_stmt.label.set(label);
-	}
-
-	if (try else_stmt)
-	{
-    	stmt.if_stmt.else_stmt = else_stmt;
-	}
-	else
-	{
-    	stmt.if_stmt.else_stmt = null;
-	}
-
-    stmt.span = start.combine(p.span());
-
-    return stmt;
+    return ast::add_node(p.ast, NodeKind.COMPOUND_STMT, lbrace_tok, ex);
 }
