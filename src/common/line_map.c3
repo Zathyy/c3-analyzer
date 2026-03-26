@@ -25,8 +25,6 @@ fn void LineMap.free(LineMap* map)
 
 fn void LineMap.build(LineMap* self, String src)
 {
-    self.line_offsets.tinit(128);
-    // Line 1 always starts at offset 0
     self.line_offsets.push(0);
 
     for (usz i = 0; i < src.len; i++)
