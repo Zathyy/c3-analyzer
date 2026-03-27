@@ -6,6 +6,11 @@ import std::collections::list;
 
 typedef Node = uint;
 
+fn bool Node.is_valid(self) @inline
+{
+	return (uint)self != 0;
+}
+
 enum NodeKind : char 
 {
     INVALID,
@@ -37,6 +42,11 @@ fn void init(Ast* ast, usz estimated_size)
     ast.extra_indices.tinit(estimated_size);
     ast.extra_data.tinit(estimated_size * 2); // Usually more extra data than nodes
     ast.top_level_nodes.tinit(estimated_size / 4);
+
+	// push null state at index 0
+	ast.kinds.push(INVALID);
+	ast.tokens.push(0);
+	ast.extra_indices.push(0);
 }
 
 fn void free(Ast* ast)

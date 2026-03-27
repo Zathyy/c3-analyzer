@@ -20,6 +20,8 @@ fn void dump(Ast* ast, StringPool* pool)
 
 fn void print_node(Ast* ast, StringPool* pool, Node handle, String prefix, bool is_last)
 {
+	if (!handle.is_valid()) return;
+
     NodeKind kind = ast::get_kind(ast, handle);
 
     io::print(prefix);

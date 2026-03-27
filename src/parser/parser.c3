@@ -233,7 +233,7 @@ fn void? parse_top_level(Parser* p)
     log::debug("parse_top_level: %s", p.token_text(p.current()));
 
     TokenKind kind = p.current().kind;
-	Maybe{ Node } node;
+	Node node;
 
     switch (kind)
     {
@@ -241,19 +241,18 @@ fn void? parse_top_level(Parser* p)
             p.error("<EOS> appeared in parse_top_level");
             advance(p)!;
             return UNEXPECTED_EOS~;
-
 		case TokenKind.MODULE:
-			node.set(parse_module(p)!);
+			node = parse_module(p)!;
 			break;
 		case TokenKind.IMPORT:
-			node.set(parse_import(p)!);
+			node = parse_import(p)!;
 			break;
         default:
 			p.error("Couldn't find any matching top level declaration: %s", p.current());
     		return UNEXPECTED_TOKEN~;
     }
 
-	if (try value = node.get())
+	if (node.is_valid())
 	{
 		p.ast.top_level_nodes.push((uint)value);
 	}
