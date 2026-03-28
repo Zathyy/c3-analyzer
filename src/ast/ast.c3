@@ -67,6 +67,17 @@ fn Node add_node(Ast* ast, NodeKind kind, uint tok, uint extra_idx)
 	return handle;
 }
 
+fn NodeView get_node(Ast* ast, Node handle)
+{
+    assert((usz)handle < ast.kinds.len());
+
+    return (NodeView){
+        .kind = ast.kinds[(usz)handle],
+        .token_idx = ast.tokens[(usz)handle],
+        .extra_idx = ast.extra_indices[(usz)handle]
+    };
+}
+
 fn void free_node(Ast* ast, Node handle)
 {
     ast.kinds[(usz)handle] = NodeKind.INVALID;

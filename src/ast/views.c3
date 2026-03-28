@@ -2,81 +2,67 @@ module c3_parser::ast;
 
 import string_pool;
 
-// Views is a way to index into each node without having to do index calculations everytime
-// and provides an easy & safe way to access each nodes subnodes/data
-
-struct PathView {
-    Ast* ast;
-    Node handle;
-}
-
-fn uint PathView.len(PathView self) => self.ast.extra_data[self.ast.extra_indices[(usz)self.handle]];
-
-// String intern handle
-fn uint PathView.get_string_handle(PathView self, uint index) 
+struct NodeView 
 {
-    uint base = self.ast.extra_indices[(usz)self.handle];
-    return self.ast.extra_data[(usz)base + 1 + index];
+	NodeKind kind;
+    uint token_idx; 
+    uint extra_idx;
 }
 
-// String text for printing
-fn String PathView.get_text(PathView self, uint index, StringPool* pool) {
-    uint sh = self.get_string_handle(index);
-    return pool.get(sh);
-}
-
-// ---
-
-struct ModuleView 
+struct View 
 {
     Ast* ast;
     Node handle;
 }
 
-// Returns the Node index of the PATH associated with this module
-fn Node ModuleView.path(ModuleView self) 
+macro View.get(self, $offset)
 {
-    uint ex = self.ast.extra_indices[(usz)self.handle];
-    return (Node)ex;
+    return (Node)self.ast.extra_data[(usz)self.ast.extra_indices[(usz)self.handle] + $offset];
 }
 
-// ---
-
-struct ImportView 
+macro View.get_uint(self, $offset)
 {
-    Ast* ast;
-    Node handle;
+    return (uint)self.ast.extra_data[(usz)self.ast.extra_indices[(usz)self.handle] + $offset];
 }
 
-// Returns the Node index of the PATH associated with this import
-fn Node ImportView.path(ImportView self) 
+macro View.get_at(self, $base_offset, index)
 {
-    uint ex = self.ast.extra_indices[(usz)self.handle];
-    return (Node)ex;
+    usz pos = (usz)self.ast.extra_indices[(usz)self.handle] + $base_offset + index;
+    return (Node)self.ast.extra_data[pos];
 }
 
-// ---
+typedef PathView = inline View;
 
-struct ForView
+fn uint PathView.len(PathView self) => self.get_uint(0);
+fn uint PathView.get_string_handle(PathView self, uint index) => (uint)self.get_at(1, index);
+
+fn String PathView.get_text(PathView self, uint index, StringPool* pool) 
 {
-    Ast* ast;
-    Node handle;
+    return pool.get(self.get_string_handle(index));
 }
 
-fn Node ForView.init(ForView self) => (Node)self.ast.extra_data[(usz)self.ast.extra_indices[(usz)self.handle] + 0];
-fn Node ForView.cond(ForView self) => (Node)self.ast.extra_data[(usz)self.ast.extra_indices[(usz)self.handle] + 1];
-fn Node ForView.inc(ForView self)  => (Node)self.ast.extra_data[(usz)self.ast.extra_indices[(usz)self.handle] + 2];
-fn Node ForView.body(ForView self) => (Node)self.ast.extra_data[(usz)self.ast.extra_indices[(usz)self.handle] + 3];
+typedef ModuleView = inline View;
+fn Node ModuleView.path(ModuleView self) => self.get(0);
 
-struct CompoundView 
-{
-    Ast* ast;
-    Node handle;
-}
+typedef ImportView = inline View;
+fn Node ImportView.path(ImportView self)  => self.get(0);
 
-fn uint CompoundView.len(CompoundView self) => self.ast.extra_data[(usz)self.ast.extra_indices[(usz)self.handle]];
-fn Node CompoundView.get(CompoundView self, uint index) 
-{
-    uint base = self.ast.extra_indices[(usz)self.handle];
-    return (Node)self.ast.extra_data[(usz)base + 1 + index];
-}
+typedef ForView = inline View;
+
+fn Node ForView.init(ForView self) => self.get(0);
+fn Node ForView.cond(ForView self) => self.get(1);
+fn Node ForView.inc(ForView self)  => self.get(2);
+fn Node ForView.body(ForView self) => self.get(3);
+
+typedef CompoundView = inline View;
+
+fn uint CompoundView.len(CompoundView self) => self.get_uint(0);
+fn Node CompoundView.get(CompoundView self, uint index) => self.get_at(1, index);
+
+typedef FnView = inline View;
+
+fn Node FnView.name_path(FnView self)   => self.get(0);
+fn Node FnView.return_type(FnView self) => self.get(1);
+fn uint FnView.param_count(FnView self) => self.get_uint(2);
+fn Node FnView.body(FnView self)        => self.get(3);
+fn Node FnView.get_param(FnView self, uint index) => self.get_at(4, index);

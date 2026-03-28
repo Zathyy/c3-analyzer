@@ -22,7 +22,8 @@ fn void print_node(Ast* ast, StringPool* pool, Node handle, String prefix, bool 
 {
 	if (!handle.is_valid()) return;
 
-    NodeKind kind = ast::get_kind(ast, handle);
+	NodeView node_view = ast::get_node(ast, handle);
+    NodeKind kind = node_view.kind;
 
     io::print(prefix);
     io::print(is_last ? "└── " : "├── ");
