@@ -16,8 +16,12 @@ faultdef
 	UNEXPECTED_EOS,
 	CONTRACT_NOT_ALLOWED,
 	INVALID_PATH,
+	PATH_TOO_LONG,
 	UNEXPECTED_TOKEN,
 ;
+
+// length in parts, eg: foo::bar = 2 parts
+const uint PATH_MAX_LENGTH = 16;
 
 struct Parser
 {
@@ -155,27 +159,36 @@ fn Node? parse_path(Parser* p)
 	}
 
     uint start_tok = p.pos;
-    List{uint} parts;
-    parts.tinit(4);
-    defer parts.free();
+    uint[PATH_MAX_LENGTH] stack_parts; 
+    uint count = 0;
 
     while (true) 
     {
         Token t = p.current();
         uint sh = p.strings.intern(p.token_text(t));
-        parts.push(sh);
+        if (count < PATH_MAX_LENGTH) 
+		{
+            stack_parts[count++] = sh;
+        } 
+		else 
+		{
+            p.error("Path too long (max %s segments)", PATH_MAX_LENGTH);
+            return PATH_TOO_LONG~;
+        }
         
         expect(p, TokenKind.IDENT)!;
         if (!consume(p, TokenKind.SCOPE)!) break;
     }
 
-    uint ex = ast::reserve_extra(p.ast, 1 + (uint)parts.len());
-    p.ast.extra_data[ex] = (uint)parts.len();
-    for (uint i = 0; i < parts.len(); i++) 
+    uint[PATH_MAX_LENGTH + 1] final_block;
+    final_block[0] = count;
+    
+    // Copy the parts into the block
+    for (uint i = 0; i < count; i++) 
 	{
-        p.ast.extra_data[(usz)ex + 1 + i] = parts[i];
+        final_block[i + 1] = stack_parts[i];
     }
-
+    uint ex = ast::push_extra_block(p.ast, &final_block);
     return ast::add_node(p.ast, NodeKind.PATH, start_tok, ex);
 }
 
@@ -254,6 +267,6 @@ fn void? parse_top_level(Parser* p)
 
 	if (node.is_valid())
 	{
-		p.ast.top_level_nodes.push((uint)value);
+		p.ast.top_level_nodes.push((uint)node);
 	}
 }
