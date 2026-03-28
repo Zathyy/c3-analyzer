@@ -1,6 +1,7 @@
 module c3_parser::ast;
 
 import string_pool;
+import c3_parser::common;
 
 struct NodeView 
 {
@@ -89,13 +90,28 @@ fn String TypeView.name(TypeView self, StringPool* pool)
 	return pool.get(sh);
 }
 //num of pointers *
-fn uint TypeView.ptr_count(TypeView self) => self.get_uint(1);
-fn Node TypeView.array_size(TypeView self) => self.get(2);
-// get number of generics
-fn uint TypeView.gen_count(TypeView self) => self.get_uint(3);
-
+fn Node TypeView.array_size(TypeView self) => self.get(1);
+fn bool TypeView.is_vector(TypeView self) => self.get_flags().is_vector;
+fn uint TypeView.ptr_count(TypeView self) => self.get_flags().ptr_count;
+fn uint TypeView.gen_count(TypeView self) => self.get_flags().gen_count;
+fn TypeFlags TypeView.get_flags(TypeView self) => (TypeFlags)self.get(2);
 // Get a specific generic argument (e.g. the 'int' in 'List{int}')
 fn Node TypeView.get_gen_arg(TypeView self, uint index) 
 {
-    return self.get_at(4, index);
+    return self.get_at(3, index);
 }
+
+typedef AliasView = inline View;
+fn String AliasView.name(AliasView self, StringPool* pool) => pool.get(self.get_uint(0));
+fn Node AliasView.target_type(AliasView self) => self.get(1);
+
+typedef TypedefView = inline View;
+fn String TypedefView.name(TypedefView self, StringPool* pool) => pool.get(self.get_uint(0));
+fn Node TypedefView.base_type(TypedefView self) => self.get(1);
+
+typedef GlobalView = inline View;
+
+fn GlobalFlags GlobalView.flags(GlobalView self) => (GlobalFlags)self.get_uint(0);
+fn String GlobalView.name(GlobalView self, StringPool* pool) => pool.get(self.get_uint(1));
+fn Node GlobalView.type_node(GlobalView self) => self.get(2);
+fn Node GlobalView.init_expr(GlobalView self) => self.get(3);

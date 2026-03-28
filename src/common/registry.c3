@@ -18,9 +18,8 @@ struct Registry
 struct TypeKey 
 {
     Node name;
-    uint ptr_count;
     Node array_size; // expr
-    uint gen_count;
+	TypeFlags flags;
     Node[common::MAX_GENERICS] gen_args;
 }
 
@@ -29,11 +28,10 @@ fn uint TypeKey.hash(&self)
 	uint seed = 0;
 
 	seed = builtin::@generic_hash_core(seed, self.name);
-	seed = builtin::@generic_hash_core(seed, self.ptr_count);
 	seed = builtin::@generic_hash_core(seed, self.array_size);
-	seed = builtin::@generic_hash_core(seed, self.gen_count);
+	seed = builtin::@generic_hash_core(seed, (uint)self.flags);
 	
-	for (uint i = 0; i < self.gen_count; i++) 
+	for (uint i = 0; i < self.flags.gen_count; i++) 
     {
         seed = builtin::@generic_hash_core(seed, self.gen_args[i]);
     }
@@ -44,11 +42,10 @@ fn uint TypeKey.hash(&self)
 fn bool TypeKey.equals(self, TypeKey b) @operator(==)
 {
     if (self.name != b.name)   return false;
-    if (self.ptr_count != b.ptr_count)   return false;
     if (self.array_size != b.array_size) return false;
-    if (self.gen_count != b.gen_count)   return false;
+	if ((uint)self.flags != (uint)b.flags) return false;
 
-    for (uint i = 0; i < self.gen_count; i++) 
+    for (uint i = 0; i < self.flags.gen_count; i++) 
     {
         if (self.gen_args[i] != b.gen_args[i]) return false;
     }

@@ -25,6 +25,9 @@ enum NodeKind : char
     COMPOUND_STMT, // { ... }
     RETURN_STMT, // return
 	IDENT_EXPR,
+    ALIAS_DECL,
+    GLOBAL_DECL,
+    TYPEDEF_DECL,
 	MODULE_DECL,
     IMPORT_DECL
 }

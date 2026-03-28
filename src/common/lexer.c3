@@ -532,7 +532,31 @@ fn Token? Lexer.next(&self)
 				return self.emit(SCOPE, start, 2);
 			}
 			return self.emit(COLON, start, 1);
-			
+		case '[':
+			self.advance()!;
+			if (self.peek() == '<') {
+				self.advance()!;
+				return self.emit(LVEC, start, 2);
+			}
+			return self.emit(LBRACKET, start, 1);
+		case ']':
+			self.advance()!;
+			return self.emit(RBRACKET, start, 1);
+		case '>':
+			self.advance()!;
+			switch (self.peek())
+			{
+				case '=': self.advance()!; return self.emit(GREATER_EQ, start, 2);
+				case ']': self.advance()!; return self.emit(RVEC, start, 2);
+			}
+			return self.emit(GREATER, start, 1);
+		case '<':
+			self.advance()!;
+			switch (self.peek())
+			{
+				case '=': self.advance()!; return self.emit(LESS_EQ, start, 2);
+			}	
+			return self.emit(LESS, start, 1);
         case '(': self.advance()!; return self.emit(LPAREN, start, 1);
         case ')': self.advance()!; return self.emit(RPAREN, start, 1);
         case '{': self.advance()!; return self.emit(LBRACE, start, 1);

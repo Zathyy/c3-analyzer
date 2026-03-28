@@ -125,6 +125,7 @@ fn Node? parse_type(Parser* p)
 {
     uint start_tok = p.pos;
 	TypeKey key;
+	TypeFlags flags;
 
     key.name = (Node)p.strings.intern(p.token_text(p.current()));
 	advance(p)!;
@@ -133,9 +134,9 @@ fn Node? parse_type(Parser* p)
     {
         while (!p.is(TokenKind.RBRACE)) 
         {
-            key.gen_args[key.gen_count++] = parse_type(p)!;
+            key.gen_args[flags.gen_count++] = parse_type(p)!;
             
-            if (key.gen_count >= common::MAX_GENERICS) 
+            if (flags.gen_count >= common::MAX_GENERICS) 
 			{
 				p.error("Too many generics");
 				return TOO_MANY_GENERICS~;
@@ -147,9 +148,16 @@ fn Node? parse_type(Parser* p)
 
 	while (true)
 	{
+		if (consume(p, TokenKind.LVEC)!)
+		{
+			flags.is_vector = true;
+			key.array_size = parse_expression(p)!;
+			expect(p, TokenKind.RVEC)!;
+			break;
+		}
         if (consume(p, TokenKind.ASTERISK)!) 
 		{
-            key.ptr_count++;
+            flags.ptr_count++;
             continue;
         }
         if (consume(p, TokenKind.LBRACKET)!) 
@@ -165,17 +173,15 @@ fn Node? parse_type(Parser* p)
     if (existing.is_valid()) return existing;
 
     // [Base, Ptrs, ArraySize, GenCount, ...GenArgs]
-    uint total_slots = 4 + key.gen_count;
-    uint[common::MAX_GENERICS + 4] final_block;
+    uint[common::MAX_GENERICS + 3] final_block;
     
     final_block[0] = (uint)key.name;
-    final_block[1] = key.ptr_count;
-    final_block[2] = (uint)key.array_size;
-    final_block[3] = key.gen_count;
+    final_block[1] = (uint)key.array_size;
+    final_block[2] = (uint)flags;
 
-    for (uint i = 0; i < key.gen_count; i++) 
+    for (uint i = 0; i < flags.gen_count; i++) 
 	{
-        final_block[4 + i] = (uint)key.gen_args[i];
+        final_block[3 + i] = (uint)key.gen_args[i];
     }
 
     uint ex = ast::push_extra_block(p.ast, &final_block);
@@ -184,4 +190,78 @@ fn Node? parse_type(Parser* p)
 	p.registry.register_type_shape(&key, new_node);
 
 	return new_node;
+}
+
+fn Node? parse_alias(Parser* p)
+{
+    uint start_tok = p.pos;
+    expect(p, TokenKind.ALIAS)!;
+
+	Token name_tok = p.current();
+    expect(p, TokenKind.TYPE_IDENT)!;
+    uint name_sh = p.strings.intern(p.token_text(name_tok));
+
+    expect(p, TokenKind.EQ)!;
+
+    Node target_type = parse_type(p)!;
+
+    expect(p, TokenKind.EOS)!;
+
+    uint[2] data = { name_sh, (uint)target_type };
+    uint ex = ast::push_extra_block(p.ast, &data);
+
+    return ast::add_node(p.ast, NodeKind.ALIAS_DECL, start_tok, ex);
+}
+
+fn Node? parse_typedef(Parser* p)
+{
+	uint start_tok = p.pos;
+    expect(p, TokenKind.TYPEDEF)!;
+
+	Token name_tok = p.current();
+    expect(p, TokenKind.TYPE_IDENT)!;
+    uint name_sh = p.strings.intern(p.token_text(name_tok));
+
+    expect(p, TokenKind.EQ)!;
+
+    Node base_type = parse_type(p)!;
+
+    expect(p, TokenKind.EOS)!;
+
+    uint[2] data = { name_sh, (uint)base_type };
+    uint ex = ast::push_extra_block(p.ast, &data);
+
+    return ast::add_node(p.ast, NodeKind.TYPEDEF_DECL, start_tok, ex);
+}
+
+fn Node? parse_global(Parser* p)
+{
+    uint start_tok = p.pos;
+    GlobalFlags flags;
+
+    if (consume(p, TokenKind.CONST)!)  flags.is_const = true;
+	if (consume(p, TokenKind.TLOCAL)!) flags.is_thread_local = true;
+    if (consume(p, TokenKind.EXTERN)!) flags.is_extern = true;
+
+    Node type_node = parse_type(p)!;
+
+    Token name_tok = p.current();
+ 	expect(p, TokenKind.IDENT)!;
+    uint name_sh = p.strings.intern(p.token_text(name_tok));
+
+    Node init_expr;
+    if (consume(p, TokenKind.EQ)!)
+    {
+        init_expr = parse_expression(p)!;
+    }
+    
+    expect(p, TokenKind.EOS)!;
+
+    log::debug("parse_global: %s", p.token_text(p.current()));
+
+
+    uint[4] data = { (uint)flags, name_sh, (uint)type_node, (uint)init_expr };
+    uint ex = ast::push_extra_block(p.ast, &data);
+
+    return ast::add_node(p.ast, NodeKind.GLOBAL_DECL, start_tok, ex);
 }

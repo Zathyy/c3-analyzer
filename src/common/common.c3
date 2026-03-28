@@ -52,3 +52,18 @@ struct Module
     String module_name;
     List{ ModuleSection* } sections;
 }
+
+bitstruct TypeFlags : uint
+{
+    bool is_none    : 0;
+    bool is_vector  : 1;
+	uint gen_count  : 2..12;
+    uint ptr_count  : 13..31;
+}
+
+bitstruct GlobalFlags : uint
+{
+    bool is_const   : 0;
+    bool is_extern  : 1;
+    bool is_thread_local : 2; 
+}

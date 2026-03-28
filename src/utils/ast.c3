@@ -121,7 +121,9 @@ fn void print_node(Ast* ast, StringPool* pool, Node handle, String prefix, bool 
             if (array_expr.is_valid()) 
             {
                 io::print("[");
+				if (tv.is_vector()) io::print("<");
                 print_node(ast, pool, array_expr, new_prefix, false);
+				if (tv.is_vector()) io::print(">");
                 io::print("]");
             }
 
@@ -155,7 +157,43 @@ fn void print_node(Ast* ast, StringPool* pool, Node handle, String prefix, bool 
             	io::printf("Param: %s : ", pv.get_name(pool));
 			}
             break;
-        default:
+		case NodeKind.ALIAS_DECL:
+			AliasView av = (AliasView){ ast, handle };
+			io::printfn("Alias: %s", av.name(pool));
+			io::print(new_prefix);
+			io::print("└── Target: ");
+			print_node(ast, pool, av.target_type(), new_prefix, true, true);
+			io::printn();
+			break;
+		case NodeKind.TYPEDEF_DECL:
+			TypedefView tv = (TypedefView){ ast, handle };
+			io::printfn("Typedef (Distinct): %s", tv.name(pool));
+			io::print(new_prefix);
+			io::print("└── Base: ");
+			print_node(ast, pool, tv.base_type(), new_prefix, true, true);
+			io::printn();
+			break;
+		case NodeKind.GLOBAL_DECL:
+            GlobalView gv = (GlobalView){ ast, handle };
+            GlobalFlags gf = gv.flags();
+
+			io::print("Global: ");
+
+            if (gf.is_extern) io::print("extern ");
+            if (gf.is_const)  io::print("const ");
+            if (gf.is_thread_local)  io::print("tlocal ");
+            print_node(ast, pool, gv.type_node(), "", true, true);
+            io::printf(" %s", gv.name(pool));
+            
+            Node init = gv.init_expr();
+            if (init.is_valid())
+            {
+                io::print(" = ");
+                print_node(ast, pool, init, "", true, true);
+            }
+            io::printn();
+            break;
+		default:
             io::printfn("<Node:%s>", kind);
     }
 }

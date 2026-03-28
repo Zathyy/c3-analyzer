@@ -59,8 +59,6 @@ fn void free(Parser* p)
 *>
 fn void synchronize(Parser* p)
 {
-    if (catch advance(p)) return;
-
     while (!p.eof())
     {
         if (p.current().kind == TokenKind.EOS)
@@ -254,6 +252,16 @@ fn void? parse_top_level(Parser* p)
     TokenKind kind = p.current().kind;
 	Node node;
 
+	if (is_type(kind) || kind == TokenKind.TLOCAL)
+	{
+		node = parse_global(p)!;
+		if (node.is_valid())
+		{
+			p.ast.top_level_nodes.push((uint)node);
+			return;
+		}
+	}
+
     switch (kind)
     {
         case TokenKind.EOS:
@@ -268,6 +276,12 @@ fn void? parse_top_level(Parser* p)
 			break;
 		case TokenKind.FN:
 			node = parse_fn_decl(p)!;
+			break;
+		case TokenKind.ALIAS:
+			node = parse_alias(p)!;
+			break;
+		case TokenKind.TYPEDEF:
+			node = parse_typedef(p)!;
 			break;
         default:
 			p.error("Couldn't find any matching top level declaration: %s", p.current());

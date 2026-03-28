@@ -83,3 +83,43 @@ fn bool is_some_ident(TokenKind type)
 			return false;
 	}
 }
+
+fn bool is_type(TokenKind kind)
+{
+	switch (kind)
+	{
+		case TokenKind.BOOL:
+		case TokenKind.CHAR:
+		case TokenKind.DOUBLE:
+		case TokenKind.FLOAT:
+		case TokenKind.FLOAT16:
+		case TokenKind.BFLOAT16:
+		case TokenKind.INT128:
+		case TokenKind.ICHAR:
+		case TokenKind.INT:
+		case TokenKind.IPTR:
+		case TokenKind.LONG:
+		case TokenKind.SHORT:
+		case TokenKind.UINT128:
+		case TokenKind.UINT:
+		case TokenKind.ULONG:
+		case TokenKind.UPTR:
+		case TokenKind.USHORT:
+		case TokenKind.USZ:
+		case TokenKind.ISZ:
+		case TokenKind.FLOAT128:
+		case TokenKind.TYPEID:
+		case TokenKind.FAULT:
+		case TokenKind.ANY:
+		case TokenKind.VOID:
+		case TokenKind.TYPE_IDENT:
+		case TokenKind.CT_TYPE_IDENT:
+		case TokenKind.CT_TYPEOF:
+		case TokenKind.CT_EVALTYPE:
+		case TokenKind.CT_VATYPE:
+		case TokenKind.CT_TYPEFROM:
+			return true;
+		default: 
+			return false;
+	}
+}
