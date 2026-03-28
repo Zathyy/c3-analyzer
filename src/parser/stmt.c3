@@ -52,27 +52,20 @@ fn Node? parse_compound(Parser* p)
     uint lbrace_tok = p.pos;
     expect(p, TokenKind.LBRACE)!;
 
-    List{Node} statements;
-    statements.tinit(8); 
-    defer statements.free();
+    uint count_idx = (uint)p.ast.extra_data.len();
+    p.ast.push_extra(0); // Placeholder for count
 
+    uint count = 0;
     while (!p.is(TokenKind.RBRACE) && !p.eof())
     {
         Node stmt = parse_statement(p)!;
-        statements.push(stmt);
+        p.ast.push_extra((uint)stmt);
+        count++;
     }
 
     expect(p, TokenKind.RBRACE)!;
 
-    uint count = (uint)statements.len();
-    
-    uint ex = ast::reserve_extra(p.ast, 1 + count);
-    
-    p.ast.extra_data[ex] = count;
-    for (uint i = 0; i < count; i++)
-    {
-        p.ast.extra_data[(usz)ex + 1 + i] = (uint)statements[i];
-    }
+    p.ast.extra_data[count_idx] = count;
 
-    return ast::add_node(p.ast, NodeKind.COMPOUND_STMT, lbrace_tok, ex);
+    return ast::add_node(p.ast, NodeKind.COMPOUND_STMT, lbrace_tok, count_idx);
 }

@@ -61,8 +61,41 @@ fn Node CompoundView.get(CompoundView self, uint index) => self.get_at(1, index)
 
 typedef FnView = inline View;
 
-fn Node FnView.name_path(FnView self)   => self.get(0);
+fn String FnView.name(FnView self, StringPool* pool)
+{
+	uint sh = self.get_uint(0);
+	return pool.get(sh);
+}
+
 fn Node FnView.return_type(FnView self) => self.get(1);
 fn uint FnView.param_count(FnView self) => self.get_uint(2);
 fn Node FnView.body(FnView self)        => self.get(3);
 fn Node FnView.get_param(FnView self, uint index) => self.get_at(4, index);
+
+typedef ParamView = inline View;
+
+fn Node ParamView.get_type(ParamView self) => self.get(0);
+fn String ParamView.get_name(ParamView self, StringPool* pool)
+{	
+	uint sh = self.get_uint(1);
+	return pool.get(sh);
+}
+
+typedef TypeView = inline View;
+
+fn String TypeView.name(TypeView self, StringPool* pool)
+{
+	uint sh = self.get_uint(0);
+	return pool.get(sh);
+}
+//num of pointers *
+fn uint TypeView.ptr_count(TypeView self) => self.get_uint(1);
+fn Node TypeView.array_size(TypeView self) => self.get(2);
+// get number of generics
+fn uint TypeView.gen_count(TypeView self) => self.get_uint(3);
+
+// Get a specific generic argument (e.g. the 'int' in 'List{int}')
+fn Node TypeView.get_gen_arg(TypeView self, uint index) 
+{
+    return self.get_at(4, index);
+}

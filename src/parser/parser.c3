@@ -6,6 +6,7 @@ import line_map;
 
 import c3_parser::ast;
 import c3_parser::common;
+import c3_parser::registry;
 
 import std::io;
 import std::collections::list;
@@ -17,6 +18,7 @@ faultdef
 	CONTRACT_NOT_ALLOWED,
 	INVALID_PATH,
 	PATH_TOO_LONG,
+	TOO_MANY_GENERICS,
 	UNEXPECTED_TOKEN,
 ;
 
@@ -27,6 +29,7 @@ struct Parser
 {
 	StringPool strings;
 	LineMap line_map;
+	Registry registry;
 	Token[] tokens;
 	String src;
 	Ast* ast;
@@ -37,6 +40,7 @@ fn void init(Parser* p)
 {
 	p.strings.init();
 	p.line_map.init();
+	registry::init(&p.registry);
 
 	p.ast = mem::tnew(Ast);
 	ast::init(p.ast, 1000);
@@ -46,6 +50,7 @@ fn void free(Parser* p)
 {
 	p.strings.free();
 	p.line_map.free();
+	registry::free(&p.registry);
 }
 
 <*
@@ -153,8 +158,9 @@ fn String Parser.token_text(Parser* self, Token t) @inline
 
 fn Node? parse_path(Parser* p)
 {
-    if (!p.is(TokenKind.IDENT))
+    if (!p.is(TokenKind.IDENT) && p.peek().kind != TokenKind.SCOPE)
 	{
+		log::debug("not a valid path");
 		return INVALID_PATH~;
 	}
 
@@ -259,6 +265,9 @@ fn void? parse_top_level(Parser* p)
 			break;
 		case TokenKind.IMPORT:
 			node = parse_import(p)!;
+			break;
+		case TokenKind.FN:
+			node = parse_fn_decl(p)!;
 			break;
         default:
 			p.error("Couldn't find any matching top level declaration: %s", p.current());

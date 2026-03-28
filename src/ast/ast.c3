@@ -15,7 +15,10 @@ enum NodeKind : char
 {
     INVALID,
 	PATH,
-    FUNC_DECL,
+    TYPE,
+    TYPE_DECL,
+    FN_DECL,
+    PARAM_DECL,
     VAR_DECL, // 
 	FOR_STMT,
     STRUCT_DECL, // struct
@@ -23,7 +26,7 @@ enum NodeKind : char
     RETURN_STMT, // return
 	IDENT_EXPR,
 	MODULE_DECL,
-    IMPORT_DECL,
+    IMPORT_DECL
 }
 
 struct Ast 
@@ -56,6 +59,13 @@ fn void free(Ast* ast)
 	ast.extra_indices.free();
 	ast.extra_data.free();
     ast.top_level_nodes.free();
+}
+
+fn uint Ast.push_extra(&self, uint value = 0) @inline
+{
+    uint idx = (uint)self.extra_data.len();
+    self.extra_data.push(value);
+    return idx;
 }
 
 fn Node add_node(Ast* ast, NodeKind kind, uint tok, uint extra_idx)

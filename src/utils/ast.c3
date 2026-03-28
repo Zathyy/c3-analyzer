@@ -18,16 +18,23 @@ fn void dump(Ast* ast, StringPool* pool)
 	}
 }
 
-fn void print_node(Ast* ast, StringPool* pool, Node handle, String prefix, bool is_last)
+fn void print_node(Ast* ast, StringPool* pool, Node handle, String prefix, bool is_last, bool is_inline = false)
 {
-	if (!handle.is_valid()) return;
+	if (!handle.is_valid())
+	{
+		io::printn("<null>");
+        return;
+	}
 
 	NodeView node_view = ast::get_node(ast, handle);
     NodeKind kind = node_view.kind;
 
-    io::print(prefix);
-    io::print(is_last ? "└── " : "├── ");
-    
+	if (!is_inline)
+	{
+		io::print(prefix);
+		io::print(is_last ? "└── " : "├── ");
+	}
+
     String new_prefix = string::tformat("%s%s", prefix, is_last ? "    " : "│   ");
     defer new_prefix.free(tmem);
 
@@ -55,6 +62,27 @@ fn void print_node(Ast* ast, StringPool* pool, Node handle, String prefix, bool 
 			}
 			io::printn();
 			break;
+		case NodeKind.FN_DECL:
+			FnView fv = (FnView){ ast, handle };
+            String name = fv.name(pool);
+            io::printfn("FnDecl: %s", name);
+
+            io::print(new_prefix);
+            io::print("├── Return: ");
+            print_node(ast, pool, fv.return_type(), new_prefix, false, true);
+            io::printn();
+
+            uint p_count = fv.param_count();
+            for (uint i = 0; i < p_count; i++)
+            {
+                io::print(new_prefix);
+                io::print("├── Param: ");
+                print_node(ast, pool, fv.get_param(i), new_prefix, false, true);
+                io::printn();
+            }
+
+            print_node(ast, pool, fv.body(), new_prefix, true);
+            break;
         case NodeKind.FOR_STMT:
             io::printn("ForStmt");
             ForView v = (ForView){ ast, handle };
@@ -62,7 +90,7 @@ fn void print_node(Ast* ast, StringPool* pool, Node handle, String prefix, bool 
             print_node(ast, pool, v.cond(), new_prefix, is_last);
             print_node(ast, pool, v.inc(), new_prefix, is_last);
             print_node(ast, pool, v.body(), new_prefix, is_last);
-
+			break;
         case NodeKind.COMPOUND_STMT:
             io::printn("CompoundStmt");
             CompoundView v = (CompoundView){ ast, handle };
@@ -70,14 +98,63 @@ fn void print_node(Ast* ast, StringPool* pool, Node handle, String prefix, bool 
             {
                 print_node(ast, pool, v.get(i), new_prefix, is_last);
             }
-
+			break;
         case NodeKind.RETURN_STMT:
-            // For simple nodes with 1 child, we can just use a helper
             Node expr = (Node)ast.extra_data[ast.extra_indices[(usz)handle]];
             io::print("RETURN ");
             print_node(ast, pool, expr, new_prefix, is_last); 
             io::printn("");
+			break;
+		case NodeKind.TYPE:
+            TypeView tv = (TypeView){ ast, handle };
+			if (!is_inline)
+			{
+            	io::print("Type: ");
+			}
+            io::print(tv.name(pool));
 
+            // Print pointers (e.g., **)
+            for (uint i = 0; i < tv.ptr_count(); i++) io::print("*");
+
+            // Print array size if it exists
+            Node array_expr = tv.array_size();
+            if (array_expr.is_valid()) 
+            {
+                io::print("[");
+                print_node(ast, pool, array_expr, new_prefix, false);
+                io::print("]");
+            }
+
+            // Print generics if any: {T, U}
+            uint g_count = tv.gen_count();
+            if (g_count > 0)
+            {
+                io::print("{");
+                for (uint i = 0; i < g_count; i++)
+                {
+                    print_node(ast, pool, tv.get_gen_arg(i), new_prefix, false);
+                    if (i < g_count - 1) io::print(", ");
+                }
+                io::print("}");
+            }
+			if (!is_inline)
+			{
+            	io::printn();
+			}
+            break;
+
+        case NodeKind.PARAM_DECL:
+            ParamView pv = (ParamView){ ast, handle };
+            print_node(ast, pool, pv.get_type(), " ", true, true);
+			if (is_inline)
+			{
+            	io::printf(" %s", pv.get_name(pool));
+			}
+			else
+			{
+            	io::printf("Param: %s : ", pv.get_name(pool));
+			}
+            break;
         default:
             io::printfn("<Node:%s>", kind);
     }

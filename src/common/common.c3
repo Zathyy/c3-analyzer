@@ -4,6 +4,8 @@ import c3_parser::ast @norecurse;
 
 import std::collections::list;
 
+const uint MAX_GENERICS = 16;
+
 typedef FileID = ushort;
 
 struct SourceSpan 
