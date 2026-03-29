@@ -167,7 +167,7 @@ fn void print_node(Ast* ast, StringPool* pool, Node handle, String prefix, bool 
 			break;
 		case NodeKind.TYPEDEF_DECL:
 			TypedefView tv = (TypedefView){ ast, handle };
-			io::printfn("Typedef (Distinct): %s", tv.name(pool));
+			io::printfn("Typedef: %s", tv.name(pool));
 			io::print(new_prefix);
 			io::print("└── Base: ");
 			print_node(ast, pool, tv.base_type(), new_prefix, true, true);
