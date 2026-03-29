@@ -1,55 +1,67 @@
 module utils::ast;
 
 import c3_parser::ast;
-import c3_parser::common;
-import string_pool;
-
+import lexer;
 import std::io;
-import std::collections::list;
-import std::collections::maybe;
+import string_pool;
+import c3_parser::common;
 
-fn void dump(Ast* ast, StringPool* pool)
+StringPool* pool @local;
+
+fn void print_prefix(String prefix, bool is_last)
 {
-	io::printn("Tree");
-	foreach (i, node : ast.top_level_nodes)
+    io::print(prefix);
+    if (is_last) 
 	{
-		bool is_last = (i == ast.top_level_nodes.len() - 1);		
-		print_node(ast, pool, (Node)node, "", is_last);
+		io::print("└─ ");
+	}
+    else        
+	{
+		io::print("├─ ");
 	}
 }
 
-fn void print_node(Ast* ast, StringPool* pool, Node handle, String prefix, bool is_last, bool is_inline = false)
+fn String make_child_prefix(String prefix, bool is_last)
 {
-	if (!handle.is_valid())
+    if (is_last) 
 	{
-		io::printn("<null>");
-        return;
+		return prefix.tconcat("   ");
 	}
-
-	NodeView node_view = ast::get_node(ast, handle);
-    NodeKind kind = node_view.kind;
-
-	if (!is_inline)
+    else         
 	{
-		io::print(prefix);
-		io::print(is_last ? "└── " : "├── ");
+		return prefix.tconcat("│  ");
 	}
+}
 
-    String new_prefix = string::tformat("%s%s", prefix, is_last ? "    " : "│   ");
-    defer new_prefix.free(tmem);
+fn void dump(Ast* ast, StringPool* strings_pool) => @pool()
+{
+	pool = strings_pool;
 
-    switch (kind)
+    if (ast.top_level_nodes.len() == 0)
     {
-		case NodeKind.MODULE_DECL:
-			io::printn("ModuleDecl");
-			ModuleView mv = (ModuleView){ ast, handle };
-			print_node(ast, pool, mv.path(), new_prefix, true);
-			break;
-		case NodeKind.IMPORT_DECL:
-			io::printn("ImportDecl");
-			ImportView mv = (ImportView){ ast, handle };
-			print_node(ast, pool, mv.path(), new_prefix, true);
-			break;
+        io::printn("<empty ast>");
+        return;
+    }
+
+    for (uint i = 0; i < ast.top_level_nodes.len(); i++)
+    {
+        bool is_last = (i == ast.top_level_nodes.len() - 1);
+        print_node(ast, (Node)ast.top_level_nodes[i], "", is_last);
+    }
+}
+
+fn void print_node(Ast* ast, Node handle, String prefix, bool is_last)
+{
+    if (!handle.is_valid()) return;
+	assert(pool != null);
+
+    NodeView node = ast::get_node(ast, handle);
+    String child_prefix = make_child_prefix(prefix, is_last);
+
+    print_prefix(prefix, is_last);
+
+    switch (node.kind)
+    {
 		case NodeKind.PATH:
 			PathView v = (PathView){ ast, handle };
 			io::print("Path: ");
@@ -62,55 +74,9 @@ fn void print_node(Ast* ast, StringPool* pool, Node handle, String prefix, bool 
 			}
 			io::printn();
 			break;
-		case NodeKind.FN_DECL:
-			FnView fv = (FnView){ ast, handle };
-            String name = fv.name(pool);
-            io::printfn("FnDecl: %s", name);
-
-            io::print(new_prefix);
-            io::print("├── Return: ");
-            print_node(ast, pool, fv.return_type(), new_prefix, false, true);
-            io::printn();
-
-            uint p_count = fv.param_count();
-            for (uint i = 0; i < p_count; i++)
-            {
-                io::print(new_prefix);
-                io::print("├── Param: ");
-                print_node(ast, pool, fv.get_param(i), new_prefix, false, true);
-                io::printn();
-            }
-
-            print_node(ast, pool, fv.body(), new_prefix, true);
-            break;
-        case NodeKind.FOR_STMT:
-            io::printn("ForStmt");
-            ForView v = (ForView){ ast, handle };
-            print_node(ast, pool, v.init(), new_prefix, is_last);
-            print_node(ast, pool, v.cond(), new_prefix, is_last);
-            print_node(ast, pool, v.inc(), new_prefix, is_last);
-            print_node(ast, pool, v.body(), new_prefix, is_last);
-			break;
-        case NodeKind.COMPOUND_STMT:
-            io::printn("CompoundStmt");
-            CompoundView v = (CompoundView){ ast, handle };
-            for (uint i = 0; i < v.len(); i++)
-            {
-                print_node(ast, pool, v.get(i), new_prefix, is_last);
-            }
-			break;
-        case NodeKind.RETURN_STMT:
-            Node expr = (Node)ast.extra_data[ast.extra_indices[(usz)handle]];
-            io::print("RETURN ");
-            print_node(ast, pool, expr, new_prefix, is_last); 
-            io::printn("");
-			break;
 		case NodeKind.TYPE:
             TypeView tv = (TypeView){ ast, handle };
-			if (!is_inline)
-			{
-            	io::print("Type: ");
-			}
+			io::print("Type: ");
             io::print(tv.name(pool));
 
             // Print pointers (e.g., **)
@@ -122,7 +88,7 @@ fn void print_node(Ast* ast, StringPool* pool, Node handle, String prefix, bool 
             {
                 io::print("[");
 				if (tv.is_vector()) io::print("<");
-                print_node(ast, pool, array_expr, new_prefix, false);
+                print_node(ast, array_expr, child_prefix, false);
 				if (tv.is_vector()) io::print(">");
                 io::print("]");
             }
@@ -134,66 +100,232 @@ fn void print_node(Ast* ast, StringPool* pool, Node handle, String prefix, bool 
                 io::print("{");
                 for (uint i = 0; i < g_count; i++)
                 {
-                    print_node(ast, pool, tv.get_gen_arg(i), new_prefix, false);
+                    print_node(ast, tv.get_gen_arg(i), child_prefix, false);
                     if (i < g_count - 1) io::print(", ");
                 }
                 io::print("}");
             }
-			if (!is_inline)
-			{
-            	io::printn();
-			}
+			io::printn();
             break;
 
-        case NodeKind.PARAM_DECL:
-            ParamView pv = (ParamView){ ast, handle };
-            print_node(ast, pool, pv.get_type(), " ", true, true);
-			if (is_inline)
-			{
-            	io::printf(" %s", pv.get_name(pool));
-			}
-			else
-			{
-            	io::printf("Param: %s : ", pv.get_name(pool));
-			}
+        case NodeKind.MODULE_DECL:
+        {
+            ModuleView v = { ast, handle };
+            io::printn("ModuleDecl");
+            print_node(ast, v.path(), child_prefix, true);
             break;
-		case NodeKind.ALIAS_DECL:
-			AliasView av = (AliasView){ ast, handle };
-			io::printfn("Alias: %s", av.name(pool));
-			io::print(new_prefix);
-			io::print("└── Target: ");
-			print_node(ast, pool, av.target_type(), new_prefix, true, true);
-			io::printn();
+        }
+
+        case NodeKind.IMPORT_DECL:
+        {
+            ImportView v = { ast, handle };
+            io::printn("ImportDecl");
+            print_node(ast, v.path(), child_prefix, true);
+            break;
+        }
+
+       	case NodeKind.FN_DECL:
+		{
+			FnView v = { ast, handle };
+			io::printfn("FnDecl: %s", v.name(pool));
+
+			uint param_count = v.param_count();
+			bool has_body = v.body().is_valid();
+
+			print_node(ast, v.return_type(), child_prefix, param_count == 0 && !has_body);
+
+			for (uint i = 0; i < param_count; i++)
+			{
+				bool is_last_p = (i == param_count - 1) && !has_body;
+				print_node(ast, v.get_param(i), child_prefix, is_last_p);
+			}
+
+			if (has_body)
+			{
+				print_node(ast, v.body(), child_prefix, true);
+			}
 			break;
+		}
+		case NodeKind.PARAM_DECL:
+		{
+			ParamView pv = { ast, handle };
+			io::printfn("Param: %s", pv.get_name(pool));
+			print_node(ast, pv.get_type(), child_prefix, true);
+			break;
+		}
 		case NodeKind.TYPEDEF_DECL:
-			TypedefView tv = (TypedefView){ ast, handle };
-			io::printfn("Typedef: %s", tv.name(pool));
-			io::print(new_prefix);
-			io::print("└── Base: ");
-			print_node(ast, pool, tv.base_type(), new_prefix, true, true);
-			io::printn();
+		{
+			TypedefView v = { ast, handle };
+			io::printfn("Typedef: %s", v.name(pool));
+			print_node(ast, v.base_type(), child_prefix, true);
 			break;
+		}
 		case NodeKind.GLOBAL_DECL:
-            GlobalView gv = (GlobalView){ ast, handle };
-            GlobalFlags gf = gv.flags();
+		{
+			GlobalView gv = { ast, handle };
+			GlobalFlags gf = gv.flags();
 
 			io::print("Global: ");
+			if (gf.is_extern) io::print("extern ");
+			if (gf.is_const)  io::print("const ");
+			if (gf.is_thread_local) io::print("tlocal ");
+			io::printfn("%s", gv.name(pool));
 
-            if (gf.is_extern) io::print("extern ");
-            if (gf.is_const)  io::print("const ");
-            if (gf.is_thread_local)  io::print("tlocal ");
-            print_node(ast, pool, gv.type_node(), "", true, true);
-            io::printf(" %s", gv.name(pool));
-            
-            Node init = gv.init_expr();
-            if (init.is_valid())
-            {
-                io::print(" = ");
-                print_node(ast, pool, init, "", true, true);
-            }
-            io::printn();
+			Node init = gv.init_expr();
+			bool has_init = init.is_valid();
+
+			print_node(ast, gv.type_node(), child_prefix, !has_init);
+			
+			if (has_init)
+			{
+				print_node(ast, init, child_prefix, true);
+			}
+			break;
+		}
+		case NodeKind.ALIAS_DECL:
+		{
+			AliasView v = { ast, handle };
+			io::printfn("Alias: %s", v.name(pool));
+			print_node(ast, v.target_type(), child_prefix, true);
+			break;
+		}
+        case NodeKind.INT_LITERAL:
+			LiteralView v = { ast, handle };
+            io::printfn("Literal (Int): %s", v.value(pool));
             break;
-		default:
-            io::printfn("<Node:%s>", kind);
+
+        case NodeKind.FLOAT_LITERAL:
+			LiteralView v = { ast, handle };
+            io::printfn("Literal (Float): %s", v.value(pool));
+            break;
+
+        case NodeKind.STRING_LITERAL:
+			LiteralView v = { ast, handle };
+            io::printfn("Literal (String): \"%s\"", v.value(pool));
+            break;
+
+        case NodeKind.IDENT_EXPR:
+			IdentView v = { ast, handle };
+            io::printfn("IdentExpr: %s", v.name(pool));
+            break;
+
+        case NodeKind.BINARY_EXPR:
+        {
+            BinaryView v = { ast, handle };
+            io::printfn("BinaryExpr (%s)", v.op());
+            
+            print_node(ast, v.left(), child_prefix, false);
+            print_node(ast, v.right(), child_prefix, true);
+            break;
+        }
+
+        case NodeKind.UNARY_EXPR:
+        {
+            UnaryView v = { ast, handle };
+            io::printfn("UnaryExpr (%s)", v.op());
+            print_node(ast, v.rhs(), child_prefix, true);
+            break;
+        }
+
+        case NodeKind.CALL_EXPR:
+        {
+            CallView v = { ast, handle };
+            uint count = v.arg_count();
+            
+            io::printn("CallExpr");
+            print_node(ast, v.callee(), child_prefix, count == 0);
+
+            for (uint i = 0; i < count; i++)
+            {
+                bool arg_last = (i == count - 1);
+                print_node(ast, v.get_arg(i), child_prefix, arg_last);
+            }
+            break;
+        }
+
+        case NodeKind.TERNARY_EXPR:
+        {
+            TernaryView v = { ast, handle };
+            io::printn("TernaryExpr");
+            print_node(ast, v.condition(), child_prefix, false);
+            print_node(ast, v.then_expr(), child_prefix, false);
+            print_node(ast, v.else_expr(), child_prefix, true);
+            break;
+        }
+
+        case NodeKind.EXPR_STMT:
+        {
+            io::printn("ExprStmt");
+			ExprStmtView esv = { ast, handle };
+            print_node(ast, esv.expr(), child_prefix, true);
+            break;
+        }
+
+        case NodeKind.RETURN_STMT:
+        {
+            io::printn("ReturnStmt");
+			ReturnView rv = { ast, handle };
+            Node expr = rv.expr();
+            if (expr.is_valid())
+            {
+                print_node(ast, expr, child_prefix, true);
+            }
+            break;
+        }
+
+        case NodeKind.IF_STMT:
+		{
+			IfView v = { ast, handle };
+			Node else_blk = v.else_block();
+			bool has_else = else_blk.is_valid();
+
+			io::printn("IfStmt");
+
+			print_node(ast, v.condition(), child_prefix, false);
+			
+			print_prefix(child_prefix, !has_else);
+			io::printn("Then:");
+			print_node(ast, v.then_block(), make_child_prefix(child_prefix, !has_else), true);
+
+			if (has_else)
+			{
+				print_prefix(child_prefix, true);
+				io::printn("Else:");
+				print_node(ast, else_blk, make_child_prefix(child_prefix, true), true);
+			}
+			break;
+		}
+        case NodeKind.VAR_DECL_STMT:
+        {
+            VarDeclView v = { ast, handle };
+            io::printfn("VarDeclStmt: %s", v.name(pool));
+	
+			Node init_expr = v.init_expr();
+            print_node(ast, v.type_node(), child_prefix, !init_expr.is_valid());
+            
+            if (init_expr.is_valid())
+            {
+                print_node(ast, init_expr, child_prefix, true);
+            }
+            break;
+        }
+
+        case NodeKind.COMPOUND_STMT:
+        {
+            CompoundView v = { ast, handle };
+            uint count = v.len();
+
+            io::printfn("CompoundStmt (%d stmts)", count);
+            for (uint i = 0; i < count; i++)
+            {
+                bool stmt_last = (i == count - 1);
+                print_node(ast, v.get(i), child_prefix, stmt_last);
+            }
+            break;
+        }
+
+        default:
+            io::printfn("Unknown Node (Kind: %s)", node.kind);
+            break;
     }
 }

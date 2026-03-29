@@ -151,7 +151,7 @@ fn Node? parse_type(Parser* p)
 		if (consume(p, TokenKind.LVEC)!)
 		{
 			flags.is_vector = true;
-			key.array_size = parse_expression(p)!;
+			key.array_size = parse_expr(p)!;
 			expect(p, TokenKind.RVEC)!;
 			break;
 		}
@@ -162,7 +162,7 @@ fn Node? parse_type(Parser* p)
         }
         if (consume(p, TokenKind.LBRACKET)!) 
 		{
-            key.array_size = parse_expression(p)!; 
+            key.array_size = parse_expr(p)!; 
             expect(p, TokenKind.RBRACKET)!;
             continue;
         }
@@ -252,7 +252,7 @@ fn Node? parse_global(Parser* p)
     Node init_expr;
     if (consume(p, TokenKind.EQ)!)
     {
-        init_expr = parse_expression(p)!;
+        init_expr = parse_expr(p, 0)!;
     }
     
     expect(p, TokenKind.EOS)!;

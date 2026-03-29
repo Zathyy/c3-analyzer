@@ -17,19 +17,34 @@ enum NodeKind : char
 	PATH,
     TYPE,
     TYPE_DECL,
+
+    INT_LITERAL,
+    FLOAT_LITERAL,
+    STRING_LITERAL,
+
     FN_DECL,
     PARAM_DECL,
     VAR_DECL, // 
-	FOR_STMT,
     STRUCT_DECL, // struct
-    COMPOUND_STMT, // { ... }
-    RETURN_STMT, // return
-	IDENT_EXPR,
     ALIAS_DECL,
     GLOBAL_DECL,
     TYPEDEF_DECL,
 	MODULE_DECL,
-    IMPORT_DECL
+    IMPORT_DECL,
+
+	IDENT_EXPR,
+    UNARY_EXPR,
+    BINARY_EXPR,
+    TERNARY_EXPR,
+    CALL_EXPR,
+
+	FOR_STMT,
+    COMPOUND_STMT, // { ... }
+    RETURN_STMT, // return
+    VAR_DECL_STMT,
+    EXPR_STMT,
+    IF_STMT,
+    DEFER_STMT,
 }
 
 struct Ast 
@@ -69,6 +84,11 @@ fn uint Ast.push_extra(&self, uint value = 0) @inline
     uint idx = (uint)self.extra_data.len();
     self.extra_data.push(value);
     return idx;
+}
+
+fn void Ast.set_extra(&self, uint index, uint value) @inline 
+{
+    self.extra_data[(usz)index] = value;
 }
 
 fn Node add_node(Ast* ast, NodeKind kind, uint tok, uint extra_idx)

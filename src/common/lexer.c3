@@ -475,10 +475,10 @@ fn Token? Lexer.lex_number(Lexer* self, uint start_pos)
         {
             self.advance()!;
         }
-        return self.emit(TokenKind.FLOAT, start_pos, (uint)self.index - start_pos);
+        return self.emit(TokenKind.REAL, start_pos, (uint)self.index - start_pos);
     }
 
-    return self.emit(TokenKind.INT, start_pos, (uint)self.index - start_pos);
+    return self.emit(TokenKind.INTEGER, start_pos, (uint)self.index - start_pos);
 }
 
 fn void? Lexer.advance(Lexer* self) @inline
@@ -557,6 +557,14 @@ fn Token? Lexer.next(&self)
 				case '=': self.advance()!; return self.emit(LESS_EQ, start, 2);
 			}	
 			return self.emit(LESS, start, 1);
+		case '&':
+			self.advance()!;
+			if (self.peek() == '&')
+			{
+				self.advance()!;
+				return self.emit(AND, start, 2);
+			}
+			return self.emit(AMP, start, 1);
         case '(': self.advance()!; return self.emit(LPAREN, start, 1);
         case ')': self.advance()!; return self.emit(RPAREN, start, 1);
         case '{': self.advance()!; return self.emit(LBRACE, start, 1);
@@ -569,6 +577,9 @@ fn Token? Lexer.next(&self)
         case '*': self.advance()!; return self.emit(ASTERISK, start, 1);
         case '/': self.advance()!; return self.emit(DIV, start, 1);
 
+		case '"':
+		case '`':
+			return self.lex_string(start);
         default:
             if (is_digit(c)) return self.lex_number(start)!;
             if (is_ident(c)) return self.lex_identifier(start)!;
