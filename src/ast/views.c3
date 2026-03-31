@@ -100,16 +100,16 @@ fn String TypeView.name(TypeView self, StringPool* pool)
 	uint sh = self.get_uint(0);
 	return pool.get(sh);
 }
-//num of pointers *
-fn Node TypeView.array_size(TypeView self) => self.get(1);
+
+fn uint TypeView.ptr_count(TypeView self) => self.get_uint(1);
+fn Node TypeView.array_size(TypeView self) => self.get(2);
+fn uint TypeView.gen_count(TypeView self) => self.get_uint(3);
+fn TypeFlags TypeView.get_flags(TypeView self) => (TypeFlags)self.get(4);
 fn bool TypeView.is_vector(TypeView self) => self.get_flags().is_vector;
-fn uint TypeView.ptr_count(TypeView self) => self.get_flags().ptr_count;
-fn uint TypeView.gen_count(TypeView self) => self.get_flags().gen_count;
-fn TypeFlags TypeView.get_flags(TypeView self) => (TypeFlags)self.get(2);
 // Get a specific generic argument (e.g. the 'int' in 'List{int}')
 fn Node TypeView.get_gen_arg(TypeView self, uint index) 
 {
-    return self.get_at(3, index);
+    return self.get_at(5, index);
 }
 
 typedef AliasView = inline View;

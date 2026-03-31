@@ -15,8 +15,9 @@ enum NodeKind : char
 {
     INVALID,
 	PATH,
-    TYPE,
-    TYPE_DECL,
+
+	TYPE,
+	TYPE_DECL,
 
     INT_LITERAL,
     FLOAT_LITERAL,
@@ -32,6 +33,7 @@ enum NodeKind : char
 	MODULE_DECL,
     IMPORT_DECL,
 
+	TYPE_EXPR,
 	IDENT_EXPR,
     UNARY_EXPR,
     BINARY_EXPR,

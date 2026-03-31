@@ -3,12 +3,13 @@ module string_pool;
 import std::collections::list;
 import std::collections::map;
 
+// get ridth of HashMap it uses ~40 bytes per item
 struct StringPool 
 {
     List{char} data;
 	List{uint} offsets;  // Where each string starts
     List{uint} lengths;  // How long each string is
-    HashMap{uint, uint} lookup; // Hash of string -> Offset in 'data'
+    HashMap{String, uint} lookup; // string -> ID
 }
 
 fn void StringPool.init(&self, Allocator alloc = tmem)
@@ -29,8 +30,7 @@ fn void StringPool.free(&self)
 
 fn uint StringPool.intern(StringPool* self, String s)
 {
-   	uint hash = s.hash();
-    if (try existing = self.lookup.get(hash)) 
+    if (try existing = self.lookup.get(s)) 
 	{
 		return existing;
 	}
@@ -46,17 +46,17 @@ fn uint StringPool.intern(StringPool* self, String s)
         self.data.push(s[i]);
     }
 
-    self.lookup.set(hash, id);
+    self.lookup.set(s, id);
     return id;
 }
 
 /**
- * Recovers the string from an offset.
+ * Recovers the string from the id
  */
 fn String StringPool.get(StringPool* self, uint id)
-{	
-    uint start = self.offsets[id];
-    uint len = self.lengths[id];
+{
+    uint start = self.offsets[(usz)id];
+    uint len = self.lengths[(usz)id];
     
     // Return a slice of the internal data
     return (String)self.data.array_view()[start:len];

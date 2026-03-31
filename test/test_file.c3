@@ -1,6 +1,6 @@
 module test::new;
 
-import test::foo::bar;
+import std::io;
 
 alias MyType = uint;
 
@@ -12,7 +12,9 @@ fn void test(int foo, void* bar)
 {
 	if (foo > 5 && foo < 10)
 	{
-		
+		defer io::print();
+
+		return;
 	}
 	else if (foo < 0)
 	{

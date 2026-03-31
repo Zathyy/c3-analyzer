@@ -30,7 +30,6 @@ struct Parser
 {
 	StringPool strings;
 	LineMap line_map;
-	Registry registry;
 	Token[] tokens;
 	String src;
 	Ast* ast;
@@ -41,7 +40,6 @@ fn void init(Parser* p)
 {
 	p.strings.init();
 	p.line_map.init();
-	registry::init(&p.registry);
 
 	p.ast = mem::tnew(Ast);
 	ast::init(p.ast, 1000);
@@ -51,7 +49,6 @@ fn void free(Parser* p)
 {
 	p.strings.free();
 	p.line_map.free();
-	registry::free(&p.registry);
 }
 
 <*

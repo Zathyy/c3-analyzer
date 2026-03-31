@@ -74,7 +74,7 @@ fn void print_node(Ast* ast, Node handle, String prefix, bool is_last)
 			}
 			io::printn();
 			break;
-		case NodeKind.TYPE:
+		case NodeKind.TYPE_EXPR:
             TypeView tv = (TypeView){ ast, handle };
 			io::print("Type: ");
             io::print(tv.name(pool));
