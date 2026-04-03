@@ -27,6 +27,7 @@ enum NodeKind : char
     PARAM_DECL,
     VAR_DECL, // 
     STRUCT_DECL, // struct
+    FIELD_DECL,
     ALIAS_DECL,
     GLOBAL_DECL,
     TYPEDEF_DECL,
@@ -79,6 +80,24 @@ fn void free(Ast* ast)
 	ast.extra_indices.free();
 	ast.extra_data.free();
     ast.top_level_nodes.free();
+}
+
+fn void Ast.clear(&self) 
+{
+	self.kinds.clear();
+	self.tokens.clear();
+	self.extra_indices.clear();
+	self.extra_data.clear();
+	self.top_level_nodes.clear();
+
+	self.kinds.push(INVALID);
+	self.tokens.push(0);
+	self.extra_indices.push(0);
+}
+
+fn uint Ast.len(&self)
+{
+	return (uint)self.kinds.len();
 }
 
 fn uint Ast.push_extra(&self, uint value = 0) @inline

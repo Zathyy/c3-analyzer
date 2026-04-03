@@ -2,22 +2,25 @@ module c3_parser;
 import lexer;
 import utils::ast;
 import std::io;
+import c3_parser::workspace;
 import c3_parser::parser;
+import c3_parser::cursor;
 
 fn int main(String[] args) => @pool()
 {
-	log::set_priority_all(LogPriority.VERBOSE);
+    log::set_priority_all(LogPriority.VERBOSE);
+    log::debug("Init...");
 
-	log::debug("init..");
+    Workspace ws;
+    workspace::init(&ws);
 
-	Path path1 = path::temp("test/test_file.c3")!!;
+    String test_path = "test/test_file.c3";
+    String test_path2 = "test/test_file2.c3";
 
-	Parser parser;
-	parser::init(&parser);
-	defer parser::free(&parser);
-	parser::parse(&parser, path1.path_string)!!;
+    parser::parse_file(&ws, test_path)!!;
+    parser::parse_file(&ws, test_path2)!!;
+	log::info("num modules: %s", ws.modules.len());
+	ast::dump_workspace(&ws);
 
-	ast::dump(parser.ast, &parser.strings);
-
-	return 0;
+    return 0;
 }

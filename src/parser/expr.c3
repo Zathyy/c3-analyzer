@@ -69,19 +69,19 @@ fn Node? parse_prefix_expr(Parser* p)
 		// getting the actual literal value is up to the semantic analysis
 		case TokenKind.STRING:
 			String text = p.token_text(t);
-			uint sh = p.strings.intern(text);
+			uint sh = p.pool.intern(text);
 			advance(p)!;
             return ast::add_node(p.ast, NodeKind.STRING_LITERAL, t.pos, sh);
 
 		case TokenKind.REAL:
 			String text = p.token_text(t);
-			uint sh = p.strings.intern(text);
+			uint sh = p.pool.intern(text);
 			advance(p)!;
             return ast::add_node(p.ast, NodeKind.FLOAT_LITERAL, t.pos, sh);
 
         case TokenKind.INTEGER:
 			String text = p.token_text(t);
-			uint sh = p.strings.intern(text);
+			uint sh = p.pool.intern(text);
 			advance(p)!;
             return ast::add_node(p.ast, NodeKind.INT_LITERAL, t.pos, sh);
 
@@ -93,7 +93,7 @@ fn Node? parse_prefix_expr(Parser* p)
 				return path;
 			}
 			advance(p)!;
-            uint sh = p.strings.intern(p.token_text(t));
+            uint sh = p.pool.intern(p.token_text(t));
             return ast::add_node(p.ast, NodeKind.IDENT_EXPR, t.pos, sh);
 
 		case TokenKind.BANG:
@@ -229,7 +229,7 @@ fn Node? parse_call(Parser* p, Token t, Node callee)
     expect(p, TokenKind.RPAREN)!;
 
     args[0] = (uint)callee;
-    args[1] = (uint)args.len();
+    args[1] = (uint)args.len() - 2;
 
     uint ex = ast::push_extra_block(p.ast, args.array_view());
 

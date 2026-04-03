@@ -7,14 +7,17 @@ import line_map;
 import c3_parser::ast;
 import c3_parser::common;
 import c3_parser::registry;
+import c3_parser::workspace @norecurse;
 
 import std::io;
+import std::io::path;
 import std::collections::list;
 import std::collections::maybe;
 
 faultdef
 	UNKNOWN,
 	UNEXPECTED_EOS,
+	MODULE_HEADER_FAILED,
 	CONTRACT_NOT_ALLOWED,
 	INVALID_PATH,
 	PATH_TOO_LONG,
@@ -28,27 +31,14 @@ const uint PATH_MAX_LENGTH = 16;
 
 struct Parser
 {
-	StringPool strings;
 	LineMap line_map;
-	Token[] tokens;
-	String src;
+	StringPool* pool;
 	Ast* ast;
+	Module* mod;
+	Token[] tokens;
+	String file_path; // current file being parsed
+	String src;
 	uint pos;
-}
-
-fn void init(Parser* p)
-{
-	p.strings.init();
-	p.line_map.init();
-
-	p.ast = mem::tnew(Ast);
-	ast::init(p.ast, 1000);
-}
-
-fn void free(Parser* p)
-{
-	p.strings.free();
-	p.line_map.free();
 }
 
 <*
@@ -167,7 +157,7 @@ fn Node? parse_path(Parser* p)
     while (true) 
     {
         Token t = p.current();
-        uint sh = p.strings.intern(p.token_text(t));
+        uint sh = p.pool.intern(p.token_text(t));
         if (count < PATH_MAX_LENGTH) 
 		{
             stack_parts[count++] = sh;
@@ -200,16 +190,60 @@ fn Node? parse_ident(Parser* p)
 	expect(p, TokenKind.IDENT)!;
 
 	String name_str = p.token_text(t);
-	uint name_id = p.strings.intern(name_str);
+	uint name_id = p.pool.intern(name_str);
 
 	return ast::add_node(p.ast, NodeKind.IDENT_EXPR, (uint)p.pos - 1, name_id);
 }
 
-<*
-	@param [&inout] parser
-*>
-fn void? parse(Parser* parser, String path)
+fn String peek_module_name(Parser* p)
 {
+    for (usz i = 0; i < p.tokens.len; i++)
+    {
+        if (p.tokens[i].kind == TokenKind.MODULE)
+        {
+            // Start collecting the name after the 'module' keyword
+            usz j = i + 1;
+            String full_name = "";
+
+            while (j < p.tokens.len)
+            {
+                Token t = p.tokens[j];
+                
+                if (t.kind == TokenKind.IDENT) 
+				{
+                    String part = p.token_text(t); 
+                    full_name = full_name.tconcat(part);
+                } 
+                else if (t.kind == TokenKind.SCOPE) 
+				{
+                    full_name = full_name.tconcat("::");
+                } 
+                else if (t.kind == TokenKind.EOS) 
+				{
+                    break; // End of module declaration
+                }
+                
+                j++;
+            }
+            return full_name;
+        }
+    }
+
+    return "";
+}
+
+<*
+	Parse a specific file.
+	Appends the nodes to the provided Modules Ast
+*>
+fn void? parse_file(Workspace* ws, String path)
+{
+	Parser parser = (Parser){
+		.mod = null,
+		.ast = &ws.scratchpad,
+		.pool = &ws.strings,
+	};
+
 	String src = (String)file::load(tmem, path)!;
 	Lexer lexer = (Lexer){
 		.buffer = src,
@@ -217,8 +251,6 @@ fn void? parse(Parser* parser, String path)
 	};
 
 	parser.src = src;
-
-	log::info("parsing file: %s", path);
 
 	List{ Token } tokens;
 	tokens.tinit(1000);
@@ -228,22 +260,38 @@ fn void? parse(Parser* parser, String path)
 		tokens.push(token);
 		io::printfn("Added token: <%s> - %s", token.kind, parser.token_text(token));
 	}
-
 	parser.tokens = tokens.array_view();
 	parser.line_map.build(src);
-	parser.pos = 0;
 
+	String mod_name = peek_module_name(&parser);
+    
+    if (mod_name == "") 
+	{
+        mod_name = path_to_module_name(path)!;
+        log::info("Inferred module: %s", mod_name);
+    }
+	Module* mod = workspace::get_or_create_module(ws, mod_name);
+	parser.mod = mod;
+	parser.ast = &mod.ast;
+
+	log::info("parsing file: %s", path);
 	while (!parser.eof())
 	{
-		if (catch err = parse_top_level(parser))
+		if (catch err = parse_top_level(&parser, ws))
 		{			
-			synchronize(parser);
+			synchronize(&parser);
 			continue;
 		}
 	}
 }
 
-fn void? parse_top_level(Parser* p)
+fn String? path_to_module_name(String path)
+{
+    String base_name = path.file_tbasename()!;
+	return base_name.strip_end(".c3");
+}
+
+fn void? parse_top_level(Parser* p, Workspace* ws)
 {
     log::debug("parse_top_level: %s", p.token_text(p.current()));
 
@@ -267,7 +315,7 @@ fn void? parse_top_level(Parser* p)
             advance(p)!;
             return UNEXPECTED_EOS~;
 		case TokenKind.MODULE:
-			node = parse_module(p)!;
+			node = parse_module(p, ws)!;
 			break;
 		case TokenKind.IMPORT:
 			node = parse_import(p)!;
@@ -280,6 +328,9 @@ fn void? parse_top_level(Parser* p)
 			break;
 		case TokenKind.TYPEDEF:
 			node = parse_typedef(p)!;
+			break;
+		case TokenKind.STRUCT:
+			node = parse_struct(p)!;
 			break;
         default:
 			p.error("Couldn't find any matching top level declaration: %s", p.current());

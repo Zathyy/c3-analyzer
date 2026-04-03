@@ -47,7 +47,22 @@ typedef PathView = inline View;
 
 fn uint PathView.len(PathView self) => self.get_uint(0);
 fn uint PathView.get_string_handle(PathView self, uint index) => (uint)self.get_at(1, index);
+fn String PathView.get_full(self, StringPool* pool) 
+{
+	uint len = self.len();
 
+	String result = "";
+	for (uint i = 0; i < len; i++)
+	{
+		uint sh = self.get_string_handle(i);
+		result = result.concat(tmem, pool.get(sh)); 
+		
+		if (i < len - 1) {
+			result = result.concat(tmem, "::");
+		} 
+	}
+	return result;
+}	
 fn String PathView.get_text(PathView self, uint index, StringPool* pool) 
 {
     return pool.get(self.get_string_handle(index));
@@ -132,13 +147,30 @@ fn String VarDeclView.name(self, StringPool* pool) => pool.get(self.get_uint(0))
 fn Node VarDeclView.type_node(self) => self.get(1);
 fn Node VarDeclView.init_expr(self) => self.get(2);
 
+typedef StructView = inline View;
+
+fn String StructView.name(self, StringPool* pool) => pool.get(self.get_uint(0));
+fn uint StructView.field_count(self) => self.get_uint(1);
+fn Node StructView.field(self, uint index)
+{
+    return self.get_at(2, index);
+}
+
+typedef FieldView = inline View;
+fn String FieldView.name(self, StringPool* pool) => pool.get(self.get_uint(0));
+fn Node FieldView.type_node(self) => self.get(1);
+ 
 /// --- STMT ---
 
 typedef ReturnView = inline View;
 fn Node ReturnView.expr(self) => self.get_extra_index();
 
+
+// Extra Block Layout: [Kind, StmtNode, VarName]
 typedef DeferView = inline View;
-fn Node DeferView.expr(self) => self.get_extra_index();
+fn DeferKind DeferView.kind(self) => (DeferKind)self.get_uint(0);
+fn Node DeferView.stmt(self) => self.get(1);
+fn String DeferView.name(self, StringPool* pool) => pool.get(self.get_uint(2));
 
 typedef ExprStmtView = inline View;
 fn Node ExprStmtView.expr(self) => self.get_extra_index();

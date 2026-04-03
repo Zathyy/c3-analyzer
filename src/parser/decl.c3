@@ -5,8 +5,9 @@ import lexer;
 import c3_parser::common;
 import c3_parser::registry;
 import std::collections::list;
+import c3_parser::workspace @norecurse;
 
-fn Node? parse_module(Parser* p)
+fn Node? parse_module(Parser* p, Workspace* ws)
 {
 	uint start = p.pos;
     expect(p, TokenKind.MODULE)!;
@@ -16,11 +17,14 @@ fn Node? parse_module(Parser* p)
 	{
 		p.error("failed to parse path for module: %s", err);
 		return err~;
-	} 
+	}
     expect(p, TokenKind.EOS)!;
+
+	PathView view = { p.ast, path_node };
 
 	uint[1] block = { (uint)path_node };
 	uint ex = ast::push_extra_block(p.ast, &block);
+	log::info("parsed module!");
     return ast::add_node(p.ast, NodeKind.MODULE_DECL, start, ex);
 }
 
@@ -55,7 +59,7 @@ fn Node? parse_fn_decl(Parser* p)
 		p.error("Expected function name");
 		return UNEXPECTED_TOKEN~;
 	}
-    uint name_sh = p.strings.intern(p.token_text(p.current()));
+    uint name_sh = p.pool.intern(p.token_text(p.current()));
     advance(p)!; 
 
     expect(p, TokenKind.LPAREN)!;
@@ -112,7 +116,7 @@ fn Node? parse_param_decl(Parser* p)
 		return UNEXPECTED_TOKEN~;
 	}
 
-    uint name_sh = p.strings.intern(p.token_text(p.current()));
+    uint name_sh = p.pool.intern(p.token_text(p.current()));
     advance(p)!;
 
     uint[2] data = { (uint)type, name_sh };
@@ -130,7 +134,7 @@ fn Node? parse_type(Parser* p)
 	TypeDescriptor desc;
 	TypeFlags flags;
 
-    desc.name = p.strings.intern(p.token_text(p.current()));
+    desc.name = p.pool.intern(p.token_text(p.current()));
 	advance(p)!;
 
 	if (consume(p, TokenKind.LBRACE)!) 
@@ -198,7 +202,7 @@ fn Node? parse_alias(Parser* p)
 
 	Token name_tok = p.current();
     expect(p, TokenKind.TYPE_IDENT)!;
-    uint name_sh = p.strings.intern(p.token_text(name_tok));
+    uint name_sh = p.pool.intern(p.token_text(name_tok));
 
     expect(p, TokenKind.EQ)!;
 
@@ -219,7 +223,7 @@ fn Node? parse_typedef(Parser* p)
 
 	Token name_tok = p.current();
     expect(p, TokenKind.TYPE_IDENT)!;
-    uint name_sh = p.strings.intern(p.token_text(name_tok));
+    uint name_sh = p.pool.intern(p.token_text(name_tok));
 
     expect(p, TokenKind.EQ)!;
 
@@ -246,7 +250,7 @@ fn Node? parse_global(Parser* p)
 
     Token name_tok = p.current();
  	expect(p, TokenKind.IDENT)!;
-    uint name_sh = p.strings.intern(p.token_text(name_tok));
+    uint name_sh = p.pool.intern(p.token_text(name_tok));
 
     Node init_expr;
     if (consume(p, TokenKind.EQ)!)
@@ -263,4 +267,70 @@ fn Node? parse_global(Parser* p)
     uint ex = ast::push_extra_block(p.ast, &data);
 
     return ast::add_node(p.ast, NodeKind.GLOBAL_DECL, start_tok, ex);
+}
+
+fn Node? parse_struct(Parser* p)
+{
+    uint start_tok = p.pos;
+
+    expect(p, TokenKind.STRUCT)!;
+
+    if (!p.is(TokenKind.TYPE_IDENT))
+    {
+        p.error("Expected struct name");
+        return UNEXPECTED_TOKEN~;
+    }
+    uint name = p.pool.intern(p.token_text(p.current()));
+    advance(p)!;
+
+    expect(p, TokenKind.LBRACE)!;
+
+	List{ uint } fields;
+	fields.tinit(100);
+	defer fields.free();
+
+	// push name
+	fields.push(name);
+	// push size
+	fields.push(0);
+
+    while (!p.is(TokenKind.RBRACE))
+    {
+        fields.push((uint)parse_field_decl(p)!);
+
+        expect(p, TokenKind.EOS)!;
+		if (!p.is(TokenKind.TYPE_IDENT) && !is_type(p.current().kind))
+		{
+			break;
+		}
+    }
+
+    expect(p, TokenKind.RBRACE)!;
+
+    fields[1] = (uint)fields.len() - 2;
+
+    uint ex = ast::push_extra_block(p.ast, fields.array_view());
+    return ast::add_node(p.ast, NodeKind.STRUCT_DECL, start_tok, ex);
+}
+
+fn Node? parse_field_decl(Parser* p)
+{
+    uint start_tok = p.pos;
+
+    Node type_node = parse_type(p)!;
+
+    if (!p.is(TokenKind.IDENT))
+    {
+        p.error("Expected field name");
+        return UNEXPECTED_TOKEN~;
+    }
+
+    uint name = p.pool.intern(p.token_text(p.current()));
+    advance(p)!;
+
+    // Optional: handle field attributes or default values here
+    uint[2] data = { name, (uint)type_node };
+    uint ex = ast::push_extra_block(p.ast, &data);
+
+    return ast::add_node(p.ast, NodeKind.FIELD_DECL, start_tok, ex);
 }

@@ -3,13 +3,12 @@ module string_pool;
 import std::collections::list;
 import std::collections::map;
 
-// get ridth of HashMap it uses ~40 bytes per item
 struct StringPool 
 {
     List{char} data;
 	List{uint} offsets;  // Where each string starts
     List{uint} lengths;  // How long each string is
-    HashMap{String, uint} lookup; // string -> ID
+    HashMap{String, uint} lookup; // string -> ID (Temp solution)
 }
 
 fn void StringPool.init(&self, Allocator alloc = tmem)

@@ -1,4 +1,4 @@
-module test::new;
+module foo::bar;
 
 import std::io;
 
@@ -12,8 +12,12 @@ fn void test(int foo, void* bar)
 {
 	if (foo > 5 && foo < 10)
 	{
-		defer io::print();
+		defer (catch err) {
 
+		}
+
+		defer try io::print("");
+		defer catch io::print("");
 		return;
 	}
 	else if (foo < 0)
@@ -24,4 +28,10 @@ fn void test(int foo, void* bar)
 	{
 
 	}
+}
+
+struct Foo
+{
+	uint a;
+	uint b;
 }

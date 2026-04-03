@@ -104,7 +104,7 @@ fn Node? parse_decl_stmt(Parser* p)
     Node type_node = parse_type(p)!;
 	Token name_tok = p.current();
     expect(p, TokenKind.IDENT)!;
-    uint name_sh = p.strings.intern(p.token_text(name_tok));
+    uint name_sh = p.pool.intern(p.token_text(name_tok));
 
     Node init_expr;
 
@@ -126,7 +126,7 @@ fn Node? parse_expr_stmt(Parser* p)
 {
     Token t = p.current();
     Node expr = parse_expr(p, 0)!;
-    expect(p, TokenKind.EOS)!;
+    (void)expect(p, TokenKind.EOS); // TODO: how should EOS be handled?
 
     return ast::add_node(p.ast, NodeKind.EXPR_STMT, t.pos, (uint)expr);
 }
@@ -176,12 +176,44 @@ fn Node? parse_if(Parser* p)
 
 fn Node? parse_defer(Parser* p)
 {
-    Token t = p.current();
-    advance(p)!;
+    uint start_tok = p.pos;
+    expect(p, TokenKind.DEFER)!;
+
+    DeferKind kind = DeferKind.NORMAL;
+    uint var_name = 0;
+
+    // (TRY | CATCH | '(' CATCH var ')')?
+    if (consume(p, TokenKind.TRY)!) 
+    {
+        kind = DeferKind.TRY;
+    } 
+    else if (consume(p, TokenKind.CATCH)!) 
+    {
+        kind = DeferKind.CATCH;
+    } 
+    else if (p.is(TokenKind.LPAREN) && p.peek(1).kind == TokenKind.CATCH) 
+    {
+		advance(p)!; // (
+        advance(p)!; // catch
+        
+        if (!p.is(TokenKind.IDENT)) 
+        {
+            p.error("Expected variable name after 'catch'");
+            return UNEXPECTED_TOKEN~;
+        }
+        
+        var_name = p.pool.intern(p.token_text(p.current()));
+        advance(p)!;
+        
+        expect(p, TokenKind.RPAREN)!;
+        kind = DeferKind.CATCH_VAR;
+    }
 
     Node stmt = parse_statement(p)!;
-    
-    return ast::add_node(p.ast, NodeKind.DEFER_STMT, t.pos, (uint)stmt);
+
+    // Extra Block Layout: [Kind, StmtNode, VarName]
+    uint[3] data = { (uint)kind, (uint)stmt, var_name };
+    uint ex = ast::push_extra_block(p.ast, &data);
+
+    return ast::add_node(p.ast, NodeKind.DEFER_STMT, start_tok, ex);
 }
-
-

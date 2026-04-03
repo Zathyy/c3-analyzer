@@ -24,7 +24,12 @@ fn void LineMap.free(LineMap* map)
 }
 
 fn void LineMap.build(LineMap* self, String src)
-{
+{	
+	if (!self.line_offsets.is_initialized())
+	{
+		self.line_offsets.tinit(100);
+	}
+
     self.line_offsets.push(0);
 
     for (usz i = 0; i < src.len; i++)
