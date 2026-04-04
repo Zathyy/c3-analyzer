@@ -240,7 +240,6 @@ fn void? parse_file(Workspace* ws, String path)
 {
 	Parser parser = (Parser){
 		.mod = null,
-		.ast = &ws.scratchpad,
 		.pool = &ws.strings,
 	};
 
@@ -258,7 +257,7 @@ fn void? parse_file(Workspace* ws, String path)
 	while (try token = lexer.next())
 	{
 		tokens.push(token);
-		io::printfn("Added token: <%s> - %s", token.kind, parser.token_text(token));
+		log::debug("Added token: <%s> - %s", token.kind, parser.token_text(token));
 	}
 	parser.tokens = tokens.array_view();
 	parser.line_map.build(src);
@@ -268,19 +267,37 @@ fn void? parse_file(Workspace* ws, String path)
     if (mod_name == "") 
 	{
         mod_name = path_to_module_name(path)!;
-        log::info("Inferred module: %s", mod_name);
+        log::debug("Inferred module: %s", mod_name);
     }
 	Module* mod = workspace::get_or_create_module(ws, mod_name);
 	parser.mod = mod;
 	parser.ast = &mod.ast;
 
-	log::info("parsing file: %s", path);
+	log::debug("parsing file: %s", path);
+
+	ModuleSection* section = workspace::get_or_create_section(mod, path);
+	assert(section != null);
+
 	while (!parser.eof())
 	{
+		uint start_idx = (uint)mod.ast.len();
+
 		if (catch err = parse_top_level(&parser, ws))
 		{			
 			synchronize(&parser);
 			continue;
+		}
+
+		uint end_idx = (uint)mod.ast.len();
+		if (end_idx > start_idx) 
+		{
+			Node latest_node = (Node)mod.ast.kinds[start_idx];
+
+			if (!section.header_node.is_valid())
+			{
+				section.header_node = latest_node;
+			}
+			section.node_count += (end_idx - start_idx);
 		}
 	}
 }

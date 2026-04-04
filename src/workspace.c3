@@ -35,9 +35,6 @@ struct Workspace
 {
     HashMap{String, Module*} modules;
     StringPool strings;
-
-	// Used for parsing headers before we know the module
-	Ast scratchpad;
 	Allocator alloc;
 }
 
@@ -46,7 +43,6 @@ fn void init(Workspace* self, Allocator alloc = tmem)
 	self.alloc = alloc;
     self.strings.init(alloc);
     self.modules.init(alloc, 16);
-	ast::init(&self.scratchpad, 10);
 }
 
 fn Module* get_or_create_module(Workspace* self, String name)
@@ -65,6 +61,27 @@ fn Module* get_or_create_module(Workspace* self, String name)
     
     self.modules.set(name, mod);
     return mod;
+}
+
+fn ModuleSection* get_or_create_section(Module* mod, String file_path)
+{
+    // Check if the current last section matches this file and header
+    if (try last = mod.sections.last())
+    {
+        if (last.file_path == file_path)
+        {
+            return last;
+        }
+    }
+
+    ModuleSection* next_section = mem::tnew(ModuleSection);
+    next_section.file_path = file_path;
+    
+    next_section.start_node_idx = (uint)mod.ast.len();
+    next_section.node_count = 0; 
+    
+    mod.sections.push(next_section);
+    return next_section;
 }
 
 fn Cursor? lookup(Workspace* self, String module_name, String symbol_name)

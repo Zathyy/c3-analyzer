@@ -50,7 +50,7 @@ fn ChildVisitResult printer_callback(Cursor c, Cursor p, void* data, bool is_las
 
     NodeView v = ast::get_node(&c.mod.ast, c.node);
     String name = cursor::spelling(&c) ?? "";
-    io::printfn("%s: %s", v.kind.nameof, name);
+    io::printfn("%s: %s : Idx = %s", v.kind.nameof, name, c.node);
 
     String old_prefix = ctx.prefix;
 
@@ -76,6 +76,7 @@ fn void dump_workspace(Workspace* ws)
     ws.modules.@each(; name, mod)
     {
         io::printfn("=== Module: %s ===", mod.name);
+		io::printfn("=== Num module sections: %s ===", mod.sections.len());
         
         PrintContext ctx = { .depth = 0, .strings = mod.strings };
         
@@ -83,6 +84,10 @@ fn void dump_workspace(Workspace* ws)
         {
 			bool is_last = (i == mod.ast.top_level_nodes.len() - 1);
             Cursor c = { mod, (Node)root_node };
+
+			log::debug("Node belongs to: (%s)", cursor::file_path(&c));
+			log::debug("Node belongs to module_decl: (%s)", cursor::module_decl(&c));
+
             printer_callback(c, {null, 0}, &ctx, is_last);
         }
     };

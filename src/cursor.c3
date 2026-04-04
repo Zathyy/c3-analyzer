@@ -21,7 +21,7 @@ struct Cursor
     Node node;
 }
 
-// Helper macro to visit a node if it's valid
+// Helper to visit a node if it's valid
 fn bool visit(Cursor child, Cursor parent, CursorVisitor visitor, void* data)
 {
     ChildVisitResult res = visitor(child, parent, data);
@@ -193,6 +193,59 @@ fn String? spelling(Cursor* self)
     }
 }
 
+<*
+    find the ModuleSection the specified Cursor belongs to.
+    returns null if not found!
 
+    @param [&in] self 
+*>
+fn ModuleSection* section(Cursor* self)
+{
+    uint idx = (uint)self.node;
+
+    foreach (section : self.mod.sections)
+    {
+        if (idx >= section.start_node_idx && idx < section.start_node_idx + section.node_count)
+        {
+            return section;
+        }
+    }
+
+    return null;
+}
+
+<*
+    find the MODULE_DECL node the specified cursor belongs to
+
+    returns a inalid node if not found
+
+    @param [&in] self
+    @require self.mod != null
+*>
+fn Node module_decl(Cursor* self)
+{
+    ModuleSection* s = section(self);
+    if (s == null)
+    {
+        log::debug("invalid section for Node: ", self.node);
+        return (Node){};
+    }
+
+    if (ast::get_kind(&self.mod.ast, s.header_node) == NodeKind.MODULE_DECL)
+    {
+        return s.header_node;
+    }
+
+    for (uint i = 0; i < s.node_count; i++)
+    {
+        Node n = (Node)(s.start_node_idx + i); 
+        if (ast::get_kind(&self.mod.ast, n) == NodeKind.MODULE_DECL)
+        {
+            return n;
+        }
+    }
+
+    return (Node){};
+}
 
 
