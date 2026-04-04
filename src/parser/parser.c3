@@ -117,13 +117,16 @@ fn void? advance(Parser* parser)
 }
 
 <*
+	a macro just so that it logs where it happened
+
 	@param [&inout] parser
 *>
-fn void? expect(Parser* parser, TokenKind kind) @inline
+macro void? expect(Parser* parser, TokenKind kind)
 {
 	if (!parser.is(kind))
 	{
 		parser.error("Expected '%s' got '%s'", kind.nameof, parser.current().kind.nameof);
+		log::error("Error happened here");
 		return UNEXPECTED_TOKEN~;
 	}
 
@@ -249,6 +252,8 @@ fn String peek_module_name(Parser* p)
 <*
 	Parse a specific file.
 	Appends the nodes to the provided Modules Ast
+
+	@param [&inout] ws
 *>
 fn void? parse_file(Workspace* ws, String path)
 {

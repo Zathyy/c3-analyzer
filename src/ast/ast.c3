@@ -37,6 +37,7 @@ enum NodeKind : char
     TYPEDEF_DECL,
 	MODULE_DECL,
     IMPORT_DECL,
+	LOCAL_DECL,
 
 	TYPE_EXPR,
 	IDENT_EXPR,
@@ -59,6 +60,9 @@ enum NodeKind : char
     DEFER_STMT,
 
 	CT_IF_STMT,
+	CT_SWITCH_STMT,
+	CT_CASE_STMT,
+	CT_VAR_DECL,
 }
 
 struct Ast 

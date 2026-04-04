@@ -319,34 +319,91 @@ fn Node? parse_param_decl(Parser* p)
     return ast::add_node(p.ast, NodeKind.PARAM_DECL, start, ex);
 }
 
+fn Node? parse_var_decl(Parser* p)
+{
+    Token t = p.current();
+    advance(p)!;
+
+    Token name_tok = p.current();
+    if (name_tok.kind != TokenKind.IDENT 
+		&& name_tok.kind != TokenKind.CT_IDENT &&
+		name_tok.kind != TokenKind.CT_TYPE_IDENT)
+    {
+        p.error("Expected identifier after 'var'");
+        return 0;
+    }
+    advance(p)!;
+
+    Node init = 0;
+    if (p.current().kind == TokenKind.EQ)
+    {
+        advance(p)!; // consume '='
+        init = parse_expr(p, 0)!;
+    }
+
+    expect(p, TokenKind.EOS)!;
+
+    uint name_sh = p.pool.intern(p.token_text(name_tok));
+    uint[2] data = { name_sh, (uint)init };
+    uint ex = ast::push_extra_block(p.ast, &data);
+
+    NodeKind nk = (name_tok.kind == TokenKind.CT_IDENT) 
+                  ? NodeKind.CT_VAR_DECL 
+                  : NodeKind.VAR_DECL;
+
+    return ast::add_node(p.ast, nk, t.pos, ex);
+}
 <*
 	TYPE_EXPR - unresolved type, parser only cares about the syntax
 *>
 fn Node? parse_type(Parser* p)
 {
     uint start_tok = p.pos;
+	Token current = p.current();
 	TypeDescriptor desc;
 	TypeFlags flags;
 
-    desc.name = p.pool.intern(p.token_text(p.current()));
-	advance(p)!;
-
-	if (consume(p, TokenKind.LBRACE)!) 
+	// Check for Compile-Time
+    if (current.kind == TokenKind.CT_TYPEOF || 
+		current.kind == TokenKind.CT_TYPEFROM || 
+        current.kind == TokenKind.CT_EVALTYPE)
     {
-        while (!p.is(TokenKind.RBRACE)) 
-        {
-            desc.gen_args[desc.gen_count++] = parse_type(p)!;
-            
-            if (desc.gen_count >= common::MAX_GENERICS) 
-			{
-				p.error("Too many generics");
-				return TOO_MANY_GENERICS~;
-			}
-            if (!consume(p, TokenKind.COMMA)!) break;
-        }
-        expect(p, TokenKind.RBRACE)!;
+        advance(p)!;
+        expect(p, TokenKind.LPAREN)!;
+        desc.base_expr = parse_expr(p, 0)!;
+        expect(p, TokenKind.RPAREN)!;
+        flags.is_comptime = true;
     }
+	else if (current.kind == TokenKind.CT_VATYPE)
+	{
+		advance(p)!;
+        expect(p, TokenKind.LBRACKET)!;
+        desc.base_expr = parse_expr(p, 0)!;
+        expect(p, TokenKind.RBRACKET)!;
+        flags.is_comptime = true;
+	}
+	else
+	{
+		desc.name = p.pool.intern(p.token_text(p.current()));
+		advance(p)!;
+		if (consume(p, TokenKind.LBRACE)!) 
+		{
+			while (!p.is(TokenKind.RBRACE)) 
+			{
+				desc.gen_args[desc.gen_count++] = parse_type(p)!;
+				
+				if (desc.gen_count >= common::MAX_GENERICS) 
+				{
+					p.error("Too many generics");
+					return TOO_MANY_GENERICS~;
+				}
+				if (!consume(p, TokenKind.COMMA)!) break;
+			}
+			expect(p, TokenKind.RBRACE)!;
+		}
+	}
 
+	
 	while (true)
 	{
 		if (consume(p, TokenKind.LVEC)!)
@@ -378,13 +435,14 @@ fn Node? parse_type(Parser* p)
         break;
     }
 
-    uint[common::MAX_GENERICS + 5] final_block;
+    uint[common::MAX_GENERICS + 6] final_block;
     
     final_block[0] = (uint)desc.name;
     final_block[1] = (uint)desc.ptr_count;
     final_block[2] = (uint)desc.array_size;
     final_block[3] = (uint)desc.gen_count;
-    final_block[4] = (uint)flags;
+	final_block[4] = (uint)desc.base_expr;
+    final_block[5] = (uint)flags;
 
     for (uint i = 0; i < desc.gen_count; i++) 
 	{

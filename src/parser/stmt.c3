@@ -20,11 +20,11 @@ fn Node? parse_statement(Parser* p)
 		case TokenKind.CT_IF:
             return parse_ct_if(p)!;
 		case TokenKind.CT_SWITCH:
-			unreachable("not implemented");
+			return parse_ct_switch(p)!;
 		case TokenKind.LBRACE:
 			return parse_compound(p)!;
 		case TokenKind.VAR:
-			return parse_decl_stmt(p)!;
+			return parse_var_decl(p)!;
 		case TokenKind.RETURN:
 			return parse_return(p)!;
 		case TokenKind.DEFER:
@@ -106,26 +106,30 @@ fn Node? parse_compound(Parser* p)
 fn Node? parse_decl_stmt(Parser* p)
 {
     Node type_node = parse_type(p)!;
-	Token name_tok = p.current();
-    expect(p, TokenKind.IDENT)!;
-    uint name_sh = p.pool.intern(p.token_text(name_tok));
 
-    Node init_expr;
-
-    if (p.current().kind == TokenKind.EQ)
+    if (p.current().kind == TokenKind.IDENT)
     {
+        Token name_tok = p.current();
         advance(p)!;
-        init_expr = parse_expr(p, 0)!; 
+
+        Node init = 0;
+        if (p.current().kind == TokenKind.EQ)
+        {
+            advance(p)!;
+            init = parse_expr(p, 0)!;
+        }
+        expect(p, TokenKind.EOS)!;
+
+        uint name_sh = p.pool.intern(p.token_text(name_tok));
+        uint[*] data = { name_sh, (uint)type_node, (uint)init };
+        uint ex = ast::push_extra_block(p.ast, &data);
+        return ast::add_node(p.ast, NodeKind.LOCAL_DECL, name_tok.pos, ex);
     }
 
+    Node expr = parse_expr_resuming_with_left(p, type_node, 0)!;
     expect(p, TokenKind.EOS)!;
-
-    uint[3] data = { (uint)type_node, name_sh, (uint)init_expr };
-    uint ex = ast::push_extra_block(p.ast, &data);
-
-    return ast::add_node(p.ast, NodeKind.VAR_DECL_STMT, name_tok.pos, ex);
+    return expr;
 }
-
 fn Node? parse_expr_stmt(Parser* p)
 {
     Token t = p.current();
@@ -193,7 +197,6 @@ fn Node? parse_ct_if(Parser* p)
     if (p.current().kind == TokenKind.CT_ELSE)
     {
         advance(p)!;
-        expect(p, TokenKind.COLON)!;
         else_block = parse_statement(p)!;
     }
 
@@ -202,6 +205,72 @@ fn Node? parse_ct_if(Parser* p)
     uint[3] data = { (uint)condition, (uint)then_block, (uint)else_block };
     uint ex = ast::push_extra_block(p.ast, &data);
     return ast::add_node(p.ast, NodeKind.CT_IF_STMT, t.pos, ex);
+}
+
+fn Node? parse_ct_switch(Parser* p)
+{
+    Token t = p.current();
+    advance(p)!;
+
+    Node condition = parse_expr(p, 0)!;
+
+    expect(p, TokenKind.COLON)!;
+
+    // Parse the body until $endswitch
+    List{uint} cases;
+    cases.tinit(16);
+    defer cases.free();
+
+    while (p.current().kind != TokenKind.CT_ENDSWITCH && p.current().kind != TokenKind.EOF)
+    {
+        TokenKind k = p.current().kind;
+        if (k == TokenKind.CT_CASE || k == TokenKind.CT_DEFAULT)
+        {
+            cases.push((uint)parse_ct_case(p)!);
+        }
+        else
+        {
+            Node n = parse_statement(p)!;
+            cases.push((uint)n);
+        }
+    }
+
+    expect(p, TokenKind.CT_ENDSWITCH)!;
+
+    uint[2] data = { (uint)condition, (uint)ast::push_extra_block(p.ast, cases.array_view()) };
+    uint ex = ast::push_extra_block(p.ast, &data);
+    return ast::add_node(p.ast, NodeKind.CT_SWITCH_STMT, t.pos, ex);
+}
+
+fn Node? parse_ct_case(Parser* p)
+{
+    Token t = p.current();
+    bool is_default = (t.kind == TokenKind.CT_DEFAULT);
+    advance(p)!;
+
+    Node label = 0;
+    if (!is_default)
+    {
+        label = parse_expr(p, 0)!;
+    }
+
+    expect(p, TokenKind.COLON)!;
+
+    List{uint} body;
+    body.tinit(8);
+    while (true)
+    {
+        TokenKind k = p.current().kind;
+        if (k == TokenKind.CT_CASE || k == TokenKind.CT_DEFAULT || k == TokenKind.CT_ENDSWITCH || k == TokenKind.EOF)
+        {
+            break;
+        }
+        body.push((uint)parse_statement(p)!);
+    }
+
+    uint[2] data = { (uint)label, (uint)ast::push_extra_block(p.ast, body.array_view()) };
+    uint ex = ast::push_extra_block(p.ast, &data);
+    return ast::add_node(p.ast, NodeKind.CT_CASE_STMT, t.pos, ex);
 }
 
 fn Node? parse_defer(Parser* p)

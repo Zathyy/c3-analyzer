@@ -158,6 +158,7 @@ fn Node? parse_prefix_expr(Parser* p)
         case TokenKind.MINUS:
 		case TokenKind.BIT_NOT:
 		case TokenKind.AMP:
+		case TokenKind.ASTERISK:
 			advance(p)!;
 			// Unary operators usually have very high binding power
 			Node rhs = parse_expr(p, 70)!;
@@ -186,7 +187,19 @@ fn Node? parse_prefix_expr(Parser* p)
             Node expr = parse_expr(p, 0)!;
             expect(p, TokenKind.RPAREN)!;
             return expr;
+		case TokenKind.CT_VATYPE:
+		case TokenKind.CT_EVALTYPE:
+		case TokenKind.CT_TYPEFROM:
+		case TokenKind.CT_TYPEOF:
+		{
+			advance(p)!;
+			
+			expect(p, TokenKind.LPAREN)!;
+			Node expr_inside = parse_expr(p, 0)!; 
+			expect(p, TokenKind.RPAREN)!;
 
+			return ast::add_node(p.ast, NodeKind.TYPE_EXPR, t.pos, (uint)expr_inside);
+		}
         default:
             log::error("Expected expression for token: (%s - %s)", p.token_text(p.current()), p.current().kind);
             p.error("Expected expression");
@@ -285,6 +298,19 @@ fn Node? parse_expr(Parser* p, uint min_bp = 0)
         left = parse_infix(p, left, rbp)!;
     }
 
+    return left;
+}
+
+fn Node? parse_expr_resuming_with_left(Parser* p, Node left, uint min_bp)
+{
+    while (true)
+    {
+        int lbp, rbp;
+        get_binding_power(p.current().kind, &lbp, &rbp);
+        if (lbp < min_bp) break;
+
+        left = parse_infix(p, left, rbp)!;
+    }
     return left;
 }
 

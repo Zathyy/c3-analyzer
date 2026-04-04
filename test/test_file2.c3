@@ -1,37 +1,9 @@
-module foo::bar;
+module example;
 
-import std::io;
+// import foo; // this should work too
+import foo::bar;
 
-alias MyType = uint;
-
-typedef MyOtherType = bool;
-
-tlocal bool my_var;
-
-fn void test(int foo, void* bar)
+fn int main()
 {
-	if (foo > 5 && foo < 10)
-	{
-		defer (catch err) {
-
-		}
-
-		defer try io::print("");
-		defer catch io::print("");
-		return;
-	}
-	else if (foo < 0)
-	{
-
-	}
-	else
-	{
-
-	}
-}
-
-struct Foo
-{
-	uint a;
-	uint b;
+    foo::bar::test(5, 5);
 }

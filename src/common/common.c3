@@ -151,8 +151,9 @@ fn AttributeKind get_attribute_from_string(String str)
 
 bitstruct TypeFlags : uint
 {
-    bool is_none    : 0;
-    bool is_vector  : 1;
+    bool is_none;
+    bool is_vector;
+	bool is_comptime;
 }
 
 bitstruct GlobalFlags : uint
@@ -175,6 +176,7 @@ struct TypeDescriptor
     uint name;      // The StringPool handle
 	uint ptr_count;
     Node array_size;   // AST Node for [expr]
+	Node base_expr; // for compile time types expr
     uint gen_count;
     Node[MAX_GENERICS] gen_args;
 }
