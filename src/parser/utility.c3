@@ -53,7 +53,7 @@ fn void Parser.report(Parser* self, Token token, String level, String color, Str
 {
     Location loc = self.line_map.resolve(token.pos);
 
-    io::printf("%s:%s:%s: %s%s:%s ", "main.c3", loc.line, loc.col, color, level, ANSI_RESET);
+    io::printf("%s:%s:%s: %s%s:%s ", self.file_path, loc.line, loc.col, color, level, ANSI_RESET);
     io::printf(fmt, args);
     io::printn("");
 
@@ -83,6 +83,7 @@ fn bool is_some_ident(TokenKind type)
 			return false;
 	}
 }
+
 
 fn bool is_type(TokenKind kind)
 {

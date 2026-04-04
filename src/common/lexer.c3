@@ -5,9 +5,11 @@ import std::io;
 
 faultdef
 	INVALID,
+	CONTRACT_NOT_CLOSED,
+	INVALID_CONTRACT,
 	EOF;
 
-enum TokenKind : char
+enum TokenKind : ushort
 {
  	INVALID,     // Invalid
 
@@ -82,7 +84,7 @@ enum TokenKind : char
     RVEC,      // >]
 
     // Comments and Contracts
-    CONTRACT,      // <* 
+    CONTRACT,      // <*
     LINE_COMMENT,  // // 
     BLOCK_COMMENT, // /*
 
@@ -90,20 +92,20 @@ enum TokenKind : char
     STRING,           // STRING 
     CHAR_LITERAL,     // CHAR 
     BYTES,            // BYTES 
-    INTEGER,          // INTEGER 
-    REAL,             // REAL 
-    IDENT,            // IDENT 
-    TYPE_IDENT,       // TYPE_IDEN,
-    CONST_IDENT,      // CONST_IDENT 
-    AT_IDENT,         // MACRO_IDENT 
-    AT_TYPE_IDENT,    // MACRO_TYPE_IDENT 
-    AT_CONST_IDENT,   // MACRO_CONST_IDENT 
-    HASH_IDENT,       // HASH_IDEN,
-    HASH_TYPE_IDENT,  // TYPE_IDENT 
-    HASH_CONST_IDENT, // CONST_IDENT 
-    CT_IDENT,         // CT_IDENT 
-    CT_TYPE_IDENT,    // CT_TYPE_IDEN,
-    CT_CONST_IDENT,   // CT_TYPE_IDEN,
+    INTEGER,          // 123 
+    REAL,             // 0.00 
+    IDENT,            // foo 
+    TYPE_IDENT,       // Foo,
+    CONST_IDENT,      // FOO 
+    AT_IDENT,         // @foo
+    AT_TYPE_IDENT,    // @Foo
+    AT_CONST_IDENT,   // @FOO
+    HASH_IDENT,       // #foo,
+    HASH_TYPE_IDENT,  // #Type 
+    HASH_CONST_IDENT, // #CONST_IDENT 
+    CT_IDENT,         // $foo 
+    CT_TYPE_IDENT,    // $Foo,
+    CT_CONST_IDENT,   // $FOO,
 
     // Base Types
     VOID,     // void 
@@ -231,6 +233,8 @@ struct Token
     uint len;  // Length of the lexeme
 }
 
+bool is_in_contract = false;
+
 struct Lexer 
 {
 	String buffer;
@@ -240,6 +244,8 @@ struct Lexer
 fn bool is_digit(char c) @inline => c >= '0' && c <= '9';
 fn bool is_alpha(char c) @inline => (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
 fn bool is_ident(char c) @inline => is_alpha(c) || is_digit(c) || c == '_';
+fn bool is_hex(char c) @inline => ascii::is_xdigit_m(c);
+
 fn bool is_all_upper(String text) 
 {
     bool has_alpha = false;
@@ -409,7 +415,7 @@ fn TokenKind lookup_keyword(String text)
 		case "inline":    return INLINE;
 		case "tlocal":    return TLOCAL;
 		// Base
-		case "vod":       return VOID;
+		case "void":       return VOID;
 		case "bool":      return BOOL;
 		case "char":      return CHAR;
 		case "ichar":     return ICHAR;
@@ -438,17 +444,16 @@ fn TokenKind lookup_keyword(String text)
 
 fn Token? Lexer.lex_identifier(Lexer* self, uint start_pos)
 {
-    while (!self.eof())
+	char first = self.peek();
+
+	if (first == '@' || first == '$' || first == '#')
     {
-		char c = self.peek();
-		if (is_ident(c))
-		{
-        	self.advance()!;
-		}
-		else
-		{
-			break;
-		}
+        self.advance()!;
+    }
+
+  	while (!self.eof() && is_ident(self.peek()))
+    {
+        self.advance()!;
     }
 
     uint length = (uint)self.index - start_pos;
@@ -463,6 +468,17 @@ fn Token? Lexer.lex_identifier(Lexer* self, uint start_pos)
 
 fn Token? Lexer.lex_number(Lexer* self, uint start_pos)
 {
+	if (self.peek() == '0' && (self.peek_next() == 'x' || self.peek_next() == 'X'))
+    {
+        self.advance(2)!; // Skip '0x'
+        
+        while (!self.eof() && is_hex(self.peek()))
+        {
+            self.advance()!;
+        }
+        return self.emit(TokenKind.INTEGER, start_pos, (uint)self.index - start_pos);
+    }	
+
     while (!self.eof() && is_digit(self.peek()))
     {
         self.advance()!;
@@ -481,10 +497,26 @@ fn Token? Lexer.lex_number(Lexer* self, uint start_pos)
     return self.emit(TokenKind.INTEGER, start_pos, (uint)self.index - start_pos);
 }
 
-fn void? Lexer.advance(Lexer* self) @inline
+fn Token? Lexer.skip_contract(Lexer* self, uint start_pos)
+{
+	while (!self.eof())
+    {
+		char c = self.peek();
+		if (c == '*' && self.peek(1) == '>')
+		{
+        	self.advance(2)!;
+			return self.emit(CONTRACT, start_pos, (uint)self.index - start_pos);
+		}
+		self.advance()!;
+    }
+
+	return CONTRACT_NOT_CLOSED~;
+}
+
+fn void? Lexer.advance(Lexer* self, uint len = 1) @inline
 {
 	if (self.eof()) return EOF~;
-    self.index++;
+    self.index += len;
 }
 
 fn Token Lexer.emit(&self, TokenKind kind, uint pos, uint len) @inline
@@ -512,19 +544,27 @@ fn Token? Lexer.next(&self)
     {
         case '=':
             self.advance()!;
-            if (self.peek() == '=') {
-                self.advance()!;
-                return self.emit(EQEQ, start, 2); 
-            }
+			switch (self.peek())
+			{
+				case '=': self.advance()!; return self.emit(EQEQ, start, 2);
+				case '>': self.advance()!; return self.emit(IMPLIES, start, 2);
+			}
             return self.emit(EQ, start, 1);
-
+		case '|':
+			self.advance()!;
+			switch (self.peek())
+			{
+				case '|': self.advance()!; return self.emit(OR, start, 2);
+			}
+			return self.emit(BIT_OR, start, 1);
         case '!':
             self.advance()!;
-            if (self.peek() == '=') {
-                self.advance()!;
-                return self.emit(NOT_EQUAL, start, 2);
-            }
-            return self.emit(INVALID, start, 1);
+			switch (self.peek())
+			{
+				case '!': self.advance()!; return self.emit(BANGBANG, start, 2);
+				case '=': self.advance()!; return self.emit(NOT_EQUAL, start, 2);
+			}
+            return self.emit(BANG, start, 1);
         case ':': 
 			self.advance()!;
 			if (self.peek() == ':') {
@@ -555,6 +595,7 @@ fn Token? Lexer.next(&self)
 			switch (self.peek())
 			{
 				case '=': self.advance()!; return self.emit(LESS_EQ, start, 2);
+				case '*': self.advance()!; return self.skip_contract(start);
 			}	
 			return self.emit(LESS, start, 1);
 		case '&':
@@ -565,21 +606,53 @@ fn Token? Lexer.next(&self)
 				return self.emit(AND, start, 2);
 			}
 			return self.emit(AMP, start, 1);
+        case '*':
+			self.advance()!; 
+			return self.emit(ASTERISK, start, 1);
+		case '?':
+			self.advance()!;
+			switch (self.peek())
+			{
+				case '?': self.advance()!; return self.emit(QUESTQUEST, start, 2);
+				case ':': self.advance()!; return self.emit(ELVIS, start, 2);
+			}
+			return self.emit(QUESTION, start, 1);
+		case '.':
+			self.advance()!;
+			if (self.peek() == '.')
+			{
+				if (self.peek(1) == '.') 
+				{
+					self.advance(2)!;
+					return self.emit(ELLIPSIS, start, 3);
+				}
+
+				self.advance()!;
+				return self.emit(DOTDOT, start, 2);
+			}
+			return self.emit(DOT, start, 1);
         case '(': self.advance()!; return self.emit(LPAREN, start, 1);
         case ')': self.advance()!; return self.emit(RPAREN, start, 1);
         case '{': self.advance()!; return self.emit(LBRACE, start, 1);
         case '}': self.advance()!; return self.emit(RBRACE, start, 1);
         case ';': self.advance()!; return self.emit(EOS, start, 1);
         case ',': self.advance()!; return self.emit(COMMA, start, 1);
-        case '.': self.advance()!; return self.emit(DOT, start, 1);
         case '+': self.advance()!; return self.emit(PLUS, start, 1);
         case '-': self.advance()!; return self.emit(MINUS, start, 1);
-        case '*': self.advance()!; return self.emit(ASTERISK, start, 1);
         case '/': self.advance()!; return self.emit(DIV, start, 1);
-
 		case '"':
 		case '`':
 			return self.lex_string(start);
+		case '$':
+			if (self.peek(1) == '$')
+			{
+				self.advance(2)!;
+				return self.emit(BUILTIN, start, 2);
+			}
+			nextcase;
+		case '@':
+		case '#':
+			return self.lex_identifier(start);
         default:
             if (is_digit(c)) return self.lex_number(start)!;
             if (is_ident(c)) return self.lex_identifier(start)!;
@@ -589,19 +662,108 @@ fn Token? Lexer.next(&self)
 
 fn TokenKind Lexer.categorize_identifier(Lexer* self, String text)
 {
-    TokenKind kind = lookup_keyword(text);
-    if (kind != TokenKind.IDENT) return kind;
+    if (text.len == 0) return TokenKind.INVALID;
 
-    char first = text[0];
+    char prefix = text[0];
+    String base;
+    bool has_prefix = false;
 
-    if (first >= 'A' && first <= 'Z')
+    if (prefix == '@' || prefix == '$' || prefix == '#')
     {
-        if (is_all_upper(text)) return TokenKind.CONST_IDENT;
-        
-        return TokenKind.TYPE_IDENT;
+        base = text[1 : text.len - 1];
+        has_prefix = true;
+
+        if (prefix == '$')
+        {
+			switch (base)
+			{
+				case "alignof": return CT_ALIGNOF;    
+				case "assert": return CT_ASSERT; 
+				case "assignable": return CT_ASSIGNABLE; 
+				case "case": return CT_CASE; 
+				case "default": return CT_DEFAULT; 
+				case "defined": return CT_DEFINED; 
+				case "echo": return CT_ECHO; 
+				case "else": return CT_ELSE; 
+				case "endfor": return CT_ENDFOR; 
+				case "endforeach": return CT_ENDFOREACH; 
+				case "endif": return CT_ENDIF; 
+				case "endswitch": return CT_ENDSWITCH; 
+				case "error": return CT_ERROR; 
+				case "eval": return CT_EVAL; 
+				case "evaltype": return CT_EVALTYPE; 
+				case "exec": return CT_EXEC; 
+				case "extnameof": return CT_EXTNAMEOF; 
+				case "feature": return CT_FEATURE; 
+				case "for": return CT_FOR; 
+				case "foreach": return CT_FOREACH; 
+				case "if": return CT_IF; 
+				case "is_const": return CT_IS_CONST; 
+				case "include": return CT_INCLUDE; 
+				case "kindof": return CT_KINDOF; 
+				case "nameof": return CT_NAMEOF; 
+				case "offsetof": return CT_OFFSETOF; 
+				case "qnameof": return CT_QNAMEOF; 
+				case "sizeof": return CT_SIZEOF; 
+				case "stringify": return CT_STRINGIFY; 
+				case "switch": return CT_SWITCH; 
+				case "typefrom": return CT_TYPEFROM; 
+				case "typeof": return CT_TYPEOF; 
+				case "vaarg": return CT_VAARG; 
+				case "vaconst": return CT_VACONST; 
+				case "vacount": return CT_VACOUNT; 
+				case "vaexpr": return CT_VAEXPR; 
+				case "varef": return CT_VAREF; 
+				case "vasplat": return CT_VASPLAT; 
+				case "vatype": return CT_VATYPE;
+				default: break;
+			}
+        }
+    }	
+    else
+    {
+        base = text;
+        TokenKind kind = lookup_keyword(base);
+        if (kind != TokenKind.IDENT) return kind;
     }
 
-    // Starts with a-z or _? (like my_var or _internal)
+    bool is_type = false;
+    bool is_const = false;
+
+    char first_char = base[0];
+    if (first_char >= 'A' && first_char <= 'Z')
+    {
+        if (is_all_upper(base)) 
+		{
+			is_const = true;
+		}
+        else
+		{
+			is_type = true;
+		}
+    }
+
+    if (prefix == '@') 
+    {
+        if (is_const) return TokenKind.AT_CONST_IDENT;
+        if (is_type)  return TokenKind.AT_TYPE_IDENT;
+        return TokenKind.AT_IDENT;
+    }
+    if (prefix == '$')
+    {
+        if (is_const) return TokenKind.CT_CONST_IDENT;
+        if (is_type)  return TokenKind.CT_TYPE_IDENT;
+        return TokenKind.CT_IDENT;
+    }
+    if (prefix == '#')
+    {
+        if (is_const) return TokenKind.HASH_CONST_IDENT;
+        if (is_type)  return TokenKind.HASH_TYPE_IDENT;
+        return TokenKind.HASH_IDENT;
+    }
+
+    if (is_const) return TokenKind.CONST_IDENT;
+    if (is_type)  return TokenKind.TYPE_IDENT;
     return TokenKind.IDENT;
 }
 

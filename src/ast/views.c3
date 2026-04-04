@@ -94,10 +94,28 @@ fn String FnView.name(FnView self, StringPool* pool)
 	return pool.get(sh);
 }
 
-fn Node FnView.return_type(FnView self) => self.get(1);
-fn uint FnView.param_count(FnView self) => self.get_uint(2);
-fn Node FnView.body(FnView self)        => self.get(3);
-fn Node FnView.get_param(FnView self, uint index) => self.get_at(4, index);
+<*	
+	Get the The struct the mothod is attached to
+*>
+fn String FnView.associated(FnView self, StringPool* pool)
+{
+	uint sh = self.get_uint(1);
+	return pool.get(sh);
+}
+
+<*
+    If the 'associated' index is 0, it's a global function.
+    If it's > 0, it refers to a string in the pool (the Struct name).
+*>
+fn bool FnView.is_method(self) {
+
+    return self.get_uint(1) != 0;
+}
+
+fn Node FnView.return_type(FnView self) => self.get(2);
+fn uint FnView.param_count(FnView self) => self.get_uint(3);
+fn Node FnView.body(FnView self)        => self.get(4);
+fn Node FnView.get_param(FnView self, uint index) => self.get_at(5, index);
 
 typedef ParamView = inline View;
 
@@ -117,6 +135,8 @@ fn String TypeView.name(TypeView self, StringPool* pool)
 }
 
 fn uint TypeView.ptr_count(TypeView self) => self.get_uint(1);
+
+// 0 in this case does not equal invalid it means infered saize '[*]'
 fn Node TypeView.array_size(TypeView self) => self.get(2);
 fn uint TypeView.gen_count(TypeView self) => self.get_uint(3);
 fn TypeFlags TypeView.get_flags(TypeView self) => (TypeFlags)self.get(4);

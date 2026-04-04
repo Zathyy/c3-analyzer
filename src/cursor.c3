@@ -1,3 +1,9 @@
+<*
+    Cursor is basically a pointer to a specific node
+    with the ability to walk and get out data from it.
+
+    represents some Node in the abstract syntax tree for a module
+*>
 module c3_parser::cursor;
 
 import c3_parser::workspace;

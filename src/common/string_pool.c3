@@ -17,6 +17,11 @@ fn void StringPool.init(&self, Allocator alloc = tmem)
     self.offsets.init(alloc, 256);
     self.lengths.init(alloc, 256);
     self.lookup.init(alloc, 256);
+
+	// 0 is invalid state
+	self.data.push(0);
+	self.offsets.push(0);
+	self.lengths.push(0);
 }
 
 fn void StringPool.free(&self)

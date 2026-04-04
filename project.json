@@ -30,11 +30,11 @@
   // Targets.
   "targets": {
     "c3_parser": {
-      // Executable or library.
       "type": "executable",
-      // Additional libraries, sources
-      // and overrides of global settings here.
     },
+    "c3_parser_lib": {
+      "type": "static-lib",
+    }
   },
   // Global settings.
   // CPU name, used for optimizations in the LLVM backend.

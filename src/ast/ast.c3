@@ -15,6 +15,7 @@ enum NodeKind : char
 {
     INVALID,
 	PATH,
+	ATTRIBUTE,
 
 	TYPE,
 	TYPE_DECL,
@@ -22,6 +23,7 @@ enum NodeKind : char
     INT_LITERAL,
     FLOAT_LITERAL,
     STRING_LITERAL,
+	BOOL_LITERAL,
 
     FN_DECL,
     PARAM_DECL,
@@ -30,6 +32,8 @@ enum NodeKind : char
     FIELD_DECL,
     ALIAS_DECL,
     GLOBAL_DECL,
+	CONST_DECL,
+	MACRO_DECL,
     TYPEDEF_DECL,
 	MODULE_DECL,
     IMPORT_DECL,
@@ -40,6 +44,11 @@ enum NodeKind : char
     BINARY_EXPR,
     TERNARY_EXPR,
     CALL_EXPR,
+	CAST_EXPR,
+	BUILTIN_EXPR,
+	COMPILER_CONST_EXPR,
+	DEREF_SUBSCRIPT_EXPR,
+	ACCESS_EXPR,
 
 	FOR_STMT,
     COMPOUND_STMT, // { ... }
@@ -48,6 +57,8 @@ enum NodeKind : char
     EXPR_STMT,
     IF_STMT,
     DEFER_STMT,
+
+	CT_IF_STMT,
 }
 
 struct Ast 

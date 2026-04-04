@@ -14,17 +14,32 @@ fn void get_binding_power(TokenKind type, int* lbp, int* rbp)
 {
     switch (type)
     {
+		case TokenKind.BUILTIN:
+			*lbp = 90; *rbp = 91;
+			break;
         case TokenKind.EQ:
         case TokenKind.PLUS_ASSIGN:
         case TokenKind.MINUS_ASSIGN:
         case TokenKind.DIV_ASSIGN:
             *lbp = 10; *rbp = 9; // Right-associative (RBP < LBP)
             break;
-
-        case TokenKind.OR:
-            *lbp = 22; *rbp = 23; // Left-associative (RBP > LBP)
-            break;
 		
+		case TokenKind.BIT_OR: // |
+		case TokenKind.BIT_XOR: // ^
+		case TokenKind.AMP: // &
+		case TokenKind.BIT_NOT: // ~
+			*lbp = 40; *rbp = 41; // Higher than logic, lower than add/sub
+			break;
+
+		case TokenKind.EQEQ: // ==
+		case TokenKind.NOT_EQUAL: // !=
+			*lbp = 30; *rbp = 31;
+			break;
+
+		case TokenKind.OR: // ||
+			*lbp = 10; *rbp = 11;
+			break;
+
 		case TokenKind.AND:
 			*lbp = 24; *rbp = 25;
             break;
@@ -64,15 +79,70 @@ fn Node? parse_prefix_expr(Parser* p)
 {
     Token t = p.current();
 
+	if (is_type(t.kind))
+	{
+		return parse_type(p)!;
+	}
+
     switch (t.kind)
     {	
+		case TokenKind.BUILTIN:
+		{
+			advance(p)!;
+            Token next = p.current();
+
+			// parse ident
+            Node ident_node = parse_expr(p, 80)!; 
+
+            uint[2] data = { (uint)t.kind, (uint)ident_node };
+            uint ex = ast::push_extra_block(p.ast, &data);
+
+            if (next.kind == TokenKind.CONST_IDENT)
+            {
+                return ast::add_node(p.ast, NodeKind.COMPILER_CONST_EXPR, t.pos, ex);
+            }
+            
+            return ast::add_node(p.ast, NodeKind.BUILTIN_EXPR, t.pos, ex);
+		}
+		case TokenKind.IDENT:
+		case TokenKind.CONST_IDENT:
+		case TokenKind.TYPE_IDENT:
+		case TokenKind.CT_IDENT:
+		case TokenKind.CT_CONST_IDENT:
+		case TokenKind.CT_TYPE_IDENT:
+		case TokenKind.AT_IDENT:
+		case TokenKind.AT_CONST_IDENT:
+		case TokenKind.AT_TYPE_IDENT:
+		case TokenKind.HASH_IDENT:
+		case TokenKind.HASH_CONST_IDENT:
+		case TokenKind.HASH_TYPE_IDENT:
+        {
+            // Handle namespaced paths like MyModule::my_var
+            if (p.peek().kind == TokenKind.SCOPE)
+            {
+                return parse_path(p)!;
+            }
+
+            advance(p)!;
+            uint sh = p.pool.intern(p.token_text(t));
+            return ast::add_node(p.ast, NodeKind.IDENT_EXPR, t.pos, sh);
+        }
 		// getting the actual literal value is up to the semantic analysis
 		case TokenKind.STRING:
 			String text = p.token_text(t);
 			uint sh = p.pool.intern(text);
 			advance(p)!;
             return ast::add_node(p.ast, NodeKind.STRING_LITERAL, t.pos, sh);
-
+		case TokenKind.TRUE:
+        {
+            advance(p)!;
+            return ast::add_node(p.ast, NodeKind.BOOL_LITERAL, t.pos, 1);
+        }
+        case TokenKind.FALSE:
+        {
+            advance(p)!;
+            return ast::add_node(p.ast, NodeKind.BOOL_LITERAL, t.pos, 0);
+        }
 		case TokenKind.REAL:
 			String text = p.token_text(t);
 			uint sh = p.pool.intern(text);
@@ -84,21 +154,10 @@ fn Node? parse_prefix_expr(Parser* p)
 			uint sh = p.pool.intern(text);
 			advance(p)!;
             return ast::add_node(p.ast, NodeKind.INT_LITERAL, t.pos, sh);
-
-        case TokenKind.IDENT:
-			// path::call()
-			if (p.peek().kind == TokenKind.SCOPE)
-			{
-				Node path = parse_path(p)!;
-				return path;
-			}
-			advance(p)!;
-            uint sh = p.pool.intern(p.token_text(t));
-            return ast::add_node(p.ast, NodeKind.IDENT_EXPR, t.pos, sh);
-
 		case TokenKind.BANG:
         case TokenKind.MINUS:
 		case TokenKind.BIT_NOT:
+		case TokenKind.AMP:
 			advance(p)!;
 			// Unary operators usually have very high binding power
 			Node rhs = parse_expr(p, 70)!;
@@ -108,22 +167,28 @@ fn Node? parse_prefix_expr(Parser* p)
 			return ast::add_node(p.ast, NodeKind.UNARY_EXPR, t.pos, ex);
 
         case TokenKind.LPAREN:
-			// Check if cast
-			if (is_type(p.peek().kind))
-			{
-				advance(p)!;
-				Node type = parse_type(p)!;
-				expect(p, TokenKind.RPAREN)!;
-				// A cast has very high precedence (Unary level)	
-				Node operand = parse_expr(p, 70)!;
+			// Check if cast: (Type)operand
+            if (is_type(p.peek().kind))
+            {
+                advance(p)!; // consume '('
+                Node type = parse_type(p)!;
+                expect(p, TokenKind.RPAREN)!;
+                
+                Node operand = parse_expr(p, 70)!;
 
-				unreachable("not implemented!");
-			}
+                uint[2] data = { (uint)type, (uint)operand };
+                uint ex = ast::push_extra_block(p.ast, &data);
+                
+                return ast::add_node(p.ast, NodeKind.CAST_EXPR, t.pos, ex);
+            }
+            // Grouped expression: (1 + 2)
+            advance(p)!; // consume '('
             Node expr = parse_expr(p, 0)!;
             expect(p, TokenKind.RPAREN)!;
             return expr;
 
         default:
+            log::error("Expected expression for token: (%s - %s)", p.token_text(p.current()), p.current().kind);
             p.error("Expected expression");
 			return EXPECTED_EXPRESSION~;
     }
@@ -147,6 +212,11 @@ fn Node? parse_infix(Parser* p, Node left, int rbp)
         case TokenKind.LESS_EQ:
         case TokenKind.AND:
         case TokenKind.OR:
+		case TokenKind.BIT_OR:  // Added
+        case TokenKind.BIT_XOR: // Added
+        case TokenKind.AMP:     // Added (&)
+        case TokenKind.EQEQ:    // Added (==)
+        case TokenKind.NOT_EQUAL: // Added (!=)
         {
             Node right = parse_expr(p, rbp)!;
             
@@ -162,7 +232,33 @@ fn Node? parse_infix(Parser* p, Node left, int rbp)
 		{
 			return parse_ternary(p, left, t, rbp);
 		}
+		case TokenKind.DOT:
+        {
+			if (p.peek().kind == TokenKind.LBRACKET)
+			{
+				advance(p)!;
+				Node index = parse_expr(p, 0)!;
+				expect(p, TokenKind.RBRACKET)!;
+
+				uint[2] data = { (uint)left, (uint)index };
+				uint ex = ast::push_extra_block(p.ast, &data);
+				return ast::add_node(p.ast, NodeKind.DEREF_SUBSCRIPT_EXPR, t.pos, ex);
+			}
+
+            // after a dot expect a member name
+            Token member_token = p.current();
+            // ensure we just get the name
+            expect(p, TokenKind.IDENT)!; 
+            
+            uint sh = p.pool.intern(p.token_text(member_token));
+            Node member_node = ast::add_node(p.ast, NodeKind.IDENT_EXPR, member_token.pos, sh);
+
+            uint[2] data = { (uint)left, (uint)member_node };
+            uint ex = ast::push_extra_block(p.ast, &data);
+			return ast::add_node(p.ast, NodeKind.ACCESS_EXPR, t.pos, ex);        
+		}
         default:
+			log::error("Unexpected infix token: %s", t.kind);
 			p.error("Unexpected infix token: %s", t.kind);
             return UNEXPECTED_TOKEN~;
     }

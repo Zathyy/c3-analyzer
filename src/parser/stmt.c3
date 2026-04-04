@@ -17,6 +17,10 @@ fn Node? parse_statement(Parser* p)
 
 	switch (kind)
 	{
+		case TokenKind.CT_IF:
+            return parse_ct_if(p)!;
+		case TokenKind.CT_SWITCH:
+			unreachable("not implemented");
 		case TokenKind.LBRACE:
 			return parse_compound(p)!;
 		case TokenKind.VAR:
@@ -172,6 +176,32 @@ fn Node? parse_if(Parser* p)
     uint ex = ast::push_extra_block(p.ast, &data);
 
     return ast::add_node(p.ast, NodeKind.IF_STMT, t.pos, ex);
+}
+
+fn Node? parse_ct_if(Parser* p)
+{
+    Token t = p.current();
+    advance(p)!; // consume $if
+
+    Node condition = parse_expr(p, 0)!;
+    
+    expect(p, TokenKind.COLON)!; 
+
+    Node then_block = parse_statement(p)!;
+    Node else_block;
+
+    if (p.current().kind == TokenKind.CT_ELSE)
+    {
+        advance(p)!;
+        expect(p, TokenKind.COLON)!;
+        else_block = parse_statement(p)!;
+    }
+
+	expect(p, TokenKind.CT_ENDIF)!;
+
+    uint[3] data = { (uint)condition, (uint)then_block, (uint)else_block };
+    uint ex = ast::push_extra_block(p.ast, &data);
+    return ast::add_node(p.ast, NodeKind.CT_IF_STMT, t.pos, ex);
 }
 
 fn Node? parse_defer(Parser* p)

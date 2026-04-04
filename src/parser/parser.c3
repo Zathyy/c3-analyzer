@@ -59,14 +59,17 @@ fn void synchronize(Parser* p)
 		// TODO: Add more cases!
         switch (p.current().kind)
         {
+			case TokenKind.CONTRACT:
             case TokenKind.MODULE:
             case TokenKind.IMPORT:
             case TokenKind.ALIAS:
             case TokenKind.TYPEDEF:
             case TokenKind.FN:
+			case TokenKind.MACRO:
             case TokenKind.STRUCT:
             case TokenKind.CONST:
             case TokenKind.ENUM:
+			case TokenKind.EXTERN:
                 return; // The next loop iteration will handle these
             default:
                 (void)advance(p);
@@ -93,6 +96,11 @@ fn Token Parser.current(&self) @inline
 fn Token Parser.peek(&self, uint pos = 1) @inline
 {
 	return self.tokens[self.pos + pos];
+}
+
+fn void Parser.print_current(&self)
+{
+	log::debug("%s", self.token_text(self.current()));
 }
 
 <*
@@ -128,6 +136,7 @@ fn void? expect(Parser* parser, TokenKind kind) @inline
 *>
 fn bool? consume(Parser* parser, TokenKind kind)
 {
+	if (parser.eof()) return io::EOF~;
 	if (parser.is(kind))
 	{
 		advance(parser)!;
@@ -140,6 +149,11 @@ fn bool? consume(Parser* parser, TokenKind kind)
 fn String Parser.token_text(Parser* self, Token t) @inline
 {
     return self.src[t.pos:t.len];
+}
+
+fn String Parser.current_text(Parser* self) @inline
+{
+	return self.token_text(self.current());
 }
 
 fn Node? parse_path(Parser* p)
@@ -241,6 +255,7 @@ fn void? parse_file(Workspace* ws, String path)
 	Parser parser = (Parser){
 		.mod = null,
 		.pool = &ws.strings,
+		.file_path = path,
 	};
 
 	String src = (String)file::load(tmem, path)!;
@@ -331,6 +346,26 @@ fn void? parse_top_level(Parser* p, Workspace* ws)
             p.error("<EOS> appeared in parse_top_level");
             advance(p)!;
             return UNEXPECTED_EOS~;
+		case TokenKind.CONTRACT:
+			node = parse_contract(p)!;
+			break;
+		case TokenKind.EXTERN:
+		{
+			advance(p)!;
+			switch (p.current().kind)
+			{
+				case TokenKind.CONST:
+					node = parse_const_decl(p, true)!;
+					break;
+				case TokenKind.FN:
+					node = parse_fn_decl(p, true)!;
+					break;
+				default:
+					p.error("Unexpected token after extern");
+					return UNEXPECTED_TOKEN~;
+			}
+			break;
+		}
 		case TokenKind.MODULE:
 			node = parse_module(p, ws)!;
 			break;
@@ -340,6 +375,9 @@ fn void? parse_top_level(Parser* p, Workspace* ws)
 		case TokenKind.FN:
 			node = parse_fn_decl(p)!;
 			break;
+		case TokenKind.MACRO:
+			node = parse_macro_decl(p)!;
+			break;
 		case TokenKind.ALIAS:
 			node = parse_alias(p)!;
 			break;
@@ -348,6 +386,9 @@ fn void? parse_top_level(Parser* p, Workspace* ws)
 			break;
 		case TokenKind.STRUCT:
 			node = parse_struct(p)!;
+			break;
+		case TokenKind.CONST:
+			node = parse_const_decl(p)!;
 			break;
         default:
 			p.error("Couldn't find any matching top level declaration: %s", p.current());
