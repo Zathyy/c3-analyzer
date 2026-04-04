@@ -16,6 +16,7 @@ enum NodeKind : char
     INVALID,
 	PATH,
 	ATTRIBUTE,
+	BLOCK, // a collection of statements
 
 	TYPE,
 	TYPE_DECL,
@@ -59,6 +60,9 @@ enum NodeKind : char
     IF_STMT,
     DEFER_STMT,
 	DO_WHILE_STMT,
+	SWITCH_STMT,
+	CASE_STMT,
+	DEFAULT_STMT,
 
 	CT_IF_STMT,
 	CT_SWITCH_STMT,
