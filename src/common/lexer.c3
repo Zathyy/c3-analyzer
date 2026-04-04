@@ -29,8 +29,8 @@ enum TokenKind : ushort
     ELVIS,        // ?: 
     BANGBANG,     // !! 
     BUILTIN,      // $$ 
-    SHR_OP,       // >> 
-    SHL_OP,       // <<
+    RSHIFT,       // >> 
+    LSHIFT,       // <<
     PLUSPLUS,     // ++ 
     MINUSMINUS,   // -- 
     CT_CONCAT_OP, // +++ 
@@ -586,6 +586,7 @@ fn Token? Lexer.next(&self)
 			self.advance()!;
 			switch (self.peek())
 			{
+				case '>': self.advance()!; return self.emit(RSHIFT, start, 2);
 				case '=': self.advance()!; return self.emit(GREATER_EQ, start, 2);
 				case ']': self.advance()!; return self.emit(RVEC, start, 2);
 			}
@@ -594,6 +595,7 @@ fn Token? Lexer.next(&self)
 			self.advance()!;
 			switch (self.peek())
 			{
+				case '<': self.advance()!; return self.emit(LSHIFT, start, 2);
 				case '=': self.advance()!; return self.emit(LESS_EQ, start, 2);
 				case '*': self.advance()!; return self.skip_contract(start);
 			}	

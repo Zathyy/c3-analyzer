@@ -58,6 +58,7 @@ enum NodeKind : char
     EXPR_STMT,
     IF_STMT,
     DEFER_STMT,
+	DO_WHILE_STMT,
 
 	CT_IF_STMT,
 	CT_SWITCH_STMT,

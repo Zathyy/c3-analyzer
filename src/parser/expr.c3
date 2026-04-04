@@ -54,6 +54,11 @@ fn void get_binding_power(TokenKind type, int* lbp, int* rbp)
             *lbp = 60; *rbp = 61;
             break;
 
+		case TokenKind.RSHIFT: // >>
+		case TokenKind.LSHIFT: // <<
+			*lbp = 60; *rbp = 61;
+			break;
+
 		case TokenKind.GREATER:
 		case TokenKind.GREATER_EQ:
 		case TokenKind.LESS:
@@ -201,7 +206,7 @@ fn Node? parse_prefix_expr(Parser* p)
 			return ast::add_node(p.ast, NodeKind.TYPE_EXPR, t.pos, (uint)expr_inside);
 		}
         default:
-            log::error("Expected expression for token: (%s - %s)", p.token_text(p.current()), p.current().kind);
+            log::error("parse_prefix_expr - Expected expression for token: (%s - %s)", p.token_text(p.current()), p.current().kind);
             p.error("Expected expression");
 			return EXPECTED_EXPRESSION~;
     }
@@ -270,6 +275,15 @@ fn Node? parse_infix(Parser* p, Node left, int rbp)
             uint ex = ast::push_extra_block(p.ast, &data);
 			return ast::add_node(p.ast, NodeKind.ACCESS_EXPR, t.pos, ex);        
 		}
+		case TokenKind.RSHIFT:
+		case TokenKind.LSHIFT:
+		{
+			Node rhs = parse_expr(p, rbp)!; 
+			
+			uint[2] data = { (uint)left, (uint)rhs };
+			uint ex = ast::push_extra_block(p.ast, &data);
+			return ast::add_node(p.ast, NodeKind.BINARY_EXPR, t.pos, ex);
+		}
         default:
 			log::error("Unexpected infix token: %s", t.kind);
 			p.error("Unexpected infix token: %s", t.kind);
@@ -291,6 +305,8 @@ fn Node? parse_expr(Parser* p, uint min_bp = 0)
     {
         int lbp, rbp;
 		get_binding_power(p.current().kind, &lbp, &rbp);
+
+		log::info("Current Token: %s, LBP: %d, MinBP: %d", p.current().kind, lbp, min_bp);
 
 		// If the next operator doesn't bind strongly enough to the left, we stop
 		if (lbp < min_bp) break;

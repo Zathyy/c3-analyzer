@@ -31,6 +31,8 @@ fn Node? parse_statement(Parser* p)
 			return parse_defer(p)!;
 		case TokenKind.IF:
 			return parse_if(p)!;
+		case TokenKind.DO:
+			return parse_do_while(p)!;
 		default:
 		{	
 			// if it's not a keyword or type, treat it as a expression statement
@@ -271,6 +273,30 @@ fn Node? parse_ct_case(Parser* p)
     uint[2] data = { (uint)label, (uint)ast::push_extra_block(p.ast, body.array_view()) };
     uint ex = ast::push_extra_block(p.ast, &data);
     return ast::add_node(p.ast, NodeKind.CT_CASE_STMT, t.pos, ex);
+}
+
+fn Node? parse_do_while(Parser* p)
+{
+    Token t = p.current();
+    advance(p)!; // consume 'do'
+
+	Node cond;
+    Node body = parse_statement(p)!;
+
+	if (!consume(p, TokenKind.EOS)!)
+	{
+		expect(p, TokenKind.WHILE)!;
+
+		expect(p, TokenKind.LPAREN)!;
+		cond = parse_expr(p, 0)!;
+		expect(p, TokenKind.RPAREN)!;
+
+		expect(p, TokenKind.EOS)!;
+	}
+
+    uint[2] data = { (uint)body, (uint)cond };
+    uint ex = ast::push_extra_block(p.ast, &data);
+    return ast::add_node(p.ast, NodeKind.DO_WHILE_STMT, t.pos, ex);
 }
 
 fn Node? parse_defer(Parser* p)
