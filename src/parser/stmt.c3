@@ -35,6 +35,8 @@ fn Node? parse_statement(Parser* p)
 			return parse_do_while(p)!;
 		case TokenKind.SWITCH:
 			return parse_switch(p)!;
+		case TokenKind.NEXTCASE:
+			return parse_nextcase(p)!;
 		default:
 		{	
 			// if it's not a keyword or type, treat it as a expression statement
@@ -232,6 +234,16 @@ fn Node? parse_ct_if(Parser* p)
     uint[3] data = { (uint)condition, (uint)then_block, (uint)else_block };
     uint ex = ast::push_extra_block(p.ast, &data);
     return ast::add_node(p.ast, NodeKind.CT_IF_STMT, t.pos, ex);
+}
+
+fn Node? parse_nextcase(Parser* p)
+{
+    Token t = p.current();
+    advance(p)!;
+    
+    expect(p, TokenKind.EOS)!;
+    
+    return ast::add_node(p.ast, NodeKind.NEXTCASE_STMT, t.pos, 0);
 }
 
 fn Node? parse_switch(Parser* p)

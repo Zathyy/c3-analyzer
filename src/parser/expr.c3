@@ -251,10 +251,17 @@ fn Node? parse_infix(Parser* p, Node left, int rbp)
 			return parse_ternary(p, left, t, rbp);
 		}
 		case TokenKind.DOT:
-        {
-			if (p.peek().kind == TokenKind.LBRACKET)
+		{
+			Token member_token = p.current();
+			if (member_token.kind != TokenKind.IDENT && member_token.kind != TokenKind.CONST_IDENT)
 			{
-				advance(p)!;
+				p.error("Expected identifier after '.' got: %s - %s", p.token_text(member_token), member_token.kind);
+				return UNEXPECTED_TOKEN~;
+			}
+			advance(p)!;
+
+			if (consume(p, TokenKind.LBRACKET)!)
+			{
 				Node index = parse_expr(p, 0)!;
 				expect(p, TokenKind.RBRACKET)!;
 
@@ -263,16 +270,11 @@ fn Node? parse_infix(Parser* p, Node left, int rbp)
 				return ast::add_node(p.ast, NodeKind.DEREF_SUBSCRIPT_EXPR, t.pos, ex);
 			}
 
-            // after a dot expect a member name
-            Token member_token = p.current();
-            // ensure we just get the name
-            expect(p, TokenKind.IDENT)!; 
-            
-            uint sh = p.pool.intern(p.token_text(member_token));
-            Node member_node = ast::add_node(p.ast, NodeKind.IDENT_EXPR, member_token.pos, sh);
+			uint sh = p.pool.intern(p.token_text(member_token));
+			Node member_node = ast::add_node(p.ast, NodeKind.IDENT_EXPR, member_token.pos, sh);
 
-            uint[2] data = { (uint)left, (uint)member_node };
-            uint ex = ast::push_extra_block(p.ast, &data);
+			uint[2] data = { (uint)left, (uint)member_node };
+			uint ex = ast::push_extra_block(p.ast, &data);
 			return ast::add_node(p.ast, NodeKind.ACCESS_EXPR, t.pos, ex);        
 		}
 		case TokenKind.RSHIFT:
