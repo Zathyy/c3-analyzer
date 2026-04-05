@@ -216,6 +216,58 @@ fn Node? parse_path(Parser* p)
     return ast::add_node(p.ast, NodeKind.PATH, start_tok, ex);
 }
 
+<*
+	Parse an optional foo::bar::
+*>
+fn Node? parse_path_prefix(Parser* p)
+{
+   	if (!p.is(TokenKind.IDENT) && p.peek().kind != TokenKind.SCOPE)
+	{
+		log::debug("not a valid path");
+		return INVALID_PATH~;
+	}
+
+    uint start_tok = p.pos;
+    uint[PATH_MAX_LENGTH] stack_parts; 
+    uint count = 0;
+
+    while (true) 
+    {
+        Token t = p.current();
+        uint sh = p.pool.intern(p.token_text(t));
+        if (count < PATH_MAX_LENGTH) 
+		{
+            stack_parts[count++] = sh;
+        } 
+		else 
+		{
+            p.error("Path too long (max %s segments)", PATH_MAX_LENGTH);
+            return PATH_TOO_LONG~;
+        }
+
+		advance(p)!;
+        
+        if (p.is(TokenKind.SCOPE) && is_some_ident(p.peek().kind))
+        {
+            advance(p)!; // Consume '::'
+        }
+        else 
+        {
+            break; 
+        }
+    }
+
+    uint[PATH_MAX_LENGTH + 1] final_block;
+    final_block[0] = count;
+    
+    for (uint i = 0; i < count; i++) 
+	{
+        final_block[i + 1] = stack_parts[i];
+    }
+    uint ex = ast::push_extra_block(p.ast, &final_block);
+    return ast::add_node(p.ast, NodeKind.PATH, start_tok, ex);
+}
+
 fn Node? parse_ident(Parser* p)
 {
 	Token t = p.current();
@@ -318,7 +370,13 @@ fn void? parse_file(Workspace* ws, String path)
 		uint start_idx = (uint)mod.ast.len();
 
 		if (catch err = parse_top_level(&parser, ws))
-		{			
+		{	
+			if (err == io::EOF)
+			{
+				log::error("EOF");
+				return err~;
+			}
+
 			synchronize(&parser)!;
 			continue;
 		}
@@ -360,6 +418,28 @@ fn void? parse_top_level(Parser* p, Workspace* ws)
 		}
 	}
 
+	if (kind == TokenKind.IMPORT)
+	{
+		advance(p)!;
+		while (true)
+		{
+			uint start = p.pos;
+
+			Node? path_node = parse_path(p);
+			if (catch err = path_node)
+			{
+				p.error("failed to parse path for module: %s", err);
+				return err~;
+			} 
+
+			Node imp_node = ast::add_node(p.ast, NodeKind.IMPORT_DECL, start, (uint)path_node);
+			p.ast.top_level_nodes.push((uint)node);
+			if (!consume(p, TokenKind.COMMA)!) break;
+		}
+		expect(p, TokenKind.EOS)!;
+		return;
+	}
+
     switch (kind)
     {
         case TokenKind.EOS:
@@ -389,9 +469,6 @@ fn void? parse_top_level(Parser* p, Workspace* ws)
 		case TokenKind.MODULE:
 			node = parse_module(p, ws)!;
 			break;
-		case TokenKind.IMPORT:
-			node = parse_import(p)!;
-			break;
 		case TokenKind.FN:
 			node = parse_fn_decl(p)!;
 			break;
@@ -406,6 +483,9 @@ fn void? parse_top_level(Parser* p, Workspace* ws)
 			break;
 		case TokenKind.STRUCT:
 			node = parse_struct(p)!;
+			break;
+		case TokenKind.ENUM:
+			node = parse_enum(p)!;
 			break;
 		case TokenKind.CONST:
 			node = parse_const_decl(p)!;
