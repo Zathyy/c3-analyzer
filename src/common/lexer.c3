@@ -6,8 +6,7 @@ import std::io;
 faultdef
 	INVALID,
 	CONTRACT_NOT_CLOSED,
-	INVALID_CONTRACT,
-	EOF;
+	INVALID_CONTRACT;
 
 enum TokenKind : ushort
 {
@@ -38,8 +37,8 @@ enum TokenKind : ushort
 
     // Assignment
     EQ,               // = 
-    SHR_ASSIGN,       // >>= 
-    SHL_ASSIGN,       // <<= 
+    RSHIFT_ASSIGN,       // >>= 
+    LSHIFT_ASSIGN,       // <<= 
     PLUS_ASSIGN,      // += 
     MINUS_ASSIGN,     // -= 
     MULT_ASSIGN,      // *=
@@ -468,33 +467,70 @@ fn Token? Lexer.lex_identifier(Lexer* self, uint start_pos)
 
 fn Token? Lexer.lex_number(Lexer* self, uint start_pos)
 {
-	if (self.peek() == '0' && (self.peek_next() == 'x' || self.peek_next() == 'X'))
+    bool is_float = false;
+
+    // Hex: 0x
+    if (self.peek() == '0' && (ascii::to_lower_m(self.peek_next()) == 'x'))
     {
-        self.advance(2)!; // Skip '0x'
-        
-        while (!self.eof() && is_hex(self.peek()))
+        self.advance(2)!;
+        while (!self.eof() && ascii::is_xdigit_m(self.peek()))
         {
             self.advance()!;
         }
-        return self.emit(TokenKind.INTEGER, start_pos, (uint)self.index - start_pos);
-    }	
+    } 
+    // Binary: 0b
+    else if (self.peek() == '0' && (ascii::to_lower_m(self.peek_next()) == 'b'))
+    {
+        self.advance(2)!;
+        while (!self.eof() && ascii::is_bdigit_m(self.peek()))
+        {
+            self.advance()!;
+        }
+    }
+    // Octal: 0o
+    else if (self.peek() == '0' && (ascii::to_lower_m(self.peek_next()) == 'o'))
+    {
+        self.advance(2)!;
+        while (!self.eof() && ascii::is_odigit_m(self.peek()))
+        {
+            self.advance()!;
+        }
+    }
+    else
+    {
+        // Standard Decimals
+        while (!self.eof() && ascii::is_digit_m(self.peek()))
+        {
+            self.advance()!;
+        }
 
-    while (!self.eof() && is_digit(self.peek()))
+        // Real/Float check
+        if (!self.eof() && self.peek() == '.' && ascii::is_digit_m(self.peek_next()))
+        {
+            is_float = true;
+            self.advance()!; 
+            while (!self.eof() && ascii::is_digit_m(self.peek()))
+            {
+                self.advance()!;
+            }
+        }
+    }
+
+    // Handle Suffixes (e.g., 1u, 1.0f, 0xFFu64)
+    // check for 'u', 'i', or 'f' (case insensitive using to_lower_m)
+    char c = (char)ascii::to_lower_m(self.peek());
+    if (c == 'u' || c == 'i' || c == 'f')
     {
         self.advance()!;
-    }
-
-    if (!self.eof() && self.peek() == '.' && is_digit(self.peek_next()))
-    {
-        self.advance()!; // consume '.'
-        while (!self.eof() && is_digit(self.peek()))
+        // Suffixes can contain digits (u64, i16)
+        while (!self.eof() && ascii::is_alnum_m(self.peek()))
         {
             self.advance()!;
         }
-        return self.emit(TokenKind.REAL, start_pos, (uint)self.index - start_pos);
     }
 
-    return self.emit(TokenKind.INTEGER, start_pos, (uint)self.index - start_pos);
+    TokenKind kind = is_float ? TokenKind.REAL : TokenKind.INTEGER;
+    return self.emit(kind, start_pos, (uint)self.index - start_pos);
 }
 
 fn Token? Lexer.skip_contract(Lexer* self, uint start_pos)
@@ -515,7 +551,7 @@ fn Token? Lexer.skip_contract(Lexer* self, uint start_pos)
 
 fn void? Lexer.advance(Lexer* self, uint len = 1) @inline
 {
-	if (self.eof()) return EOF~;
+	if (self.eof()) return io::EOF~;
     self.index += len;
 }
 
@@ -534,7 +570,7 @@ fn Token? Lexer.next(&self)
 
     if (self.eof()) 
     {
-        return EOF~;
+        return io::EOF~;
     }
 
     uint start = (uint)self.index;
@@ -555,6 +591,7 @@ fn Token? Lexer.next(&self)
 			switch (self.peek())
 			{
 				case '|': self.advance()!; return self.emit(OR, start, 2);
+				case '=': self.advance()!; return self.emit(BIT_OR_ASSIGN, start, 2);
 			}
 			return self.emit(BIT_OR, start, 1);
         case '!':
@@ -602,10 +639,20 @@ fn Token? Lexer.next(&self)
 			return self.emit(LESS, start, 1);
 		case '&':
 			self.advance()!;
-			if (self.peek() == '&')
+			switch (self.peek())
 			{
-				self.advance()!;
-				return self.emit(AND, start, 2);
+				case '&': 
+				{
+					if (self.peek(1) == '&')
+					{
+						self.advance(2)!;
+						return self.emit(CT_AND_OP, start, 3);
+					}
+
+					self.advance()!;
+					return self.emit(AND, start, 2);
+				}
+				case '=': self.advance()!; return self.emit(BIT_AND_ASSIGN, start, 2);
 			}
 			return self.emit(AMP, start, 1);
         case '*':
@@ -649,6 +696,39 @@ fn Token? Lexer.next(&self)
 				return self.emit(BIT_XOR_ASSIGN, start, 2);
 			}
 			return self.emit(BIT_XOR, start, 1);
+        case '+': 
+			self.advance()!;
+			switch (self.peek())
+			{
+				case '+':
+					{
+						if (self.peek(2) == '=')
+						{
+							self.advance(3)!;
+							return self.emit(CT_CONCAT_ASSIGN, start, 4);
+						}
+						if (self.peek(1) == '+')
+						{
+							self.advance(2)!;
+							return self.emit(CT_CONCAT_OP, start, 3);
+						}
+						self.advance()!;
+						return self.emit(PLUSPLUS, start, 2);
+					}
+				case '=':
+					self.advance()!;
+					return self.emit(PLUS_ASSIGN, start, 2);
+			}
+			return self.emit(PLUS, start, 1);
+        case '-': 
+			self.advance()!;
+			switch (self.peek())
+			{
+				case '-': self.advance()!; self.emit(MINUSMINUS, start, 2);
+				case '=': self.advance()!; self.emit(MINUS_ASSIGN, start, 2);
+				case '>': self.advance()!; self.emit(ARROW, start, 2);
+			}
+			return self.emit(MINUS, start, 1);
 		case '~': self.advance()!; return self.emit(BIT_NOT, start, 1);
         case '(': self.advance()!; return self.emit(LPAREN, start, 1);
         case ')': self.advance()!; return self.emit(RPAREN, start, 1);
@@ -656,8 +736,6 @@ fn Token? Lexer.next(&self)
         case '}': self.advance()!; return self.emit(RBRACE, start, 1);
         case ';': self.advance()!; return self.emit(EOS, start, 1);
         case ',': self.advance()!; return self.emit(COMMA, start, 1);
-        case '+': self.advance()!; return self.emit(PLUS, start, 1);
-        case '-': self.advance()!; return self.emit(MINUS, start, 1);
         case '/': self.advance()!; return self.emit(DIV, start, 1);
 		case '"':
 		case '`':
