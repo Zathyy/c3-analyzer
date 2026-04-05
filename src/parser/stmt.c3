@@ -6,6 +6,19 @@ import c3_parser::common;
 
 import std::collections::list;
 
+fn uint? parse_label(Parser* p)
+{
+	if (p.is(TokenKind.CONST_IDENT))
+	{
+		uint label = p.pool.intern(p.token_text(p.current()));
+		advance(p)!;
+		expect(p, TokenKind.COLON)!;
+		return label;
+	}
+
+	return {};
+}
+
 fn Node? parse_statement(Parser* p)
 {
 	TokenKind kind = p.current().kind;
@@ -42,6 +55,8 @@ fn Node? parse_statement(Parser* p)
 			return parse_foreach(p)!;
 		case TokenKind.WHILE:
 			return parse_while_stmt(p)!;
+		case TokenKind.FOR:
+			return parse_for_stmt(p)!;
 		default:
 		{	
 			// if it's not a keyword or type, treat it as a expression statement
@@ -50,39 +65,55 @@ fn Node? parse_statement(Parser* p)
 	}
 }
 
-fn Node? parse_for_statement(Parser* p)
+<*
+	for_stmt ::= 'for' label? '(' init? ';' cond? ';' incr? ')' statement
+	label    ::= ':' IDENT
+	init     ::= declaration | expression_list
+	cond     ::= expression
+	incr     ::= expression_list
+*>
+fn Node? parse_for_stmt(Parser* p)
 {
     uint for_token = p.pos;
     expect(p, TokenKind.FOR)!;
 
-	if (!consume(p, TokenKind.LPAREN)!) 
+	uint label = parse_label(p)!;
+
+	expect(p, TokenKind.LPAREN)!;
+
+    Node init_stmt;
+    if (!p.is(TokenKind.EOS))
+    {
+        init_stmt = parse_statement(p)!; 
+    }
+	else
 	{
-		p.error("Expected '(' to open for-loop header, found '%s'", p.current().kind);
-		return UNEXPECTED_TOKEN~;
+    	expect(p, TokenKind.EOS)!;
 	}
 
-    // Parse the three headers
-    Node init_stmt = parse_statement(p)!; // e.g., int i = 0;
+    Node cond_expr;
+    if (!p.is(TokenKind.EOS))
+    {
+        cond_expr = parse_expr(p)!;
+    }
     expect(p, TokenKind.EOS)!;
-    Node cond_expr = parse_expr(p)!; // e.g., i < 10;
-    expect(p, TokenKind.EOS)!;
-    Node inc_expr  = parse_expr(p)!; // e.g., i++
-    
-	if (!consume(p, TokenKind.RPAREN)!) 
-	{
-		p.error("Expected ')' to close for-loop header, found '%s'", p.current().kind);
-		return UNEXPECTED_TOKEN~;
-	}
+
+    Node incr_expr;
+    if (!p.is(TokenKind.RPAREN))
+    {
+        incr_expr = parse_expr(p)!;
+    }
+    expect(p, TokenKind.RPAREN)!;
     Node body = parse_statement(p)!;
 
-    uint[] data = { 
+    uint[*] data = { 
         (uint)init_stmt, 
         (uint)cond_expr, 
-        (uint)inc_expr, 
+        (uint)incr_expr, 
         (uint)body 
     };
-    uint ex = ast::push_extra_block(p.ast, data);
 
+    uint ex = ast::push_extra_block(p.ast, &data);
     return ast::add_node(p.ast, NodeKind.FOR_STMT, for_token, ex);
 }
 
@@ -148,6 +179,7 @@ fn Node? parse_decl_stmt(Parser* p)
     expect(p, TokenKind.EOS)!;
     return expr;
 }
+
 fn Node? parse_expr_stmt(Parser* p)
 {
 	log::debug("parse_expr_stmt - %s : %s", p.current_text(), p.current().kind);
