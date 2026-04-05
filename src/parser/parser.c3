@@ -45,36 +45,50 @@ struct Parser
 	synchronize the top level/recover top level
 	@param [&inout] p
 *>
-fn void synchronize(Parser* p)
+fn void? synchronize(Parser* p)
 {
+    int brace_depth = 0;
+
     while (!p.eof())
     {
-        if (p.current().kind == TokenKind.EOS)
+        Token t = p.current();
+        Location loc = p.line_map.resolve((usz)t.pos);
+
+        // Track depth to ensure we aren't inside a body
+        if (t.kind == TokenKind.LBRACE) brace_depth++;
+        if (t.kind == TokenKind.RBRACE)
+		{
+			brace_depth = (brace_depth > 0) ? brace_depth - 1 : 0;
+		} 
+
+        if (brace_depth <= 0 && loc.col == 1)
         {
-            (void)advance(p);
+            switch (t.kind)
+            {
+				case TokenKind.CONTRACT:
+				case TokenKind.MODULE:
+				case TokenKind.IMPORT:
+				case TokenKind.ALIAS:
+				case TokenKind.TYPEDEF:
+				case TokenKind.FN:
+				case TokenKind.MACRO:
+				case TokenKind.STRUCT:
+				case TokenKind.CONST:
+				case TokenKind.ENUM:
+				case TokenKind.EXTERN:
+                    return;
+                default:
+                    break;
+            }
+        }
+
+        if (brace_depth <= 0 && t.kind == TokenKind.EOS)
+        {
+            advance(p)!;
             return;
         }
 
-        // Keywords which are top-lever (Decl)
-		// TODO: Add more cases!
-        switch (p.current().kind)
-        {
-			case TokenKind.CONTRACT:
-            case TokenKind.MODULE:
-            case TokenKind.IMPORT:
-            case TokenKind.ALIAS:
-            case TokenKind.TYPEDEF:
-            case TokenKind.FN:
-			case TokenKind.MACRO:
-            case TokenKind.STRUCT:
-            case TokenKind.CONST:
-            case TokenKind.ENUM:
-			case TokenKind.EXTERN:
-                return; // The next loop iteration will handle these
-            default:
-                (void)advance(p);
-                break;
-        }
+        advance(p)!;
     }
 }
 
@@ -95,6 +109,7 @@ fn Token Parser.current(&self) @inline
 
 fn Token Parser.peek(&self, uint pos = 1) @inline
 {
+	assert((usz)(self.pos + pos) < self.tokens.len);
 	return self.tokens[self.pos + pos];
 }
 
@@ -304,7 +319,7 @@ fn void? parse_file(Workspace* ws, String path)
 
 		if (catch err = parse_top_level(&parser, ws))
 		{			
-			synchronize(&parser);
+			synchronize(&parser)!;
 			continue;
 		}
 
