@@ -44,6 +44,11 @@ fn int main(String[] args) => @pool()
         String path = args[2];
         test_std_lib(&ws, path)!!;
     }
+	else if (args.len >= 3 && args[1] == "-f")
+	{
+		String path = args[2];
+		parser::parse_file(&ws, path)!!;
+	}
     else 
     {
 		String test_path = "test/test_file.c3";
