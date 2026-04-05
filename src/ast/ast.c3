@@ -66,6 +66,7 @@ enum NodeKind : char
 	INDEX_EXPR,
 	SLICE_EXPR,
 	POST_UNARY_EXPR,
+	PRE_UNARY_EXPR,
 	PREFIX_EXPR,
 
 

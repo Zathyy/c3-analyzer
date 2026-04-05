@@ -270,6 +270,19 @@ fn Node? parse_prefix_expr(Parser* p)
 		}
 		case TokenKind.LBRACE:
 			return parse_initializer_list(p)!;
+		case TokenKind.MINUSMINUS:
+		case TokenKind.PLUSPLUS:
+		{
+			advance(p)!;
+			Node right = parse_expr(p, Precedence.PREFIX)!;
+			uint[2] data = { 
+				(uint)t.kind, 
+				(uint)right 
+			};
+			
+			uint ex = ast::push_extra_block(p.ast, &data);
+			return ast::add_node(p.ast, NodeKind.PRE_UNARY_EXPR, t.pos, ex);
+		}
         default:
             log::error("parse_prefix_expr - Expected expression for token: (%s - %s)", p.token_text(p.current()), p.current().kind);
             p.error("Expected expression");
@@ -402,7 +415,7 @@ fn Node? parse_expr(Parser* p, Precedence min_bp = LOWEST)
 		get_binding_power(p.current().kind, &lbp, &rbp);
 
 		// debug purposes
-		log::info("Current Token: %s, LBP: %d, MinBP: %d", p.current().kind, lbp, min_bp);
+		log::debug("Current Token: %s, LBP: %d, MinBP: %d", p.current().kind, lbp, min_bp);
 
 		// If the next operator doesn't bind strongly enough to the left, we stop
 		if (lbp < (int)min_bp) break;
