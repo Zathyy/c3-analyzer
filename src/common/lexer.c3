@@ -633,6 +633,23 @@ fn Token? Lexer.next(&self)
 				return self.emit(DOTDOT, start, 2);
 			}
 			return self.emit(DOT, start, 1);
+		case '%':
+			self.advance()!;
+			if (self.peek() == '=')
+			{
+				self.advance()!;
+				return self.emit(MOD_ASSIGN, start, 2);
+			}
+			return self.emit(MOD, start, 1);
+		case '^':
+			self.advance()!;
+			if (self.peek() == '=')
+			{
+				self.advance()!;
+				return self.emit(BIT_XOR_ASSIGN, start, 2);
+			}
+			return self.emit(BIT_XOR, start, 1);
+		case '~': self.advance()!; return self.emit(BIT_NOT, start, 1);
         case '(': self.advance()!; return self.emit(LPAREN, start, 1);
         case ')': self.advance()!; return self.emit(RPAREN, start, 1);
         case '{': self.advance()!; return self.emit(LBRACE, start, 1);
