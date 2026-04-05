@@ -46,6 +46,7 @@ macro void Parser.warn(self, String fmt, ...)
 
 macro void Parser.error(self, String fmt, ...)
 {
+	log::error(fmt, $vasplat);
     self.report(self.current(), "error", ANSI_RED, fmt, $vasplat);
 }
 
