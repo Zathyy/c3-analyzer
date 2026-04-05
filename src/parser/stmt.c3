@@ -37,6 +37,11 @@ fn Node? parse_statement(Parser* p)
 			return parse_switch(p)!;
 		case TokenKind.NEXTCASE:
 			return parse_nextcase(p)!;
+		case TokenKind.FOREACH:
+		case TokenKind.FOREACH_R:
+			return parse_foreach(p)!;
+		case TokenKind.WHILE:
+			return parse_while_stmt(p)!;
 		default:
 		{	
 			// if it's not a keyword or type, treat it as a expression statement
@@ -96,6 +101,10 @@ fn Node? parse_compound(Parser* p)
 
     while (!p.is(TokenKind.RBRACE) && !p.eof())
     {
+		if (p.eof())
+		{
+			log::error("EOF!!!!!");
+		}
         Node stmt = parse_statement(p)!;
 		stmts.push((uint)stmt);
     }
@@ -124,10 +133,13 @@ fn Node? parse_decl_stmt(Parser* p)
             advance(p)!;
             init = parse_expr(p, 0)!;
         }
+		
+		Node attr = parse_attributes(p)!;
+
         expect(p, TokenKind.EOS)!;
 
         uint name_sh = p.pool.intern(p.token_text(name_tok));
-        uint[*] data = { name_sh, (uint)type_node, (uint)init };
+        uint[*] data = { name_sh, (uint)type_node, (uint)init, (uint)attr };
         uint ex = ast::push_extra_block(p.ast, &data);
         return ast::add_node(p.ast, NodeKind.LOCAL_DECL, name_tok.pos, ex);
     }
@@ -138,9 +150,10 @@ fn Node? parse_decl_stmt(Parser* p)
 }
 fn Node? parse_expr_stmt(Parser* p)
 {
+	log::debug("parse_expr_stmt - %s : %s", p.current_text(), p.current().kind);
     Token t = p.current();
     Node expr = parse_expr(p, 0)!;
-    (void)expect(p, TokenKind.EOS); // TODO: how should EOS be handled?
+    expect(p, TokenKind.EOS)!; // TODO: how should EOS be handled?
 
     return ast::add_node(p.ast, NodeKind.EXPR_STMT, t.pos, (uint)expr);
 }
@@ -155,6 +168,7 @@ fn Node? parse_return(Parser* p)
     {
         expr = parse_expr(p, 0)!;
     }
+
     expect(p, TokenKind.EOS)!;
 
     return ast::add_node(p.ast, NodeKind.RETURN_STMT, t.pos, (uint)expr);
@@ -230,6 +244,11 @@ fn Node? parse_ct_if(Parser* p)
     }
 
 	expect(p, TokenKind.CT_ENDIF)!;
+	
+	if (p.is(TokenKind.EOS))
+	{
+		advance(p)!;
+	}
 
     uint[3] data = { (uint)condition, (uint)then_block, (uint)else_block };
     uint ex = ast::push_extra_block(p.ast, &data);
@@ -388,6 +407,101 @@ fn Node? parse_do_while(Parser* p)
     uint[2] data = { (uint)body, (uint)cond };
     uint ex = ast::push_extra_block(p.ast, &data);
     return ast::add_node(p.ast, NodeKind.DO_WHILE_STMT, t.pos, ex);
+}
+
+fn Node? parse_foreach_var(Parser* p) 
+{
+    uint start_tok = p.pos;
+    Node var_type = 0;
+    bool is_ref = false;
+
+    if (is_type(p.current().kind) && 
+       (p.peek(1).kind == TokenKind.IDENT ||
+	    p.peek(1).kind == TokenKind.AMP ||
+		p.peek(1).kind == TokenKind.ASTERISK))
+    {
+        var_type = parse_type(p)!;
+    }
+
+    if (consume(p, TokenKind.AMP)!) is_ref = true;
+
+    Token t = p.current();
+    expect(p, TokenKind.IDENT)!;
+    uint name = p.pool.intern(p.token_text(t));
+
+    uint[3] data = { (uint)var_type, name, is_ref ? 1 : 0 };
+    uint ex = ast::push_extra_block(p.ast, &data);
+    
+    return ast::add_node(p.ast, NodeKind.FOREACH_VAR, t.pos, ex);
+}
+
+fn Node? parse_foreach(Parser* p)
+{
+    uint start_tok = p.pos;
+    bool is_reverse = consume(p, TokenKind.FOREACH_R)!;
+    if (!is_reverse) expect(p, TokenKind.FOREACH)!;
+
+    uint label = 0;
+    if (p.current().kind == TokenKind.CONST_IDENT && p.peek(1).kind == TokenKind.COLON) 
+    {
+        Token t = p.current();
+        label = p.pool.intern(p.token_text(t));
+        advance(p)!; // ident
+        advance(p)!; // colon
+    }
+
+    expect(p, TokenKind.LPAREN)!;
+
+    uint[2] vars;
+	vars[0] = (uint)parse_foreach_var(p)!;
+
+	// if there is another var, then we flip the array
+	// so if vars[1] != 0, then: vars[0] = index & vars[1] = variable
+	// else vars[0] = variable
+	if (consume(p, TokenKind.COMMA)!)
+	{
+		vars[1] = vars[0];
+		vars[0] = (uint)parse_foreach_var(p)!;
+	}
+
+    expect(p, TokenKind.COLON)!;
+    Node iterable = parse_expr(p, 0)!;
+    expect(p, TokenKind.RPAREN)!;
+
+    Node body = parse_statement(p)!;
+    
+    uint[*] data = {
+		label, 
+		vars[0], // index
+		vars[1], // variable
+		(uint)iterable, 
+		(uint)body 
+	};
+    uint ex = ast::push_extra_block(p.ast, &data);
+    
+    return ast::add_node(p.ast, is_reverse ? NodeKind.FOREACH_R_STMT : NodeKind.FOREACH_STMT, start_tok, ex);
+}
+
+fn Node? parse_while_stmt(Parser* p)
+{
+	uint start_tok = p.pos;
+    expect(p, TokenKind.WHILE)!;
+
+	uint label;
+	if (p.is(TokenKind.CONST_IDENT))
+	{
+		label = p.pool.intern(p.token_text(p.current()));
+	}
+    
+    expect(p, TokenKind.LPAREN)!;
+    Node condition = parse_expr(p, 0)!;
+    expect(p, TokenKind.RPAREN)!;
+    
+    Node body = parse_statement(p)!; 
+    
+    uint[*] data = { label, (uint)condition, (uint)body };
+    uint ex = ast::push_extra_block(p.ast, &data);
+    return ast::add_node(p.ast, NodeKind.WHILE_STMT, start_tok, ex);
 }
 
 fn Node? parse_defer(Parser* p)
