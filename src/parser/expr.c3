@@ -23,13 +23,18 @@ fn void get_binding_power(TokenKind type, int* lbp, int* rbp)
         case TokenKind.DIV_ASSIGN:
             *lbp = 10; *rbp = 9; // Right-associative (RBP < LBP)
             break;
-		
+
 		case TokenKind.BIT_OR: // |
 		case TokenKind.BIT_XOR: // ^
 		case TokenKind.AMP: // &
-		case TokenKind.BIT_NOT: // ~
 			*lbp = 40; *rbp = 41; // Higher than logic, lower than add/sub
 			break;
+
+		case TokenKind.BANG:
+		case TokenKind.BANGBANG:
+		case TokenKind.BIT_NOT: // Used as Postfix Error Signal: expr~
+            *lbp = 100; *rbp = 101; 
+            break;
 
 		case TokenKind.EQEQ: // ==
 		case TokenKind.NOT_EQUAL: // !=
@@ -285,6 +290,16 @@ fn Node? parse_infix(Parser* p, Node left, int rbp)
 			uint[2] data = { (uint)left, (uint)rhs };
 			uint ex = ast::push_extra_block(p.ast, &data);
 			return ast::add_node(p.ast, NodeKind.BINARY_EXPR, t.pos, ex);
+		}
+		case TokenKind.BIT_NOT:
+		{
+			if (ast::get_kind(p.ast, left) == NodeKind.TYPE_EXPR)
+			{
+				p.error("Expected a fault before '~'");
+				return UNEXPECTED_TOKEN~;
+			}
+			uint idx = ast::get_token(p.ast, left);
+            return ast::add_node(p.ast, NodeKind.OPTIONAL_EXPR, idx, (uint)left);
 		}
         default:
 			log::error("Unexpected infix token: %s", t.kind);

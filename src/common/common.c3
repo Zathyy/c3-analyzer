@@ -172,6 +172,13 @@ enum DeferKind : uint
     CATCH_VAR    // defer (catch var) ...
 }
 
+enum OverloadKind : uint 
+{
+	ELEMENT_SET,
+	ELEMENT_AT,
+	ELEMENT_REF,
+}
+
 struct TypeDescriptor 
 {
     uint name;      // The StringPool handle

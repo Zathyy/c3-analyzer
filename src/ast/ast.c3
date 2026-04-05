@@ -16,6 +16,7 @@ enum NodeKind : char
     INVALID,
 	PATH,
 	ATTRIBUTE,
+	OP_OVERLOAD,
 	BLOCK, // a collection of statements
 
 	TYPE,
@@ -51,6 +52,8 @@ enum NodeKind : char
 	COMPILER_CONST_EXPR,
 	DEREF_SUBSCRIPT_EXPR,
 	ACCESS_EXPR,
+	OPTIONAL_EXPR,
+	OPERATOR_CHARS_EXPR,
 
 	FOR_STMT,
     COMPOUND_STMT, // { ... }

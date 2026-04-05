@@ -28,14 +28,57 @@ fn Node? parse_module(Parser* p, Workspace* ws)
 		p.error("failed to parse path for module: %s", err);
 		return err~;
 	}
+
+    uint param_count = 0;
+    uint generics_ex = parse_generics(p, &param_count)!;
+
     expect(p, TokenKind.EOS)!;
 
 	PathView view = { p.ast, path_node };
 
-	uint[1] block = { (uint)path_node };
-	uint ex = ast::push_extra_block(p.ast, &block);
-	log::info("parsed module!");
+    uint[3] data = { (uint)path_node, generics_ex, param_count };
+    uint ex = ast::push_extra_block(p.ast, &data);
+
+	log::debug("parsed module!");
     return ast::add_node(p.ast, NodeKind.MODULE_DECL, start, ex);
+}
+
+<*
+    Parses: <T, V ...>
+    Returns a list of parameter nodes or a single block index.
+*>
+fn uint? parse_generics(Parser* p, uint* out_count)
+{
+    if (!consume(p, TokenKind.LESS)!)
+    {
+        *out_count = 0;
+        return 0;
+    }
+
+    List{uint} params;
+    params.tinit(8);
+    defer params.free();
+
+    while (true)
+    {
+        Token t = p.current();
+        if (!is_some_ident(t.kind))
+        {
+            p.error("Expected identifier in generic list, got %s", p.token_text(t));
+            return 0;
+        }
+
+        uint id = p.pool.intern(p.token_text(t));
+        params.push(id);
+        advance(p)!;
+
+        if (!consume(p, TokenKind.COMMA)!) break;
+    }
+
+    expect(p, TokenKind.GREATER)!;
+    
+    *out_count = (uint)params.len();
+    return ast::push_extra_block(p.ast, params.array_view());
 }
 
 fn Node? parse_import(Parser* p)
@@ -58,35 +101,100 @@ fn Node? parse_import(Parser* p)
 
 fn Node? parse_attributes(Parser* p)
 {
-    Node head = 0; // Initialize to 0!
+
+    // The "Next" pointer for the linked list
+    Node head = 0;
 
     while (true)
     {
-        TokenKind k = p.current().kind;
-        if (k != TokenKind.AT_IDENT && 
-            k != TokenKind.AT_TYPE_IDENT && 
-            k != TokenKind.AT_CONST_IDENT) 
-        {
-            break;
-        }
+        Token t = p.current();
+        if (t.kind != TokenKind.AT_IDENT && t.kind != TokenKind.AT_TYPE_IDENT) break;
 
-        String attr_name = p.token_text(p.current());
-        
-        AttributeKind kind = common::get_attribute_from_string(attr_name);
-        
         uint start_tok = p.pos;
+        String attr_name = p.token_text(t);
         advance(p)!;
 
-        Node expr_data = 0;
+        uint arg_count = 0;
+        uint args_ex = 0;
+
         if (consume(p, TokenKind.LPAREN)!)
         {
-            @try(expr_data, parse_expr(p));
-            expect(p, TokenKind.RPAREN)!;
+            List{uint} args;
+            args.tinit(4);
+            defer args.free();
+
+            while (true)
+            {
+                Node expr = 0;
+                Token curr = p.current();
+
+                switch (curr.kind)
+                {
+                    case TokenKind.LBRACKET: // Handles [] and []=
+                        advance(p)!;
+                        expect(p, TokenKind.RBRACKET)!;
+                        if (consume(p, TokenKind.EQ)!) 
+                        {
+                            expr = ast::add_node(p.ast, NodeKind.OP_OVERLOAD, curr.pos, (uint)OverloadKind.ELEMENT_SET);
+                        }
+                        else
+                        {
+                            expr = ast::add_node(p.ast, NodeKind.OP_OVERLOAD, curr.pos, (uint)OverloadKind.ELEMENT_AT);
+                        }
+                        break;
+                    case TokenKind.AMP: // Handles &[]
+                        if (p.peek(1).kind == TokenKind.LBRACKET) 
+                        {
+                            advance(p)!; // &
+                            advance(p)!; // [
+                            expect(p, TokenKind.RBRACKET)!;
+                            expr = ast::add_node(p.ast, NodeKind.OP_OVERLOAD, curr.pos, (uint)OverloadKind.ELEMENT_REF);
+                        } 
+                        else 
+                        {
+                            // Standard address-of or bitwise AND constant expr
+                            expr = parse_expr(p, 0)!;
+                        }
+                        break;
+                    case TokenKind.PLUS: 
+                    case TokenKind.MINUS: 
+                    case TokenKind.ASTERISK: 
+                    case TokenKind.DIV:
+                    case TokenKind.EQEQ: 
+                    case TokenKind.NOT_EQUAL:
+                        // If the NEXT token is ')', it's an operator name, not an expression
+                        if (p.peek(1).kind == TokenKind.RPAREN || p.peek(1).kind == TokenKind.COMMA) 
+                        {
+                            uint op_sh = p.pool.intern(p.token_text(curr));
+                            expr = ast::add_node(p.ast, NodeKind.OP_OVERLOAD, curr.pos, op_sh);
+                            advance(p)!;
+                        } 
+                        else
+                        {
+                            expr = parse_expr(p, 0)!;
+                        }
+                        break;
+                    default:
+                        // Standard constant expression (e.g., @doc("string"))
+                        expr = parse_expr(p, 0)!;
+                        break;
+                }
+
+                if (consume(p, TokenKind.RPAREN)!) break;
+                expect(p, TokenKind.COMMA)!;
+            }
+
+            arg_count = (uint)args.len();
+            args_ex = ast::push_extra_block(p.ast, args.array_view());
         }
 
-        uint[3] attr_block = { (uint)kind, (uint)expr_data, (uint)head };
+        uint[*] attr_block = {
+            (uint)common::get_attribute_from_string(attr_name),
+            args_ex,
+            arg_count,
+            (uint)head
+        };
         uint ex = ast::push_extra_block(p.ast, &attr_block);
-        
         head = ast::add_node(p.ast, NodeKind.ATTRIBUTE, start_tok, ex);
     }
 
@@ -363,6 +471,7 @@ fn Node? parse_var_decl(Parser* p)
 
     return ast::add_node(p.ast, nk, t.pos, ex);
 }
+
 <*
 	TYPE_EXPR - unresolved type, parser only cares about the syntax
 *>
