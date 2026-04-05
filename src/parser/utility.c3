@@ -60,8 +60,18 @@ fn void Parser.report(Parser* self, Token token, String level, String color, Str
     String line_text = get_line_from_src(self.src, &self.line_map, (usz)loc.line);
     io::printf(" %4s | %s\n", loc.line, line_text);
 
-    io::print("      | "); 
-    for (uint i = 1; i < loc.col; i++) io::print(" ");
+    io::printf(" %4s | ", "");
+    for (uint i = 1; i < loc.col; i++) 
+	{
+		if (line_text[i - 1] == '\t')
+		{
+			io::print("\t");
+		}
+		else
+		{
+			io::print(" ");
+		}
+	}
     io::printf("%s^%s\n", color, ANSI_RESET);
 }
 
