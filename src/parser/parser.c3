@@ -287,13 +287,13 @@ fn void? parse_file(Workspace* ws, String path)
     if (mod_name == "") 
 	{
         mod_name = path_to_module_name(path)!;
-        log::debug("Inferred module: %s", mod_name);
+        log::info("Inferred module: %s", mod_name);
     }
 	Module* mod = workspace::get_or_create_module(ws, mod_name);
 	parser.mod = mod;
 	parser.ast = &mod.ast;
 
-	log::debug("parsing file: %s", path);
+	log::info("parsing file: %s", path);
 
 	ModuleSection* section = workspace::get_or_create_section(mod, path);
 	assert(section != null);

@@ -154,6 +154,7 @@ bitstruct TypeFlags : uint
     bool is_none;
     bool is_vector;
 	bool is_comptime;
+	bool is_optional;
 }
 
 bitstruct GlobalFlags : uint

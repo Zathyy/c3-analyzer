@@ -185,36 +185,46 @@ fn Node? parse_macro_decl(Parser* p)
     uint start_tok = p.pos;
     expect(p, TokenKind.MACRO)!;
 
-    Node type;
-    if (is_type(p.current().kind) && 
-        p.peek(1).kind != TokenKind.DOT && 
-        p.peek(1).kind != TokenKind.LPAREN)
-    {
-        type = parse_type(p)!;
-    }
-
+	Node rtype = 0;
+    Node method_type = 0;
 	uint name; // name of fn
-	uint macro_method_type; // if a method, the struct it belongs to, dont know what else to call it? class maybe? xD
 
-	if (p.peek(1).kind == TokenKind.DOT)
-	{
-		macro_method_type = (uint)parse_type(p)!;
-        expect(p, TokenKind.DOT)!;
+	///log::info("parse_macro_decl - current : %s", p.current().kind);
+	///log::info("parse_macro_decl - 1 : %s", p.peek().kind);
+	///log::info("parse_macro_decl - 2 : %s", p.peek(2).kind);
+
+	if ((p.is(TokenKind.IDENT) || p.is(TokenKind.AT_IDENT)) && p.peek(1).kind != TokenKind.DOT)
+    {
         name = p.pool.intern(p.token_text(p.current()));
         advance(p)!;
-	}
-	else
-	{
-		if (!p.is(TokenKind.IDENT) && !p.is(TokenKind.AT_IDENT))
-		{
-			p.error("Expected macro name");
-            log::error("Got %s", p.current_text());
-			return UNEXPECTED_TOKEN~;
-		}
+    }
+    else 
+    {
+        rtype = parse_type(p)!;
 
-		name = p.pool.intern(p.token_text(p.current()));
-		advance(p)!;
-	}
+        if (!p.is(TokenKind.DOT) && !p.is(TokenKind.IDENT) && !p.is(TokenKind.AT_IDENT))
+        {
+            method_type = parse_type(p)!;
+        }
+
+        if (consume(p, TokenKind.DOT)!)
+        {
+            if (!method_type.is_valid())
+            {
+                method_type = rtype;
+                rtype = 0;
+            }
+        }
+
+        if (!p.is(TokenKind.IDENT) && !p.is(TokenKind.AT_IDENT))
+        {
+            p.error("Expected macro name, got %s", p.token_text(p.current()));
+            return UNEXPECTED_TOKEN~;
+        }
+        
+        name = p.pool.intern(p.token_text(p.current()));
+        advance(p)!;
+    }
 
     uint param_count = 0;
     Node params_start;
@@ -239,8 +249,8 @@ fn Node? parse_macro_decl(Parser* p)
 
     uint[7] data = {
         name,
-        macro_method_type, 
-        (uint)type, 
+        (uint)rtype, 
+        (uint)method_type, 
         (uint)attr,
         (uint)params_start, 
         param_count, 
@@ -402,7 +412,6 @@ fn Node? parse_type(Parser* p)
 			expect(p, TokenKind.RBRACE)!;
 		}
 	}
-
 	
 	while (true)
 	{
@@ -413,7 +422,10 @@ fn Node? parse_type(Parser* p)
 			{
 				desc.array_size = 0;
 			}
-			desc.array_size = parse_expr(p)!;
+			else
+			{
+				desc.array_size = parse_expr(p)!;
+			}
 			expect(p, TokenKind.RVEC)!;
 			break;
 		}
@@ -422,13 +434,21 @@ fn Node? parse_type(Parser* p)
             desc.ptr_count++;
             continue;
         }
+		if (consume(p, TokenKind.QUESTION)!)
+		{
+			flags.is_optional = true;
+			continue;
+		}
         if (consume(p, TokenKind.LBRACKET)!) 
 		{
 			if (consume(p, TokenKind.ASTERISK)!)
 			{
 				desc.array_size = 0;
 			}
-            desc.array_size = parse_expr(p)!; 
+			else
+			{
+            	desc.array_size = parse_expr(p)!; 
+			}
             expect(p, TokenKind.RBRACKET)!;
             continue;
         }

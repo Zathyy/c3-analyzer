@@ -308,7 +308,7 @@ fn Node? parse_expr(Parser* p, uint min_bp = 0)
         int lbp, rbp;
 		get_binding_power(p.current().kind, &lbp, &rbp);
 
-		log::info("Current Token: %s, LBP: %d, MinBP: %d", p.current().kind, lbp, min_bp);
+		//log::info("Current Token: %s, LBP: %d, MinBP: %d", p.current().kind, lbp, min_bp);
 
 		// If the next operator doesn't bind strongly enough to the left, we stop
 		if (lbp < min_bp) break;
