@@ -724,9 +724,9 @@ fn Token? Lexer.next(&self)
 			self.advance()!;
 			switch (self.peek())
 			{
-				case '-': self.advance()!; self.emit(MINUSMINUS, start, 2);
-				case '=': self.advance()!; self.emit(MINUS_ASSIGN, start, 2);
-				case '>': self.advance()!; self.emit(ARROW, start, 2);
+				case '-': self.advance()!; return self.emit(MINUSMINUS, start, 2);
+				case '=': self.advance()!; return self.emit(MINUS_ASSIGN, start, 2);
+				case '>': self.advance()!; return self.emit(ARROW, start, 2);
 			}
 			return self.emit(MINUS, start, 1);
 		case '~': self.advance()!; return self.emit(BIT_NOT, start, 1);
