@@ -81,29 +81,47 @@ fn uint? parse_generics(Parser* p, uint* out_count)
     return ast::push_extra_block(p.ast, params.array_view());
 }
 
-fn Node? parse_import(Parser* p)
+fn OverloadKind get_overload_from_token(TokenKind kind)
 {
-	uint start = p.pos;
-	expect(p, TokenKind.IMPORT)!;
-
-   	Node? path_node = parse_path(p);
-	if (catch err = path_node)
-	{
-		p.error("failed to parse path for module: %s", err);
-		return err~;
-	} 
-   	expect(p, TokenKind.EOS)!;
-
-	uint[1] block = { (uint)path_node };
-	uint ex = ast::push_extra_block(p.ast, &block);
-    return ast::add_node(p.ast, NodeKind.IMPORT_DECL, start, ex);
+    switch (kind)
+    {
+        case TokenKind.PLUS:           return OverloadKind.PLUS;
+		case TokenKind.PLUS_ASSIGN:    return OverloadKind.PLUS_ASSIGN;
+		case TokenKind.MINUS:          return OverloadKind.MINUS;
+		case TokenKind.MINUS_ASSIGN:   return OverloadKind.MINUS_ASSIGN;
+		case TokenKind.ASTERISK:       return OverloadKind.MULTIPLY;
+		case TokenKind.MULT_ASSIGN:    return OverloadKind.MULTIPLY_ASSIGN;
+		case TokenKind.DIV:            return OverloadKind.DIVIDE;
+		case TokenKind.DIV_ASSIGN:     return OverloadKind.DIVIDE_ASSIGN;
+		case TokenKind.MOD:            return OverloadKind.REMINDER;
+		case TokenKind.MOD_ASSIGN:         return OverloadKind.REMINDER_ASSIGN;
+		case TokenKind.AMP:            return OverloadKind.AND;
+		case TokenKind.BIT_AND_ASSIGN: return OverloadKind.AND_ASSIGN;
+		case TokenKind.BIT_OR:         return OverloadKind.OR;
+		case TokenKind.BIT_OR_ASSIGN:  return OverloadKind.OR_ASSIGN;
+		case TokenKind.BIT_XOR:        return OverloadKind.XOR;
+		case TokenKind.BIT_XOR_ASSIGN: return OverloadKind.XOR_ASSIGN;
+		case TokenKind.LSHIFT:         return OverloadKind.SHL;
+		case TokenKind.LSHIFT_ASSIGN:  return OverloadKind.SHL_ASSIGN;
+		case TokenKind.RSHIFT:         return OverloadKind.SHR;
+		case TokenKind.RSHIFT_ASSIGN:  return OverloadKind.SHR_ASSIGN;
+		case TokenKind.BIT_NOT:        return OverloadKind.NEGATE;
+		case TokenKind.EQEQ:           return OverloadKind.EQUAL;
+		case TokenKind.NOT_EQUAL:      return OverloadKind.NOT_EQUAL;
+        default:
+            unreachable();
+    }
 }
 
 fn Node? parse_attributes(Parser* p)
 {
+    if (!p.is(TokenKind.AT_IDENT) && !p.is(TokenKind.AT_CONST_IDENT) && !p.is(TokenKind.AT_TYPE_IDENT))
+    {
+        return {};
+    }
 
     // The "Next" pointer for the linked list
-    Node head = 0;
+    Node head;
 
     while (true)
     {
@@ -150,23 +168,39 @@ fn Node? parse_attributes(Parser* p)
                             expect(p, TokenKind.RBRACKET)!;
                             expr = ast::add_node(p.ast, NodeKind.OP_OVERLOAD, curr.pos, (uint)OverloadKind.ELEMENT_REF);
                         } 
-                        else 
+                        else
                         {
-                            // Standard address-of or bitwise AND constant expr
-                            expr = parse_expr(p, 0)!;
+                            advance(p)!;
+                            expr = ast::add_node(p.ast, NodeKind.OP_OVERLOAD, curr.pos, (uint)get_overload_from_token(curr.kind));
                         }
                         break;
                     case TokenKind.PLUS: 
                     case TokenKind.MINUS: 
                     case TokenKind.ASTERISK: 
                     case TokenKind.DIV:
+                    case TokenKind.MOD:
+                    case TokenKind.BIT_NOT:
+                    case TokenKind.BIT_OR:
+                    case TokenKind.BIT_XOR:
+                    case TokenKind.LSHIFT:
+                    case TokenKind.RSHIFT:
                     case TokenKind.EQEQ: 
                     case TokenKind.NOT_EQUAL:
+                    case TokenKind.BIT_AND_ASSIGN:
+                    case TokenKind.BIT_OR_ASSIGN:
+                    case TokenKind.BIT_XOR_ASSIGN:
+                    case TokenKind.PLUS_ASSIGN:
+                    case TokenKind.MINUS_ASSIGN:
+                    case TokenKind.MULT_ASSIGN:
+                    case TokenKind.DIV_ASSIGN:
+                    case TokenKind.MOD_ASSIGN:
+                    case TokenKind.LSHIFT_ASSIGN:
+                    case TokenKind.RSHIFT_ASSIGN:
                         // If the NEXT token is ')', it's an operator name, not an expression
                         if (p.peek(1).kind == TokenKind.RPAREN || p.peek(1).kind == TokenKind.COMMA) 
                         {
-                            uint op_sh = p.pool.intern(p.token_text(curr));
-                            expr = ast::add_node(p.ast, NodeKind.OP_OVERLOAD, curr.pos, op_sh);
+                            OverloadKind overload_kind = get_overload_from_token(curr.kind);
+                            expr = ast::add_node(p.ast, NodeKind.OP_OVERLOAD, curr.pos, (uint)overload_kind);
                             advance(p)!;
                         } 
                         else
@@ -180,6 +214,7 @@ fn Node? parse_attributes(Parser* p)
                         break;
                 }
 
+                if (expr) args.push((uint)expr);
                 if (consume(p, TokenKind.RPAREN)!) break;
                 expect(p, TokenKind.COMMA)!;
             }
@@ -201,12 +236,77 @@ fn Node? parse_attributes(Parser* p)
     return head;
 }
 
+fn Node? parse_enum(Parser* p)
+{
+    uint start_tok = p.pos;
+    expect(p, TokenKind.ENUM)!;
+
+    Token name_tok = p.current();
+    expect(p, TokenKind.TYPE_IDENT)!;
+    uint name = p.pool.intern(p.token_text(name_tok));
+
+    Node base_type;
+    if (consume(p, TokenKind.COLON)!) base_type = parse_type(p)!;
+
+    uint param_count = 0;
+    Node params_start;
+    if (p.is(TokenKind.LPAREN))
+    {
+        params_start = parse_parameter_list(p, &param_count)!;
+    }
+
+    Node attrs = parse_attributes(p)!;
+
+    expect(p, TokenKind.LBRACE)!;
+
+    List{uint} elements;
+    elements.tinit(16);
+    defer elements.free();
+    
+    while (!p.is(TokenKind.RBRACE) && !p.eof())
+    {
+        Token elem_tok = p.current();
+        uint elem_name = p.pool.intern(p.token_text(elem_tok));
+        advance(p)!;
+
+        //  WAITING = 0
+        Node explicit_val;
+        if (consume(p, TokenKind.EQ)!) explicit_val = parse_expr(p, 0)!;
+
+        // { "waiting" }
+        Node assoc_init = 0;
+        if (p.is(TokenKind.LBRACE)) assoc_init = parse_initializer_list(p)!;
+
+        uint[3] member_data = { elem_name, (uint)explicit_val, (uint)assoc_init };
+        elements.push(ast::push_extra_block(p.ast, &member_data));
+
+        if (!consume(p, TokenKind.COMMA)!) break;
+    }
+
+    expect(p, TokenKind.RBRACE)!;
+
+    uint element_count = (uint)elements.len();
+    uint elements_ex = ast::push_extra_block(p.ast, elements.array_view());
+
+    uint[*] decl_data = { 
+        name, 
+        (uint)base_type, 
+        (uint)param_count,
+        (uint)params_start,
+        (uint)attrs, 
+        elements_ex, 
+        element_count 
+    };
+    uint ex = ast::push_extra_block(p.ast, &decl_data);
+    return ast::add_node(p.ast, NodeKind.ENUM_DECL, start_tok, ex);
+}
+
 fn Node? parse_fn_decl(Parser* p, bool is_extern = false)
 {
     uint start_tok = p.pos;
 
     expect(p, TokenKind.FN)!;
-
+    log::debug("parse_fn_decl - parse_type");
     Node ret_type = parse_type(p)!;
 
 	uint name; // name of fn
@@ -241,51 +341,59 @@ fn Node? parse_fn_decl(Parser* p, bool is_extern = false)
 		advance(p)!;
 	}
 
-    expect(p, TokenKind.LPAREN)!;
-    uint[32] param_stack;
+    log::debug("parse_fn_decl - %s", p.pool.get(name));
+
     uint param_count = 0;
+    Node params_start;
+    params_start = parse_parameter_list(p, &param_count)!;
 
-    if (!p.is(TokenKind.RPAREN))
-    {
-        while (true)
-        {
-            param_stack[param_count++] = (uint)parse_param_decl(p)!;
-            if (!consume(p, TokenKind.COMMA)!) break;
-        }
-    }
-    expect(p, TokenKind.RPAREN)!;
-
+    log::debug("parse_fn_decl - parse_attributes");
     Node attr = parse_attributes(p)!;
 
     Node body;
     if (p.is(TokenKind.LBRACE)) 
     {
+        log::debug("parse_fn_decl - parse_compound");
         body = parse_compound(p)!;
     } 
     else if (consume(p, TokenKind.IMPLIES)!) // Handle the => syntax
     {
+        log::debug("parse_fn_decl - parse_short_body");
         body = parse_expr(p)!;
         expect(p, TokenKind.EOS)!;
     }
     else 
     {
-        expect(p, TokenKind.EOS)!; // Prototype
+        expect(p, TokenKind.EOS)!;
     }
     
-    uint[40] final_block;
+    uint[7] final_block;
     final_block[0] = name;
     final_block[1] = method_type;
     final_block[2] = (uint)ret_type;
     final_block[3] = (uint)attr;
     final_block[4] = param_count;
-    final_block[5] = (uint)body;
-    for (uint i = 0; i < param_count; i++) 
-	{
-        final_block[6 + i] = param_stack[i];
-    }
+    final_block[5] = (uint)params_start;
+    final_block[6] = (uint)body;
 
+    log::debug("parse_fn_decl - finished.. adding to ast");
     uint ex = ast::push_extra_block(p.ast, &final_block);
     return ast::add_node(p.ast, NodeKind.FN_DECL, start_tok, ex);
+}
+
+fn Node? parse_function_type(Parser* p)
+{
+    uint pos = p.current().pos;
+    expect(p, TokenKind.FN)!;
+
+    Node return_type = parse_type(p)!;
+
+    uint param_count;
+    Node params = parse_parameter_list(p, &param_count)!;
+
+    uint[*] data = { (uint)return_type, param_count, (uint)params };
+    uint ex = ast::push_extra_block(p.ast, &data);
+    return ast::add_node(p.ast, NodeKind.TYPE_FUNCTION, pos, ex);
 }
 
 fn Node? parse_macro_decl(Parser* p)
@@ -554,6 +662,10 @@ fn Node? parse_type(Parser* p)
 			{
 				desc.array_size = 0;
 			}
+            else if (p.is(TokenKind.RBRACKET))
+            {
+                desc.array_size = 0;
+            }
 			else
 			{
             	desc.array_size = parse_expr(p)!; 
@@ -575,7 +687,7 @@ fn Node? parse_type(Parser* p)
 
     for (uint i = 0; i < desc.gen_count; i++) 
 	{
-        final_block[5 + i] = (uint)desc.gen_args[i];
+        final_block[7 + i] = (uint)desc.gen_args[i];
     }
 
     uint ex = ast::push_extra_block(p.ast, &final_block);
@@ -584,25 +696,103 @@ fn Node? parse_type(Parser* p)
 	return new_node;
 }
 
-fn Node? parse_alias(Parser* p)
+<*
+    typedef_declaration ::= ALIAS TYPE_IDENT attributes? '=' typedef_type ';'
+
+    typedef_type ::= func_typedef | type generic_params?
+    func_typedef ::= 'fn' optional_type parameter_type_list
+*>
+fn Node? parse_type_alias(Parser* p)
 {
     uint start_tok = p.pos;
     expect(p, TokenKind.ALIAS)!;
 
 	Token name_tok = p.current();
+    
+    if (!p.is(TokenKind.TYPE_IDENT))
+    {
+        p.error("Expected Type identifier");
+        return UNEXPECTED_TOKEN~;
+    }
+
     expect(p, TokenKind.TYPE_IDENT)!;
     uint name_sh = p.pool.intern(p.token_text(name_tok));
 
+    Node attr = parse_attributes(p)!;
+
     expect(p, TokenKind.EQ)!;
 
-    Node target_type = parse_type(p)!;
+    Node target_type;
+    if (p.is(TokenKind.FN))
+    {
+        target_type = parse_function_type(p)!;
+    }
+    else
+    {
+        target_type = parse_type(p)!;
+    }
 
     expect(p, TokenKind.EOS)!;
 
-    uint[2] data = { name_sh, (uint)target_type };
+    uint[*] data = { name_sh, (uint)target_type, (uint)attr };
     uint ex = ast::push_extra_block(p.ast, &data);
 
-    return ast::add_node(p.ast, NodeKind.ALIAS_DECL, start_tok, ex);
+    return ast::add_node(p.ast, NodeKind.TYPE_ALIAS_DECL, start_tok, ex);
+}
+
+<*
+    define_ident ::= 'alias' (IDENT | CONST_IDENT | AT_IDENT) attributes? '=' (('module' path) | identifier_alias generic_params?)
+    identifier_alias ::= path? (IDENT | CONST_IDENT | AT_IDENT)
+*>
+fn Node? parse_ident_alias(Parser* p)
+{
+    uint start_tok = p.pos;
+    expect(p, TokenKind.ALIAS)!;
+
+    TokenKind kind = p.current().kind;
+    if (kind != TokenKind.IDENT && kind != TokenKind.CONST_IDENT && kind != TokenKind.AT_IDENT)
+    {
+        p.error("A type, variable, constant or attribute name was expected");
+        return UNEXPECTED_TOKEN~;
+    }
+
+    uint name = p.pool.intern(p.token_text(p.current()));
+
+    advance(p)!;
+
+    Node attr = parse_attributes(p)!;
+
+    expect(p, TokenKind.EQ)!;
+
+    if (p.is(TokenKind.MODULE))
+    {
+        advance(p)!; // skip module
+
+        Node path = parse_path(p)!;
+
+        uint[*] data = { name, (uint)path, (uint)attr };
+        uint ex = ast::push_extra_block(p.ast, &data);
+
+        return ast::add_node(p.ast, NodeKind.PATH_ALIAS_DECL, start_tok, ex);
+    }
+
+    Node expr = parse_expr(p)!;
+    
+    uint[*] data = { name, (uint)expr, (uint)attr };
+    uint ex = ast::push_extra_block(p.ast, &data);
+
+    return ast::add_node(p.ast, NodeKind.TYPE_ALIAS_DECL, start_tok, ex);
+}
+
+fn Node? parse_alias(Parser* p)
+{
+    switch (p.peek(1).kind)
+    {
+        case TokenKind.TYPE_IDENT:
+            return parse_type_alias(p);
+        default:
+            return parse_ident_alias(p);
+    }
 }
 
 fn Node? parse_typedef(Parser* p)
