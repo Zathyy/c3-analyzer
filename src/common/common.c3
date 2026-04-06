@@ -6,6 +6,7 @@ import std::collections::list;
 
 const uint MAX_GENERICS = 16;
 const uint MAX_ATTRIBUTES = 16;
+const uint MAX_INTERFACE_IMPL = 16;
 
 typedef FileID = ushort;
 
