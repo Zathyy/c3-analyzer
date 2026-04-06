@@ -21,6 +21,7 @@ faultdef
 	CONTRACT_NOT_ALLOWED,
 	INVALID_PATH,
 	PATH_TOO_LONG,
+	TOO_MANY_INTERFACE_IMPL,
 	TOO_MANY_GENERICS,
 	EXPECTED_EXPRESSION,
 	UNEXPECTED_TOKEN,
@@ -28,6 +29,22 @@ faultdef
 
 // length in parts, eg: foo::bar = 2 parts
 const uint PATH_MAX_LENGTH = 16;
+
+bitstruct ParseFlags : uint
+{
+    bool is_interface;   // Skip function bodies, disallow fields
+    bool is_global;      // Top-level declarations
+    bool is_local;       // Inside a function/block
+	bool is_var;         // has a 'var'
+	bool is_inline;
+    bool is_extern;      // C-linkage handling
+	bool is_thread_local;
+    bool is_attribute;   // Special parsing for @attr(...)
+    bool is_type_only;   // Used for casts or sizeof where names aren't expected
+    bool is_const;       // Context requires constant expressions
+
+	bool no_generics; // dont allow type parsing to check for generics
+}
 
 struct Parser
 {
@@ -174,111 +191,6 @@ fn String Parser.current_text(Parser* self) @inline
 	return self.token_text(self.current());
 }
 
-fn Node? parse_path(Parser* p)
-{
-    if (!p.is(TokenKind.IDENT) && p.peek().kind != TokenKind.SCOPE)
-	{
-		log::debug("not a valid path");
-		return INVALID_PATH~;
-	}
-
-    uint start_tok = p.pos;
-    uint[PATH_MAX_LENGTH] stack_parts; 
-    uint count = 0;
-
-    while (true) 
-    {
-        Token t = p.current();
-        uint sh = p.pool.intern(p.token_text(t));
-        if (count < PATH_MAX_LENGTH) 
-		{
-            stack_parts[count++] = sh;
-        } 
-		else 
-		{
-            p.error("Path too long (max %s segments)", PATH_MAX_LENGTH);
-            return PATH_TOO_LONG~;
-        }
-        
-        expect(p, TokenKind.IDENT)!;
-        if (!consume(p, TokenKind.SCOPE)!) break;
-    }
-
-    uint[PATH_MAX_LENGTH + 1] final_block;
-    final_block[0] = count;
-    
-    // Copy the parts into the block
-    for (uint i = 0; i < count; i++) 
-	{
-        final_block[i + 1] = stack_parts[i];
-    }
-    uint ex = ast::push_extra_block(p.ast, &final_block);
-    return ast::add_node(p.ast, NodeKind.PATH, start_tok, ex);
-}
-
-<*
-	Parse an optional foo::bar::
-*>
-fn Node? parse_path_prefix(Parser* p)
-{
-   	if (!p.is(TokenKind.IDENT) && p.peek().kind != TokenKind.SCOPE)
-	{
-		log::debug("not a valid path");
-		return INVALID_PATH~;
-	}
-
-    uint start_tok = p.pos;
-    uint[PATH_MAX_LENGTH] stack_parts; 
-    uint count = 0;
-
-    while (true) 
-    {
-        Token t = p.current();
-        uint sh = p.pool.intern(p.token_text(t));
-        if (count < PATH_MAX_LENGTH) 
-		{
-            stack_parts[count++] = sh;
-        } 
-		else 
-		{
-            p.error("Path too long (max %s segments)", PATH_MAX_LENGTH);
-            return PATH_TOO_LONG~;
-        }
-
-		advance(p)!;
-        
-        if (p.is(TokenKind.SCOPE) && is_some_ident(p.peek().kind))
-        {
-            advance(p)!; // Consume '::'
-        }
-        else 
-        {
-            break; 
-        }
-    }
-
-    uint[PATH_MAX_LENGTH + 1] final_block;
-    final_block[0] = count;
-    
-    for (uint i = 0; i < count; i++) 
-	{
-        final_block[i + 1] = stack_parts[i];
-    }
-    uint ex = ast::push_extra_block(p.ast, &final_block);
-    return ast::add_node(p.ast, NodeKind.PATH, start_tok, ex);
-}
-
-fn Node? parse_ident(Parser* p)
-{
-	Token t = p.current();
-	expect(p, TokenKind.IDENT)!;
-
-	String name_str = p.token_text(t);
-	uint name_id = p.pool.intern(name_str);
-
-	return ast::add_node(p.ast, NodeKind.IDENT_EXPR, (uint)p.pos - 1, name_id);
-}
-
 fn String peek_module_name(Parser* p)
 {
     for (usz i = 0; i < p.tokens.len; i++)
@@ -405,12 +317,41 @@ fn void? parse_top_level(Parser* p, Workspace* ws)
 {
     log::debug("parse_top_level: %s", p.token_text(p.current()));
 
-    TokenKind kind = p.current().kind;
 	Node node;
+	ParseFlags flags = { .is_global = true };
 
-	if (is_type(kind) || kind == TokenKind.TLOCAL)
+
+	// the individual parse functions will check that the modifiers are used appropiately
+	while (true)
+    {
+        Token t = p.current();
+        
+        if (t.kind == TokenKind.EXTERN) 
+        {
+            if (flags.is_extern) p.error("Duplicate 'extern' modifier");
+            flags.is_extern = true;
+        }
+        else if (t.kind == TokenKind.TLOCAL) 
+        {
+            if (flags.is_thread_local) p.error("Duplicate 'tlocal' modifier");
+            flags.is_thread_local = true;
+        }
+        else if (t.kind == TokenKind.INLINE) 
+        {
+            if (flags.is_inline) p.error("Duplicate 'inline' modifier");
+            flags.is_inline = true;
+        }
+        else 
+        {
+            break;
+        }
+        
+        advance(p)!;
+    }
+
+	if (is_type(p.current().kind))
 	{
-		node = parse_global(p)!;
+		node = parse_var_decl(p, flags)!;
 		if (node.is_valid())
 		{
 			p.ast.top_level_nodes.push((uint)node);
@@ -418,7 +359,7 @@ fn void? parse_top_level(Parser* p, Workspace* ws)
 		}
 	}
 
-	if (kind == TokenKind.IMPORT)
+	if (p.current().kind == TokenKind.IMPORT)
 	{
 		advance(p)!;
 		while (true)
@@ -430,47 +371,33 @@ fn void? parse_top_level(Parser* p, Workspace* ws)
 			{
 				p.error("failed to parse path for module: %s", err);
 				return err~;
-			} 
+			}
 
-			Node imp_node = ast::add_node(p.ast, NodeKind.IMPORT_DECL, start, (uint)path_node);
-			p.ast.top_level_nodes.push((uint)node);
+			Node attr = parse_attributes(p)!;
+
+			uint[*] data = { (uint)path_node, (uint)attr };
+			uint ex = ast::push_extra_block(p.ast, &data);
+			Node imp_node = ast::add_node(p.ast, NodeKind.IMPORT_DECL, start, ex);
+			p.ast.top_level_nodes.push((uint)imp_node);
 			if (!consume(p, TokenKind.COMMA)!) break;
 		}
 		expect(p, TokenKind.EOS)!;
 		return;
 	}
 
-    switch (kind)
+    switch (p.current().kind)
     {
-        case TokenKind.EOS:
-            p.error("<EOS> appeared in parse_top_level");
-            advance(p)!;
-            return UNEXPECTED_EOS~;
 		case TokenKind.CONTRACT:
 			node = parse_contract(p)!;
 			break;
-		case TokenKind.EXTERN:
-		{
-			advance(p)!;
-			switch (p.current().kind)
-			{
-				case TokenKind.CONST:
-					node = parse_const_decl(p, true)!;
-					break;
-				case TokenKind.FN:
-					node = parse_fn_decl(p, true)!;
-					break;
-				default:
-					p.error("Unexpected token after extern");
-					return UNEXPECTED_TOKEN~;
-			}
+		case TokenKind.INTERFACE:
+			node = parse_interface(p)!;
 			break;
-		}
 		case TokenKind.MODULE:
 			node = parse_module(p, ws)!;
 			break;
 		case TokenKind.FN:
-			node = parse_fn_decl(p)!;
+			node = parse_fn_decl(p, flags)!;
 			break;
 		case TokenKind.MACRO:
 			node = parse_macro_decl(p)!;
@@ -488,8 +415,14 @@ fn void? parse_top_level(Parser* p, Workspace* ws)
 			node = parse_enum(p)!;
 			break;
 		case TokenKind.CONST:
-			node = parse_const_decl(p)!;
+			flags.is_const = true;
+			advance(p)!;
+			node = parse_var_decl(p, flags)!;
 			break;
+		case TokenKind.EOS:
+            p.error("<EOS> appeared in parse_top_level");
+            advance(p)!;
+            return UNEXPECTED_EOS~;
         default:
 			p.error("Couldn't find any matching top level declaration: %s", p.current());
     		return UNEXPECTED_TOKEN~;
