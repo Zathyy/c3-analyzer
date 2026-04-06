@@ -191,16 +191,28 @@ fn Node? parse_fn_decl(Parser* p, ParseFlags flags)
     Node body;
     if (p.is(TokenKind.LBRACE)) 
     {
+		if (flags.is_extern)
+		{
+			p.error("extern functions cant have a body");
+			return UNEXPECTED_TOKEN~;
+		}
+
         log::debug("parse_fn_decl - parse_compound");
         body = parse_compound(p)!;
     } 
     else if (consume(p, TokenKind.IMPLIES)!) // Handle the => syntax
     {
+		if (flags.is_extern)
+		{
+			p.error("extern functions cant have a body");
+			return UNEXPECTED_TOKEN~;
+		}
+
         log::debug("parse_fn_decl - parse_short_body");
         body = parse_expr(p)!;
         expect(p, TokenKind.EOS)!;
     }
-    else 
+    else
     {
         expect(p, TokenKind.EOS)!;
     }
