@@ -1,9 +1,26 @@
 module example;
 
-// import foo; // this should work too
-import foo::bar;
-
-fn int main()
+interface MyFirstInterface
 {
-    foo::bar::test(5, 5);
+	fn void foo();
+}
+
+interface MyInterface : MyFirstInterface
+{
+	fn void bar();
+}
+
+struct Bar (MyInterface)
+{
+	int placeholder;
+}
+
+fn void Bar.foo(&self) @dynamic
+{
+
+}
+
+fn void Bar.bar(&self) @dynamic
+{
+
 }
