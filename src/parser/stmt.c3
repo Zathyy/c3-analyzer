@@ -16,12 +16,14 @@ fn uint? parse_label(Parser* p)
 		return label;
 	}
 
-	return {};
+	return 0;
 }
 
 fn Node? parse_statement(Parser* p)
 {
 	TokenKind kind = p.current().kind;
+
+	log::debug("parse_statement : %s - %s", p.current_text(), kind);
 
 	if (is_type(kind))
     {
@@ -37,7 +39,11 @@ fn Node? parse_statement(Parser* p)
 		case TokenKind.LBRACE:
 			return parse_compound(p)!;
 		case TokenKind.VAR:
-			return parse_var_decl(p)!;
+			advance(p)!;
+			return parse_var_decl(p, { .is_var = true, .is_local = true })!;
+		case TokenKind.CONST:
+			advance(p)!;
+			return parse_var_decl(p, { .is_const = true, .is_local = true })!;
 		case TokenKind.RETURN:
 			return parse_return(p)!;
 		case TokenKind.DEFER:
@@ -50,6 +56,10 @@ fn Node? parse_statement(Parser* p)
 			return parse_switch(p)!;
 		case TokenKind.NEXTCASE:
 			return parse_nextcase(p)!;
+		case TokenKind.BREAK:
+			return parse_break(p)!;
+		case TokenKind.CONTINUE:
+			return parse_continue_stmt(p)!;
 		case TokenKind.FOREACH:
 		case TokenKind.FOREACH_R:
 			return parse_foreach(p)!;
@@ -297,6 +307,18 @@ fn Node? parse_nextcase(Parser* p)
     return ast::add_node(p.ast, NodeKind.NEXTCASE_STMT, t.pos, 0);
 }
 
+fn Node? parse_continue_stmt(Parser* p)
+{
+    Token t = p.current();
+    advance(p)!;
+
+	uint label = parse_label(p)!;
+    
+    expect(p, TokenKind.EOS)!;
+    
+    return ast::add_node(p.ast, NodeKind.CONTINUE_STMT, t.pos, label);
+}
+
 fn Node? parse_switch(Parser* p)
 {
     Token t = p.current();
@@ -351,12 +373,26 @@ fn Node? parse_switch_case(Parser* p)
     return parse_statement(p)!;
 }
 
+fn Node? parse_break(Parser* p)
+{
+	Token t = p.current();
+    advance(p)!;
+    
+    expect(p, TokenKind.EOS)!;
+    
+    return ast::add_node(p.ast, NodeKind.BREAK_STMT, t.pos, 0);
+}
+
 fn Node? parse_ct_switch(Parser* p)
 {
     Token t = p.current();
     advance(p)!;
 
-    Node condition = parse_expr(p, 0)!;
+	Node condition;
+	if (!p.is(TokenKind.COLON))
+	{
+    	condition = parse_expr(p, 0)!;
+	}
 
     expect(p, TokenKind.COLON)!;
 
