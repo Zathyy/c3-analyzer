@@ -22,6 +22,10 @@ enum NodeKind : char
 	INITIALIZER_LIST,
 	DESIGNATED_INITIALIZER_LIST,
 	FOREACH_VAR,
+	INTERFACE_IMPL,
+	INTERFACE_METHOD,
+	INTERFACE_PARENT,
+	GENERIC_PARAM,
 
 	TYPE,
 	TYPE_DECL,
@@ -44,6 +48,7 @@ enum NodeKind : char
 	PATH_ALIAS_DECL,
     GLOBAL_DECL,
 	CONST_DECL,
+	INTERFACE_DECL,
 	MACRO_DECL,
     TYPEDEF_DECL,
 	MODULE_DECL,
@@ -80,7 +85,9 @@ enum NodeKind : char
 	DO_WHILE_STMT,
 	SWITCH_STMT,
 	CASE_STMT,
+	BREAK_STMT,
 	DEFAULT_STMT,
+	CONTINUE_STMT,
 	NEXTCASE_STMT,
 	FOREACH_STMT,
 	FOREACH_R_STMT,
@@ -114,6 +121,7 @@ fn void init(Ast* ast, usz estimated_size)
 	ast.tokens.push(0);
 	ast.extra_indices.push(0);
 }
+
 
 fn void free(Ast* ast)
 {
