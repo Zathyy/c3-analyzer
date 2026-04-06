@@ -142,7 +142,7 @@ enum TokenKind : ushort
     CONSTDEF,   // constdef 
     ENUM,       // enum
     FAULTDEF,   // faultdef 
-    FN,       // fn 
+    FN,         // fn 
     IMPORT,     // import 
     INTERFACE,  // interface 
     MACRO,      // macro 
