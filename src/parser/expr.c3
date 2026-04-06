@@ -12,24 +12,25 @@ import lexer;
 import std::io;
 import std::collections::list;
 
+<*
+	Should be aligned to C3C
+	According to: https://c3-lang.org/language-rules/precedence/
+*>
 constdef Precedence : inline int
 {
     NONE       = -1,
-    LOWEST     = 0,
-    ASSIGN     = 10,     // =, +=, -=, etc.
-    TERNARY    = 20,     // ? :
-    LOGIC_OR   = 22,     // ||
-    LOGIC_AND  = 24,     // &&
-    COMPARE    = 40,     // ==, !=, <, >, <=, >=
-    BITWISE    = 50,     // |, &, ^
-    SUM        = 60,     // +, -
-    PRODUCT    = 70,     // *, /, %, <<, >>
-    SLICE      = 80,     // ..
-    ACCESS     = 90,     // . () [] {}
-    BUILTIN    = 100,    // $$ intrinsics
-    POSTFIX    = 110,    // ++, --, !, !!
-    PREFIX     = 120,    // -, !, ~, ^
-    HIGHEST    = 130,
+	LOWEST     = 0,
+    ASSIGN     = 10, // Level 11
+    TERNARY    = 20, // Level 10 (?: , ??)
+    LOGIC_OR   = 30, // Level 9  (||)
+    LOGIC_AND  = 40, // Level 8  (&&)
+    COMPARE    = 50, // Level 7  (==, <, etc)
+    SUM        = 60, // Level 6  (+, -)
+    BITWISE    = 70, // Level 5  (&, |, ^)
+    SHIFT      = 80, // Level 4  (<<, >>)
+    PRODUCT    = 90, // Level 3  (*, /, %)
+    UNARY      = 100,// Level 2  (prefix -, !, ~, etc)
+    CALL       = 110,// Level 1  (., (), [], !!)
 }
 
 <*
@@ -40,11 +41,7 @@ fn void get_binding_power(TokenKind type, int* lbp, int* rbp)
 {
     switch (type)
     {
-        case TokenKind.BUILTIN:
-            *lbp = Precedence.BUILTIN; 
-            *rbp = Precedence.BUILTIN + 1;
-            break;
-
+        // Assignment (Right-associative)
         case TokenKind.EQ:
         case TokenKind.PLUS_ASSIGN:
         case TokenKind.MINUS_ASSIGN:
@@ -53,24 +50,32 @@ fn void get_binding_power(TokenKind type, int* lbp, int* rbp)
         case TokenKind.DIV_ASSIGN:
         case TokenKind.MOD_ASSIGN:
         case TokenKind.BIT_AND_ASSIGN:
+        case TokenKind.LSHIFT_ASSIGN:
+        case TokenKind.RSHIFT_ASSIGN:
             *lbp = Precedence.ASSIGN; 
-            *rbp = Precedence.ASSIGN - 1; // Right-associative
+            *rbp = Precedence.ASSIGN - 1; 
             break;
 
-        case TokenKind.BIT_OR:
-        case TokenKind.BIT_XOR:
-        case TokenKind.AMP:
-            *lbp = Precedence.BITWISE; 
-            *rbp = Precedence.BITWISE + 1;
+        case TokenKind.QUESTION:
+        case TokenKind.QUESTQUEST:
+		case TokenKind.ELVIS:
+            *lbp = Precedence.TERNARY; 
+            *rbp = Precedence.TERNARY - 1;
             break;
 
-        case TokenKind.BANG:
-        case TokenKind.BANGBANG:
-        case TokenKind.BIT_NOT:
-            *lbp = Precedence.POSTFIX; 
-            *rbp = Precedence.POSTFIX + 1; 
+        case TokenKind.OR:
+        case TokenKind.CT_TERNARY:
+            *lbp = Precedence.LOGIC_OR; 
+            *rbp = Precedence.LOGIC_OR + 1;
             break;
 
+        case TokenKind.AND:
+        case TokenKind.CT_AND_OP:
+            *lbp = Precedence.LOGIC_AND;
+            *rbp = Precedence.LOGIC_AND + 1;
+            break;
+
+        // Comparison
         case TokenKind.EQEQ:
         case TokenKind.NOT_EQUAL:
         case TokenKind.GREATER:
@@ -81,48 +86,48 @@ fn void get_binding_power(TokenKind type, int* lbp, int* rbp)
             *rbp = Precedence.COMPARE + 1;
             break;
 
-        case TokenKind.OR:
-            *lbp = Precedence.LOGIC_OR; 
-            *rbp = Precedence.LOGIC_OR + 1;
-            break;
-
-        case TokenKind.AND:
-            *lbp = Precedence.LOGIC_AND; 
-            *rbp = Precedence.LOGIC_AND + 1;
-            break;
-
+        // Sum
         case TokenKind.PLUS:
         case TokenKind.MINUS:
+        case TokenKind.CT_CONCAT_OP:
             *lbp = Precedence.SUM; 
             *rbp = Precedence.SUM + 1;
             break;
 
+        // Bitwise
+        case TokenKind.BIT_OR:
+        case TokenKind.BIT_XOR:
+        case TokenKind.AMP: // Bitwise AND
+            *lbp = Precedence.BITWISE; 
+            *rbp = Precedence.BITWISE + 1;
+            break;
+
+        // Shift
+        case TokenKind.RSHIFT:
+        case TokenKind.LSHIFT:
+            *lbp = Precedence.SHIFT; 
+            *rbp = Precedence.SHIFT + 1;
+            break;
+
+        // Product
         case TokenKind.ASTERISK:
         case TokenKind.DIV:
         case TokenKind.MOD:
-        case TokenKind.RSHIFT:
-        case TokenKind.LSHIFT:
             *lbp = Precedence.PRODUCT; 
             *rbp = Precedence.PRODUCT + 1;
             break;
 
+        // Access and Postfix
         case TokenKind.DOT:
         case TokenKind.LPAREN:
         case TokenKind.LBRACKET:
-        case TokenKind.LBRACE:
-            *lbp = Precedence.ACCESS; 
-            *rbp = Precedence.ACCESS + 1;
-            break;
-
+        case TokenKind.BANGBANG:
         case TokenKind.PLUSPLUS:
         case TokenKind.MINUSMINUS:
-            *lbp = Precedence.POSTFIX; 
-            *rbp = Precedence.LOWEST; // Postfix ops have no RHS
-            break;
-
-        case TokenKind.QUESTION:
-            *lbp = Precedence.TERNARY; 
-            *rbp = Precedence.TERNARY - 1; // Right-associative
+        case TokenKind.BANG:
+		case TokenKind.BIT_NOT:
+            *lbp = Precedence.CALL;
+            *rbp = Precedence.LOWEST; // Postfix has no RHS to pull
             break;
 
         default:
@@ -154,7 +159,7 @@ fn Node? parse_prefix_expr(Parser* p)
             Token next = p.current();
 
 			// parse ident
-            Node ident_node = parse_expr(p, 80)!; 
+            Node ident_node = parse_expr(p, Precedence.PRODUCT)!; 
 
             uint[2] data = { (uint)t.kind, (uint)ident_node };
             uint ex = ast::push_extra_block(p.ast, &data);
@@ -228,8 +233,7 @@ fn Node? parse_prefix_expr(Parser* p)
 		case TokenKind.AMP:
 		case TokenKind.ASTERISK:
 			advance(p)!;
-			// Unary operators usually have very high binding power
-			Node rhs = parse_expr(p, Precedence.PREFIX)!;
+			Node rhs = parse_expr(p, Precedence.UNARY)!;
 
 			uint[2] data = { (uint)t.kind, (uint)rhs };
 			uint ex = ast::push_extra_block(p.ast, &data);
@@ -243,7 +247,7 @@ fn Node? parse_prefix_expr(Parser* p)
                 Node type = parse_type(p)!;
                 expect(p, TokenKind.RPAREN)!;
                 
-                Node operand = parse_expr(p, Precedence.PREFIX)!;
+                Node operand = parse_expr(p, Precedence.UNARY)!;
 
                 uint[2] data = { (uint)type, (uint)operand };
                 uint ex = ast::push_extra_block(p.ast, &data);
@@ -274,7 +278,7 @@ fn Node? parse_prefix_expr(Parser* p)
 		case TokenKind.PLUSPLUS:
 		{
 			advance(p)!;
-			Node right = parse_expr(p, Precedence.PREFIX)!;
+			Node right = parse_expr(p, Precedence.CALL)!;
 			uint[2] data = { 
 				(uint)t.kind, 
 				(uint)right 
@@ -364,7 +368,7 @@ fn Node? parse_infix(Parser* p, Node left, Precedence rbp)
         {
             advance(p)!;
             Token member_token = p.current();
-            if (member_token.kind != TokenKind.IDENT && member_token.kind != TokenKind.CONST_IDENT)
+            if ((!is_type(member_token.kind)) && member_token.kind != TokenKind.IDENT && member_token.kind != TokenKind.CONST_IDENT)
             {
                 p.error("Expected identifier after '.' got: %s", p.token_text(member_token));
                 return UNEXPECTED_TOKEN~;
@@ -502,20 +506,20 @@ fn Node? parse_initializer_list(Parser* p)
     uint start_tok = p.pos;
     expect(p, TokenKind.LBRACE)!;
 
-    List{uint} exprs;
-    exprs.tinit(8);
-    exprs.push(0); // reserve count
-    defer exprs.free();
-
-    // Handle empty initializer {}
+	// Handle empty initializer {}
     if (consume(p, TokenKind.RBRACE)!)
     {
         return ast::add_node(p.ast, NodeKind.INITIALIZER_LIST, start_tok, 0);
     }
 
+    List{uint} exprs;
+    exprs.tinit(8);
+    exprs.push(0); // reserve count	
+    defer exprs.free();
+
     while (true)
     {
-        Node expr = 0;
+        Node expr;
         
         // Check for Designated Initializer: .member = value
         if (consume(p, TokenKind.DOT)!)
@@ -525,13 +529,13 @@ fn Node? parse_initializer_list(Parser* p)
             uint member_name = p.pool.intern(p.token_text(member));
             
             expect(p, TokenKind.EQ)!;
-            Node val = parse_expr(p, 0)!;
+            Node val = parse_expr(p)!;
             
             uint[2] data = { member_name, (uint)val };
             uint ex = ast::push_extra_block(p.ast, &data);
             expr = ast::add_node(p.ast, NodeKind.DESIGNATED_INITIALIZER_LIST, member.pos, ex);
         }
-        if (p.is(TokenKind.LBRACE))
+        else if (p.is(TokenKind.LBRACE))
         {
             expr = parse_initializer_list(p)!;
         }
@@ -569,7 +573,7 @@ fn Node? parse_range(Parser* p, Node left, uint start_pos)
         // Check for hat in the end slot: [:^1]
         if (consume(p, TokenKind.BIT_XOR)!)
         {
-            Node inner = parse_expr(p, Precedence.ACCESS)!; 
+            Node inner = parse_expr(p, Precedence.CALL)!; 
             uint[2] data = { (uint)TokenKind.BIT_XOR, (uint)inner };
             uint ex = ast::push_extra_block(p.ast, &data);
             end = ast::add_node(p.ast, NodeKind.PREFIX_EXPR, p.current().pos, ex);
@@ -584,7 +588,7 @@ fn Node? parse_range(Parser* p, Node left, uint start_pos)
         // Check for hat: [^5]
         if (consume(p, TokenKind.BIT_XOR)!)
         {
-            Node inner = parse_expr(p, Precedence.ACCESS)!; 
+            Node inner = parse_expr(p, Precedence.CALL)!; 
             uint[2] data = { (uint)TokenKind.BIT_XOR, (uint)inner };
             uint ex = ast::push_extra_block(p.ast, &data);
             start = ast::add_node(p.ast, NodeKind.PREFIX_EXPR, p.current().pos, ex);
@@ -605,7 +609,7 @@ fn Node? parse_range(Parser* p, Node left, uint start_pos)
             {
                 if (consume(p, TokenKind.BIT_XOR)!)
                 {
-                    Node inner = parse_expr(p, Precedence.ACCESS)!; 
+                    Node inner = parse_expr(p, Precedence.CALL)!; 
                     uint[2] data = { (uint)TokenKind.BIT_XOR, (uint)inner };
                     uint ex = ast::push_extra_block(p.ast, &data);
                     end = ast::add_node(p.ast, NodeKind.PREFIX_EXPR, p.current().pos, ex);
