@@ -57,7 +57,6 @@ fn ChildVisitResult printer_callback(Cursor c, Cursor p, void* data, bool is_las
     ctx.prefix = make_child_prefix(old_prefix, is_last);
     switch (v.kind)
 	{
-		// These never have meaningful children to dump on new lines
 		case NodeKind.INT_LITERAL:
 		case NodeKind.FLOAT_LITERAL:
 		case NodeKind.IDENT_EXPR:

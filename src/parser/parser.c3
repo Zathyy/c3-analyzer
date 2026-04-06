@@ -42,6 +42,9 @@ bitstruct ParseFlags : uint
     bool is_attribute;   // Special parsing for @attr(...)
     bool is_type_only;   // Used for casts or sizeof where names aren't expected
     bool is_const;       // Context requires constant expressions
+	bool is_call;
+	bool is_lamda;
+	bool is_macro;
 
 	bool no_generics; // dont allow type parsing to check for generics
 }
@@ -138,14 +141,14 @@ fn void Parser.print_current(&self)
 <*
 	@param [&inout] parser
 *>
-fn void? advance(Parser* parser)
+fn void? advance(Parser* parser, uint len = 1)
 {
 	if (parser.eof())
 	{
 		log::debug("parser::advance() : eof");
 		return io::EOF~;
 	}
-	parser.pos++;
+	parser.pos += len;
 }
 
 <*

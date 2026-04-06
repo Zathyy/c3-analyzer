@@ -483,9 +483,26 @@ fn Node? parse_call(Parser* p, Token t, Node callee)
     {
         while (true)
         {
-            Node arg = parse_expr(p)!;
-            args.push((uint)arg);
+			Node arg_node;
 
+			if (p.current().kind == TokenKind.IDENT && p.peek().kind == TokenKind.COLON)
+			{
+				Token name_tok = p.current();
+                advance(p, 2)!;
+                
+                uint name = p.pool.intern(p.token_text(name_tok));
+                Node value = parse_expr(p)!;
+                
+                uint[2] data = { name, (uint)value };
+                uint ex = ast::push_extra_block(p.ast, &data);
+                arg_node = ast::add_node(p.ast, NodeKind.NAMED_ARG_EXPR, name_tok.pos, ex);
+			}
+			else
+			{
+            	arg_node = parse_expr(p)!;
+			}
+			
+			args.push((uint)arg_node);
             if (p.current().kind != TokenKind.COMMA) break;
             advance(p)!;
         }

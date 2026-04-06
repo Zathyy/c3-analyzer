@@ -24,3 +24,5 @@ fn void Bar.bar(&self) @dynamic
 {
 
 }
+
+int a = foo::get_value(arg0: 123, arg1: 534, null);

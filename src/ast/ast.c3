@@ -73,6 +73,7 @@ enum NodeKind : char
 	POST_UNARY_EXPR,
 	PRE_UNARY_EXPR,
 	PREFIX_EXPR,
+	NAMED_ARG_EXPR,
 
 
 	FOR_STMT,
