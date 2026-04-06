@@ -18,9 +18,7 @@ struct ModuleSection
     String file_path;
 	uint start_node_idx;
     uint node_count;
-
 	Node header_node;
-	bool is_local;
 }
 
 struct Module
