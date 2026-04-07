@@ -8,6 +8,9 @@ module c3_parser::cursor;
 
 import c3_parser::workspace;
 import c3_parser::ast;
+import c3_parser::common;
+
+import std::io;
 
 faultdef 
 	INVALID_NODE;
@@ -73,7 +76,7 @@ fn bool visit_children(Cursor parent, CursorVisitor visitor, void* data)
 		}
 		case NodeKind.GLOBAL_DECL:
 		{
-			GlobalView v = { ast, n };
+			VarDeclView v = { ast, n };
 			if (!visit({ parent.mod, v.type_node() }, parent, visitor, data)) return false;
 			if (v.init_expr().is_valid())
 			{
@@ -187,7 +190,7 @@ fn String? spelling(Cursor* self)
             BinaryView v = { ast, self.node };
             return v.op().nameof;
 		case NodeKind.GLOBAL_DECL:
-			GlobalView v = { ast, self.node };
+			VarDeclView v = { ast, self.node };
 			return v.name(self.mod.strings);
 		case NodeKind.TYPE_EXPR:
 		{
@@ -254,4 +257,71 @@ fn Node module_decl(Cursor* self)
     return (Node){};
 }
 
+fn String[] get_attribute_names(Cursor c, Allocator allocator)
+{
+	if (!c.node.is_valid()) return {};
 
+    Node[] attr_nodes = get_attributes(c, allocator);
+    if (attr_nodes.len == 0) return {};
+
+    String[] names = alloc::new_array(allocator, String, attr_nodes.len);
+
+    foreach (i, node_handle : attr_nodes)
+    {
+		// node_handle = 0 should be impossible here.
+		assert(node_handle.is_valid());
+        AttributeView av = { &c.mod.ast, node_handle };
+        names[i] = av.kind().nameof;
+    }
+
+    return names;
+}
+
+<*
+	Resolves all attributes for any given cursor.	
+	Returns an empty slice if the node cannot have attributes or has none.
+*>
+fn Node[] get_attributes(Cursor c, Allocator allocator)
+{
+    NodeView v = ast::get_node(&c.mod.ast, c.node);
+	Node head;
+
+    switch (v.kind)
+    {
+		case MODULE_DECL:
+		{
+			ModuleView mv = { &c.mod.ast, c.node };
+			head = mv.attribute();
+			break;
+		}
+        case FN_DECL:
+		{
+			FnView fv = { &c.mod.ast, c.node };
+			head = fv.attribute();
+			break;
+		}
+        case GLOBAL_DECL:
+		case CONST_DECL:
+		case VAR_DECL:
+            VarDeclView gv = { &c.mod.ast, c.node };
+            head = gv.attribute();
+        
+        default: break;
+    }
+
+    if (!head.is_valid()) return {};
+    Node[common::MAX_ATTRIBUTES] attr;
+	uint count = 0;
+
+    while (count < common::MAX_ATTRIBUTES)
+    {
+		if (!head.is_valid()) break;
+        attr[count++] = head;
+        AttributeView av = { &c.mod.ast, head };
+		Node next = av.next_attribute();
+		if (next == head) break;
+		head = next;
+ 	}
+
+    return mem::@tclone_slice(attr[0:count]);
+}
