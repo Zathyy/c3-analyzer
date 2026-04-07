@@ -1,5 +1,8 @@
 build/
 out/
+
+ast
+
 .direnv/
 .vscode
 .idea
