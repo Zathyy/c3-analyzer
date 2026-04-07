@@ -7,6 +7,7 @@ import c3_parser::ast;
 import c3_parser::common;
 import lexer;
 
+import std::io;
 import std::collections::list;
 
 <*
@@ -434,6 +435,9 @@ fn Node? parse_attributes(Parser* p)
             arg_count = (uint)args.len();
             args_ex = ast::push_extra_block(p.ast, args.array_view());
         }
+		
+		uint attr_kind_val = (uint)common::get_attribute_from_string(attr_name);
+		io::printfn("Storing Attribute: %s as ID: %d", attr_name, attr_kind_val);
 
         uint[*] attr_block = {
             (uint)common::get_attribute_from_string(attr_name),

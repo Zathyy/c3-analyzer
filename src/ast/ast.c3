@@ -226,4 +226,3 @@ fn uint push_extra_block(Ast* ast, uint[] data)
     ast.extra_data.push_all(data);
     return start;
 }
-

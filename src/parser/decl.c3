@@ -30,12 +30,13 @@ fn Node? parse_module(Parser* p, Workspace* ws)
 	}
 
     Node generics = parse_generics(p)!;
+	Node attributes = parse_attributes(p)!;
 
     expect(p, TokenKind.EOS)!;
 
 	PathView view = { p.ast, path_node };
 
-    uint[*] data = { (uint)path_node, (uint)generics };
+    uint[*] data = { (uint)path_node, (uint)generics, (uint)attributes };
     uint ex = ast::push_extra_block(p.ast, &data);
 
 	log::debug("parsed module!");

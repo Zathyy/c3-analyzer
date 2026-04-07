@@ -1,4 +1,4 @@
-module foo::bar;
+module foo::bar @if(FOO);
 
 import std::io;
 
@@ -8,7 +8,7 @@ typedef MyOtherType = bool;
 
 tlocal bool my_var;
 
-fn void test(int foo, void* bar)
+fn void test(int foo, void* bar) @extern("test_extern_attr")
 {
 	if (foo > 5 && foo < 10)
 	{

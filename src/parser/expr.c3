@@ -421,7 +421,7 @@ fn Node? parse_expr(Parser* p, Precedence min_bp = LOWEST)
 		// debug purposes
 		log::debug("Current Token: %s, LBP: %d, MinBP: %d", p.current().kind, lbp, min_bp);
 
-		// If the next operator doesn't bind strongly enough to the left, we stop
+		// If the next operator doesn't bind strongly enough to the left
 		if (lbp < (int)min_bp) break;
 
         left = parse_infix(p, left, (Precedence)rbp)!;
@@ -469,6 +469,9 @@ fn Node? parse_ternary(Parser* p, Node condition, Token t, Precedence rbp)
     return ast::add_node(p.ast, NodeKind.TERNARY_EXPR, t.pos, ex);
 }
 
+<*
+	TODO: needs more safety checks?
+*>
 fn Node? parse_call(Parser* p, Token t, Node callee)
 {
     List{uint} args;
@@ -501,7 +504,7 @@ fn Node? parse_call(Parser* p, Token t, Node callee)
 			{
             	arg_node = parse_expr(p)!;
 			}
-			
+
 			args.push((uint)arg_node);
             if (p.current().kind != TokenKind.COMMA) break;
             advance(p)!;

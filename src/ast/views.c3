@@ -35,16 +35,26 @@ macro View.get_at(self, $base_offset, index)
     return (Node)self.ast.extra_data[pos];
 }
 
-typedef LiteralView = inline View;
+// --- General Views ---
 
-fn String LiteralView.value(LiteralView self, StringPool* pool)
+typedef ParamView = inline View;
+fn String ParamView.name(ParamView self, StringPool* pool) => pool.get(self.get_uint(0));
+fn Node ParamView.type_node(ParamView self) => self.get(1);
+fn Node ParamView.init_expr(ParamView self) => self.get(2);
+fn bool ParamView.is_ref(ParamView self) => self.get_uint(3) != 0;
+
+typedef AttributeView = inline View;
+fn AttributeKind AttributeView.kind(AttributeView self) => (AttributeKind)self.get_uint(0);
+fn uint AttributeView.args_offset(AttributeView self) => self.get_uint(1);
+fn uint AttributeView.arg_count(AttributeView self) => self.get_uint(2);
+fn Node AttributeView.next_attribute(AttributeView self) => self.get(3);
+fn Node AttributeView.get_arg(AttributeView self, uint index) 
 {
-    uint sh = self.ast.extra_indices[(usz)self.handle];
-	return pool.get(sh);
+    uint base = self.args_offset();
+    return (Node)self.ast.extra_data[(usz)base + index];
 }
 
 typedef PathView = inline View;
-
 fn uint PathView.len(PathView self) => self.get_uint(0);
 fn uint PathView.get_string_handle(PathView self, uint index) => (uint)self.get_at(1, index);
 fn String PathView.get_full(self, StringPool* pool) 
@@ -68,64 +78,6 @@ fn String PathView.get_text(PathView self, uint index, StringPool* pool)
     return pool.get(self.get_string_handle(index));
 }
 
-typedef ModuleView = inline View;
-fn Node ModuleView.path(ModuleView self) => self.get(0);
-
-typedef ImportView = inline View;
-fn Node ImportView.path(ImportView self)  => self.get(0);
-
-typedef ForView = inline View;
-
-fn Node ForView.init(ForView self) => self.get(0);
-fn Node ForView.cond(ForView self) => self.get(1);
-fn Node ForView.inc(ForView self)  => self.get(2);
-fn Node ForView.body(ForView self) => self.get(3);
-
-typedef CompoundView = inline View;
-
-fn uint CompoundView.len(CompoundView self) => self.get_uint(0);
-fn Node CompoundView.get(CompoundView self, uint index) => self.get_at(1, index);
-
-typedef FnView = inline View;
-
-fn String FnView.name(FnView self, StringPool* pool)
-{
-	uint sh = self.get_uint(0);
-	return pool.get(sh);
-}
-
-<*	
-	Get the The struct the mothod is attached to
-*>
-fn String FnView.associated(FnView self, StringPool* pool)
-{
-	uint sh = self.get_uint(1);
-	return pool.get(sh);
-}
-
-<*
-    If the 'associated' index is 0, it's a global function.
-    If it's > 0, it refers to a string in the pool (the Struct name).
-*>
-fn bool FnView.is_method(self) {
-
-    return self.get_uint(1) != 0;
-}
-
-fn Node FnView.return_type(FnView self) => self.get(2);
-fn uint FnView.param_count(FnView self) => self.get_uint(3);
-fn Node FnView.body(FnView self)        => self.get(4);
-fn Node FnView.get_param(FnView self, uint index) => self.get_at(5, index);
-
-typedef ParamView = inline View;
-
-fn Node ParamView.get_type(ParamView self) => self.get(0);
-fn String ParamView.get_name(ParamView self, StringPool* pool)
-{	
-	uint sh = self.get_uint(1);
-	return pool.get(sh);
-}
-
 typedef TypeView = inline View;
 
 fn String TypeView.name(TypeView self, StringPool* pool)
@@ -136,16 +88,42 @@ fn String TypeView.name(TypeView self, StringPool* pool)
 
 fn uint TypeView.ptr_count(TypeView self) => self.get_uint(1);
 
-// 0 in this case does not equal invalid it means infered saize '[*]'
+// 0 in this case does not equal invalid it means infered size '[*]'
 fn Node TypeView.array_size(TypeView self) => self.get(2);
 fn uint TypeView.gen_count(TypeView self) => self.get_uint(3);
 fn TypeFlags TypeView.get_flags(TypeView self) => (TypeFlags)self.get(4);
 fn bool TypeView.is_vector(TypeView self) => self.get_flags().is_vector;
-// Get a specific generic argument (e.g. the 'int' in 'List{int}')
-fn Node TypeView.get_gen_arg(TypeView self, uint index) 
+fn Node TypeView.get_gen_arg(TypeView self, uint index)
 {
     return self.get_at(5, index);
 }
+
+// --- DECLERATIONS ---
+
+
+typedef ModuleView = inline View;
+fn Node ModuleView.path(self) => self.get(0);
+fn Node ModuleView.generic(self) => self.get(1);
+fn Node ModuleView.attribute(self) => self.get(2);
+
+typedef ImportView = inline View;
+fn Node ImportView.path(ImportView self)  => self.get(0);
+
+typedef FnView = inline View;
+
+fn String FnView.name(FnView self, StringPool* pool) => pool.get(self.get_uint(0));
+fn Node FnView.associated(FnView self)              => self.get(1);
+fn Node FnView.return_type(FnView self)             => self.get(2);
+fn Node FnView.attribute(self)                      => self.get(3);
+fn uint FnView.param_count(FnView self)             => self.get_uint(4);
+fn Node FnView.body(FnView self)                    => self.get(6);
+fn Node FnView.get_param(FnView self, uint index) 
+{
+    uint offset = self.get_uint(5); 
+    return (Node)self.ast.extra_data[(usz)offset + index];
+}
+
+/// ---
 
 typedef AliasView = inline View;
 fn String AliasView.name(AliasView self, StringPool* pool) => pool.get(self.get_uint(0));
@@ -155,17 +133,11 @@ typedef TypedefView = inline View;
 fn String TypedefView.name(TypedefView self, StringPool* pool) => pool.get(self.get_uint(0));
 fn Node TypedefView.base_type(TypedefView self) => self.get(1);
 
-typedef GlobalView = inline View;
-
-fn GlobalFlags GlobalView.flags(GlobalView self) => (GlobalFlags)self.get_uint(0);
-fn String GlobalView.name(GlobalView self, StringPool* pool) => pool.get(self.get_uint(1));
-fn Node GlobalView.type_node(GlobalView self) => self.get(2);
-fn Node GlobalView.init_expr(GlobalView self) => self.get(3);
-
 typedef VarDeclView = inline View;
 fn String VarDeclView.name(self, StringPool* pool) => pool.get(self.get_uint(0));
 fn Node VarDeclView.type_node(self) => self.get(1);
 fn Node VarDeclView.init_expr(self) => self.get(2);
+fn Node VarDeclView.attribute(self) => self.get(3);
 
 typedef StructView = inline View;
 
@@ -194,6 +166,18 @@ fn String DeferView.name(self, StringPool* pool) => pool.get(self.get_uint(2));
 
 typedef ExprStmtView = inline View;
 fn Node ExprStmtView.expr(self) => self.get_extra_index();
+
+typedef ForView = inline View;
+
+fn Node ForView.init(ForView self) => self.get(0);
+fn Node ForView.cond(ForView self) => self.get(1);
+fn Node ForView.inc(ForView self)  => self.get(2);
+fn Node ForView.body(ForView self) => self.get(3);
+
+typedef CompoundView = inline View;
+
+fn uint CompoundView.len(CompoundView self) => self.get_uint(0);
+fn Node CompoundView.get(CompoundView self, uint index) => self.get_at(1, index);
 
 /// ------------
 
@@ -226,5 +210,12 @@ fn Node IfView.else_block(IfView self) => self.get(2);
 
 typedef IdentView = inline View;
 fn String IdentView.name(self, StringPool* pool) => pool.get((uint)self.get_extra_index());
+
+typedef LiteralView = inline View;
+fn String LiteralView.value(LiteralView self, StringPool* pool) {
+    uint sh = self.ast.extra_indices[(usz)self.handle];
+	return pool.get(sh);
+}
+
 
 /// ------------
