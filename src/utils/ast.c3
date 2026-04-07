@@ -1,14 +1,70 @@
 module utils::ast;
 
+import std::io;
+import std::encoding::json;
+import std::collections::list;
+
+import dessert;
+import json;
+
 import c3_parser::ast;
 import lexer;
-import std::io;
 import string_pool;
 import c3_parser::common;
 import c3_parser::workspace;
 import c3_parser::cursor;
 
-StringPool* pool @local;
+struct JsonNode
+{
+    uint id;
+    String kind;
+    String name;
+    String[] attributes;
+    JsonNode[] children;
+}
+
+fn void? JsonNode.serialize(&self, Serializer serializer)
+{
+    ser::impl_serialize(self, serializer)!;
+}
+
+struct ModuleExport 
+{
+	String module_name;
+	JsonNode[] nodes;
+}
+
+fn void? ModuleExport.serialize(&self, ser::Serializer serializer)
+{
+    ser::impl_serialize(self, serializer)!;
+}
+
+fn JsonNode build_json_node(Cursor c, Allocator allocator)
+{ 
+    NodeView v = ast::get_node(&c.mod.ast, c.node);
+    
+    JsonNode dto;
+    dto.kind = v.kind.nameof;
+    dto.name = cursor::spelling(&c) ?? "";
+    dto.id = (uint)c.node;
+    dto.attributes = cursor::get_attribute_names(c, tmem);
+
+    List{JsonNode} children_list;
+    children_list.tinit(); 
+
+    cursor::visit_children(c, (CursorVisitor)&visit_json_node, &children_list);
+
+    dto.children = mem::@tclone_slice(children_list.array_view());
+    
+    return dto;
+}
+
+fn ChildVisitResult visit_json_node(Cursor child, Cursor parent, void* data)
+{
+	List{JsonNode}* list_ptr = (List{JsonNode}*)data;
+	list_ptr.push(build_json_node(child, tmem)); 
+	return ChildVisitResult.CONTINUE;
+}
 
 fn void print_prefix(String prefix, bool is_last)
 {
@@ -92,8 +148,36 @@ fn void dump_workspace(Workspace* ws)
     };
 }
 
+fn void? dump_workspace_json(Workspace* ws, String base_path) => @pool()
+{
+    ws.modules.@each(; name, mod)
+    {
+        List{JsonNode} root_nodes;
+        root_nodes.tinit();
 
+        foreach (root_node : mod.ast.top_level_nodes)
+        {
+            Cursor c = { mod, (Node)root_node };
+            root_nodes.push(build_json_node(c, tmem));
+        }
 
+        ModuleExport export_data = {
+            .module_name = mod.name,
+            .nodes = root_nodes.array_view()
+        };
+
+  		JsonSerializer s = json::serializer();   
+		JsonValue? json_val = ser::serialize(&s, export_data)!;
+
+		String json_str = json_val.to_pretty_string()!;
+
+        String file_name = mod.name.treplace("::", "_").tconcat(".json");
+        String filename = base_path.tconcat(file_name);
+        io::path::mkdir(base_path)!;
+        
+        io::file::save(filename, json_str)!;
+    };
+}
 
 
 
