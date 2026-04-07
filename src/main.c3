@@ -23,12 +23,21 @@ fn int main(String[] args) => @pool()
 		print_usage();
 		return -1;
 	}
+	
+	bool is_verbose = false;
+	bool use_json = false;
 
 	foreach (param : args)
 	{
 		if (param == "-v" || param == "-verbose")
 		{
+			is_verbose = true;
 			log::set_priority_all(LogPriority.VERBOSE);
+		}
+
+		if (param == "-json" || param == "-j")
+		{
+			use_json = true;
 		}
 	}
 
@@ -59,7 +68,15 @@ fn int main(String[] args) => @pool()
     }
 
 	log::info("num modules: %s", ws.modules.len());
-	ast::dump_workspace(&ws);
+
+	if (use_json)
+	{
+		ast::dump_workspace_json(&ws, "ast/")!!;
+	}
+	else
+	{
+		ast::dump_workspace(&ws);
+	}
 
     return 0;
 }
