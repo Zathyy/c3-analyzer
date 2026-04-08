@@ -2,8 +2,11 @@ module string_pool;
 
 import std::collections::list;
 import std::collections::map;
+import c3_parser::common;
 
-struct StringPool 
+typedef StringHandle = inline uint;
+
+struct StringPool
 {
     List{char} data;
 	List{uint} offsets;  // Where each string starts
@@ -32,11 +35,11 @@ fn void StringPool.free(&self)
 	self.lookup.free();
 }
 
-fn uint StringPool.intern(StringPool* self, String s)
+fn StringHandle StringPool.intern(StringPool* self, String s)
 {
     if (try existing = self.lookup.get(s)) 
 	{
-		return existing;
+		return (StringHandle)existing;
 	}
 
     uint id = (uint)self.offsets.len();
@@ -45,22 +48,22 @@ fn uint StringPool.intern(StringPool* self, String s)
     self.offsets.push(start_pos);
     self.lengths.push((uint)s.len);
 
-    for (usz i = 0; i < s.len; i++) 
+    for (Size i = 0; i < s.len; i++) 
 	{
         self.data.push(s[i]);
     }
 
     self.lookup.set(s, id);
-    return id;
+    return (StringHandle)id;
 }
 
-/**
- * Recovers the string from the id
- */
-fn String StringPool.get(StringPool* self, uint id)
+<*
+	Get string from id
+*>
+fn String StringPool.get(StringPool* self, StringHandle id)
 {
-    uint start = self.offsets[(usz)id];
-    uint len = self.lengths[(usz)id];
+    uint start = self.offsets[(Size)id];
+    uint len = self.lengths[(Size)id];
     
     // Return a slice of the internal data
     return (String)self.data.array_view()[start:len];
