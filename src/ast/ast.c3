@@ -54,7 +54,10 @@ enum NodeKind : char
 	MODULE_DECL,
     IMPORT_DECL,
 	LOCAL_DECL,
+	CONTRACT_DECL,
 
+	REQUIRE_EXPR,
+	ENSURE_EXPR,
 	TYPE_EXPR,
 	IDENT_EXPR,
     UNARY_EXPR,
@@ -103,23 +106,26 @@ enum NodeKind : char
 struct Ast 
 {
     List{NodeKind} kinds;
-    List{uint}     tokens;
+    List{uint}     start_tokens;
+	List{uint}     end_tokens;
     List{uint}     extra_indices;
     List{uint}     extra_data;
     List{uint}     top_level_nodes; // to track what nodes are "top-level" its really hard without it
 }
 
-fn void init(Ast* ast, usz estimated_size)
+fn void init(Ast* ast, Size estimated_size)
 {
     ast.kinds.tinit(estimated_size);
-    ast.tokens.tinit(estimated_size);
+    ast.start_tokens.tinit(estimated_size);
+    ast.end_tokens.tinit(estimated_size);
     ast.extra_indices.tinit(estimated_size);
     ast.extra_data.tinit(estimated_size * 2); // Usually more extra data than nodes
     ast.top_level_nodes.tinit(estimated_size / 4);
 
 	// push null state at index 0
 	ast.kinds.push(INVALID);
-	ast.tokens.push(0);
+	ast.start_tokens.push(0);
+	ast.end_tokens.push(0);
 	ast.extra_indices.push(0);
 }
 
@@ -127,7 +133,8 @@ fn void init(Ast* ast, usz estimated_size)
 fn void free(Ast* ast)
 {
 	ast.kinds.free();
-	ast.tokens.free();
+	ast.start_tokens.free();
+	ast.end_tokens.free();
 	ast.extra_indices.free();
 	ast.extra_data.free();
     ast.top_level_nodes.free();
@@ -136,13 +143,15 @@ fn void free(Ast* ast)
 fn void Ast.clear(&self) 
 {
 	self.kinds.clear();
-	self.tokens.clear();
+	self.start_tokens.clear();
+	self.end_tokens.clear();
 	self.extra_indices.clear();
 	self.extra_data.clear();
 	self.top_level_nodes.clear();
 
 	self.kinds.push(INVALID);
-	self.tokens.push(0);
+	self.start_tokens.push(0);
+	self.end_tokens.push(0);
 	self.extra_indices.push(0);
 }
 
@@ -160,47 +169,63 @@ fn uint Ast.push_extra(&self, uint value = 0) @inline
 
 fn void Ast.set_extra(&self, uint index, uint value) @inline 
 {
-    self.extra_data[(usz)index] = value;
+    self.extra_data[(Size)index] = value;
 }
 
-fn Node add_node(Ast* ast, NodeKind kind, uint tok, uint extra_idx)
+<*
+	//@require end_tok >= start_tok : "start needs to be less than end"
+*>
+fn Node add_node(Ast* ast, NodeKind kind, uint start_tok, uint end_tok, uint extra_idx)
 {
+	if (start_tok > end_tok)
+	{
+		log::error("add_node: (%s : %s)", start_tok, end_tok);
+		unreachable();
+	}
+
 	Node handle = (Node)ast.kinds.len();
 	ast.kinds.push(kind);
-    ast.tokens.push(tok);
+    ast.start_tokens.push(start_tok);
+	ast.end_tokens.push(end_tok);
     ast.extra_indices.push(extra_idx);
 	return handle;
 }
 
 fn NodeView get_node(Ast* ast, Node handle)
 {
-    assert((usz)handle < ast.kinds.len());
+    assert((Size)handle < ast.kinds.len());
 
     return (NodeView){
-        .kind = ast.kinds[(usz)handle],
-        .token_idx = ast.tokens[(usz)handle],
-        .extra_idx = ast.extra_indices[(usz)handle]
+        .kind = get_kind(ast, handle),
+        .start_token_idx = get_start_token(ast, handle),
+        .end_token_idx = get_end_token(ast, handle),
+        .extra_idx = ast.extra_indices[(Size)handle]
     };
 }
 
 fn void free_node(Ast* ast, Node handle)
 {
-    ast.kinds[(usz)handle] = NodeKind.INVALID;
+    ast.kinds[(Size)handle] = NodeKind.INVALID;
 }
 
-fn uint get_extra(Ast* ast, uint index)
+fn uint get_extra(Ast* ast, uint index) @inline
 {
-    return ast.extra_data[index];
+    return ast.extra_data[(Size)index];
 }
 
-fn NodeKind get_kind(Ast* ast, Node handle)
+fn NodeKind get_kind(Ast* ast, Node handle) @inline
 {
-	return ast.kinds[(usz)handle];
+	return ast.kinds[(Size)handle];
 }
 
-fn uint get_token(Ast* ast, Node handle)
+fn uint get_start_token(Ast* ast, Node handle) @inline
 {
-	return ast.tokens[(usz)handle];
+	return ast.start_tokens[(Size)handle];
+}
+
+fn uint get_end_token(Ast* ast, Node handle) @inline
+{
+	return ast.end_tokens[(Size)handle];
 }
 
 /*

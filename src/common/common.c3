@@ -10,10 +10,19 @@ const uint MAX_INTERFACE_IMPL = 16;
 
 typedef FileID = ushort;
 
-struct Position 
+alias Size @if(env::ARCH_64_BIT) = long;
+alias Size @if(!env::ARCH_64_BIT) = int;
+
+struct Location
 {
-	usz line;
-	usz column;
+	Size line;
+	Size column;
+}
+
+struct Range
+{
+	Size start; 
+	Size end; 
 }
 
 enum AttributeKind 

@@ -4,10 +4,11 @@ import string_pool;
 import c3_parser::common;
 import lexer;
 
-struct NodeView 
+struct NodeView
 {
 	NodeKind kind;
-    uint token_idx; 
+    uint start_token_idx; 
+    uint end_token_idx; 
     uint extra_idx;
 }
 
@@ -17,28 +18,28 @@ struct View
     Node handle;
 }
 
-fn Node View.get_extra_index(self) => (Node)self.ast.extra_indices[(usz)self.handle];
+fn Node View.get_extra_index(self) => (Node)self.ast.extra_indices[(Size)self.handle];
 
 macro View.get(self, $offset)
 {
-    return (Node)self.ast.extra_data[(usz)self.ast.extra_indices[(usz)self.handle] + $offset];
+    return (Node)self.ast.extra_data[(Size)self.ast.extra_indices[(Size)self.handle] + $offset];
 }
 
 macro View.get_uint(self, $offset)
 {
-    return (uint)self.ast.extra_data[(usz)self.ast.extra_indices[(usz)self.handle] + $offset];
+    return (uint)self.ast.extra_data[(Size)self.ast.extra_indices[(Size)self.handle] + $offset];
 }
 
 macro View.get_at(self, $base_offset, index)
 {
-    usz pos = (usz)self.ast.extra_indices[(usz)self.handle] + $base_offset + index;
+    Size pos = (Size)self.ast.extra_indices[(Size)self.handle] + $base_offset + index;
     return (Node)self.ast.extra_data[pos];
 }
 
 // --- General Views ---
 
 typedef ParamView = inline View;
-fn String ParamView.name(ParamView self, StringPool* pool) => pool.get(self.get_uint(0));
+fn String ParamView.name(ParamView self, StringPool* pool) => pool.get((StringHandle)self.get_uint(0));
 fn Node ParamView.type_node(ParamView self) => self.get(1);
 fn Node ParamView.init_expr(ParamView self) => self.get(2);
 fn bool ParamView.is_ref(ParamView self) => self.get_uint(3) != 0;
@@ -51,12 +52,12 @@ fn Node AttributeView.next_attribute(AttributeView self) => self.get(3);
 fn Node AttributeView.get_arg(AttributeView self, uint index) 
 {
     uint base = self.args_offset();
-    return (Node)self.ast.extra_data[(usz)base + index];
+    return (Node)self.ast.extra_data[(Size)base + index];
 }
 
 typedef PathView = inline View;
 fn uint PathView.len(PathView self) => self.get_uint(0);
-fn uint PathView.get_string_handle(PathView self, uint index) => (uint)self.get_at(1, index);
+fn StringHandle PathView.get_string_handle(PathView self, uint index) => (StringHandle)self.get_at(1, index);
 fn String PathView.get_full(self, StringPool* pool) 
 {
 	uint len = self.len();
@@ -64,7 +65,7 @@ fn String PathView.get_full(self, StringPool* pool)
 	String result = "";
 	for (uint i = 0; i < len; i++)
 	{
-		uint sh = self.get_string_handle(i);
+		StringHandle sh = self.get_string_handle((StringHandle)i);
 		result = result.concat(tmem, pool.get(sh)); 
 		
 		if (i < len - 1) {
@@ -75,7 +76,7 @@ fn String PathView.get_full(self, StringPool* pool)
 }	
 fn String PathView.get_text(PathView self, uint index, StringPool* pool) 
 {
-    return pool.get(self.get_string_handle(index));
+    return pool.get((StringHandle)self.get_string_handle(index));
 }
 
 typedef TypeView = inline View;
@@ -83,7 +84,7 @@ typedef TypeView = inline View;
 fn String TypeView.name(TypeView self, StringPool* pool)
 {
 	uint sh = self.get_uint(0);
-	return pool.get(sh);
+	return pool.get((StringHandle)sh);
 }
 
 fn uint TypeView.ptr_count(TypeView self) => self.get_uint(1);
@@ -107,11 +108,12 @@ fn Node ModuleView.generic(self) => self.get(1);
 fn Node ModuleView.attribute(self) => self.get(2);
 
 typedef ImportView = inline View;
-fn Node ImportView.path(ImportView self)  => self.get(0);
+fn Node ImportView.path(self)  => self.get(0);
+fn Node ImportView.attribute(self)  => self.get(1);
 
 typedef FnView = inline View;
 
-fn String FnView.name(FnView self, StringPool* pool) => pool.get(self.get_uint(0));
+fn String FnView.name(FnView self, StringPool* pool) => pool.get((StringHandle)self.get_uint(0));
 fn Node FnView.associated(FnView self)              => self.get(1);
 fn Node FnView.return_type(FnView self)             => self.get(2);
 fn Node FnView.attribute(self)                      => self.get(3);
@@ -120,28 +122,28 @@ fn Node FnView.body(FnView self)                    => self.get(6);
 fn Node FnView.get_param(FnView self, uint index) 
 {
     uint offset = self.get_uint(5); 
-    return (Node)self.ast.extra_data[(usz)offset + index];
+    return (Node)self.ast.extra_data[(Size)offset + index];
 }
 
 /// ---
 
 typedef AliasView = inline View;
-fn String AliasView.name(AliasView self, StringPool* pool) => pool.get(self.get_uint(0));
+fn String AliasView.name(AliasView self, StringPool* pool) => pool.get((StringHandle)self.get_uint(0));
 fn Node AliasView.target_type(AliasView self) => self.get(1);
 
 typedef TypedefView = inline View;
-fn String TypedefView.name(TypedefView self, StringPool* pool) => pool.get(self.get_uint(0));
+fn String TypedefView.name(TypedefView self, StringPool* pool) => pool.get((StringHandle)self.get_uint(0));
 fn Node TypedefView.base_type(TypedefView self) => self.get(1);
 
 typedef VarDeclView = inline View;
-fn String VarDeclView.name(self, StringPool* pool) => pool.get(self.get_uint(0));
+fn String VarDeclView.name(self, StringPool* pool) => pool.get((StringHandle)self.get_uint(0));
 fn Node VarDeclView.type_node(self) => self.get(1);
 fn Node VarDeclView.init_expr(self) => self.get(2);
 fn Node VarDeclView.attribute(self) => self.get(3);
 
 typedef StructView = inline View;
 
-fn String StructView.name(self, StringPool* pool) => pool.get(self.get_uint(0));
+fn String StructView.name(self, StringPool* pool) => pool.get((StringHandle)self.get_uint(0));
 fn uint StructView.field_count(self) => self.get_uint(1);
 fn Node StructView.field(self, uint index)
 {
@@ -149,7 +151,7 @@ fn Node StructView.field(self, uint index)
 }
 
 typedef FieldView = inline View;
-fn String FieldView.name(self, StringPool* pool) => pool.get(self.get_uint(0));
+fn String FieldView.name(self, StringPool* pool) => pool.get((StringHandle)self.get_uint(0));
 fn Node FieldView.type_node(self) => self.get(1);
  
 /// --- STMT ---
@@ -162,7 +164,7 @@ fn Node ReturnView.expr(self) => self.get_extra_index();
 typedef DeferView = inline View;
 fn DeferKind DeferView.kind(self) => (DeferKind)self.get_uint(0);
 fn Node DeferView.stmt(self) => self.get(1);
-fn String DeferView.name(self, StringPool* pool) => pool.get(self.get_uint(2));
+fn String DeferView.name(self, StringPool* pool) => pool.get((StringHandle)self.get_uint(2));
 
 typedef ExprStmtView = inline View;
 fn Node ExprStmtView.expr(self) => self.get_extra_index();
@@ -209,12 +211,12 @@ fn Node IfView.then_block(IfView self) => self.get(1);
 fn Node IfView.else_block(IfView self) => self.get(2);
 
 typedef IdentView = inline View;
-fn String IdentView.name(self, StringPool* pool) => pool.get((uint)self.get_extra_index());
+fn String IdentView.name(self, StringPool* pool) => pool.get((StringHandle)self.get_extra_index());
 
 typedef LiteralView = inline View;
 fn String LiteralView.value(LiteralView self, StringPool* pool) {
-    uint sh = self.ast.extra_indices[(usz)self.handle];
-	return pool.get(sh);
+    uint sh = self.ast.extra_indices[(Size)self.handle];
+	return pool.get((StringHandle)sh);
 }
 
 
