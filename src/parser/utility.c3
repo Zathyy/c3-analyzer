@@ -4,28 +4,7 @@ import std::io;
 import lexer;
 import line_map;
 import c3_parser::ast;
-
-fn String get_line_from_src(String src, LineMap* map, usz line_num)
-{
-    if (line_num == 0 || line_num > map.line_offsets.len()) return "";
-
-    usz start = (usz)map.line_offsets[line_num - 1];
-    usz end;
-
-    if (line_num < map.line_offsets.len())
-    {
-        end = (usz)map.line_offsets[line_num];
-    }
-    else
-    {
-        end = src.len;
-    }
-
-	if (end >= src.len) return "";
-
-    String line = src[start..end];
-    return line.trim_right(); 
-}
+import c3_parser::common;
 
 // Colors for the terminal
 const String ANSI_RED    = "\x1b[31;1m";
@@ -54,15 +33,15 @@ fn void Parser.report(Parser* self, Token token, String level, String color, Str
 {
     Location loc = self.line_map.resolve(token.pos);
 
-    io::printf("%s:%s:%s: %s%s:%s ", self.file_path, loc.line, loc.col, color, level, ANSI_RESET);
+    io::printf("%s:%s:%s: %s%s:%s ", self.file_path, loc.line, loc.column, color, level, ANSI_RESET);
     io::printf(fmt, args);
     io::printn("");
 
-    String line_text = get_line_from_src(self.src, &self.line_map, (usz)loc.line);
+    String line_text = self.line_map.get_line_from_src(self.src, loc.line);
     io::printf(" %4s | %s\n", loc.line, line_text);
 
     io::printf(" %4s | ", "");
-    for (uint i = 1; i < loc.col; i++) 
+    for (uint i = 1; i < loc.column; i++) 
 	{
 		if (line_text[i - 1] == '\t')
 		{
