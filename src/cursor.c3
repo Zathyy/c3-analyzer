@@ -84,6 +84,12 @@ fn bool visit_children(Cursor parent, CursorVisitor visitor, void* data)
 			}
 			break;
 		}
+		case NodeKind.TYPEDEF_DECL:
+		{
+			TypedefView v = { ast, n };
+			if (!visit({ parent.mod, v.base_type() }, parent, visitor, data)) return false;
+			break;
+		}
 		case NodeKind.FN_DECL:
         {
             FnView v = { ast, n };
@@ -128,6 +134,12 @@ fn bool visit_children(Cursor parent, CursorVisitor visitor, void* data)
 			}
             break;
         }
+		case NodeKind.DEFER_STMT:
+		{
+			DeferView v = { ast, n };
+			if (!visit({ parent.mod, v.stmt() }, parent, visitor, data)) return false;
+			break;
+		}
         default:
 			break;
     }
@@ -150,6 +162,45 @@ fn String file_path(Cursor* self)
     }
 
     return "unknown";
+}
+
+<*
+	Get the location in the source for this node
+*>
+fn Location location(Cursor* self)
+{
+	ModuleSection* section = cursor::section(self);
+	if (section == null)
+	{
+		return (Location){
+			.line = 0,
+			.column = 0,
+		};
+	}
+
+	Size pos = ast::get_start_token(&self.mod.ast, self.node);
+	return section.line_map.resolve(pos);
+}
+
+<* 
+	Get the start and end byte offsets for the current node
+*>
+fn Range range(Cursor* self)
+{
+    Ast* ast = &self.mod.ast;
+    return {
+        .start = (Size)ast::get_start_token(ast, self.node),
+        .end = (Size)ast::get_end_token(ast, self.node),
+    };
+}
+
+<* 
+	Checks if a raw byte position is "inside" this nodes source range.
+*>
+fn bool contains(Cursor* self, uint pos)
+{
+    Range r = cursor::range(self);
+    return pos >= r.start && pos <= r.end;
 }
 
 <*
@@ -195,7 +246,45 @@ fn String? spelling(Cursor* self)
 		case NodeKind.TYPE_EXPR:
 		{
 			TypeView v = { ast, self.node };
-			return v.name(self.mod.strings);
+			String base = v.name(self.mod.strings);
+		
+			uint ptrs = v.ptr_count();
+			for (uint i = 0; i < ptrs; i++) 
+			{
+				base = base.tconcat("*");
+			}
+			
+			Node sz_node = v.array_size();
+			if (sz_node.is_valid()) 
+			{
+				if ((uint)sz_node == 0) 
+				{
+					base = base.tconcat("[*]");
+				}
+				 else 
+				{
+					base = string::tformat("[%d]%s", sz_node, base);
+				}
+			}
+
+			uint gens = v.gen_count();
+			if (gens > 0) 
+			{
+				String gen_str = "<";
+				for (uint i = 0; i < gens; i++) 
+				{
+					Node arg = v.get_gen_arg(i);
+					Cursor arg_cursor = { self.mod, arg };
+					String arg_spelling = spelling(&arg_cursor) ?? "";
+					
+					gen_str = gen_str.tconcat(arg_spelling);
+					if (i < gens - 1) gen_str = gen_str.tconcat(", ");
+				}
+				base = base.tconcat(gen_str);
+				base = base.tconcat(">");
+			}
+
+			return base;
 		}
         default:
             return "";
@@ -220,6 +309,7 @@ fn ModuleSection* section(Cursor* self)
         }
     }
 
+	log::warn("No module section found for node: %s", self.node);
     return null;
 }
 
