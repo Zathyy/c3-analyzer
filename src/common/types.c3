@@ -42,8 +42,6 @@ enum TypeInfoKind
 	GENERIC
 }
 
-
-
 enum BuiltinFunction 
 {
 	ABS,
@@ -174,6 +172,3 @@ enum BuiltinFunction
 	LRINT,
 	LROUND,
 }
-
-// structs with <>Type is the resolved type
-// structs with TypeInfo<> is the unresolved type
