@@ -4,7 +4,9 @@ import std::io;
 
 alias MyType = uint;
 
-typedef MyOtherType = bool;
+typedef MyOtherType = bool*****;
+typedef MyThirdType = Bar{ float };
+
 
 tlocal bool my_var;
 
