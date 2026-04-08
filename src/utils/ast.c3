@@ -14,13 +14,21 @@ import c3_parser::common;
 import c3_parser::workspace;
 import c3_parser::cursor;
 
+import std::collections::maybe;
+
 struct JsonNode
 {
     uint id;
     String kind;
-    String name;
-    String[] attributes;
-    JsonNode[] children;
+    
+    String name       @DessertSer({ .skip_if_empty = true });
+    String value      @DessertSer({ .skip_if_empty = true });
+    
+    String op         @DessertSer({ .skip_if_empty = true });
+    String numeric   @DessertSer({ .skip_if_empty = true });
+    
+    String[] attributes @DessertSer({ .skip_if_empty = true });
+    JsonNode[] children @DessertSer({ .skip_if_empty = true });
 }
 
 fn void? JsonNode.serialize(&self, Serializer serializer)
@@ -44,16 +52,32 @@ fn JsonNode build_json_node(Cursor c, Allocator allocator)
     NodeView v = ast::get_node(&c.mod.ast, c.node);
     
     JsonNode dto;
-    dto.kind = v.kind.nameof;
-    dto.name = cursor::spelling(&c) ?? "";
     dto.id = (uint)c.node;
+    dto.kind = v.kind.nameof;
+    
+    String raw = cursor::spelling(&c) ?? "";
+
+    switch (v.kind)
+    {
+        case NodeKind.BINARY_EXPR:
+            dto.op = raw; 
+        case NodeKind.INT_LITERAL:
+        case NodeKind.FLOAT_LITERAL:
+            dto.numeric = raw;
+        case NodeKind.IDENT_EXPR:
+        case NodeKind.FN_DECL:
+        case NodeKind.STRUCT_DECL:
+            dto.name = raw;
+
+        default:
+            dto.name = raw;
+    }
+
     dto.attributes = cursor::get_attribute_names(c, tmem);
 
     List{JsonNode} children_list;
     children_list.tinit(); 
-
     cursor::visit_children(c, (CursorVisitor)&visit_json_node, &children_list);
-
     dto.children = mem::@tclone_slice(children_list.array_view());
     
     return dto;
