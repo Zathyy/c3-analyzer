@@ -84,7 +84,7 @@ fn Node? parse_statement(Parser* p)
 *>
 fn Node? parse_for_stmt(Parser* p)
 {
-    uint for_token = p.pos;
+    uint for_token = p.current_pos();
     expect(p, TokenKind.FOR)!;
 
 	uint label = parse_label(p)!;
@@ -124,12 +124,12 @@ fn Node? parse_for_stmt(Parser* p)
     };
 
     uint ex = ast::push_extra_block(p.ast, &data);
-    return ast::add_node(p.ast, NodeKind.FOR_STMT, for_token, ex);
+    return ast::add_node(p.ast, NodeKind.FOR_STMT, for_token, p.current_pos(), ex);
 }
 
 fn Node? parse_compound(Parser* p)
 {
-    uint lbrace_tok = p.pos;
+    uint lbrace_tok = p.current_pos();
     expect(p, TokenKind.LBRACE)!;
 
 	// we have to use a list here since we have no idea how many statements could be here
@@ -156,7 +156,7 @@ fn Node? parse_compound(Parser* p)
 	stmts[0] = (uint)stmts.len() - 1;
 	uint ex = ast::push_extra_block(p.ast, stmts.array_view());
 
-    return ast::add_node(p.ast, NodeKind.COMPOUND_STMT, lbrace_tok, ex);
+    return ast::add_node(p.ast, NodeKind.COMPOUND_STMT, lbrace_tok, p.current_pos(), ex);
 }
 
 fn Node? parse_decl_stmt(Parser* p)
@@ -182,7 +182,7 @@ fn Node? parse_decl_stmt(Parser* p)
         uint name_sh = p.pool.intern(p.token_text(name_tok));
         uint[*] data = { name_sh, (uint)type_node, (uint)init, (uint)attr };
         uint ex = ast::push_extra_block(p.ast, &data);
-        return ast::add_node(p.ast, NodeKind.LOCAL_DECL, name_tok.pos, ex);
+        return ast::add_node(p.ast, NodeKind.LOCAL_DECL, name_tok.pos, p.current_pos(), ex);
     }
 
     Node expr = parse_expr_resuming_with_left(p, type_node, 0)!;
@@ -197,7 +197,7 @@ fn Node? parse_expr_stmt(Parser* p)
     Node expr = parse_expr(p, 0)!;
     expect(p, TokenKind.EOS)!; // TODO: how should EOS be handled?
 
-    return ast::add_node(p.ast, NodeKind.EXPR_STMT, t.pos, (uint)expr);
+    return ast::add_node(p.ast, NodeKind.EXPR_STMT, t.pos, p.current_pos(), (uint)expr);
 }
 
 fn Node? parse_return(Parser* p)
@@ -213,7 +213,7 @@ fn Node? parse_return(Parser* p)
 
     expect(p, TokenKind.EOS)!;
 
-    return ast::add_node(p.ast, NodeKind.RETURN_STMT, t.pos, (uint)expr);
+    return ast::add_node(p.ast, NodeKind.RETURN_STMT, t.pos, p.current_pos(), (uint)expr);
 }
 
 fn Node? parse_if(Parser* p)
@@ -241,7 +241,7 @@ fn Node? parse_if(Parser* p)
     uint[3] data = { (uint)cond, (uint)then_block, (uint)else_block };
     uint ex = ast::push_extra_block(p.ast, &data);
 
-    return ast::add_node(p.ast, NodeKind.IF_STMT, t.pos, ex);
+    return ast::add_node(p.ast, NodeKind.IF_STMT, t.pos, p.current_pos(), ex);
 }
 
 fn Node? parse_ct_if(Parser* p)
@@ -265,7 +265,7 @@ fn Node? parse_ct_if(Parser* p)
 
 	then_stmts[0] = (uint)then_stmts.len() - 1;
 	uint ex_then = ast::push_extra_block(p.ast, then_stmts.array_view());
-	Node then_block = ast::add_node(p.ast, NodeKind.BLOCK, t.pos, ex_then);
+	Node then_block = ast::add_node(p.ast, NodeKind.BLOCK, t.pos, p.current_pos(), ex_then);
 
 	Node else_block;
    	if (consume(p, TokenKind.CT_ELSE)!)
@@ -282,7 +282,7 @@ fn Node? parse_ct_if(Parser* p)
 
 		else_stmts[0] = (uint)else_stmts.len() - 1;
 		uint ex = ast::push_extra_block(p.ast, else_stmts.array_view());
-        else_block = ast::add_node(p.ast, NodeKind.BLOCK, t.pos, ex);
+        else_block = ast::add_node(p.ast, NodeKind.BLOCK, t.pos, p.current_pos(), ex);
     }
 
 	expect(p, TokenKind.CT_ENDIF)!;
@@ -294,7 +294,7 @@ fn Node? parse_ct_if(Parser* p)
 
     uint[3] data = { (uint)condition, (uint)then_block, (uint)else_block };
     uint ex = ast::push_extra_block(p.ast, &data);
-    return ast::add_node(p.ast, NodeKind.CT_IF_STMT, t.pos, ex);
+    return ast::add_node(p.ast, NodeKind.CT_IF_STMT, t.pos, p.current_pos(), ex);
 }
 
 fn Node? parse_nextcase(Parser* p)
@@ -304,7 +304,7 @@ fn Node? parse_nextcase(Parser* p)
     
     expect(p, TokenKind.EOS)!;
     
-    return ast::add_node(p.ast, NodeKind.NEXTCASE_STMT, t.pos, 0);
+    return ast::add_node(p.ast, NodeKind.NEXTCASE_STMT, t.pos, p.current_pos(), 0);
 }
 
 fn Node? parse_continue_stmt(Parser* p)
@@ -316,7 +316,7 @@ fn Node? parse_continue_stmt(Parser* p)
     
     expect(p, TokenKind.EOS)!;
     
-    return ast::add_node(p.ast, NodeKind.CONTINUE_STMT, t.pos, label);
+    return ast::add_node(p.ast, NodeKind.CONTINUE_STMT, t.pos, p.current_pos(), label);
 }
 
 fn Node? parse_switch(Parser* p)
@@ -343,7 +343,7 @@ fn Node? parse_switch(Parser* p)
     expect(p, TokenKind.RBRACE)!;
 
 	uint ex = ast::push_extra_block(p.ast, cases.array_view());
-    return ast::add_node(p.ast, NodeKind.SWITCH_STMT, t.pos, ex);
+    return ast::add_node(p.ast, NodeKind.SWITCH_STMT, t.pos, p.current_pos(), ex);
 }
 
 fn Node? parse_switch_case(Parser* p)
@@ -361,13 +361,13 @@ fn Node? parse_switch_case(Parser* p)
         }
 
 		uint[*] data = { (uint)label, (uint)body };
-        return ast::add_node(p.ast, NodeKind.CASE_STMT, t.pos, (uint)body);
+        return ast::add_node(p.ast, NodeKind.CASE_STMT, t.pos, p.current_pos(), (uint)body);
     }
     else if (consume(p, TokenKind.DEFAULT)!)
     {
         expect(p, TokenKind.COLON)!;
         Node body = parse_statement(p)!;
-        return ast::add_node(p.ast, NodeKind.DEFAULT_STMT, t.pos, (uint)body);
+        return ast::add_node(p.ast, NodeKind.DEFAULT_STMT, t.pos, p.current_pos(), (uint)body);
     }
     
     return parse_statement(p)!;
@@ -380,7 +380,7 @@ fn Node? parse_break(Parser* p)
     
     expect(p, TokenKind.EOS)!;
     
-    return ast::add_node(p.ast, NodeKind.BREAK_STMT, t.pos, 0);
+    return ast::add_node(p.ast, NodeKind.BREAK_STMT, t.pos, p.current_pos(), 0);
 }
 
 fn Node? parse_ct_switch(Parser* p)
@@ -419,7 +419,7 @@ fn Node? parse_ct_switch(Parser* p)
 
     uint[2] data = { (uint)condition, (uint)ast::push_extra_block(p.ast, cases.array_view()) };
     uint ex = ast::push_extra_block(p.ast, &data);
-    return ast::add_node(p.ast, NodeKind.CT_SWITCH_STMT, t.pos, ex);
+    return ast::add_node(p.ast, NodeKind.CT_SWITCH_STMT, t.pos, p.current_pos(), ex);
 }
 
 fn Node? parse_ct_case(Parser* p)
@@ -450,7 +450,7 @@ fn Node? parse_ct_case(Parser* p)
 
     uint[2] data = { (uint)label, (uint)ast::push_extra_block(p.ast, body.array_view()) };
     uint ex = ast::push_extra_block(p.ast, &data);
-    return ast::add_node(p.ast, NodeKind.CT_CASE_STMT, t.pos, ex);
+    return ast::add_node(p.ast, NodeKind.CT_CASE_STMT, t.pos, p.current_pos(), ex);
 }
 
 fn Node? parse_do_while(Parser* p)
@@ -474,12 +474,12 @@ fn Node? parse_do_while(Parser* p)
 
     uint[2] data = { (uint)body, (uint)cond };
     uint ex = ast::push_extra_block(p.ast, &data);
-    return ast::add_node(p.ast, NodeKind.DO_WHILE_STMT, t.pos, ex);
+    return ast::add_node(p.ast, NodeKind.DO_WHILE_STMT, t.pos, p.current_pos(), ex);
 }
 
 fn Node? parse_foreach_var(Parser* p) 
 {
-    uint start_tok = p.pos;
+    uint start_tok = p.current_pos();
     Node var_type = 0;
     bool is_ref = false;
 
@@ -500,12 +500,12 @@ fn Node? parse_foreach_var(Parser* p)
     uint[3] data = { (uint)var_type, name, is_ref ? 1 : 0 };
     uint ex = ast::push_extra_block(p.ast, &data);
     
-    return ast::add_node(p.ast, NodeKind.FOREACH_VAR, t.pos, ex);
+    return ast::add_node(p.ast, NodeKind.FOREACH_VAR, t.pos, p.current_pos(), ex);
 }
 
 fn Node? parse_foreach(Parser* p)
 {
-    uint start_tok = p.pos;
+    uint start_tok = p.current_pos();
     bool is_reverse = consume(p, TokenKind.FOREACH_R)!;
     if (!is_reverse) expect(p, TokenKind.FOREACH)!;
 
@@ -547,12 +547,12 @@ fn Node? parse_foreach(Parser* p)
 	};
     uint ex = ast::push_extra_block(p.ast, &data);
     
-    return ast::add_node(p.ast, is_reverse ? NodeKind.FOREACH_R_STMT : NodeKind.FOREACH_STMT, start_tok, ex);
+    return ast::add_node(p.ast, is_reverse ? NodeKind.FOREACH_R_STMT : NodeKind.FOREACH_STMT, start_tok, p.current_pos(), ex);
 }
 
 fn Node? parse_while_stmt(Parser* p)
 {
-	uint start_tok = p.pos;
+	uint start_tok = p.current_pos();
     expect(p, TokenKind.WHILE)!;
 
 	uint label;
@@ -569,12 +569,12 @@ fn Node? parse_while_stmt(Parser* p)
     
     uint[*] data = { label, (uint)condition, (uint)body };
     uint ex = ast::push_extra_block(p.ast, &data);
-    return ast::add_node(p.ast, NodeKind.WHILE_STMT, start_tok, ex);
+    return ast::add_node(p.ast, NodeKind.WHILE_STMT, start_tok, p.current_pos(), ex);
 }
 
 fn Node? parse_defer(Parser* p)
 {
-    uint start_tok = p.pos;
+    uint start_tok = p.current_pos();
     expect(p, TokenKind.DEFER)!;
 
     DeferKind kind = DeferKind.NORMAL;
@@ -613,5 +613,5 @@ fn Node? parse_defer(Parser* p)
     uint[3] data = { (uint)kind, (uint)stmt, var_name };
     uint ex = ast::push_extra_block(p.ast, &data);
 
-    return ast::add_node(p.ast, NodeKind.DEFER_STMT, start_tok, ex);
+    return ast::add_node(p.ast, NodeKind.DEFER_STMT, start_tok, p.current_pos(), ex);
 }

@@ -166,16 +166,15 @@ fn Node? parse_prefix_expr(Parser* p)
 
             if (next.kind == TokenKind.CONST_IDENT)
             {
-                return ast::add_node(p.ast, NodeKind.COMPILER_CONST_EXPR, t.pos, ex);
+                return ast::add_node(p.ast, NodeKind.COMPILER_CONST_EXPR, t.pos, p.current_pos(), ex);
             }
             
-            return ast::add_node(p.ast, NodeKind.BUILTIN_EXPR, t.pos, ex);
+            return ast::add_node(p.ast, NodeKind.BUILTIN_EXPR, t.pos, p.current_pos(), ex);
 		}
 		case TokenKind.NULL:
 		{
-			uint pos = t.pos;
 			advance(p)!;
-			return ast::add_node(p.ast, NodeKind.NULL_LITERAL, pos, 0); 
+			return ast::add_node(p.ast, NodeKind.NULL_LITERAL, t.pos, t.pos, 0); 
 		}
 		case TokenKind.IDENT:
 		case TokenKind.CONST_IDENT:
@@ -198,35 +197,35 @@ fn Node? parse_prefix_expr(Parser* p)
 
             advance(p)!;
             uint sh = p.pool.intern(p.token_text(t));
-            return ast::add_node(p.ast, NodeKind.IDENT_EXPR, t.pos, sh);
+            return ast::add_node(p.ast, NodeKind.IDENT_EXPR, t.pos, p.current_pos(), sh);
         }
 		// getting the actual literal value is up to the semantic analysis
 		case TokenKind.STRING:
 			String text = p.token_text(t);
 			uint sh = p.pool.intern(text);
 			advance(p)!;
-            return ast::add_node(p.ast, NodeKind.STRING_LITERAL, t.pos, sh);
+            return ast::add_node(p.ast, NodeKind.STRING_LITERAL, t.pos, p.current_pos(), sh);
 		case TokenKind.TRUE:
         {
             advance(p)!;
-            return ast::add_node(p.ast, NodeKind.BOOL_LITERAL, t.pos, 1);
+            return ast::add_node(p.ast, NodeKind.BOOL_LITERAL, t.pos, p.current_pos(), 1);
         }
         case TokenKind.FALSE:
         {
             advance(p)!;
-            return ast::add_node(p.ast, NodeKind.BOOL_LITERAL, t.pos, 0);
+            return ast::add_node(p.ast, NodeKind.BOOL_LITERAL, t.pos, p.current_pos(), 0);
         }
 		case TokenKind.REAL:
 			String text = p.token_text(t);
 			uint sh = p.pool.intern(text);
 			advance(p)!;
-            return ast::add_node(p.ast, NodeKind.FLOAT_LITERAL, t.pos, sh);
+            return ast::add_node(p.ast, NodeKind.FLOAT_LITERAL, t.pos, p.current_pos(), sh);
 
         case TokenKind.INTEGER:
 			String text = p.token_text(t);
 			uint sh = p.pool.intern(text);
 			advance(p)!;
-            return ast::add_node(p.ast, NodeKind.INT_LITERAL, t.pos, sh);
+            return ast::add_node(p.ast, NodeKind.INT_LITERAL, t.pos, p.current_pos(), sh);
 		case TokenKind.BANG:
         case TokenKind.MINUS:
 		case TokenKind.BIT_NOT:
@@ -237,7 +236,7 @@ fn Node? parse_prefix_expr(Parser* p)
 
 			uint[2] data = { (uint)t.kind, (uint)rhs };
 			uint ex = ast::push_extra_block(p.ast, &data);
-			return ast::add_node(p.ast, NodeKind.UNARY_EXPR, t.pos, ex);
+			return ast::add_node(p.ast, NodeKind.UNARY_EXPR, t.pos, p.current_pos(), ex);
 
         case TokenKind.LPAREN:
 			// Check if cast: (Type)operand
@@ -252,7 +251,7 @@ fn Node? parse_prefix_expr(Parser* p)
                 uint[2] data = { (uint)type, (uint)operand };
                 uint ex = ast::push_extra_block(p.ast, &data);
                 
-                return ast::add_node(p.ast, NodeKind.CAST_EXPR, t.pos, ex);
+                return ast::add_node(p.ast, NodeKind.CAST_EXPR, t.pos, p.current_pos(), ex);
             }
             // Grouped expression: (1 + 2)
             advance(p)!; // consume '('
@@ -270,7 +269,7 @@ fn Node? parse_prefix_expr(Parser* p)
 			Node expr_inside = parse_expr(p)!; 
 			expect(p, TokenKind.RPAREN)!;
 
-			return ast::add_node(p.ast, NodeKind.TYPE_EXPR, t.pos, (uint)expr_inside);
+			return ast::add_node(p.ast, NodeKind.TYPE_EXPR, t.pos, p.current_pos(), (uint)expr_inside);
 		}
 		case TokenKind.LBRACE:
 			return parse_initializer_list(p)!;
@@ -285,7 +284,7 @@ fn Node? parse_prefix_expr(Parser* p)
 			};
 			
 			uint ex = ast::push_extra_block(p.ast, &data);
-			return ast::add_node(p.ast, NodeKind.PRE_UNARY_EXPR, t.pos, ex);
+			return ast::add_node(p.ast, NodeKind.PRE_UNARY_EXPR, t.pos, p.current_pos(), ex);
 		}
         default:
             log::error("parse_prefix_expr - Expected expression for token: (%s - %s)", p.token_text(p.current()), p.current().kind);
@@ -338,7 +337,7 @@ fn Node? parse_infix(Parser* p, Node left, Precedence rbp)
             
             uint[3] data = { (uint)left, (uint)right, (uint)t.kind };
             uint ex = ast::push_extra_block(p.ast, &data);
-            return ast::add_node(p.ast, NodeKind.BINARY_EXPR, t.pos, ex);
+            return ast::add_node(p.ast, NodeKind.BINARY_EXPR, t.pos, p.current_pos(), ex);
         }
 		case TokenKind.PLUSPLUS:
 		case TokenKind.MINUSMINUS:
@@ -352,7 +351,7 @@ fn Node? parse_infix(Parser* p, Node left, Precedence rbp)
 			};
 			
 			uint ex = ast::push_extra_block(p.ast, &data);
-			return ast::add_node(p.ast, NodeKind.POST_UNARY_EXPR, t.pos, ex);
+			return ast::add_node(p.ast, NodeKind.POST_UNARY_EXPR, t.pos, p.current_pos(), ex);
 		}
         case TokenKind.LPAREN: 
         {
@@ -376,11 +375,11 @@ fn Node? parse_infix(Parser* p, Node left, Precedence rbp)
             advance(p)!;
 
             uint sh = p.pool.intern(p.token_text(member_token));
-            Node member_node = ast::add_node(p.ast, NodeKind.IDENT_EXPR, member_token.pos, sh);
+            Node member_node = ast::add_node(p.ast, NodeKind.IDENT_EXPR, member_token.pos, p.current_pos(), sh);
 
             uint[2] data = { (uint)left, (uint)member_node };
             uint ex = ast::push_extra_block(p.ast, &data);
-            return ast::add_node(p.ast, NodeKind.ACCESS_EXPR, t.pos, ex);        
+            return ast::add_node(p.ast, NodeKind.ACCESS_EXPR, t.pos, p.current_pos(), ex);        
         }
         case TokenKind.BIT_NOT:
         {
@@ -390,7 +389,7 @@ fn Node? parse_infix(Parser* p, Node left, Precedence rbp)
                 p.error("Expected a fault before '~'");
                 return UNEXPECTED_TOKEN~;
             }
-            return ast::add_node(p.ast, NodeKind.OPTIONAL_EXPR, t.pos, (uint)left);
+            return ast::add_node(p.ast, NodeKind.OPTIONAL_EXPR, t.pos, p.current_pos(), (uint)left);
         }
         case TokenKind.LBRACKET: 
         {
@@ -434,7 +433,7 @@ fn Node? parse_expr(Parser* p, Precedence min_bp = LOWEST)
 		Node attr = parse_attributes(p)!;
         uint[2] data = { (uint)left, (uint)attr };
         uint ex = ast::push_extra_block(p.ast, &data);
-        left = ast::add_node(p.ast, NodeKind.ATTRIBUTED_EXPR, p.current().pos, ex);
+        left = ast::add_node(p.ast, NodeKind.ATTRIBUTED_EXPR, p.current().pos, p.current_pos(), ex);
 	}
 
     return left;
@@ -466,7 +465,7 @@ fn Node? parse_ternary(Parser* p, Node condition, Token t, Precedence rbp)
 
     uint[3] data = { (uint)condition, (uint)then_expr, (uint)else_expr };
     uint ex = ast::push_extra_block(p.ast, &data);
-    return ast::add_node(p.ast, NodeKind.TERNARY_EXPR, t.pos, ex);
+    return ast::add_node(p.ast, NodeKind.TERNARY_EXPR, t.pos, p.current_pos(), ex);
 }
 
 <*
@@ -498,7 +497,7 @@ fn Node? parse_call(Parser* p, Token t, Node callee)
                 
                 uint[2] data = { name, (uint)value };
                 uint ex = ast::push_extra_block(p.ast, &data);
-                arg_node = ast::add_node(p.ast, NodeKind.NAMED_ARG_EXPR, name_tok.pos, ex);
+                arg_node = ast::add_node(p.ast, NodeKind.NAMED_ARG_EXPR, name_tok.pos, p.current_pos(), ex);
 			}
 			else
 			{
@@ -518,18 +517,18 @@ fn Node? parse_call(Parser* p, Token t, Node callee)
 
     uint ex = ast::push_extra_block(p.ast, args.array_view());
 
-    return ast::add_node(p.ast, NodeKind.CALL_EXPR, t.pos, ex);
+    return ast::add_node(p.ast, NodeKind.CALL_EXPR, t.pos, p.current_pos(), ex);
 }
 
 fn Node? parse_initializer_list(Parser* p)
 {
-    uint start_tok = p.pos;
+    uint start_tok = p.current_pos();
     expect(p, TokenKind.LBRACE)!;
 
 	// Handle empty initializer {}
     if (consume(p, TokenKind.RBRACE)!)
     {
-        return ast::add_node(p.ast, NodeKind.INITIALIZER_LIST, start_tok, 0);
+        return ast::add_node(p.ast, NodeKind.INITIALIZER_LIST, start_tok, p.current_pos(), 0);
     }
 
     List{uint} exprs;
@@ -553,7 +552,7 @@ fn Node? parse_initializer_list(Parser* p)
             
             uint[2] data = { member_name, (uint)val };
             uint ex = ast::push_extra_block(p.ast, &data);
-            expr = ast::add_node(p.ast, NodeKind.DESIGNATED_INITIALIZER_LIST, member.pos, ex);
+            expr = ast::add_node(p.ast, NodeKind.DESIGNATED_INITIALIZER_LIST, member.pos, p.current_pos(), ex);
         }
         else if (p.is(TokenKind.LBRACE))
         {
@@ -575,7 +574,7 @@ fn Node? parse_initializer_list(Parser* p)
     exprs[0] = (uint)exprs.len() - 1;
     uint ex = ast::push_extra_block(p.ast, exprs.array_view());
     
-    return ast::add_node(p.ast, NodeKind.INITIALIZER_LIST, start_tok, ex);
+    return ast::add_node(p.ast, NodeKind.INITIALIZER_LIST, start_tok, p.current_pos(), ex);
 }
 
 fn Node? parse_range(Parser* p, Node left, uint start_pos)
@@ -596,7 +595,7 @@ fn Node? parse_range(Parser* p, Node left, uint start_pos)
             Node inner = parse_expr(p, Precedence.CALL)!; 
             uint[2] data = { (uint)TokenKind.BIT_XOR, (uint)inner };
             uint ex = ast::push_extra_block(p.ast, &data);
-            end = ast::add_node(p.ast, NodeKind.PREFIX_EXPR, p.current().pos, ex);
+            end = ast::add_node(p.ast, NodeKind.PREFIX_EXPR, p.current().pos, p.current_pos(), ex);
         }
         else
         {
@@ -611,7 +610,7 @@ fn Node? parse_range(Parser* p, Node left, uint start_pos)
             Node inner = parse_expr(p, Precedence.CALL)!; 
             uint[2] data = { (uint)TokenKind.BIT_XOR, (uint)inner };
             uint ex = ast::push_extra_block(p.ast, &data);
-            start = ast::add_node(p.ast, NodeKind.PREFIX_EXPR, p.current().pos, ex);
+            start = ast::add_node(p.ast, NodeKind.PREFIX_EXPR, p.current().pos, p.current_pos(), ex);
         }
         else
         {
@@ -632,7 +631,7 @@ fn Node? parse_range(Parser* p, Node left, uint start_pos)
                     Node inner = parse_expr(p, Precedence.CALL)!; 
                     uint[2] data = { (uint)TokenKind.BIT_XOR, (uint)inner };
                     uint ex = ast::push_extra_block(p.ast, &data);
-                    end = ast::add_node(p.ast, NodeKind.PREFIX_EXPR, p.current().pos, ex);
+                    end = ast::add_node(p.ast, NodeKind.PREFIX_EXPR, p.current().pos, p.current_pos(), ex);
                 }
                 else
                 {
@@ -648,14 +647,14 @@ fn Node? parse_range(Parser* p, Node left, uint start_pos)
     {
         uint[2] slice_data = { (uint)start, (uint)end };
         uint slice_ex = ast::push_extra_block(p.ast, &slice_data);
-        Node slice_node = ast::add_node(p.ast, NodeKind.SLICE_EXPR, start_pos, slice_ex);
+        Node slice_node = ast::add_node(p.ast, NodeKind.SLICE_EXPR, start_pos, p.current_pos(), slice_ex);
 
         uint[2] access_data = { (uint)left, (uint)slice_node };
         uint access_ex = ast::push_extra_block(p.ast, &access_data);
-        return ast::add_node(p.ast, NodeKind.INDEX_EXPR, start_pos, access_ex);
+        return ast::add_node(p.ast, NodeKind.INDEX_EXPR, start_pos, p.current_pos(), access_ex);
     }
 
     uint[2] data = { (uint)left, (uint)start };
     uint ex = ast::push_extra_block(p.ast, &data);
-    return ast::add_node(p.ast, NodeKind.INDEX_EXPR, start_pos, ex);
+    return ast::add_node(p.ast, NodeKind.INDEX_EXPR, start_pos, p.current_pos(), ex);
 }

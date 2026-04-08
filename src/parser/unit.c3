@@ -22,7 +22,7 @@ fn Node? parse_path(Parser* p)
 		return INVALID_PATH~;
 	}
 
-    uint start_tok = p.pos;
+    uint start_tok = p.current_pos();
     uint[PATH_MAX_LENGTH] stack_parts; 
     uint count = 0;
 
@@ -53,7 +53,7 @@ fn Node? parse_path(Parser* p)
         final_block[i + 1] = stack_parts[i];
     }
     uint ex = ast::push_extra_block(p.ast, &final_block);
-    return ast::add_node(p.ast, NodeKind.PATH, start_tok, ex);
+    return ast::add_node(p.ast, NodeKind.PATH, start_tok, p.current_pos(), ex);
 }
 
 <*
@@ -68,7 +68,7 @@ fn Node? parse_path_prefix(Parser* p)
 		return INVALID_PATH~;
 	}
 
-    uint start_tok = p.pos;
+    uint start_tok = p.current_pos();
     uint[PATH_MAX_LENGTH] stack_parts; 
     uint count = 0;
 
@@ -106,7 +106,7 @@ fn Node? parse_path_prefix(Parser* p)
         final_block[i + 1] = stack_parts[i];
     }
     uint ex = ast::push_extra_block(p.ast, &final_block);
-    return ast::add_node(p.ast, NodeKind.PATH, start_tok, ex);
+    return ast::add_node(p.ast, NodeKind.PATH, start_tok, p.current_pos(), ex);
 }
 
 <*
@@ -114,7 +114,7 @@ fn Node? parse_path_prefix(Parser* p)
 *>
 fn Node? parse_type(Parser* p, ParseFlags parse_flags = {})
 {
-    uint start_tok = p.pos;
+    uint start_tok = p.current_pos();
 	Token current = p.current();
 	TypeDescriptor desc;
 	TypeFlags flags;
@@ -224,7 +224,7 @@ fn Node? parse_type(Parser* p, ParseFlags parse_flags = {})
     }
 
     uint ex = ast::push_extra_block(p.ast, &final_block);
-    Node new_node = ast::add_node(p.ast, NodeKind.TYPE_EXPR, start_tok, ex);
+    Node new_node = ast::add_node(p.ast, NodeKind.TYPE_EXPR, start_tok, p.current_pos(), ex);
 
 	return new_node;
 }
@@ -318,7 +318,7 @@ fn Node? parse_interface_impl(Parser* p)
 	}
 
     uint ex = ast::push_extra_block(p.ast, &final_block);
-    return ast::add_node(p.ast, NodeKind.INTERFACE_IMPL, start_pos, ex);
+    return ast::add_node(p.ast, NodeKind.INTERFACE_IMPL, start_pos, p.current_pos(), ex);
 }
 
 <*
@@ -341,7 +341,7 @@ fn Node? parse_attributes(Parser* p)
         Token t = p.current();
         if (t.kind != TokenKind.AT_IDENT && t.kind != TokenKind.AT_TYPE_IDENT) break;
 
-        uint start_tok = p.pos;
+        uint start_tok = p.current_pos();
         String attr_name = p.token_text(t);
         advance(p)!;
 
@@ -366,11 +366,11 @@ fn Node? parse_attributes(Parser* p)
                         expect(p, TokenKind.RBRACKET)!;
                         if (consume(p, TokenKind.EQ)!) 
                         {
-                            expr = ast::add_node(p.ast, NodeKind.OP_OVERLOAD, curr.pos, (uint)OverloadKind.ELEMENT_SET);
+                            expr = ast::add_node(p.ast, NodeKind.OP_OVERLOAD, curr.pos, p.current_pos(), (uint)OverloadKind.ELEMENT_SET);
                         }
                         else
                         {
-                            expr = ast::add_node(p.ast, NodeKind.OP_OVERLOAD, curr.pos, (uint)OverloadKind.ELEMENT_AT);
+                            expr = ast::add_node(p.ast, NodeKind.OP_OVERLOAD, curr.pos, p.current_pos(), (uint)OverloadKind.ELEMENT_AT);
                         }
                         break;
                     case TokenKind.AMP: // Handles &[]
@@ -379,12 +379,12 @@ fn Node? parse_attributes(Parser* p)
                             advance(p)!; // &
                             advance(p)!; // [
                             expect(p, TokenKind.RBRACKET)!;
-                            expr = ast::add_node(p.ast, NodeKind.OP_OVERLOAD, curr.pos, (uint)OverloadKind.ELEMENT_REF);
+                            expr = ast::add_node(p.ast, NodeKind.OP_OVERLOAD, curr.pos, p.current_pos(), (uint)OverloadKind.ELEMENT_REF);
                         } 
                         else
                         {
                             advance(p)!;
-                            expr = ast::add_node(p.ast, NodeKind.OP_OVERLOAD, curr.pos, (uint)get_overload_from_token(curr.kind));
+                            expr = ast::add_node(p.ast, NodeKind.OP_OVERLOAD, curr.pos, p.current_pos(), (uint)get_overload_from_token(curr.kind));
                         }
                         break;
                     case TokenKind.PLUS: 
@@ -413,7 +413,7 @@ fn Node? parse_attributes(Parser* p)
                         if (p.peek(1).kind == TokenKind.RPAREN || p.peek(1).kind == TokenKind.COMMA) 
                         {
                             OverloadKind overload_kind = get_overload_from_token(curr.kind);
-                            expr = ast::add_node(p.ast, NodeKind.OP_OVERLOAD, curr.pos, (uint)overload_kind);
+                            expr = ast::add_node(p.ast, NodeKind.OP_OVERLOAD, curr.pos, p.current_pos(), (uint)overload_kind);
                             advance(p)!;
                         } 
                         else
@@ -446,7 +446,7 @@ fn Node? parse_attributes(Parser* p)
             (uint)head
         };
         uint ex = ast::push_extra_block(p.ast, &attr_block);
-        head = ast::add_node(p.ast, NodeKind.ATTRIBUTE, start_tok, ex);
+        head = ast::add_node(p.ast, NodeKind.ATTRIBUTE, start_tok, p.current_pos(), ex);
     }
 
     return head;
@@ -480,7 +480,7 @@ fn Node? parse_generics(Parser* p)
         };
 
         uint ex = ast::push_extra_block(p.ast, &generic_block);
-        head = ast::add_node(p.ast, NodeKind.GENERIC_PARAM, t.pos, ex);
+        head = ast::add_node(p.ast, NodeKind.GENERIC_PARAM, t.pos, p.current_pos(), ex);
 
         if (!consume(p, TokenKind.COMMA)!) break;
         if (p.is(TokenKind.GREATER)) break;
@@ -500,7 +500,7 @@ fn Node? parse_generics(Parser* p)
  */
 fn Node? parse_var_decl(Parser* p, ParseFlags flags)
 {
-    uint start_pos = p.pos;
+    uint start_pos = p.current_pos();
 
 	if (flags.is_local)
 	{
@@ -565,13 +565,15 @@ fn Node? parse_var_decl(Parser* p, ParseFlags flags)
         p.error("Constants must be initialized at declaration");
     }
 
+	uint end_tok = p.current_pos();
+
     expect(p, TokenKind.EOS)!;
 
     uint[*] data = { name, (uint)type_node, (uint)init_expr, (uint)attr };
     uint ex = ast::push_extra_block(p.ast, &data);
 
-    if (flags.is_const)  return ast::add_node(p.ast, NodeKind.CONST_DECL, start_pos, ex);
-    if (flags.is_global) return ast::add_node(p.ast, NodeKind.GLOBAL_DECL, start_pos, ex);
+    if (flags.is_const)  return ast::add_node(p.ast, NodeKind.CONST_DECL, start_pos, end_tok, ex);
+    if (flags.is_global) return ast::add_node(p.ast, NodeKind.GLOBAL_DECL, start_pos, end_tok, ex);
     
-    return ast::add_node(p.ast, NodeKind.VAR_DECL, start_pos, ex);
+    return ast::add_node(p.ast, NodeKind.VAR_DECL, start_pos, end_tok, ex);
 }
