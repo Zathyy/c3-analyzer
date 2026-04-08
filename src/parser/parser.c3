@@ -51,7 +51,7 @@ bitstruct ParseFlags : uint
 
 struct Parser
 {
-	LineMap line_map;
+	LineMap* line_map;
 	StringPool* pool;
 	Ast* ast;
 	Module* mod;
@@ -72,7 +72,7 @@ fn void? synchronize(Parser* p)
     while (!p.eof())
     {
         Token t = p.current();
-        Location loc = p.line_map.resolve((usz)t.pos);
+        Location loc = p.line_map.resolve((Size)t.pos);
 
         // Track depth to ensure we aren't inside a body
         if (t.kind == TokenKind.LBRACE) brace_depth++;
@@ -81,7 +81,7 @@ fn void? synchronize(Parser* p)
 			brace_depth = (brace_depth > 0) ? brace_depth - 1 : 0;
 		} 
 
-        if (brace_depth <= 0 && loc.col == 1)
+        if (brace_depth <= 0 && loc.column == 1)
         {
             switch (t.kind)
             {
@@ -129,8 +129,18 @@ fn Token Parser.current(&self) @inline
 
 fn Token Parser.peek(&self, uint pos = 1) @inline
 {
-	assert((usz)(self.pos + pos) < self.tokens.len);
-	return self.tokens[self.pos + pos];
+	assert((Size)self.pos + pos < self.tokens.len);
+	return self.tokens[(Size)self.pos + pos];
+}
+
+fn uint Parser.current_pos(Parser* self) @inline
+{
+    return self.current().pos; 
+}
+
+fn uint Parser.previous_pos(Parser* self) @inline
+{
+	return self.tokens[(Size)self.pos - 1].pos;
 }
 
 fn void Parser.print_current(&self)
@@ -196,12 +206,12 @@ fn String Parser.current_text(Parser* self) @inline
 
 fn String peek_module_name(Parser* p)
 {
-    for (usz i = 0; i < p.tokens.len; i++)
+    for (Size i = 0; i < p.tokens.len; i++)
     {
         if (p.tokens[i].kind == TokenKind.MODULE)
         {
             // Start collecting the name after the 'module' keyword
-            usz j = i + 1;
+            Size j = i + 1;
             String full_name = "";
 
             while (j < p.tokens.len)
@@ -262,15 +272,14 @@ fn void? parse_file(Workspace* ws, String path)
 		log::debug("Added token: <%s> - %s", token.kind, parser.token_text(token));
 	}
 	parser.tokens = tokens.array_view();
-	parser.line_map.build(src);
 
 	String mod_name = peek_module_name(&parser);
-    
     if (mod_name == "") 
 	{
         mod_name = path_to_module_name(path)!;
         log::info("Inferred module: %s", mod_name);
     }
+
 	Module* mod = workspace::get_or_create_module(ws, mod_name);
 	parser.mod = mod;
 	parser.ast = &mod.ast;
@@ -279,6 +288,9 @@ fn void? parse_file(Workspace* ws, String path)
 
 	ModuleSection* section = workspace::get_or_create_section(mod, path);
 	assert(section != null);
+
+	parser.line_map = &section.line_map;
+	parser.line_map.build(src);
 
 	while (!parser.eof())
 	{
@@ -308,6 +320,8 @@ fn void? parse_file(Workspace* ws, String path)
 			section.node_count += (end_idx - start_idx);
 		}
 	}
+
+	log::info("Succesfully parsed: %s", path);
 }
 
 fn String? path_to_module_name(String path)
@@ -367,7 +381,7 @@ fn void? parse_top_level(Parser* p, Workspace* ws)
 		advance(p)!;
 		while (true)
 		{
-			uint start = p.pos;
+			uint start = p.current_pos();
 
 			Node? path_node = parse_path(p);
 			if (catch err = path_node)
@@ -380,7 +394,7 @@ fn void? parse_top_level(Parser* p, Workspace* ws)
 
 			uint[*] data = { (uint)path_node, (uint)attr };
 			uint ex = ast::push_extra_block(p.ast, &data);
-			Node imp_node = ast::add_node(p.ast, NodeKind.IMPORT_DECL, start, ex);
+			Node imp_node = ast::add_node(p.ast, NodeKind.IMPORT_DECL, start, p.current_pos(), ex);
 			p.ast.top_level_nodes.push((uint)imp_node);
 			if (!consume(p, TokenKind.COMMA)!) break;
 		}

@@ -2,6 +2,7 @@ module c3_parser::workspace;
 
 import c3_parser::common;
 import string_pool;
+import line_map;
 
 import std::collections::map;
 import std::collections::list;
@@ -16,6 +17,8 @@ faultdef
 struct ModuleSection
 {
     String file_path;
+	String source;
+	LineMap line_map;
 	uint start_node_idx;
     uint node_count;
 	Node header_node;
