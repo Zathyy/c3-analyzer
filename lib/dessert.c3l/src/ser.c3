@@ -19,7 +19,7 @@ interface Serializer {
 
   fn void? serialize_uint(uint i) @optional;
   fn void? serialize_ushort(ushort s) @optional;
-  fn void? serialize_ulong(ulong l) @optional;
+  fn void? serialize_ulong(ulong l);
   fn void? serialize_uint128(uint128 i) @optional;
 
   fn void? serialize_string(String s);
@@ -59,16 +59,13 @@ macro serialize(serializer, value) {
   attributes:
   - rename
   - skip
+  - skip_if_empty
   - aliases
   - default
   - validator
 */
 
-macro impl_serialize(s, serializer) {
-  $if $typeof(serializer) != Serializer:
-    $error "The serializer must be of type Serializer.";
-  $endif
-
+macro impl_serialize(s, Serializer serializer) {
   $if $typeof(s).kindof != POINTER:
     $error "The first parameter must be a &self pointer.";
   $endif
@@ -90,20 +87,52 @@ macro impl_serialize(s, serializer) {
               return VALIDATOR_ERROR~;
             }
           $endif
-          serializer.serialize_field_start(
-            $dessert.rename.len > 0 ??? $dessert.rename : $member.nameof
-          )!;
-          serialize_value(serializer, s.$eval($member.nameof), $dessert)!;
-          serializer.serialize_field_end()!;
+          $if $dessert.skip_if_empty:
+            if (!@is_empty(s.$eval($member.nameof))) {
+              serializer.serialize_field_start(
+                $dessert.rename.len > 0 ??? $dessert.rename : $member.nameof
+              )!;
+              serialize_value(serializer, s.$eval($member.nameof), $dessert)!;
+              serializer.serialize_field_end()!;
+            }
+          $else
+            serializer.serialize_field_start(
+              $dessert.rename.len > 0 ??? $dessert.rename : $member.nameof
+            )!;
+            serialize_value(serializer, s.$eval($member.nameof), $dessert)!;
+            serializer.serialize_field_end()!;
+          $endif
         $endif
       $endforeach
       serializer.struct_end()!;
   $endswitch
 }
 
+macro @is_empty(#value) {
+  $switch:
+    $case $defined(#value.len) &&& $defined(#value[0]):
+      return #value.len == 0;
+    $case utils::@is_maybe_expr(#value):
+      var inner = #value.get();
+      if (catch inner) {
+        return true;
+      } else {
+        return false;
+      }
+    $case $typeof(#value).kindof == POINTER:
+      return #value == null;
+  $endswitch
+}
+
 macro serialize_value(serializer, value, $config) {
   $switch:
     $case $defined(value.serialize) &&& $defined(value.serialize(serializer)):
+      $if $typeof(value).kindof == POINTER:
+       if (value == null) {
+         serializer.serialize_null()!;
+         return;
+       }
+      $endif
       value.serialize(serializer)!;
 
     $case utils::@is_maybe_expr(value):
@@ -158,6 +187,6 @@ macro impl_serialize_enum(s, serializer) @local {
 
 macro @is_serializable(#value) {
   return $defined(#value.serialize) ||| ($defined(#value.len) &&& $defined(#value[0])) ||| 
-    utils::@is_maybe(#value);
+    utils::@is_maybe_expr(#value);
 }
 

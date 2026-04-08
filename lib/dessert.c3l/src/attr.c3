@@ -8,6 +8,7 @@ enum DessertEnum {
 
 struct Dessert {
   bool skip;
+  bool skip_if_empty;
   String rename;
   String[] aliases;
   String validator;

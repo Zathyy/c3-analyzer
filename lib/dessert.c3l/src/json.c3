@@ -27,6 +27,28 @@ struct JsonValue (Printable) {
   JsonValueKind kind;
 }
 
+fn void JsonValue.free(self) {
+  switch(self.kind) {
+    case NULL:
+    case INT:
+    case FLOAT:
+    case BOOL:
+    case STRING:
+      break;
+    case ARRAY:
+      foreach (item : self.value.l) {
+        item.free();
+      }
+      self.value.l.free();
+    case DICT:
+      self.value.d.@each_entry(; entry) {
+        entry.value.free();
+      };
+      self.value.d.free();
+  }
+
+}
+
 fn void? JsonValue.print(self) {
   switch(self.kind) {
     case NULL:
@@ -120,6 +142,7 @@ fn String? JsonValue.to_string(self) {
 fn String to_pretty_string(JsonValue self, int indent = 2, int depth = 0) @private {
   DString pad;
   pad.init(mem);
+  defer pad.free();
   pad.append_repeat(' ', (usz) (indent * depth));
 
   DString inner_pad;
@@ -454,9 +477,17 @@ fn double? JsonDeserializer.next_double(&self) @dynamic {
   };
 }
 
-fn int? JsonDeserializer.next_int(&self) @dynamic {
-  return (int) self.next_double()!;
+fn char? JsonDeserializer.next_char(&self) @dynamic {
+  return (char) self.next_char()!;
 }
+
+fn long? JsonDeserializer.next_long(&self) @dynamic {
+  return (long) self.next_double()!;
+}
+fn ulong? JsonDeserializer.next_ulong(&self) @dynamic {
+  return (ulong) self.next_double()!;
+}
+
 fn bool? JsonDeserializer.next_bool(&self) @dynamic {
   self.skip_whitespace()!;
   Char32 next = self.input.next()!;
