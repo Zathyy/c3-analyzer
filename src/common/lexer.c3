@@ -864,6 +864,57 @@ fn TokenKind Lexer.categorize_identifier(Lexer* self, String text)
     return TokenKind.IDENT;
 }
 
+struct ContractLexer
+{
+	Lexer lexer;
+	String description;
+}
+
+<*
+	@require contract.len >= 4 : "Contract must contain at least 4 chars"
+*>
+fn void ContractLexer.init(&self, String contract)
+{   
+    // Strip the decorators <* and *>
+    String inner = contract[2:^2];
+    
+    usz i = 0;
+    bool line_start = true;
+    usz first_at_index = inner.len;
+
+    // Scan for the first '@' that starts a line
+    while (i < inner.len)
+    {
+        char c = inner[i];
+        
+        if (c == '@' && line_start)
+        {
+            first_at_index = i;
+            break; 
+        }
+
+        if (c == '\n') 
+		{
+            line_start = true;
+        }
+		else if (!char.is_blank(c)) 
+		{
+            line_start = false;
+        }
+        
+        i++;
+    }
+
+    self.description = inner[0:first_at_index].trim();
+    
+    self.lexer = {
+        .buffer = inner[first_at_index..],
+        .index = 0
+    };
+}
+
+fn Token? ContractLexer.next(&self) => self.lexer.next();
+
 fn void test_lexer() @test 
 {
 	String src = "module foo; \nfn void bar() {}";
