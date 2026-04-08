@@ -49,6 +49,7 @@ fn bool visit(Cursor child, Cursor parent, CursorVisitor visitor, void* data)
 <*
 	Visit children
 	returns false if a break was requested
+	@require parent.mod != null
 	@param parent : "The Cursor to visit children on"
 	@param visitor : "visitor function that will be invoked for all children of 'parent'"
 	@param data : "user data to be passed around"
@@ -147,6 +148,43 @@ fn bool visit_children(Cursor parent, CursorVisitor visitor, void* data)
 	return true;
 }
 
+struct FindData @private
+{
+    Cursor best_match;
+    uint target_pos;
+}
+
+fn ChildVisitResult find_at_visitor(Cursor c, Cursor p, void* data) @private
+{
+    FindData* fd = (FindData*)data;
+
+    if (cursor::contains(&c, fd.target_pos))
+    {
+        fd.best_match = c;
+        return ChildVisitResult.RECURSE;
+    }
+
+    return ChildVisitResult.CONTINUE;
+}
+
+<* 
+	Finds the deepest (most specific) node at the given byte position.
+	@param pos : "byte offset"
+*>
+fn Cursor find_at(Module* mod, uint pos)
+{
+    FindData fd = { .target_pos = pos, .best_match = { mod, (Node)0 } };
+
+    // Walk the top-level declarations
+    foreach (node_handle : mod.ast.top_level_nodes)
+    {
+        Cursor root = { mod, (Node)node_handle };
+        if (!visit(root, {mod, (Node)0}, find_at_visitor, &fd)) break;
+    }
+
+    return fd.best_match;
+}
+
 <*
 	Gets the file the cursor is associated with.
 *>
@@ -162,6 +200,22 @@ fn String file_path(Cursor* self)
     }
 
     return "unknown";
+}
+
+<*
+    Returns the actual source code text associated with this cursor.
+*>
+fn String source_text(Cursor* self)
+{
+    ModuleSection* s = cursor::section(self);
+    if (s == null || s.source.len == 0) return "";
+
+    Range r = self.range();
+    
+    uint start = r.start < s.source.len ? r.start : 0;
+    uint end = r.end <= s.source.len ? r.end : start;
+
+    return s.source[start:end];
 }
 
 <*

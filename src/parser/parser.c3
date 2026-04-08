@@ -288,7 +288,7 @@ fn void? parse_file(Workspace* ws, String path)
 
 	ModuleSection* section = workspace::get_or_create_section(mod, path);
 	assert(section != null);
-
+	section.source = src;
 	parser.line_map = &section.line_map;
 	parser.line_map.build(src);
 
