@@ -1,16 +1,11 @@
 module line_map;
 
 import std::collections::list;
-
-struct Location
-{
-	usz line; 
-	usz col; 
-}
+import c3_parser::common;
 
 struct LineMap
 {
-    List{usz} line_offsets;
+    List{Size} line_offsets;
 }
 
 fn void LineMap.init(LineMap* map, Allocator alloc = tmem)
@@ -32,7 +27,7 @@ fn void LineMap.build(LineMap* self, String src)
 
     self.line_offsets.push(0);
 
-    for (usz i = 0; i < src.len; i++)
+    for (Size i = 0; i < src.len; i++)
     {
         if (src[i] == '\n')
         {
@@ -42,16 +37,16 @@ fn void LineMap.build(LineMap* self, String src)
     }
 }
 
-fn Location LineMap.resolve(LineMap* self, usz pos)
+fn Location LineMap.resolve(LineMap* self, Size pos)
 {
     // Binary search for the line index
-    usz line_idx = 0;
-    usz low = 0;
-    usz high = self.line_offsets.len() - 1;
+    Size line_idx = 0;
+    Size low = 0;
+    Size high = self.line_offsets.len() - 1;
 
     while (low <= high)
     {
-        usz mid = low + (high - low) / 2;
+        Size mid = low + (high - low) / 2;
         if (self.line_offsets[mid] <= pos)
         {
             line_idx = mid;
@@ -64,9 +59,31 @@ fn Location LineMap.resolve(LineMap* self, usz pos)
     }
 
     // Line is 1-based, Col is 1-based
-    usz line_start_offset = self.line_offsets[line_idx];
+    Size line_start_offset = self.line_offsets[line_idx];
     return (Location){
         .line = line_idx + 1,
-        .col = (pos - line_start_offset) + 1
+        .column = (pos - line_start_offset) + 1
     };
+}
+
+fn String LineMap.get_line_from_src(&self, String src, Size line_num)
+{
+    if (line_num == 0 || line_num > self.line_offsets.len()) return "";
+
+    Size start = (Size)self.line_offsets[line_num - 1];
+    Size end;
+
+    if (line_num < self.line_offsets.len())
+    {
+        end = (Size)self.line_offsets[line_num];
+    }
+    else
+    {
+        end = src.len;
+    }
+
+	if (end >= src.len) return "";
+
+    String line = src[start..end];
+    return line.trim_right(); 
 }
