@@ -108,6 +108,19 @@ fn bool visit_children(Cursor parent, CursorVisitor visitor, void* data)
 			}
             break;
         }
+        case NodeKind.PARAM_DECL:
+        {
+            ParamView v = { ast, n };
+            if (v.type_node().is_valid())
+            {
+                if (!visit({ parent.mod, v.type_node() }, parent, visitor, data)) return false;
+            }
+            if (v.init_expr().is_valid())
+            {
+                if (!visit({ parent.mod, v.init_expr() }, parent, visitor, data)) return false;
+            }
+            break;
+        }
         case NodeKind.BINARY_EXPR:
         {
             BinaryView v = { ast, n };
@@ -141,6 +154,12 @@ fn bool visit_children(Cursor parent, CursorVisitor visitor, void* data)
 			if (!visit({ parent.mod, v.stmt() }, parent, visitor, data)) return false;
 			break;
 		}
+        case NodeKind.EXPR_STMT:
+        {
+            ExprStmtView v = { ast, n };
+			if (!visit({ parent.mod, v.expr() }, parent, visitor, data)) return false;
+            break;
+        }
         default:
 			break;
     }
@@ -169,17 +188,17 @@ fn ChildVisitResult find_at_visitor(Cursor c, Cursor p, void* data) @private
 
 <* 
 	Finds the deepest (most specific) node at the given byte position.
+	@param [&inout] mod  : ""
 	@param pos : "byte offset"
 *>
 fn Cursor find_at(Module* mod, uint pos)
 {
-    FindData fd = { .target_pos = pos, .best_match = { mod, (Node)0 } };
+    FindData fd = { .target_pos = pos, .best_match = { mod, 0 } };
 
-    // Walk the top-level declarations
     foreach (node_handle : mod.ast.top_level_nodes)
     {
         Cursor root = { mod, (Node)node_handle };
-        if (!visit(root, {mod, (Node)0}, find_at_visitor, &fd)) break;
+        if (!visit(root, {mod, 0}, (CursorVisitor)&find_at_visitor, &fd)) break;
     }
 
     return fd.best_match;
@@ -191,9 +210,11 @@ fn Cursor find_at(Module* mod, uint pos)
 fn String file_path(Cursor* self)
 {
     uint idx = (uint)self.node;
+    if (idx == 0) return "Invalid";
+
     foreach (section : self.mod.sections)
     {
-        if (idx >= section.start_node_idx && idx < section.start_node_idx + section.node_count)
+        if (idx >= section.start_node_idx && idx < section.end_node_idx)
         {
             return section.file_path;
         }
@@ -207,15 +228,12 @@ fn String file_path(Cursor* self)
 *>
 fn String source_text(Cursor* self)
 {
-    ModuleSection* s = cursor::section(self);
-    if (s == null || s.source.len == 0) return "";
+	if (!self.node.is_valid()) return "";
+    ModuleSection* section = cursor::section(self);
+    if (section == null || section.source.len == 0) return "";
 
-    Range r = self.range();
-    
-    uint start = r.start < s.source.len ? r.start : 0;
-    uint end = r.end <= s.source.len ? r.end : start;
-
-    return s.source[start:end];
+    Range range = cursor::range(self);
+    return section.source[range.start .. range.end];
 }
 
 <*
@@ -290,7 +308,11 @@ fn String? spelling(Cursor* self)
         case NodeKind.STRUCT_DECL:
 			StructView v = { ast, self.node };
 			return v.name(self.mod.strings);
-
+        case NodeKind.OP_OVERLOAD:
+        {
+            View v = { ast, self.node };
+            return ((OverloadKind)v.get_uint(0)).nameof; 
+        }
         case NodeKind.BINARY_EXPR:
             BinaryView v = { ast, self.node };
             return v.op().nameof;
@@ -357,8 +379,9 @@ fn ModuleSection* section(Cursor* self)
 
     foreach (section : self.mod.sections)
     {
-        if (idx >= section.start_node_idx && idx < section.start_node_idx + section.node_count)
+        if (idx >= section.start_node_idx && idx < section.end_node_idx)
         {
+            assert(section.parent_module == self.mod);
             return section;
         }
     }
@@ -389,8 +412,8 @@ fn Node module_decl(Cursor* self)
         return s.header_node;
     }
 
-    for (uint i = 0; i < s.node_count; i++)
-    {
+	for (uint i = s.start_node_idx; i < s.end_node_idx; i++)
+	{
         Node n = (Node)(s.start_node_idx + i); 
         if (ast::get_kind(&self.mod.ast, n) == NodeKind.MODULE_DECL)
         {
@@ -401,71 +424,65 @@ fn Node module_decl(Cursor* self)
     return (Node){};
 }
 
+<*
+    get all attributes as a slices from the source file
+*>
 fn String[] get_attribute_names(Cursor c, Allocator allocator)
 {
 	if (!c.node.is_valid()) return {};
 
-    Node[] attr_nodes = get_attributes(c, allocator);
-    if (attr_nodes.len == 0) return {};
+    Node[] attributes = cursor::get_attributes(c, tmem);
+    String[] strings = alloc::new_array(tmem, String, attributes.len);
 
-    String[] names = alloc::new_array(allocator, String, attr_nodes.len);
+	for (Size i = 0; i < attributes.len; i++)
+	{
+		strings[i] = cursor::get_attribute_full_string(c, attributes[i], tmem);
+	}
 
-    foreach (i, node_handle : attr_nodes)
-    {
-		// node_handle = 0 should be impossible here.
-		assert(node_handle.is_valid());
-        AttributeView av = { &c.mod.ast, node_handle };
-        names[i] = av.kind().nameof;
-    }
+    return strings;
+}
 
-    return names;
+<*
+    Returns the full string representation of an attribute node 
+    (e.g., "extern(name)") using the source range.
+*>
+fn String get_attribute_full_string(Cursor c, Node attr_node, Allocator allocator)
+{
+    Cursor attr = { c.mod, attr_node };
+    return cursor::source_text(&attr);
 }
 
 <*
 	Resolves all attributes for any given cursor.	
-	Returns an empty slice if the node cannot have attributes or has none.
+	Returns an empty slice if the node cannot have attributes or has none
 *>
 fn Node[] get_attributes(Cursor c, Allocator allocator)
 {
-    NodeView v = ast::get_node(&c.mod.ast, c.node);
-	Node head;
+    if (!c.node.is_valid()) return {};
 
-    switch (v.kind)
+    uint offset = 0;
+    NodeKind kind = ast::get_kind(&c.mod.ast, c.node);
+
+    switch (kind)
     {
-		case MODULE_DECL:
-		{
-			ModuleView mv = { &c.mod.ast, c.node };
-			head = mv.attribute();
-			break;
-		}
-        case FN_DECL:
-		{
-			FnView fv = { &c.mod.ast, c.node };
-			head = fv.attribute();
-			break;
-		}
-        case GLOBAL_DECL:
-		case CONST_DECL:
-		case VAR_DECL:
-            VarDeclView gv = { &c.mod.ast, c.node };
-            head = gv.attribute();
-        
-        default: break;
+        case NodeKind.FN_DECL:
+            FnView v = { &c.mod.ast, c.node };
+            offset = v.attributes();
+            break;
+        default:
+            return {};
     }
 
-    if (!head.is_valid()) return {};
-    Node[common::MAX_ATTRIBUTES] attr;
-	uint count = 0;
+    if (offset == 0) return {};
 
-    while (count < common::MAX_ATTRIBUTES)
+    uint count = c.mod.ast.extra_data[offset];
+    if (count == 0) return {};
+
+    Node[] result = alloc::new_array(allocator, Node, (Size)count);
+    for (uint i = 0; i < count; i++)
     {
-		if (!head.is_valid()) break;
-        attr[count++] = head;
-        AttributeView av = { &c.mod.ast, head };
-		Node next = av.next_attribute();
-		if (next == head) break;
-		head = next;
- 	}
+        result[i] = (Node)c.mod.ast.extra_data[(Size)offset + 1 + i];
+    }
 
-    return mem::@tclone_slice(attr[0:count]);
+    return result;
 }
