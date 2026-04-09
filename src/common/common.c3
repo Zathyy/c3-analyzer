@@ -21,7 +21,7 @@ struct Location
 
 struct Range
 {
-	Size start; 
+	Size start;
 	Size end; 
 }
 

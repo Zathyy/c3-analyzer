@@ -66,6 +66,26 @@ fn Location LineMap.resolve(LineMap* self, Size pos)
     };
 }
 
+fn uint LineMap.get_offset(LineMap* self, String src, Location loc)
+{
+    Size line_idx = loc.line - 1;
+    if (line_idx >= self.line_offsets.len()) return (uint)src.len;
+
+    Size line_start = self.line_offsets[line_idx];
+    
+    // Find where this line actually ends (\n or EOF)
+    Size next_line_start = (line_idx + 1 < self.line_offsets.len()) 
+        ? self.line_offsets[line_idx + 1] 
+        : src.len;
+    
+    Size offset = line_start + (loc.column - 1);
+
+    // Clamp to the end of the current line so we don't bleed into the next one
+    if (offset >= next_line_start) return (uint)next_line_start - 1;
+    
+    return (uint)offset;
+}
+
 fn String LineMap.get_line_from_src(&self, String src, Size line_num)
 {
     if (line_num == 0 || line_num > self.line_offsets.len()) return "";
