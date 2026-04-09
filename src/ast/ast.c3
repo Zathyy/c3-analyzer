@@ -173,16 +173,10 @@ fn void Ast.set_extra(&self, uint index, uint value) @inline
 }
 
 <*
-	//@require end_tok >= start_tok : "start needs to be less than end"
+	@require end_tok >= start_tok : "start needs to be less than end"
 *>
 fn Node add_node(Ast* ast, NodeKind kind, uint start_tok, uint end_tok, uint extra_idx)
 {
-	if (start_tok > end_tok)
-	{
-		log::error("add_node: (%s : %s)", start_tok, end_tok);
-		unreachable();
-	}
-
 	Node handle = (Node)ast.kinds.len();
 	ast.kinds.push(kind);
     ast.start_tokens.push(start_tok);
