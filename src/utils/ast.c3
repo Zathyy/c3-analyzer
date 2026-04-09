@@ -72,8 +72,8 @@ fn JsonNode build_json_node(Cursor c, Allocator allocator)
         default:
             dto.name = raw;
     }
-
-    dto.attributes = cursor::get_attribute_names(c, tmem);
+	
+	dto.attributes = cursor::get_attribute_names(c, allocator);
 
     List{JsonNode} children_list;
     children_list.tinit(); 
@@ -183,6 +183,9 @@ fn void? dump_workspace_json(Workspace* ws, String base_path) => @pool()
         {
             Cursor c = { mod, (Node)root_node };
             root_nodes.push(build_json_node(c, tmem));
+
+			
+			log::info(cursor::source_text(&c));
         }
 
         ModuleExport export_data = {
