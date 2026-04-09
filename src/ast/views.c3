@@ -45,12 +45,14 @@ fn Node ParamView.init_expr(ParamView self) => self.get(2);
 fn bool ParamView.is_ref(ParamView self) => self.get_uint(3) != 0;
 
 typedef AttributeView = inline View;
+
 fn AttributeKind AttributeView.kind(AttributeView self) => (AttributeKind)self.get_uint(0);
-fn uint AttributeView.args_offset(AttributeView self) => self.get_uint(1);
-fn uint AttributeView.arg_count(AttributeView self) => self.get_uint(2);
-fn Node AttributeView.next_attribute(AttributeView self) => self.get(3);
+fn uint AttributeView.args_offset(AttributeView self)  => self.get_uint(1);
+fn uint AttributeView.arg_count(AttributeView self)    => self.get_uint(2);
+
 fn Node AttributeView.get_arg(AttributeView self, uint index) 
 {
+	assert(index < self.arg_count(), "Attribute argument index out of bounds");
     uint base = self.args_offset();
     return (Node)self.ast.extra_data[(Size)base + index];
 }
@@ -114,15 +116,20 @@ fn Node ImportView.attribute(self)  => self.get(1);
 typedef FnView = inline View;
 
 fn String FnView.name(FnView self, StringPool* pool) => pool.get((StringHandle)self.get_uint(0));
-fn Node FnView.associated(FnView self)              => self.get(1);
-fn Node FnView.return_type(FnView self)             => self.get(2);
-fn Node FnView.attribute(self)                      => self.get(3);
-fn uint FnView.param_count(FnView self)             => self.get_uint(4);
-fn Node FnView.body(FnView self)                    => self.get(6);
+fn Node FnView.associated(FnView self)               => self.get(1);
+fn Node FnView.return_type(FnView self)              => self.get(2);
+fn uint FnView.attributes(self)                      => self.get_uint(3);
+fn Node FnView.body(FnView self)                     => self.get(5);
+fn uint FnView.param_count(FnView self)
+{
+	uint offset = self.get_uint(4);
+	return self.ast.extra_data[(Size)offset];
+}
 fn Node FnView.get_param(FnView self, uint index) 
 {
-    uint offset = self.get_uint(5); 
-    return (Node)self.ast.extra_data[(Size)offset + index];
+    uint offset = self.get_uint(4);
+	// the param block is (count, params...) so thats why + 1
+    return (Node)self.ast.extra_data[(Size)offset + 1 + index];
 }
 
 /// ---
