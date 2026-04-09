@@ -292,10 +292,10 @@ fn void? parse_file(Workspace* ws, String path)
 	parser.line_map = &section.line_map;
 	parser.line_map.build(src);
 
+	section.start_node_idx = (uint)mod.ast.len();
+
 	while (!parser.eof())
 	{
-		uint start_idx = (uint)mod.ast.len();
-
 		if (catch err = parse_top_level(&parser, ws))
 		{	
 			if (err == io::EOF)
@@ -307,20 +307,9 @@ fn void? parse_file(Workspace* ws, String path)
 			synchronize(&parser)!;
 			continue;
 		}
-
-		uint end_idx = (uint)mod.ast.len();
-		if (end_idx > start_idx) 
-		{
-			Node latest_node = (Node)mod.ast.kinds[start_idx];
-
-			if (!section.header_node.is_valid())
-			{
-				section.header_node = latest_node;
-			}
-			section.node_count += (end_idx - start_idx);
-		}
 	}
 
+	section.end_node_idx = (uint)mod.ast.len();
 	log::info("Succesfully parsed: %s", path);
 }
 
@@ -390,9 +379,9 @@ fn void? parse_top_level(Parser* p, Workspace* ws)
 				return err~;
 			}
 
-			Node attr = parse_attributes(p)!;
+			uint attr = parse_attributes(p)!;
 
-			uint[*] data = { (uint)path_node, (uint)attr };
+			uint[*] data = { (uint)path_node, attr };
 			uint ex = ast::push_extra_block(p.ast, &data);
 			Node imp_node = ast::add_node(p.ast, NodeKind.IMPORT_DECL, start, p.current_pos(), ex);
 			p.ast.top_level_nodes.push((uint)imp_node);
