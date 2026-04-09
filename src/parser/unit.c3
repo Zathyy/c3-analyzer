@@ -230,38 +230,35 @@ fn Node? parse_type(Parser* p, ParseFlags parse_flags = {})
 }
 
 <*
-	Parses Parameters into a "Linked-List"
+	Parses Parameters
 
 	@param [&inout] p
-	@param [&inout] out_count : "number of params found"
+	@returns "Extra data index"
 *>
-fn Node? parse_parameter_list(Parser* p, uint* out_count)
+fn uint? parse_parameter_list(Parser* p)
 {
     expect(p, TokenKind.LPAREN)!;
     
-    *out_count = 0;
-    Node first_param = {};
+    List{uint} params;
+    params.tinit(); 
+	params.push(0); // count
 
     while (!p.is(TokenKind.RPAREN) && !p.eof())
     {
         Node param = parse_param_decl(p)!;
-        
-        if (*out_count == 0) first_param = param;
-        (*out_count)++;
+        params.push((uint)param);
 
-        if (p.is(TokenKind.COMMA))
-        {
-            advance(p)!;
-        }
-        else if (!p.is(TokenKind.RPAREN))
-        {
-            p.error("Expected ',' or ')' in parameter list");
-            return UNEXPECTED_TOKEN~;
+        if (consume(p, TokenKind.COMMA)!) continue;
+        if (!p.is(TokenKind.RPAREN)) {
+            p.error("Expected ')'");
+            return 0;
         }
     }
-
     expect(p, TokenKind.RPAREN)!;
-    return first_param;
+
+	params[0] = (uint)params.len() - 1;
+
+    return ast::push_extra_block(p.ast, params.array_view());
 }
 
 <*
@@ -322,25 +319,21 @@ fn Node? parse_interface_impl(Parser* p)
 }
 
 <*
-	parse attributes as a "Linked-list"
+	parse attributes
 	@param [&inout] p
-	@reutrn "first node in the list" 
+	@reutrn "extra index" 
 *>
-fn Node? parse_attributes(Parser* p)
+fn uint? parse_attributes(Parser* p)
 {
-    if (!p.is(TokenKind.AT_IDENT) && !p.is(TokenKind.AT_CONST_IDENT) && !p.is(TokenKind.AT_TYPE_IDENT))
-    {
-        return {};
-    }
+    if (!p.is(TokenKind.AT_IDENT) && !p.is(TokenKind.AT_TYPE_IDENT)) return 0;
 
-    // The "Next" pointer for the linked list
-    Node head;
+    List{Node} attr_nodes;
+    attr_nodes.tinit();
+    attr_nodes.push(0); // count
 
-    while (true)
+    while (p.is(TokenKind.AT_IDENT) || p.is(TokenKind.AT_TYPE_IDENT))
     {
         Token t = p.current();
-        if (t.kind != TokenKind.AT_IDENT && t.kind != TokenKind.AT_TYPE_IDENT) break;
-
         uint start_tok = p.current_pos();
         String attr_name = p.token_text(t);
         advance(p)!;
@@ -352,14 +345,13 @@ fn Node? parse_attributes(Parser* p)
         {
             List{uint} args;
             args.tinit(4);
-            defer args.free();
 
-            while (true)
+            while (!p.eof())
             {
                 Node expr = 0;
                 Token curr = p.current();
-
-                switch (curr.kind)
+                
+				switch (curr.kind)
                 {
                     case TokenKind.LBRACKET: // Handles [] and []=
                         advance(p)!;
@@ -426,7 +418,7 @@ fn Node? parse_attributes(Parser* p)
                         expr = parse_expr(p, 0)!;
                         break;
                 }
-
+                
                 if (expr) args.push((uint)expr);
                 if (consume(p, TokenKind.RPAREN)!) break;
                 expect(p, TokenKind.COMMA)!;
@@ -435,21 +427,21 @@ fn Node? parse_attributes(Parser* p)
             arg_count = (uint)args.len();
             args_ex = ast::push_extra_block(p.ast, args.array_view());
         }
-		
-		uint attr_kind_val = (uint)common::get_attribute_from_string(attr_name);
-		io::printfn("Storing Attribute: %s as ID: %d", attr_name, attr_kind_val);
 
         uint[*] attr_block = {
             (uint)common::get_attribute_from_string(attr_name),
             args_ex,
-            arg_count,
-            (uint)head
+            arg_count
         };
+        
         uint ex = ast::push_extra_block(p.ast, &attr_block);
-        head = ast::add_node(p.ast, NodeKind.ATTRIBUTE, start_tok, p.current_pos(), ex);
+        Node attr_node = ast::add_node(p.ast, NodeKind.ATTRIBUTE, start_tok, p.previous_pos(), ex);
+        
+        attr_nodes.push(attr_node);
     }
 
-    return head;
+    attr_nodes[0] = (Node)attr_nodes.len() - 1;
+    return ast::push_extra_block(p.ast, (uint[])attr_nodes.array_view());
 }
 
 <*
@@ -546,7 +538,7 @@ fn Node? parse_var_decl(Parser* p, ParseFlags flags)
     uint name = p.pool.intern(p.token_text(p.current()));
     advance(p)!;
 
-	Node attr = parse_attributes(p)!;
+	uint attr = parse_attributes(p)!;
 
     Node init_expr = 0;
     if (consume(p, TokenKind.EQ)!)
@@ -569,7 +561,7 @@ fn Node? parse_var_decl(Parser* p, ParseFlags flags)
 
     expect(p, TokenKind.EOS)!;
 
-    uint[*] data = { name, (uint)type_node, (uint)init_expr, (uint)attr };
+    uint[*] data = { name, (uint)type_node, (uint)init_expr, attr };
     uint ex = ast::push_extra_block(p.ast, &data);
 
     if (flags.is_const)  return ast::add_node(p.ast, NodeKind.CONST_DECL, start_pos, end_tok, ex);

@@ -175,12 +175,12 @@ fn Node? parse_decl_stmt(Parser* p)
             init = parse_expr(p, 0)!;
         }
 		
-		Node attr = parse_attributes(p)!;
+		uint attr = parse_attributes(p)!;
 
         expect(p, TokenKind.EOS)!;
 
         uint name_sh = p.pool.intern(p.token_text(name_tok));
-        uint[*] data = { name_sh, (uint)type_node, (uint)init, (uint)attr };
+        uint[*] data = { name_sh, (uint)type_node, (uint)init, attr };
         uint ex = ast::push_extra_block(p.ast, &data);
         return ast::add_node(p.ast, NodeKind.LOCAL_DECL, name_tok.pos, p.current_pos(), ex);
     }
