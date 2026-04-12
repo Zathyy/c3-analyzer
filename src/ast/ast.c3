@@ -185,6 +185,15 @@ fn Node add_node(Ast* ast, NodeKind kind, uint start_tok, uint end_tok, uint ext
 	return handle;
 }
 
+fn void Ast.update_node(&self, Node handle, uint start_tok, uint end_tok, uint new_extra_idx)
+{
+    assert((Size)handle < self.kinds.len());
+    
+    self.start_tokens[(Size)handle] = start_tok;
+    self.end_tokens[(Size)handle] = end_tok;
+    self.extra_indices[(Size)handle] = new_extra_idx;
+}
+
 fn NodeView get_node(Ast* ast, Node handle)
 {
     assert((Size)handle < ast.kinds.len());
