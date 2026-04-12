@@ -61,6 +61,7 @@ fn bool visit_children(Cursor parent, CursorVisitor visitor, void* data)
 	if (!n.is_valid()) return true;
 	NodeKind kind = ast::get_node(ast, n).kind;
 
+    //TODO: more cases
     switch (kind)
     {
 		case NodeKind.MODULE_DECL:
@@ -234,6 +235,14 @@ fn String source_text(Cursor* self)
 
     Range range = cursor::range(self);
     return section.source[range.start .. range.end];
+}
+
+<*
+	find the associate comments/docs for specified cursor
+*>
+fn String docs(Cursor self)
+{
+	unreachable("TODO!");
 }
 
 <*
