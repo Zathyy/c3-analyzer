@@ -18,6 +18,11 @@ fn void LineMap.free(LineMap* map)
 	map.line_offsets.free();
 }
 
+fn void LineMap.clear(LineMap* self)
+{
+	self.line_offsets.clear();
+}
+
 fn void LineMap.build(LineMap* self, String src)
 {	
 	if (!self.line_offsets.is_initialized())
