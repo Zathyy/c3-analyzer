@@ -102,7 +102,7 @@ fn String? JsonValue.to_string(self) {
     case BOOL:
       return string::format(mem, "%s", self.value.b);
     case STRING:
-      return string::format(mem, "\"%s\"", self.value.s);
+      return string::format(mem, "\"%s\"", self.value.s.replace(mem, "\"", "\\\""));
     case ARRAY:
       DString s;
       s.init(mem);
@@ -124,7 +124,7 @@ fn String? JsonValue.to_string(self) {
       
       int i = 0;
       self.value.d.@each_entry(; entry) {
-        s.append(string::format(mem, "\"%s\": ", entry.key));
+        s.append(string::format(mem, "\"%s\": ", entry.key.replace(mem, "\"", "\\\"")));
         s.append(entry.value.to_string()!);
         if (i < d_len - 1) {
           s.append(", ");
@@ -159,7 +159,7 @@ fn String to_pretty_string(JsonValue self, int indent = 2, int depth = 0) @priva
     case BOOL:
       return string::format(mem, "%s", self.value.b ? "true" : "false");
     case STRING:
-      return string::format(mem, "\"%s\"", self.value.s);
+      return string::format(mem, "\"%s\"", self.value.s.replace(mem, "\"", "\\\""));
     case ARRAY:
       DString s;
       s.init(mem);
@@ -184,7 +184,7 @@ fn String to_pretty_string(JsonValue self, int indent = 2, int depth = 0) @priva
       int i = 0;
       self.value.d.@each_entry(; entry) {
         s.append(inner_pad);
-        s.append(string::format(mem, "\"%s\": ", entry.key));
+        s.append(string::format(mem, "\"%s\": ", entry.key.replace(mem, "\"", "\\\"")));
         s.append(to_pretty_string(entry.value, indent: indent, depth: depth + 1));
         if (i < d_len - 1) s.append(",");
         s.append("\n");
@@ -201,14 +201,16 @@ fn String JsonValue.to_pretty_string(self, int indent = 2) {
 }
 
 
-module dessert::json;
+module dessert::format::json;
 import dessert::ser;
 import dessert::des;
 import json;
 import std::collections::maybe;
 import std::collections::list;
 import std::collections::map;
+import std::collections::object;
 import std::io;
+import std::math;
 
 faultdef INVALID_JSON_TYPE;
 
@@ -230,16 +232,8 @@ fn void? JsonSerializer.serialize_bool(&self, bool b) @dynamic {
   self.output.push({ .kind = JsonValueKind.BOOL, .value = { .b = b } });
 }
 
-fn void? JsonSerializer.serialize_char(&self, char c) @dynamic {
-  self.output.push({ .kind = JsonValueKind.STRING, .value = { .s = {c} } });
-}
-
 fn void? JsonSerializer.serialize_long(&self, long i) @dynamic {
   self.output.push({ .kind = JsonValueKind.INT, .value = { .i = i } });
-}
-
-fn void? JsonSerializer.serialize_ulong(&self, ulong i) @dynamic {
-  self.output.push({ .kind = JsonValueKind.INT, .value = { .i = (long) i } });
 }
 
 fn void? JsonSerializer.serialize_double(&self, double f) @dynamic {
@@ -250,15 +244,15 @@ fn void? JsonSerializer.serialize_string(&self, String s) @dynamic {
   self.output.push({ .kind = JsonValueKind.STRING, .value = { .s = s } });
 }
 
-fn void? JsonSerializer.struct_start(&self) @dynamic {
+fn void? JsonSerializer.struct_start(&self, String name) @dynamic {
   LinkedHashMap{String, JsonValue} d;
   d.init(mem);
   self.output.push({ .kind = JsonValueKind.DICT, .value = { .d = d } });
 }
 
-fn void? JsonSerializer.struct_end(&self) @dynamic {}
+fn void? JsonSerializer.struct_end(&self, String name) @dynamic {}
 
-fn void? JsonSerializer.serialize_slice_start(&self) @dynamic {}
+fn void? JsonSerializer.serialize_slice_start(&self, ulong len) @dynamic {}
 fn void? JsonSerializer.serialize_slice_end(&self, ulong len) @dynamic {
   List{JsonValue} l;
   l.init(mem);
@@ -268,11 +262,11 @@ fn void? JsonSerializer.serialize_slice_end(&self, ulong len) @dynamic {
   self.output.push({ .kind = JsonValueKind.ARRAY, .value = { .l = l } });
 }
 
-fn void? JsonSerializer.serialize_field_start(&self, String name) @dynamic {
+fn void? JsonSerializer.serialize_field_start(&self, String name, FieldAttrs fmt) @dynamic {
   self.output.push({.kind = STRING, .value = {.s = name}});
 }
 
-fn void? JsonSerializer.serialize_field_end(&self) @dynamic {
+fn void? JsonSerializer.serialize_field_end(&self, String name, FieldAttrs fmt) @dynamic {
   JsonValue value = self.output.pop()!;
   JsonValue key = self.output.pop()!;
   JsonValue obj = self.output.pop()!;
@@ -286,6 +280,7 @@ fn void? JsonSerializer.serialize_field_end(&self) @dynamic {
 fn JsonValue? JsonSerializer.result(&self) => self.output.pop();
 
 
+
 faultdef 
   INVALID_OBJECT, 
   INVALID_FIELD, 
@@ -296,14 +291,32 @@ faultdef
   INVALID_BOOLEAN,
   INVALID_NULL;
 
-struct JsonDeserializer (Deserializer) {
+struct JsonDeserializer(Deserializer) {
   // JsonValue input;
   StringIterator input;
+  int col;
+  int line;
+  bool is_debug;
+}
+
+fn Char32? JsonDeserializer.next(&self) @inline {
+  Char32 c = self.input.next()!;
+  if (self.is_debug) {
+    if (c == '\n') {
+      self.line += 1;
+      self.col = 0;
+    } else {
+      self.col += 1;
+    }
+  }
+  return c;
 }
 
 fn void? JsonDeserializer.skip_whitespace(&self) {
-  while (self.input.has_next() && ascii::is_blank((char) self.input.peek()!)) {
-    (void)self.input.next()!;
+  while (self.input.has_next() && 
+         (ascii::is_blank((char) self.input.peek()!) || '\n' == self.input.peek()!)) 
+  {
+    (void)self.next()!;
   }
 }
 
@@ -311,9 +324,13 @@ fn JsonDeserializer? deserializer(String input) {
   return { .input = { .utf8 = input } };
 }
 
-fn void? JsonDeserializer.struct_start(&self) @dynamic {
+fn JsonDeserializer? debug_deserializer(String input) {
+  return { .input = { .utf8 = input }, .is_debug = true };
+}
+
+fn void? JsonDeserializer.struct_start(&self, String name) @dynamic {
   self.skip_whitespace()!;
-  if (self.input.next()! != '{') {
+  if (self.next()! != '{') {
     return INVALID_OBJECT~;
   }
 }
@@ -322,7 +339,7 @@ fn bool? JsonDeserializer.has_next_field(&self) @dynamic {
   self.skip_whitespace()!;
   Char32 next = self.input.peek()!;
   if (next != '}') {
-    if (next == ',') self.input.next()!;
+    if (next == ',') self.next()!;
     return true;
   }
   return false;
@@ -331,52 +348,105 @@ fn bool? JsonDeserializer.has_next_field(&self) @dynamic {
 fn String? JsonDeserializer.next_field_name(&self) @dynamic {
   String field_name = self.next_string()!;
   self.skip_whitespace()!;
-  if (self.input.next()! != ':') {
+  if (self.next()! != ':') {
     return INVALID_FIELD~;
   }
 
   return field_name;
 }
 
-fn void? JsonDeserializer.struct_end(&self) @dynamic {
+fn void? JsonDeserializer.struct_end(&self, String name) @dynamic {
   self.skip_whitespace()!;
-  if (self.input.next()! != '}') {
+  if (self.next()! != '}') {
     return INVALID_OBJECT~;
   }
 }
 
 fn void? JsonDeserializer.slice_start(&self) @dynamic {
   self.skip_whitespace()!;
-  if (self.input.next()! != '[') {
+  if (self.next()! != '[') {
     return INVALID_ARRAY~;
   }
 }
 fn bool? JsonDeserializer.has_next_slice_item(&self) @dynamic {
   self.skip_whitespace()!;
-  Char32 next =self.input.peek()!;
+  Char32 next = self.input.peek()!;
   if (next != ']') {
-    if (next == ',') self.input.next()!;
+    if (next == ',') self.next()!;
     return true;
   }
   return false;
 }
 fn void? JsonDeserializer.slice_end(&self) @dynamic {
   self.skip_whitespace()!;
-  if (self.input.next()! != ']') {
+  if (self.next()! != ']') {
     return INVALID_ARRAY~;
   }
 }
 
+fn void JsonDeserializer.print_error(&self, String message) {
+  io::eprintfn("At %d:%d: %s", self.line, self.col, message);
+}
+
+fn Object*? JsonDeserializer.next_any(&self) @dynamic {
+  self.skip_whitespace()!;
+  Char32 next = self.input.peek()!;
+  switch {
+    case next == '"':
+      return object::new_string(tmem, self.next_string())!;
+
+    case next == 't':
+    case next == 'f':
+      return object::new_bool(self.next_bool())!;
+
+    case next == 'n':
+      (void)self.next_null()!;
+      return object::new_null();
+
+    case next == '{':
+      Object* o = object::new_obj(tmem);
+      self.struct_start("")!;
+      while(self.has_next_field()!) {
+        String next_key = self.next_field_name()!;
+        o.set(next_key, self.next_any())!;
+      }
+      self.struct_end("")!;
+      return o;
+
+    case next == '[':
+      Object* o = object::new_obj(tmem);
+      self.slice_start()!;
+      while(self.has_next_slice_item()!) {
+        o.push(self.next_any())!;
+      }
+      self.slice_end()!;
+      return o;
+
+    case ascii::is_digit((char) next):
+      double value = self.next_double()!;
+      if ((double) math::round(value) == value) {
+        return object::new_int(tmem, (int128) value);
+      }
+      return object::new_float(tmem, value);
+  }
+
+  return INVALID_OBJECT~;
+}
+
 fn String? JsonDeserializer.next_string(&self) @dynamic {
   self.skip_whitespace()!;
-  if (self.input.next()! != '"') {
+  Char32 next = self.next()!;
+  if (next != '"') {
+    if (self.is_debug) {
+      self.print_error(string::tformat("Expected \", found %c", next));
+    }
     return INVALID_STRING~;
   }
   DString val;
   val.init(mem);
-  while (Char32 c = self.input.next()!, c != '"') {
+  while (Char32 c = self.next()!, c != '"') {
     if (c == '\\') {
-      Char32 escape = self.input.next()!;
+      Char32 escape = self.next()!;
       switch (escape) {
         case 'n':
           val.append('\n');
@@ -414,13 +484,13 @@ fn double? JsonDeserializer.next_double(&self) @dynamic {
     DString t = dstring::new_with_capacity(mem, 32);
     bool negate = c == '-';
     if (negate) {
-      self.input.next()!;
+      self.next()!;
       t.append(c);
       c = self.input.peek()!;
     }
     bool leading_zero = c == '0';
     while (ascii::is_digit((char) c)) {
-      self.input.next()!;
+      self.next()!;
       t.append(c);
       Char32? next = self.input.peek();
       if (catch next) {
@@ -433,7 +503,7 @@ fn double? JsonDeserializer.next_double(&self) @dynamic {
       }
     }
     if (c == '.') {
-      self.input.next()!;
+      self.next()!;
       t.append(c);
       Char32? next = self.input.peek();
       if (catch next) {
@@ -441,7 +511,7 @@ fn double? JsonDeserializer.next_double(&self) @dynamic {
       }
       c = next;
       while (ascii::is_digit((char) c)) {
-        self.input.next()!;
+        self.next()!;
         t.append(c);
         Char32? next2 = self.input.peek();
         if (catch next2) {
@@ -451,19 +521,19 @@ fn double? JsonDeserializer.next_double(&self) @dynamic {
       }
     }
     if ((c | 32) == 'e') {
-      self.input.next()!;
+      self.next()!;
       t.append(c);
-      c = self.input.next()!;
+      c = self.next()!;
       switch (c) {
         case '-':
         case '+':
-          self.input.next()!;
+          self.next()!;
           t.append(c);
           c = self.input.peek()!;
       }
       if (!ascii::is_digit((char) c)) return INVALID_NUMBER~;
       while (ascii::is_digit((char) c)) {
-      self.input.next()!;
+      self.next()!;
         t.append(c);
         Char32? next = self.input.peek();
         if (catch next) {
@@ -484,22 +554,19 @@ fn char? JsonDeserializer.next_char(&self) @dynamic {
 fn long? JsonDeserializer.next_long(&self) @dynamic {
   return (long) self.next_double()!;
 }
-fn ulong? JsonDeserializer.next_ulong(&self) @dynamic {
-  return (ulong) self.next_double()!;
-}
 
 fn bool? JsonDeserializer.next_bool(&self) @dynamic {
   self.skip_whitespace()!;
-  Char32 next = self.input.next()!;
+  Char32 next = self.next()!;
   switch (next) {
     case 't':
       $foreach $v : "rue": // skips 'rue'
-        self.input.next()!;
+        self.next()!;
       $endforeach
       return true;
     case 'f':
       $foreach $v : "alse": // skips 'alse'
-        self.input.next()!;
+        self.next()!;
       $endforeach
       return false;
     default:
@@ -513,7 +580,7 @@ fn bool? JsonDeserializer.next_null(&self) @dynamic {
   switch (next) {
     case 'n':
       $foreach $v : "null":
-        self.input.next()!;
+        self.next()!;
       $endforeach
       return true;
     default:

@@ -6,10 +6,10 @@ import lexer;
 
 struct NodeView
 {
-	NodeKind kind;
-    uint start_token_idx; 
-    uint end_token_idx; 
-    uint extra_idx;
+  NodeKind kind;
+  uint start_token_idx; 
+  uint end_token_idx; 
+  uint extra_idx;
 }
 
 struct View 
@@ -151,7 +151,7 @@ fn Node VarDeclView.attribute(self) => self.get(3);
 typedef StructView = inline View;
 
 fn String StructView.name(self, StringPool* pool) => pool.get((StringHandle)self.get_uint(0));
-fn uint StructView.field_count(self) => self.get_uint(1);
+fn uint StructView.field_count(self) => self.get_uint(3);
 fn Node StructView.field(self, uint index)
 {
     return self.get_at(2, index);

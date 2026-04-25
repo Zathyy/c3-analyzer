@@ -1,44 +1,53 @@
 module dessert::des;
 import std::collections::list;
 import std::collections::maybe;
+import std::collections::object;
 import std::io;
 
 
 interface Deserializer {
-  fn void? struct_start();
+  fn void? struct_start(String name);
   fn bool? has_next_field();
   fn String? next_field_name();
-  fn void? struct_end();
+  fn void? struct_end(String name);
 
   fn void? slice_start();
   fn bool? has_next_slice_item();
   fn void? slice_end();
 
-  fn bool? next_bool();
+  <*
+    Returns :
+    `true` if the next element is a null value and consume it. 
+    `false` if the next element is not a null value and ***must not*** consume it.
+  *>
   fn bool? next_null();
 
-  fn char? next_char();
+  fn bool? next_bool();
+  fn long? next_long();
+  fn String? next_string();
+  fn double? next_double();
+
+  fn Object*? next_any() @optional;
+
+  fn char? next_char() @optional;
   fn ichar? next_ichar() @optional;
 
   fn short? next_short() @optional;
   fn int? next_int() @optional;
-  fn long? next_long();
   fn int128? next_int128() @optional;
 
-  fn uint? next_uint() @optional;
   fn ushort? next_ushort() @optional;
-  fn ulong? next_ulong();
+  fn uint? next_uint() @optional;
+  fn ulong? next_ulong() @optional;
   fn uint128? next_uint128() @optional;
 
-  fn String? next_string();
   fn ZString? next_zstring() @optional;
 
   fn float? next_float() @optional;
-  fn double? next_double();
 }
 
 faultdef VALIDATOR_ERROR;
-faultdef DUPLICATED_KEY, INVALID_ENUM_VALUE;
+faultdef DUPLICATED_KEY, INVALID_ENUM_VALUE, UNKNOWN_FIELD;
 
 // Should be treated as a protocol, don't derive it directly
 interface Deserializable {
@@ -55,12 +64,12 @@ macro @is_deserializable($Output) {
 macro deserialize(Deserializer deserializer) <Output> {
   Output value;
   $switch:
-    $case Output.kindof == POINTER:
+    $case Output::kind == POINTER:
       if (deserializer.next_null()!) {
         return null;
       } else {
-        Output v = mem::new(Output.inner);
-        *v = deserialize{Output.inner}(deserializer)!;
+        Output v = mem::new(Output::inner);
+        *v = deserialize{Output::inner}(deserializer)!;
         return v;
       }
 
@@ -71,35 +80,35 @@ macro deserialize(Deserializer deserializer) <Output> {
     $case ($defined(value.get) &&& $defined(value.get()) &&& 
            ($defined(value.get()!) ||| $defined(value == maybe::value{$typeof(value.value)}(value.value)))):
       if (deserializer.next_null()!) {
-        return {};
+        return (Maybe{$typeof(value.value)}) {};
       } else {
         return maybe::value{$typeof(value.value)}(deserialize{$typeof(value.value)}(deserializer)!);
       }
 
     $case $defined(value.len) &&& $defined(value[0]):
-      List{Output.inner} elements;
+      List{Output::inner} elements;
       deserializer.slice_start()!;
       while(deserializer.has_next_slice_item()!) {
-        elements.push(deserialize{Output.inner}(deserializer)!);
+        elements.push(deserialize{Output::inner}(deserializer)!);
       }
       deserializer.slice_end()!;
-      return elements.to_array(mem);
+      return elements.to_array(tmem);
 
     $default:
-      $error "The value cannot be deserialize: " +++ $typeof(value).nameof;
+      $error "The value cannot be deserialize: " +++ $typeof(value)::name;
 
   $endswitch
 }
 
 macro impl_deserialize(value, Deserializer deserializer) {
-  $if $typeof(value).kindof != POINTER:
+  $if $typeof(value)::kind != POINTER:
     $error "The first parameter must be a &self pointer.";
   $endif
 
   $switch:
-    $case $typeof(value).inner.kindof == ENUM:
-      var $type = $typeof(value).inner;
-      var $config = $type.has_tagof("dessert:des:enum") ??? $type.tagof("dessert:des:enum") : (DessertEnumConfig) {};
+    $case $typeof(value)::inner.kind == ENUM:
+      var $type = $typeof(value)::inner;
+      var $config = $type.has_tag("dessert:des:enum") ??? $type.get_tag("dessert:des:enum") : (DessertEnumConfig) {};
 
       $switch $config.as:
         $case NAME:
@@ -124,121 +133,57 @@ macro impl_deserialize(value, Deserializer deserializer) {
           $if $field_name.len == 0:
             $error "When the 'enum_as' attribute is set to 'FIELD', 'enum_field' must be provided with the name of an associated field of the enum.";
           $endif
-          $foreach $member : $type.membersof:
-            $if $member.nameof == $field_name:
+          $foreach $member : $type.members:
+            $if $member.name == $field_name:
               var field_value = deserialize{$member.type}(deserializer)!;
               *value = $type.lookup_field($eval($field_name), field_value)!;
             $endif
           $endforeach
       $endswitch
 
-    $case $typeof(value).inner.kindof == STRUCT:
+    $case $typeof(value)::inner.kind == STRUCT:
+      var $type = $typeof(value)::inner;
+      var $config = $type.has_tag("dessert:des:struct") ??? $type.get_tag("dessert:des:struct") : (DessertStructConfig) {};
       List{String} names;
-      names.init(mem);
-      defer names.free();
+      names.tinit();
 
-      deserializer.struct_start()!;
+      deserializer.struct_start($type.name)!;
       while(deserializer.has_next_field()!) {
-        String next_key = deserializer.next_field_name()!;
-        $foreach $member : $typeof(value).inner.membersof:
-          var $dessert = $member.has_tagof("dessert:des") ??? $member.tagof("dessert:des") : (Dessert) {};
-          $if $typeof($dessert) != Dessert:
-            $error("Dessert tag value must be of type Dessert");
-          $endif
-          var $name = $dessert.rename.len > 0 ??? $dessert.rename : $member.nameof;
+        String? next_key = deserializer.next_field_name();
+        if (catch next_key) {
+          io::eprintfn("Error deserializing after deserializing: %s", names);
+          next_key!;
+          return;
+        }
+        $foreach $member : $typeof(value)::inner.members:
+          DessertFieldConfig $dessert = $member.has_tag("dessert:des") ??? $member.get_tag("dessert:des") : (DessertFieldConfig) {};
+          var $name = $dessert.rename.len > 0 ??? $dessert.rename : $member.name;
           if ($name == next_key) {
             if (names.contains(next_key)) {
               return DUPLICATED_KEY~;
             }
-            var next_value = deserialize{$member.typeid}(deserializer)!;
+            $typefrom($member.type)? next_value = deserialize{$member.type}(deserializer);
+            if (catch next_value) {
+              io::eprintfn("Error deserializing key: %s", next_key);
+              next_value!;
+              return;
+            }
             $if !$dessert.skip:
-              value.$eval($member.nameof) = next_value;
+              value.$eval($member.name) = next_value;
             $endif
 
-            names.push($member.nameof);
+            names.push($member.name);
+            continue;
           }
         $endforeach
+        $if $config.deny_unknown_fields:
+          io::eprintfn("While deserializing '" +++ $typeof(value)::inner.name +++ "' (which denies unknown fields), encountered unknown field '%s'.", next_key);
+          return UNKNOWN_FIELD~;
+        $else
+          // Skip the value if not found
+          (void) deserialize{Object*}(deserializer)!;
+        $endif
       }
-      deserializer.struct_end()!;
+      deserializer.struct_end($type.name)!;
   $endswitch
 }
-
-
-// <* @require $defined(*value) *>
-// macro impl_deserialize(value, Deserializer deserializer) {
-//   return _impl_deserialize{$typeof(value).inner}(value, deserializer);
-// }
-//
-// fn void? _impl_deserialize(ValueType *value, Deserializer deserializer) <ValueType> {
-//   $switch:
-//     $case ValueType.kindof == ENUM:
-//       var $config = ValueType.has_tagof("dessert:des:enum") ??? ValueType.tagof("dessert:des:enum") : (DessertEnumConfig) {};
-//
-//       $switch $config.as:
-//         $case NAME:
-//           String name = deserializer.next_string()!;
-//           int found = -1;
-//           foreach(i, v : ValueType.names) {
-//             if (v == name) {
-//               found = (int) i;
-//               break;
-//             }
-//           }
-//
-//           if (found == -1) return INVALID_ENUM_VALUE~;
-//           *value = ValueType.values[found];
-//
-//         $case ORDINAL:
-//           var ordinal = deserialize{ValueType.inner}(deserializer)!;
-//           *value = ValueType.from_ordinal(ordinal);
-//
-//         $case FIELD:
-//           var $field_name = $config.field;
-//           $if $field_name.len == 0:
-//             $error "When the 'enum_as' attribute is set to 'FIELD', 'enum_field' must be provided with the name of an associated field of the enum.";
-//           $endif
-//           $foreach $member : ValueType.membersof:
-//             $if $member.nameof == $field_name:
-//               var field_value = deserialize{$member.type}(deserializer)!;
-//               *value = ValueType.lookup_field($eval($field_name), field_value)!;
-//             $endif
-//           $endforeach
-//       $endswitch
-//
-//     $case ValueType.kindof == STRUCT:
-//       String[] names = mem::new_array(String, ValueType.membersof.len);
-//       defer mem::free(names);
-//
-//       deserializer.struct_start()!;
-//       while(deserializer.has_next_field()!) {
-//         String next_key = deserializer.next_field_name()!;
-//         $foreach $i, $member : ValueType.membersof:
-//           var $dessert = $member.has_tagof("dessert:des") ??? $member.tagof("dessert:des") : (Dessert) {};
-//           $if $typeof($dessert) != Dessert:
-//             $error("Dessert tag value must be of type Dessert");
-//           $endif
-//           var $name = $dessert.rename.len > 0 ??? $dessert.rename : $member.nameof;
-//           if ($name == next_key) {
-//             if (names.contains(next_key)) {
-//               return DUPLICATED_KEY~;
-//             }
-//             $typefrom($member.typeid) next_value = deserialize{$member.typeid}(deserializer)!;
-//             $if !$dessert.skip:
-//               value.$eval($member.nameof) = next_value;
-//             $endif
-//
-//             names[$i] = $member.nameof;
-//           }
-//         $endforeach
-//       }
-//       deserializer.struct_end()!;
-//   $endswitch
-// }
-//
-// fn bool String[].contains(&self, String other) {
-//   foreach(s : self) {
-//     if (s == other) return true;
-//   }
-//
-//   return false;
-// }

@@ -19,6 +19,8 @@ The library is built around two core interfaces:
 - Support for slice/array/List fields
 - Enum serialization (as name, ordinal, or associated field)
 - Skip specific fields during serialization
+- Skip empty fields (slices, `Maybe`, pointers) via `skip_if_empty`
+- Conditionally skip fields via `skip_serializing_<field>` methods
 - Rename fields for the output
 - Validate field values before serialization
 - Support for all primitive types: `bool`, `char`, `ichar`, `short`, `int`, `long`, `int128`, `ushort`, `uint`, `ulong`, `uint128`, `float`, `double`, `String`, `ZString`
@@ -31,23 +33,30 @@ The library is built around two core interfaces:
 - Enum deserialization (as name, ordinal, or associated field)
 - Field renaming support (different name in the format and in C3)
 - Duplicate key detection
+- Unknown field skipping (or rejection via `deny_unknown_fields`)
+- Deserialize arbitrary data into `Object*`
+- Descriptive error messages on deserialization failure
 - Support for all primitive types: `bool`, `char`, `ichar`, `short`, `int`, `long`, `int128`, `ushort`, `uint`, `ulong`, `uint128`, `float`, `double`, `String`, `ZString`
 
 ### JSON
 
 The `dessert::json` module provides a complete JSON serializer and deserializer.
 
+### CSV
+
+The `dessert::csv` module provides a CSV serializer for converting slices of structs into CSV format. Only serialization is supported for now (no CSV deserializer).
+
 ### Attributes
 
-Use the `@Dessert` attribute to customize serialization/deserialization behavior:
+Use the `@DField` attribute to customize serialization/deserialization behavior for struct fields:
 
 ```c3
 struct Person {
     int age;                                  // Serialized as "age"
     String name;                              // Serialized as "name"
-    bool is_cool @Dessert({ .skip = true });  // Skipped during serialization
-    Maybe{Person*} friend @Dessert({ .rename = "my_friend" }); // Renamed to "my_friend"
-    int score @Dessert({ .validator = "validate_score" }); // Validated before serialization
+    bool is_cool @DField({ .skip = true });  // Skipped during serialization
+    Maybe{Person*} friend @DField({ .rename = "my_friend" }); // Renamed to "my_friend"
+    int score @DField({ .validator = "validate_score" }); // Validated before serialization
 }
 ```
 
@@ -55,25 +64,41 @@ struct Person {
 
 | Attribute       | Description                                                                     |
 |-----------------|---------------------------------------------------------------------------------|
-| `@Dessert`      | Apply config to both serialization and deserialization                          |
-| `@DessertSer`   | Apply config to serialization only                                              |
-| `@DessertDes`   | Apply config to deserialization only                                            |
+| `@DField`      | Apply config to both serialization and deserialization                          |
+| `@DFieldSer`   | Apply config to serialization only                                              |
+| `@DFieldDes`   | Apply config to deserialization only                                            |
 
-**Field attribute options (`Dessert` struct):**
+**Field attribute options (`DessertFieldConfig` struct):**
 
-| Option      | Type       | Description                                                              |
-|-------------|------------|--------------------------------------------------------------------------|
-| `.skip`     | `bool`     | Skip this field during serialization/deserialization                    |
-| `.rename`   | `String`   | Use a different name for this field in the output/input                 |
-| `.aliases`  | `String[]` | Alternative names to accept during deserialization (not yet implemented) |
-| `.validator`| `String`   | Call a validation method before serialization                           |
+| Option           | Type       | Description                                                                       |
+|------------------|------------|-----------------------------------------------------------------------------------|
+| `.skip`          | `bool`     | Skip this field during serialization/deserialization                              |
+| `.skip_if_empty` | `bool`     | Skip this field during serialization if it is empty (null pointer, empty slice, or unset `Maybe`) |
+| `.rename`        | `String`   | Use a different name for this field in the output/input                           |
+| `.aliases`       | `String[]` | Alternative names to accept during deserialization (not yet implemented)          |
+| `.validator`     | `String`   | Call a validation method before serialization                                     |
+
+**Conditional skip methods:**
+
+If a struct has a method named `skip_serializing_<field>` that returns `bool`, dessert will call it before serializing that field and skip the field if it returns `true`:
+
+```c3
+struct Person {
+    int age;
+    String name;
+}
+
+fn bool Person.skip_serializing_age(&self) {
+    return self.age == 0; // don't serialize age when it's 0
+}
+```
 
 **Enum attributes:**
 
-Use `@DessertEnum` (or `@DessertEnumSer` / `@DessertEnumDes`) on an enum type to control how it is serialized:
+Use `@DEnum` (or `@DEnumSer` / `@DEnumDes`) on an enum type to control how it is serialized:
 
 ```c3
-enum Color @DessertEnum({ .as = NAME }) {
+enum Color @DEnum({ .as = NAME }) {
     RED,
     GREEN,
     BLUE,
@@ -82,9 +107,9 @@ enum Color @DessertEnum({ .as = NAME }) {
 
 | Attribute         | Description                                                    |
 |-------------------|----------------------------------------------------------------|
-| `@DessertEnum`    | Apply enum config to both serialization and deserialization    |
-| `@DessertEnumSer` | Apply enum config to serialization only                        |
-| `@DessertEnumDes` | Apply enum config to deserialization only                      |
+| `@DEnum`    | Apply enum config to both serialization and deserialization    |
+| `@DEnumSer` | Apply enum config to serialization only                        |
+| `@DEnumDes` | Apply enum config to deserialization only                      |
 
 **Enum attribute options (`DessertEnumConfig` struct):**
 
@@ -92,6 +117,29 @@ enum Color @DessertEnum({ .as = NAME }) {
 |-----------|---------------|--------------------------------------------------------------------------------------|
 | `.as`     | `DessertEnum` | How to represent the enum: `NAME` (default), `ORDINAL`, or `FIELD`                  |
 | `.field`  | `String`      | Name of the associated field to use when `.as = FIELD`                              |
+
+**Struct attributes:**
+
+Use `@DStruct` (or `@DStructSer` / `@DStructDes`) on a struct type to control struct-level behavior:
+
+```c3
+struct Function @DStruct({ .deny_unknown_fields = true }) {
+    String name;
+    String arguments;
+}
+```
+
+| Attribute            | Description                                                        |
+|----------------------|--------------------------------------------------------------------|
+| `@DStruct`     | Apply struct config to both serialization and deserialization      |
+| `@DStructSer`  | Apply struct config to serialization only                          |
+| `@DStructDes`  | Apply struct config to deserialization only                        |
+
+**Struct attribute options (`DessertStructConfig` struct):**
+
+| Option                  | Type   | Description                                                                         |
+|-------------------------|--------|-------------------------------------------------------------------------------------|
+| `.deny_unknown_fields`  | `bool` | Return `UNKNOWN_FIELD` fault if an unrecognized field is encountered during deserialization (default: skip unknown fields silently) |
 
 ## Installation
 
@@ -136,7 +184,26 @@ JsonSerializer s = json::serializer();
 JsonValue? json = ser::serialize(&s, sharpie);
 ```
 
-### 3. Deserialize from JSON String
+### 3. Serialize a Slice to CSV
+
+```c3
+Animal[] animals = {
+    { .name = "Sharpie", .specie = "Cat" },
+    { .name = "Rex",     .specie = "Dog" },
+};
+CSVSerializer s = csv::serializer();
+CSVDocument doc = ser::serialize(&s, animals)!;
+io::printn(doc.to_string());
+```
+
+Output:
+```
+"name","specie"
+"Sharpie","Cat"
+"Rex","Dog"
+```
+
+### 4. Deserialize from JSON String
 
 ```c3
 String json_str = "{\"name\": \"Sharpie\", \"specie\": \"Cat\"}";
@@ -146,7 +213,7 @@ Animal? animal = des::deserialize{Animal}(&&json::deserializer(json_str));
 ## Complete Example
 
 ```c3
-module myapp;
+module example;
 import std;
 import dessert;
 import json;
@@ -166,8 +233,8 @@ struct Person {
   int age;
   String name;
   Animal[] pets;
-  Maybe{Person*} friend @Dessert({ .rename = "my_friend" });
-  bool is_cool @Dessert({ .skip = true });
+  Maybe{Person*} friend @DField({ .rename = "my_friend" });
+  bool is_cool @DField({ .skip = true });
 }
 
 fn void? Person.serialize(&self, Serializer serializer) => 
@@ -182,14 +249,22 @@ fn int main(String[] args) {
   connor.pets = { sharpie };
 
   JsonSerializer s = json::serializer();
-  ser::serialize(&s, connor)!;
-  JsonValue? json = s.result();
+  JsonValue? json = ser::serialize(&s, connor);
+  if (catch json) {
+    io::printn("Error serializing");
+    return -1;
+  }
   
   json.print()!!;
+  io::printn();
   
-  Person? p = des::deserialize{Person}(&&json::deserializer(json.to_string()!));
+  Person? p = des::deserialize{Person}(&&json::deserializer(json.to_string()));
+  if (catch p) {
+    io::printn("Error deserializing");
+    return -1;
+  }
 
-  io::printfn("Person named %s with cat named %s", p.name, p.pets[0].name);
+  io::printfn("Person named %s with a %s named %s", p.name, p.pets[0].specie, p.pets[0].name);
   
   return 0;
 }
@@ -205,10 +280,10 @@ Required methods must be implemented. Optional methods (`@optional`) fall back t
 interface Serializer {
   fn void? serialize_bool(bool b);
 
-  fn void? serialize_char(char c);
-  fn void? serialize_ichar(ichar c) @optional;   // falls back to serialize_long
+  fn void? serialize_char(char c) @optional;      // falls back to serialize_string({c}) 
+  fn void? serialize_ichar(ichar c) @optional;    // falls back to serialize_long
 
-  fn void? serialize_short(short s) @optional;   // falls back to serialize_long
+  fn void? serialize_short(short s) @optional;    // falls back to serialize_long
   fn void? serialize_int(int i) @optional;        // falls back to serialize_long
   fn void? serialize_long(long l);
   fn void? serialize_int128(int128 i) @optional;  // returns UNSUPPORTED_DATA_TYPE if absent
@@ -221,19 +296,21 @@ interface Serializer {
   fn void? serialize_string(String s);
   fn void? serialize_zstring(ZString s) @optional; // falls back to serialize_string
 
-  fn void? serialize_float(float f) @optional;    // falls back to serialize_double
+  fn void? serialize_float(float f) @optional;     // falls back to serialize_double
   fn void? serialize_double(double d);
 
   fn void? serialize_null();
 
-  fn void? serialize_slice_start();
+  fn void? serialize_slice_start(ulong len);
   fn void? serialize_slice_end(ulong len);
 
   fn void? serialize_field_start(String name);
-  fn void? serialize_field_end();
+  fn void? serialize_slice_item_start(usz idx) @optional;
+  fn void? serialize_slice_item_end(usz idx) @optional;
+  fn void? serialize_field_end(String name);
 
-  fn void? struct_start();
-  fn void? struct_end();
+  fn void? struct_start(String name);
+  fn void? struct_end(String name);
 }
 ```
 
@@ -255,7 +332,9 @@ interface Deserializer {
   fn bool? next_bool();
   fn bool? next_null();
 
-  fn char? next_char();
+  fn Object*? next_any() @optional;  // deserialize any value as Object*
+
+  fn char? next_char() @optional;   // falls back to next_string()[0]
   fn ichar? next_ichar() @optional;    // falls back to next_long
 
   fn short? next_short() @optional;   // falls back to next_long
@@ -308,6 +387,8 @@ Dessert uses C3's fault system for error handling:
 | `UNSUPPORTED_DATA_TYPE`  | `ser` / `des`  | Type has no supported encoding (e.g. `int128`)   |
 | `DUPLICATED_KEY`         | `des`          | Duplicate key found during deserialization       |
 | `INVALID_ENUM_VALUE`     | `des`          | Enum name not found during deserialization       |
+| `UNKNOWN_FIELD`          | `des`          | Unknown field encountered when `deny_unknown_fields` is set |
+| `INVALID_CSV_TYPE`       | `dessert::csv` | Unsupported value type during CSV serialization  |
 | `INVALID_JSON_TYPE`      | `json`         | Invalid JSON structure                           |
 | `INVALID_OBJECT`         | `json`         | Expected JSON object                             |
 | `INVALID_FIELD`          | `json`         | Invalid field format                             |
@@ -327,17 +408,23 @@ Dessert uses C3's fault system for error handling:
 ## Roadmap
 
 - [x] Serialize to JSON
+- [x] Serialize to CSV (slices of structs)
 - [x] Recursive struct serialization
 - [x] Serialize Maybe fields
 - [x] Serialize slice fields
 - [x] Serialize struct fields
 - [x] Serialize enum fields (as name, ordinal, or associated field)
 - [x] Skip field
+- [x] Skip field if empty (`skip_if_empty`)
+- [x] Conditionally skip field via `skip_serializing_<field>` method
 - [x] Rename field
 - [x] Validate field
 - [x] Deserialize from JSON
 - [x] Deserialize enum fields (as name, ordinal, or associated field)
 - [x] Full primitive type support (all integer, float, string variants)
+- [x] Skip unknown fields during deserialization (default)
+- [x] Deny unknown fields via `@DStruct({ .deny_unknown_fields = true })`
+- [x] Deserialize arbitrary JSON into `Object*`
 - [ ] Serialize union fields
 - [ ] Field aliases during deserialization
 - [ ] Default values for missing fields

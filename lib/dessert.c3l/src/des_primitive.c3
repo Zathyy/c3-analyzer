@@ -1,13 +1,18 @@
 module dessert::des;
+import std::collections::object;
 
-faultdef UNSUPPORTED_DATA_TYPE;
+faultdef UNSUPPORTED_DATA_TYPE, UNSUPPORTED_ANY;
 
 fn void? String.deserialize(&self, Deserializer des) @dynamic {
   *self = des.next_string()!;
 }
 
 fn void? char.deserialize(&self, Deserializer des) @dynamic {
-  *self = des.next_char()!;
+  if (&des.next_char) {
+    *self = des.next_char()!;
+  } else {
+    *self = des.next_string()[0]!;
+  }
 }
 
 fn void? bool.deserialize(&self, Deserializer des) @dynamic {
@@ -55,20 +60,28 @@ fn void? int128.deserialize(&self, Deserializer des) @dynamic {
 fn void? ushort.deserialize(&self, Deserializer des) @dynamic {
   if (&des.next_ushort) {
     *self = des.next_ushort()!;
-  } else {
+  } else if (&des.next_ulong) {
     *self = (ushort) des.next_ulong()!;
+  } else {
+    *self = (ushort) des.next_long()!;
   }
 }
 
 fn void? uint.deserialize(&self, Deserializer des) @dynamic {
   if (&des.next_uint) {
     *self = des.next_uint()!;
-  } else {
+  } else if (&des.next_ulong) {
     *self = (uint) des.next_ulong()!;
+  } else {
+    *self = (uint) des.next_long()!;
   }
 }
 fn void? ulong.deserialize(&self, Deserializer des) @dynamic {
-  *self = des.next_ulong()!;
+  if (&des.next_ulong) {
+    *self = des.next_ulong()!;
+  } else {
+    *self = (ulong) des.next_long()!;
+  }
 }
 
 fn void? uint128.deserialize(&self, Deserializer des) @dynamic {
@@ -92,4 +105,12 @@ fn void? float.deserialize(&self, Deserializer des) @dynamic {
 
 fn void? double.deserialize(&self, Deserializer des) @dynamic {
   *self = des.next_double()!;
+}
+
+fn void? Object.deserialize(&self, Deserializer des) @dynamic {
+  if (&des.next_any) {
+    *self = *des.next_any()!;
+  } else {
+    return UNSUPPORTED_ANY~;
+  }
 }

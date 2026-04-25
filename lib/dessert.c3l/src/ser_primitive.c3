@@ -17,7 +17,10 @@ fn void? bool.serialize(&self, Serializer ser) @dynamic {
 }
 
 fn void? char.serialize(&self, Serializer ser) @dynamic {
-  return ser.serialize_char(*self);
+  if (&ser.serialize_char) {
+    return ser.serialize_char(*self);
+  }
+  return ser.serialize_string({*self});
 }
 
 /// Signed numbers
@@ -59,19 +62,28 @@ fn void? int128.serialize(&self, Serializer ser) @dynamic {
 fn void? ushort.serialize(&self, Serializer ser) @dynamic {
   if (&ser.serialize_ushort) {
     return ser.serialize_ushort(*self);
+  } else if (&ser.serialize_ulong) {
+    return ser.serialize_ulong((ulong) *self);
+  } else {
+    return ser.serialize_long((long) *self);
   }
-  return ser.serialize_ulong((ulong) *self);
 }
 
 fn void? uint.serialize(&self, Serializer ser) @dynamic {
   if (&ser.serialize_uint) {
     return ser.serialize_uint(*self);
+  } else if (&ser.serialize_ulong) {
+    return ser.serialize_ulong((ulong) *self);
+  } else {
+    return ser.serialize_long((long) *self);
   }
-  return ser.serialize_ulong((ulong) *self);
 }
 
 fn void? ulong.serialize(&self, Serializer ser) @dynamic {
-  return ser.serialize_ulong(*self);
+  if (&ser.serialize_ulong) {
+    return ser.serialize_ulong(*self);
+  }
+  return ser.serialize_long((long) *self);
 }
 
 fn void? uint128.serialize(&self, Serializer ser) @dynamic {
@@ -101,7 +113,7 @@ fn void? double.serialize(&self, Serializer ser) @dynamic {
   return ser.serialize_double(*self);
 }
 
-// fn void? float128.serialize(&self, Serializer ser) @dynamic {
+// fn void? float128.serialize(&self, Serializer ser) @dynamic @if($defined(float128)) {
 //   if (&ser.serialize_float128) {
 //     return ser.serialize_float128(*self);
 //   }

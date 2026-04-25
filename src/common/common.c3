@@ -217,10 +217,10 @@ enum OverloadKind : uint
 
 struct TypeDescriptor 
 {
-    uint name;      // The StringPool handle
-	uint ptr_count;
-    Node array_size;   // AST Node for [expr]
-	Node base_expr; // for compile time types expr
-    uint gen_count;
-    Node[MAX_GENERICS] gen_args;
+  uint name;      // The StringPool handle
+  uint ptr_count;
+  Node array_size;   // AST Node for [expr]
+  Node base_expr; // for compile time types expr
+  uint gen_count;
+  Node[MAX_GENERICS] gen_args;
 }

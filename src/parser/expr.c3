@@ -39,102 +39,102 @@ constdef Precedence : inline int
 *>
 fn void get_binding_power(TokenKind type, int* lbp, int* rbp)
 {
-    switch (type)
-    {
-        // Assignment (Right-associative)
-        case TokenKind.EQ:
-        case TokenKind.PLUS_ASSIGN:
-        case TokenKind.MINUS_ASSIGN:
-        case TokenKind.BIT_OR_ASSIGN:
-        case TokenKind.BIT_XOR_ASSIGN:
-        case TokenKind.DIV_ASSIGN:
-        case TokenKind.MOD_ASSIGN:
-        case TokenKind.BIT_AND_ASSIGN:
-        case TokenKind.LSHIFT_ASSIGN:
-        case TokenKind.RSHIFT_ASSIGN:
-            *lbp = Precedence.ASSIGN; 
-            *rbp = Precedence.ASSIGN - 1; 
-            break;
+  switch (type)
+  {
+    // Assignment (Right-associative)
+    case TokenKind.EQ:
+    case TokenKind.PLUS_ASSIGN:
+    case TokenKind.MINUS_ASSIGN:
+    case TokenKind.BIT_OR_ASSIGN:
+    case TokenKind.BIT_XOR_ASSIGN:
+    case TokenKind.DIV_ASSIGN:
+    case TokenKind.MOD_ASSIGN:
+    case TokenKind.BIT_AND_ASSIGN:
+    case TokenKind.LSHIFT_ASSIGN:
+    case TokenKind.RSHIFT_ASSIGN:
+      *lbp = Precedence.ASSIGN; 
+      *rbp = Precedence.ASSIGN - 1; 
+      break;
 
-        case TokenKind.QUESTION:
-        case TokenKind.QUESTQUEST:
-		case TokenKind.ELVIS:
-            *lbp = Precedence.TERNARY; 
-            *rbp = Precedence.TERNARY - 1;
-            break;
+    case TokenKind.QUESTION:
+    case TokenKind.QUESTQUEST:
+    case TokenKind.ELVIS:
+      *lbp = Precedence.TERNARY; 
+      *rbp = Precedence.TERNARY - 1;
+      break;
 
-        case TokenKind.OR:
-        case TokenKind.CT_TERNARY:
-            *lbp = Precedence.LOGIC_OR; 
-            *rbp = Precedence.LOGIC_OR + 1;
-            break;
+    case TokenKind.OR:
+    case TokenKind.CT_TERNARY:
+      *lbp = Precedence.LOGIC_OR; 
+      *rbp = Precedence.LOGIC_OR + 1;
+      break;
 
-        case TokenKind.AND:
-        case TokenKind.CT_AND_OP:
-            *lbp = Precedence.LOGIC_AND;
-            *rbp = Precedence.LOGIC_AND + 1;
-            break;
+    case TokenKind.AND:
+    case TokenKind.CT_AND_OP:
+      *lbp = Precedence.LOGIC_AND;
+      *rbp = Precedence.LOGIC_AND + 1;
+      break;
 
-        // Comparison
-        case TokenKind.EQEQ:
-        case TokenKind.NOT_EQUAL:
-        case TokenKind.GREATER:
-        case TokenKind.GREATER_EQ:
-        case TokenKind.LESS:
-        case TokenKind.LESS_EQ:
-            *lbp = Precedence.COMPARE; 
-            *rbp = Precedence.COMPARE + 1;
-            break;
+    // Comparison
+    case TokenKind.EQEQ:
+    case TokenKind.NOT_EQUAL:
+    case TokenKind.GREATER:
+    case TokenKind.GREATER_EQ:
+    case TokenKind.LESS:
+    case TokenKind.LESS_EQ:
+      *lbp = Precedence.COMPARE; 
+      *rbp = Precedence.COMPARE + 1;
+      break;
 
-        // Sum
-        case TokenKind.PLUS:
-        case TokenKind.MINUS:
-        case TokenKind.CT_CONCAT_OP:
-            *lbp = Precedence.SUM; 
-            *rbp = Precedence.SUM + 1;
-            break;
+    // Sum
+    case TokenKind.PLUS:
+    case TokenKind.MINUS:
+    case TokenKind.CT_CONCAT_OP:
+      *lbp = Precedence.SUM; 
+      *rbp = Precedence.SUM + 1;
+      break;
 
-        // Bitwise
-        case TokenKind.BIT_OR:
-        case TokenKind.BIT_XOR:
-        case TokenKind.AMP: // Bitwise AND
-            *lbp = Precedence.BITWISE; 
-            *rbp = Precedence.BITWISE + 1;
-            break;
+    // Bitwise
+    case TokenKind.BIT_OR:
+    case TokenKind.BIT_XOR:
+    case TokenKind.AMP: // Bitwise AND
+      *lbp = Precedence.BITWISE; 
+      *rbp = Precedence.BITWISE + 1;
+      break;
 
-        // Shift
-        case TokenKind.RSHIFT:
-        case TokenKind.LSHIFT:
-            *lbp = Precedence.SHIFT; 
-            *rbp = Precedence.SHIFT + 1;
-            break;
+    // Shift
+    case TokenKind.RSHIFT:
+    case TokenKind.LSHIFT:
+      *lbp = Precedence.SHIFT; 
+      *rbp = Precedence.SHIFT + 1;
+      break;
 
-        // Product
-        case TokenKind.ASTERISK:
-        case TokenKind.DIV:
-        case TokenKind.MOD:
-            *lbp = Precedence.PRODUCT; 
-            *rbp = Precedence.PRODUCT + 1;
-            break;
+    // Product
+    case TokenKind.ASTERISK:
+    case TokenKind.DIV:
+    case TokenKind.MOD:
+      *lbp = Precedence.PRODUCT; 
+      *rbp = Precedence.PRODUCT + 1;
+      break;
 
-        // Access and Postfix
-        case TokenKind.DOT:
-        case TokenKind.LPAREN:
-        case TokenKind.LBRACKET:
-        case TokenKind.BANGBANG:
-        case TokenKind.PLUSPLUS:
-        case TokenKind.MINUSMINUS:
-        case TokenKind.BANG:
-		case TokenKind.BIT_NOT:
-            *lbp = Precedence.CALL;
-            *rbp = Precedence.LOWEST; // Postfix has no RHS to pull
-            break;
+    // Access and Postfix
+    case TokenKind.DOT:
+    case TokenKind.LPAREN:
+    case TokenKind.LBRACKET:
+    case TokenKind.BANGBANG:
+    case TokenKind.PLUSPLUS:
+    case TokenKind.MINUSMINUS:
+    case TokenKind.BANG:
+    case TokenKind.BIT_NOT:
+      *lbp = Precedence.CALL;
+      *rbp = Precedence.LOWEST; // Postfix has no RHS to pull
+      break;
 
-        default:
-            *lbp = Precedence.NONE; 
-            *rbp = Precedence.NONE;
-            break;
-    }
+    default:
+      *lbp = Precedence.NONE; 
+      *rbp = Precedence.NONE;
+      break;
+  }
 }
 
 <*
@@ -579,8 +579,8 @@ fn Node? parse_initializer_list(Parser* p)
 
 fn Node? parse_range(Parser* p, Node left, uint start_pos)
 {
-    Node start = 0;
-    Node end = 0;
+    Node start;
+    Node end;
     bool is_slice = false;
 
     // leading colon/range: [:5] or [..5]
