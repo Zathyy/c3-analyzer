@@ -67,6 +67,8 @@ fn Node? parse_statement(Parser* p)
 			return parse_while_stmt(p)!;
 		case TokenKind.FOR:
 			return parse_for_stmt(p)!;
+		case TokenKind.ASSERT:
+			return parse_assert_stmt(p)!;
 		default:
 			{
 				// if it's not a keyword or type, treat it as a expression statement
@@ -189,7 +191,7 @@ fn Node? parse_expr_stmt(Parser* p)
 {
 	log::debug("parse_expr_stmt - %s : %s", p.current_text(), p.current().kind);
 	Token t = p.current();
-	Node expr = parse_expr(p, { })!;
+	Node expr = parse_expr(p)!;
 	expect(p, TokenKind.EOS)!; // TODO: how should EOS be handled?
 
 	return ast::add_node(p.ast, NodeKind.EXPR_STMT, t.pos, p.current_pos(), (uint)expr);
@@ -610,4 +612,53 @@ fn Node? parse_defer(Parser* p)
 	uint ex = ast::push_extra_block(p.ast, &data);
 
 	return ast::add_node(p.ast, NodeKind.DEFER_STMT, start_tok, p.current_pos(), ex);
+}
+
+fn Node? parse_assert_stmt(Parser* p)
+{
+    Token t = p.current();
+    expect(p, TokenKind.ASSERT)!; // consume 'assert'
+    expect(p, TokenKind.LPAREN)!;
+
+    Node cond = parse_expr(p)!;
+
+    Node message;
+    List{uint} args;
+    bool has_msg = false;
+
+    // optional message: assert(cond, "message", ...)
+    if (consume(p, TokenKind.COMMA)!)
+    {
+        has_msg = true;
+        message = parse_expr(p, Precedence.LOWEST)!;
+
+        while (consume(p, TokenKind.COMMA)!)
+        {
+            if (args.len() == 0) args.tinit(4);
+            Node arg = parse_expr(p, Precedence.LOWEST)!;
+            args.push((uint)arg);
+        }
+    }
+
+    expect(p, TokenKind.RPAREN)!;
+
+    List{uint} data;
+    data.tinit(4 + args.len());
+    data.push((uint)cond);
+    data.push((uint)message);
+    data.push((uint)args.len());
+    if (args.len() > 0)
+    {
+        for (uint i = 0; i < args.len(); i++) 
+		{
+			data.push(args[i]);
+		}
+    }
+    defer args.free();
+    defer data.free();
+
+    expect(p, TokenKind.EOS)!;
+
+    uint ex = ast::push_extra_block(p.ast, data.array_view());
+    return ast::add_node(p.ast, NodeKind.ASSERT_STMT, t.pos, p.current_pos(), ex);
 }

@@ -745,7 +745,11 @@ fn Token? Lexer.next(&self)
 			}
 			return self.emit(AMP, start, 1);
 		case '*':
-			self.advance()!;
+			self.advance()!; 
+			switch (self.peek())
+			{
+				case '=': self.advance()!; return self.emit(MULT_ASSIGN, start, 2);
+			}
 			return self.emit(ASTERISK, start, 1);
 		case '?':
 			self.advance()!;

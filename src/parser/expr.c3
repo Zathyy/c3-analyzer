@@ -13,7 +13,7 @@ import std::io;
 import std::collections::list;
 
 <*
- Should be aligned to C3C
+	Should be aligned to C3C
 	According to: https://c3-lang.org/language-rules/precedence/
 *>
 constdef Precedence : inline int
@@ -35,8 +35,8 @@ constdef Precedence : inline int
 }
 
 <*
- @param [&inout] lbp : "How strongly the operator pulls on the expression to its left."
- @param [&inout] rbp : "How strongly it pulls on the expression to its right."
+	@param [&inout] lbp : "How strongly the operator pulls on the expression to its left."
+	@param [&inout] rbp : "How strongly it pulls on the expression to its right."
 *>
 fn void get_binding_power(TokenKind type, int* lbp, int* rbp)
 {
@@ -44,6 +44,7 @@ fn void get_binding_power(TokenKind type, int* lbp, int* rbp)
 	{
 		// Assignment (Right-associative)
 		case TokenKind.EQ:
+		case TokenKind.MULT_ASSIGN:
 		case TokenKind.PLUS_ASSIGN:
 		case TokenKind.MINUS_ASSIGN:
 		case TokenKind.BIT_OR_ASSIGN:
@@ -145,7 +146,7 @@ fn void get_binding_power(TokenKind type, int* lbp, int* rbp)
 }
 
 <*
- parse_prefix (Nud) 
+ 	parse_prefix (Nud) 
 	Handles tokens that start an expression (e.g., -5, (expr), !true)
 	It has no "left" side to worry about.
 *>
@@ -161,28 +162,28 @@ fn Node? parse_prefix_expr(Parser* p)
 	switch (t.kind)
 	{
 		case TokenKind.BUILTIN:
+		{
+			advance(p)!;
+			Token next = p.current();
+
+			// parse ident
+			Node ident_node = parse_expr(p, Precedence.MULTIPLICATIVE)!;
+
+			uint[2] data = { (uint)t.kind, (uint)ident_node };
+			uint ex = ast::push_extra_block(p.ast, &data);
+
+			if (next.kind == TokenKind.CONST_IDENT)
 			{
-				advance(p)!;
-				Token next = p.current();
-
-				// parse ident
-				Node ident_node = parse_expr(p, Precedence.MULTIPLICATIVE)!;
-
-				uint[2] data = { (uint)t.kind, (uint)ident_node };
-				uint ex = ast::push_extra_block(p.ast, &data);
-
-				if (next.kind == TokenKind.CONST_IDENT)
-				{
-					return ast::add_node(p.ast, NodeKind.COMPILER_CONST_EXPR, t.pos, p.current_pos(), ex);
-				}
-
-				return ast::add_node(p.ast, NodeKind.BUILTIN_EXPR, t.pos, p.current_pos(), ex);
+				return ast::add_node(p.ast, NodeKind.COMPILER_CONST_EXPR, t.pos, p.current_pos(), ex);
 			}
+
+			return ast::add_node(p.ast, NodeKind.BUILTIN_EXPR, t.pos, p.current_pos(), ex);
+		}
 		case TokenKind.NULL:
-			{
-				advance(p)!;
-				return ast::add_node(p.ast, NodeKind.NULL_LITERAL, t.pos, t.pos, 0);
-			}
+		{
+			advance(p)!;
+			return ast::add_node(p.ast, NodeKind.NULL_LITERAL, t.pos, t.pos, 0);
+		}
 		case TokenKind.IDENT:
 		case TokenKind.CONST_IDENT:
 		case TokenKind.TYPE_IDENT:
@@ -301,7 +302,7 @@ fn Node? parse_prefix_expr(Parser* p)
 }
 
 <*
- parse_infix (Led)
+	parse_infix (Led)
 	Handles tokens that connect expressions (e.g. 1 + 2, obj.prop, arr[0])
 	It takes a pre-parsed "left" node and attaches a "right" side to it.
 *>
