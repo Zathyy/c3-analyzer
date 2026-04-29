@@ -86,6 +86,7 @@ fn Node? parse_contract(Parser* p)
 
 fn Node? parse_module(Parser* p, Workspace* ws)
 {
+	uint s = p.pos;
 	uint start = p.current_pos();
 	expect(p, TokenKind.MODULE)!;
 
@@ -110,9 +111,9 @@ fn Node? parse_module(Parser* p, Workspace* ws)
 		pos++;
 	}
 
-	if (try last_sec = p.sf.sections.last())
+	if (try ModuleSection* last_sec = p.sf.sections.last())
 	{
-		last_sec.end_node_idx = start;
+		last_sec.end_node_idx = s;
 	}
 
 	Node? path_node = parse_path(p);
@@ -120,7 +121,7 @@ fn Node? parse_module(Parser* p, Workspace* ws)
 	Module* mod = ws.get_or_create_module(mod_name);
 	ModuleSection* sec = ws.get_or_create_section(mod, p.sf);
 	p.mod = mod;
-	sec.start_node_idx = start;
+	sec.start_node_idx = s;
 
 	if (catch err = path_node)
 	{

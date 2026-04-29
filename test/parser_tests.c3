@@ -528,14 +528,13 @@ fn void fn_beta() {}
 }
 
 // ------------------------------------------------------------
-// 17. The single section holds all declarations from both blocks
+// 17. Each section holds declarations to only its block
 // ------------------------------------------------------------
 <*
-Because parse_module() does not switch sections, every declaration
-— fn_alpha and fn_beta alike — lands in alpha's section.
-Both symbols are therefore findable via lookup("alpha", ...).
+Because parse_module() does switch sections, each declaration should
+only be in its corresponding module and not others.
 *>
-fn void test_multi_module_all_decls_in_first_section() @test => @pool()
+fn void test_multi_module_each_decls_in_its_section() @test => @pool()
 {
 	String path = write_fixture("mm_decls", `module alpha2;
 fn void fn_a() {}
