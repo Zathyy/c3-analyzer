@@ -5,7 +5,7 @@ import std::collections::maybe;
 
 import c3_parser::ast @norecurse;
 
-enum VarDeclKind 
+enum VarDeclKind
 {
 	CONST,
 	GLOBAL,
@@ -42,7 +42,7 @@ enum TypeInfoKind
 	GENERIC
 }
 
-enum BuiltinFunction 
+enum BuiltinFunction
 {
 	ABS,
 	ANY_MAKE,

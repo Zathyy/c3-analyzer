@@ -15,444 +15,426 @@ import std::collections::list;
 import std::collections::maybe;
 
 faultdef
-  UNKNOWN,
-  UNEXPECTED_EOS,
-  MODULE_HEADER_FAILED,
-  CONTRACT_NOT_ALLOWED,
-  INVALID_PATH,
-  PATH_TOO_LONG,
-  TOO_MANY_INTERFACE_IMPL,
-  TOO_MANY_GENERICS,
-  EXPECTED_EXPRESSION,
-  UNEXPECTED_TOKEN,
-  ;
+	UNKNOWN, UNEXPECTED_EOS, MODULE_HEADER_FAILED, CONTRACT_NOT_ALLOWED, INVALID_PATH, PATH_TOO_LONG, TOO_MANY_INTERFACE_IMPL, TOO_MANY_GENERICS, EXPECTED_EXPRESSION, UNEXPECTED_TOKEN,
+;
 
 // length in parts, eg: foo::bar = 2 parts
 const uint PATH_MAX_LENGTH = 16;
 
 bitstruct ParseFlags : uint
 {
-  bool is_interface;   // Skip function bodies, disallow fields
-  bool is_global;      // Top-level declarations
-  bool is_local;       // Inside a function/block
-  bool is_var;         // has a 'var'
-  bool is_inline;
-  bool is_extern;      // C-linkage handling
-  bool is_thread_local;
-  bool is_attribute;   // Special parsing for @attr(...)
-  bool is_type_only;   // Used for casts or sizeof where names aren't expected
-  bool is_const;       // Context requires constant expressions
-  bool is_call;
-  bool is_lamda;
-  bool is_macro;
+	bool is_interface; // Skip function bodies, disallow fields
+	bool is_global; // Top-level declarations
+	bool is_local; // Inside a function/block
+	bool is_var; // has a 'var'
+	bool is_inline;
+	bool is_extern; // C-linkage handling
+	bool is_thread_local;
+	bool is_attribute; // Special parsing for @attr(...)
+	bool is_type_only; // Used for casts or sizeof where names aren't expected
+	bool is_const; // Context requires constant expressions
+	bool is_call;
+	bool is_lamda;
+	bool is_macro;
 
-  bool no_generics; // dont allow type parsing to check for generics
+	bool no_generics; // dont allow type parsing to check for generics
 }
 
 struct Parser
 {
-  LineMap* line_map;
-  StringPool* pool;
-  Ast* ast;
-  Module* mod;
-  SourceFile* sf;
-  Token[] tokens;
-  String file_path; // current file being parsed
-  String src;
+	LineMap* line_map;
+	StringPool* pool;
+	Ast* ast;
+	Module* mod;
+	SourceFile* sf;
+	Token[] tokens;
+	String file_path; // current file being parsed
+	String src;
 
-  uint pos;
+	uint pos;
 
-  // bool allow_submodules;
+	// bool allow_submodules;
 }
 
 <*
-  synchronize the top level/recover top level
-  @param [&inout] p
+ synchronize the top level/recover top level
+ @param [&inout] p
 *>
 fn void? synchronize(Parser* p)
 {
-  int brace_depth = 0;
+	int brace_depth = 0;
 
-  while (!p.eof())
-  {
-    Token t = p.current();
-    Location loc = p.line_map.resolve((Size)t.pos);
+	while (!p.eof())
+	{
+		Token t = p.current();
+		Location loc = p.line_map.resolve((Size)t.pos);
 
-    // Track depth to ensure we aren't inside a body
-    if (t.kind == TokenKind.LBRACE) brace_depth++;
-    if (t.kind == TokenKind.RBRACE)
-    {
-      brace_depth = (brace_depth > 0) ? brace_depth - 1 : 0;
-    } 
+		// Track depth to ensure we aren't inside a body
+		if (t.kind == TokenKind.LBRACE) brace_depth++;
+		if (t.kind == TokenKind.RBRACE)
+		{
+			brace_depth = (brace_depth > 0) ? brace_depth - 1 : 0;
+		}
 
-    if (brace_depth <= 0 && loc.column == 1)
-    {
-      switch (t.kind)
-      {
-        case TokenKind.CONTRACT:
-        case TokenKind.MODULE:
-        case TokenKind.IMPORT:
-        case TokenKind.ALIAS:
-        case TokenKind.TYPEDEF:
-        case TokenKind.FN:
-        case TokenKind.MACRO:
-        case TokenKind.STRUCT:
-        case TokenKind.CONST:
-        case TokenKind.ENUM:
-        case TokenKind.EXTERN:
-          return;
-        default:
-          break;
-      }
-    }
+		if (brace_depth <= 0 && loc.column == 1)
+		{
+			switch (t.kind)
+			{
+				case TokenKind.CONTRACT:
+				case TokenKind.MODULE:
+				case TokenKind.IMPORT:
+				case TokenKind.ALIAS:
+				case TokenKind.TYPEDEF:
+				case TokenKind.FN:
+				case TokenKind.MACRO:
+				case TokenKind.STRUCT:
+				case TokenKind.CONST:
+				case TokenKind.ENUM:
+				case TokenKind.EXTERN:
+					return;
+				default:
+					break;
+			}
+		}
 
-    if (brace_depth <= 0 && t.kind == TokenKind.EOS)
-    {
-      advance(p)!;
-      return;
-    }
+		if (brace_depth <= 0 && t.kind == TokenKind.EOS)
+		{
+			advance(p)!;
+			return;
+		}
 
-    advance(p)!;
-  }
+		advance(p)!;
+	}
 }
 
 fn bool Parser.eof(&self) @inline
 {
-  return self.pos >= self.tokens.len || self.is(TokenKind.EOF);
+	return self.pos >= self.tokens.len || self.is(TokenKind.EOF);
 }
 
-fn bool Parser.is(&self, TokenKind kind) 
+fn bool Parser.is(&self, TokenKind kind)
 {
-  return self.tokens[self.pos].kind == kind;
+	return self.tokens[self.pos].kind == kind;
 }
 
 fn Token Parser.current(&self) @inline
 {
-  return self.peek(0);
+	return self.peek(0);
 }
 
 fn Token Parser.peek(&self, uint pos = 1) @inline
 {
-  assert((Size)self.pos + pos < self.tokens.len);
-  return self.tokens[(Size)self.pos + pos];
+	assert ((Size)self.pos + pos < self.tokens.len);
+	return self.tokens[(Size)self.pos + pos];
 }
 
 fn uint Parser.current_pos(Parser* self) @inline
 {
-  return self.current().pos; 
+	return self.current().pos;
 }
 
 fn uint Parser.previous_pos(Parser* self) @inline
 {
-  return self.tokens[(Size)self.pos - 1].pos;
+	return self.tokens[(Size)self.pos - 1].pos;
 }
 
 fn void Parser.print_current(&self)
 {
-  log::debug("%s", self.token_text(self.current()));
+	log::debug("%s", self.token_text(self.current()));
 }
 
 <*
-  @param [&inout] parser
+ @param [&inout] parser
 *>
 fn void? advance(Parser* parser, uint len = 1)
 {
-  if (parser.eof())
-  {
-    log::debug("parser::advance() : eof");
-    return io::EOF~;
-  }
-  parser.pos += len;
+	if (parser.eof())
+	{
+		log::debug("parser::advance() : eof");
+		return io::EOF~;
+	}
+	parser.pos += len;
 }
 
 <*
-  a macro just so that it logs where it happened
-
-  @param [&inout] parser
+ a macro just so that it logs where it happened
+ @param [&inout] parser
 *>
 macro void? expect(Parser* parser, TokenKind kind)
 {
-  if (!parser.is(kind))
-  {
-    parser.error("Expected '%s' got '%s'", kind.description, parser.current().kind.description);
-    log::error("Error happened here");
-    return UNEXPECTED_TOKEN~;
-  }
+	if (!parser.is(kind))
+	{
+		parser.error("Expected '%s' got '%s'", kind.description, parser.current().kind.description);
+		log::error("Error happened here");
+		return UNEXPECTED_TOKEN~;
+	}
 
-  advance(parser)!;
+	advance(parser)!;
 }
 
 <*
-  @param [&inout] parser
-  @param kind : "type to consume"
+ @param [&inout] parser
+ @param kind : "type to consume"
 *>
 fn bool? consume(Parser* parser, TokenKind kind)
 {
-  if (parser.eof()) return io::EOF~;
-  if (parser.is(kind))
-  {
-    advance(parser)!;
-    return true;
-  }
+	if (parser.eof()) return io::EOF~;
+	if (parser.is(kind))
+	{
+		advance(parser)!;
+		return true;
+	}
 
-  return false;
+	return false;
 }
 
 fn String Parser.token_text(Parser* self, Token t) @inline
 {
-  return self.src[t.pos:t.len];
+	return self.src[t.pos:t.len];
 }
 
 fn String Parser.current_text(Parser* self) @inline
 {
-  return self.token_text(self.current());
+	return self.token_text(self.current());
 }
 
 fn String peek_module_name(Parser* p)
 {
-  if (p.tokens[0].kind == TokenKind.MODULE)
-  {
-    // Start collecting the name after the 'module' keyword
-    String full_name = "";
+	if (p.tokens[0].kind == TokenKind.MODULE)
+	{
+		// Start collecting the name after the 'module' keyword
+		String full_name = "";
 
-    Size i = 1;
-    while (i < p.tokens.len)
-    {
-      Token t = p.tokens[i];
+		Size i = 1;
+		while (i < p.tokens.len)
+		{
+			Token t = p.tokens[i];
 
-      if (t.kind == TokenKind.IDENT) 
-      {
-        String part = p.token_text(t); 
-        full_name = full_name.tconcat(part);
-      } 
-      else if (t.kind == TokenKind.SCOPE) 
-      {
-        full_name = full_name.tconcat("::");
-      } 
-      else if (t.kind == TokenKind.EOS) 
-      {
-        break; // End of module declaration
-      }
+			if (t.kind == TokenKind.IDENT)
+			{
+				String part = p.token_text(t);
+				full_name = full_name.tconcat(part);
+			}
+			else if (t.kind == TokenKind.SCOPE)
+			{
+				full_name = full_name.tconcat("::");
+			}
+			else if (t.kind == TokenKind.EOS)
+			{
+				break; // End of module declaration
+			}
 
-      i++;
-    }
-    return full_name;
-  }
+			i++;
+		}
+		return full_name;
+	}
 
-  return "";
+	return "";
 }
 
 <*
-  Parse a specific file.
+ Parse a specific file.
   Appends the nodes to the provided Modules Ast
-
-  @param [&inout] ws
+ @param [&inout] ws
 *>
 fn void? parse_file(Workspace* ws, String path)
 {
-  Parser parser = {
-    .mod = null,
-    .pool = &ws.strings,
-    .file_path = path,
-    // .allow_submodules = true,
-  };
+	Parser parser = { .mod = null, .pool = &ws.strings, .file_path = path, // .allow_submodules = true,
+	};
 
-  String src = (String) file::load(tmem, path)!;
-  Lexer lexer = {
-    .buffer = src,
-    .index = 0,
-  };
+	String src = (String)file::load(tmem, path)!;
+	Lexer lexer = { .buffer = src, .index = 0, };
 
-  parser.src = src;
+	parser.src = src;
 
-  List{ Token } tokens;
-  tokens.tinit(1000);
-  defer tokens.free();
-  while (try token = lexer.next())
-  {
-    tokens.push(token);
-    log::debug("Added token: <%s> - %s", token.kind, parser.token_text(token));
-  }
+	List{Token} tokens;
+	tokens.tinit(1000);
+	defer tokens.free();
+	while (try token = lexer.next())
+	{
+		tokens.push(token);
+		log::debug("Added token: <%s> - %s", token.kind, parser.token_text(token));
+	}
 
-  tokens.push({.kind = TokenKind.EOF, .pos = (tokens.last().pos + tokens.last().len) ?? 0, .len = 0 });
-  parser.tokens = tokens.array_view();
+	tokens.push({ .kind = TokenKind.EOF, .pos = (tokens.last().pos + tokens.last().len) ?? 0, .len = 0 });
+	parser.tokens = tokens.array_view();
 
 
-  SourceFile* sf = ws.reset_source_file(path);
-  sf.source = src;
-  parser.sf = sf;
-  parser.ast = &sf.ast;
-  parser.line_map = &sf.line_map;
-  parser.line_map.build(src);
+	SourceFile* sf = ws.reset_source_file(path);
+	sf.source = src;
+	parser.sf = sf;
+	parser.ast = &sf.ast;
+	parser.line_map = &sf.line_map;
+	parser.line_map.build(src);
 
-  // Module* mod = ws.get_or_create_module(mod_name);
-  // parser.mod = mod;
+	// Module* mod = ws.get_or_create_module(mod_name);
+	// parser.mod = mod;
 
-  log::info("parsing file: %s", path);
+	log::info("parsing file: %s", path);
 
-  // ModuleSection* section = workspace::get_or_create_section(mod, path);
-  // assert(section != null);
-  // section.source = src;
-  // section.start_node_idx = (uint)mod.ast.len();
+	// ModuleSection* section = workspace::get_or_create_section(mod, path);
+	// assert(section != null);
+	// section.source = src;
+	// section.start_node_idx = (uint)mod.ast.len();
 
-  String mod_name = peek_module_name(&parser);
-  if (mod_name == "") 
-  {
-    // parser.allow_submodules = false;
-    mod_name = path_to_module_name(path)!;
+	String mod_name = peek_module_name(&parser);
+	if (mod_name == "")
+	{
+		// parser.allow_submodules = false;
+		mod_name = path_to_module_name(path)!;
 
-    Module* mod = ws.get_or_create_module(mod_name);
-    ModuleSection* sec = ws.get_or_create_section(mod, parser.sf);
-    parser.mod = mod;
-    log::info("Inferred module: %s", mod_name);
-  }
+		Module* mod = ws.get_or_create_module(mod_name);
+		ModuleSection* sec = ws.get_or_create_section(mod, parser.sf);
+		parser.mod = mod;
+		log::info("Inferred module: %s", mod_name);
+	}
 
-  while (!parser.eof())
-  {
-    if (catch err = parse_top_level(&parser, ws))
-    {	
-      if (err == io::EOF)
-      {
-        log::error("EOF");
-        return err~;
-      }
+	while (!parser.eof())
+	{
+		if (catch err = parse_top_level(&parser, ws))
+		{
+			if (err == io::EOF)
+			{
+				log::error("EOF");
+				return err~;
+			}
 
-      synchronize(&parser)!;
-      continue;
-    }
-  }
+			synchronize(&parser)!;
+			continue;
+		}
+	}
 
-  if (try last_sec = parser.sf.sections.last())
-  {
-    last_sec.end_node_idx = parser.sf.ast.len();
-  }
-  // section.end_node_idx = (uint)mod.ast.len();
-  log::info("Succesfully parsed: %s", path);
+	if (try last_sec = parser.sf.sections.last())
+	{
+		last_sec.end_node_idx = parser.sf.ast.len();
+	}
+	// section.end_node_idx = (uint)mod.ast.len();
+	log::info("Succesfully parsed: %s", path);
 }
 
 fn String? path_to_module_name(String path)
 {
-  String base_name = path.file_tbasename()!;
-  return base_name.strip_suffix(".c3");
+	String base_name = path.file_tbasename()!;
+	return base_name.strip_suffix(".c3");
 }
 
 fn void? parse_top_level(Parser* p, Workspace* ws)
 {
-  log::debug("parse_top_level: %s", p.token_text(p.current()));
+	log::debug("parse_top_level: %s", p.token_text(p.current()));
 
-  Node node;
-  ParseFlags flags = { .is_global = true };
+	Node node;
+	ParseFlags flags = { .is_global = true };
 
 
-  // the individual parse functions will check that the modifiers are used appropiately
-  while (true)
-  {
-    Token t = p.current();
+	// the individual parse functions will check that the modifiers are used appropiately
+	while (true)
+	{
+		Token t = p.current();
 
-    if (t.kind == TokenKind.EXTERN) 
-    {
-      if (flags.is_extern) p.error("Duplicate 'extern' modifier");
-      flags.is_extern = true;
-    }
-    else if (t.kind == TokenKind.TLOCAL) 
-    {
-      if (flags.is_thread_local) p.error("Duplicate 'tlocal' modifier");
-      flags.is_thread_local = true;
-    }
-    else if (t.kind == TokenKind.INLINE) 
-    {
-      if (flags.is_inline) p.error("Duplicate 'inline' modifier");
-      flags.is_inline = true;
-    }
-    else 
-    {
-      break;
-    }
+		if (t.kind == TokenKind.EXTERN)
+		{
+			if (flags.is_extern) p.error("Duplicate 'extern' modifier");
+			flags.is_extern = true;
+		}
+		else if (t.kind == TokenKind.TLOCAL)
+		{
+			if (flags.is_thread_local) p.error("Duplicate 'tlocal' modifier");
+			flags.is_thread_local = true;
+		}
+		else if (t.kind == TokenKind.INLINE)
+		{
+			if (flags.is_inline) p.error("Duplicate 'inline' modifier");
+			flags.is_inline = true;
+		}
+		else
+		{
+			break;
+		}
 
-    advance(p)!;
-  }
+		advance(p)!;
+	}
 
-  if (is_type(p.current().kind))
-  {
-    node = parse_var_decl(p, flags)!;
-    if (node.is_valid())
-    {
-      p.ast.top_level_nodes.push((uint)node);
-      return;
-    }
-  }
+	if (is_type(p.current().kind))
+	{
+		node = parse_var_decl(p, flags)!;
+		if (node.is_valid())
+		{
+			p.ast.top_level_nodes.push((uint)node);
+			return;
+		}
+	}
 
-  if (p.current().kind == TokenKind.IMPORT)
-  {
-    advance(p)!;
-    while (true)
-    {
-      uint start = p.current_pos();
+	if (p.current().kind == TokenKind.IMPORT)
+	{
+		advance(p)!;
+		while (true)
+		{
+			uint start = p.current_pos();
 
-      Node? path_node = parse_path(p);
-      if (catch err = path_node)
-      {
-        p.error("failed to parse path for module: %s", err);
-        return err~;
-      }
+			Node? path_node = parse_path(p);
+			if (catch err = path_node)
+			{
+				p.error("failed to parse path for module: %s", err);
+				return err~;
+			}
 
-      uint attr = parse_attributes(p)!;
+			uint attr = parse_attributes(p)!;
 
-      uint[*] data = { (uint)path_node, attr };
-      uint ex = ast::push_extra_block(p.ast, &data);
-      Node imp_node = ast::add_node(p.ast, NodeKind.IMPORT_DECL, start, p.current_pos(), ex);
-      p.ast.top_level_nodes.push((uint)imp_node);
-      if (!consume(p, TokenKind.COMMA)!) break;
-    }
-    expect(p, TokenKind.EOS)!;
-    return;
-  }
+			uint[*] data = { (uint)path_node, attr };
+			uint ex = ast::push_extra_block(p.ast, &data);
+			Node imp_node = ast::add_node(p.ast, NodeKind.IMPORT_DECL, start, p.current_pos(), ex);
+			p.ast.top_level_nodes.push((uint)imp_node);
+			if (!consume(p, TokenKind.COMMA)!) break;
+		}
+		expect(p, TokenKind.EOS)!;
+		return;
+	}
 
-  switch (p.current().kind)
-  {
-    case TokenKind.CONTRACT:
-      node = parse_contract(p)!;
-      break;
-    case TokenKind.INTERFACE:
-      node = parse_interface(p)!;
-      break;
-    case TokenKind.MODULE:
-      node = parse_module(p, ws)!;
-      break;
-    case TokenKind.FN:
-      node = parse_fn_decl(p, flags)!;
-      break;
-    case TokenKind.MACRO:
-      node = parse_macro_decl(p)!;
-      break;
-    case TokenKind.ALIAS:
-      node = parse_alias(p)!;
-      break;
-    case TokenKind.TYPEDEF:
-      node = parse_typedef(p)!;
-      break;
-    case TokenKind.STRUCT:
-      node = parse_struct(p)!;
-      break;
-    case TokenKind.ENUM:
-      node = parse_enum(p)!;
-      break;
-    case TokenKind.CONST:
-      flags.is_const = true;
-      advance(p)!;
-      node = parse_var_decl(p, flags)!;
-      break;
-    case TokenKind.EOS:
-      p.error("<EOS> appeared in parse_top_level");
-      advance(p)!;
-      return UNEXPECTED_EOS~;
-    default:
-      p.error("Couldn't find any matching top level declaration: %s", p.current());
-      return UNEXPECTED_TOKEN~;
-  }
+	switch (p.current().kind)
+	{
+		case TokenKind.CONTRACT:
+			node = parse_contract(p)!;
+			break;
+		case TokenKind.INTERFACE:
+			node = parse_interface(p)!;
+			break;
+		case TokenKind.MODULE:
+			node = parse_module(p, ws)!;
+			break;
+		case TokenKind.FN:
+			node = parse_fn_decl(p, flags)!;
+			break;
+		case TokenKind.MACRO:
+			node = parse_macro_decl(p)!;
+			break;
+		case TokenKind.ALIAS:
+			node = parse_alias(p)!;
+			break;
+		case TokenKind.TYPEDEF:
+			node = parse_typedef(p)!;
+			break;
+		case TokenKind.STRUCT:
+			node = parse_struct(p)!;
+			break;
+		case TokenKind.ENUM:
+			node = parse_enum(p)!;
+			break;
+		case TokenKind.CONST:
+			flags.is_const = true;
+			advance(p)!;
+			node = parse_var_decl(p, flags)!;
+			break;
+		case TokenKind.EOS:
+			p.error("<EOS> appeared in parse_top_level");
+			advance(p)!;
+			return UNEXPECTED_EOS~;
+		default:
+			p.error("Couldn't find any matching top level declaration: %s", p.current());
+			return UNEXPECTED_TOKEN~;
+	}
 
-  if (node.is_valid())
-  {
-    p.ast.top_level_nodes.push((uint)node);
-  }
+	if (node.is_valid())
+	{
+		p.ast.top_level_nodes.push((uint)node);
+	}
 }

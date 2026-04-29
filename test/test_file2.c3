@@ -17,12 +17,10 @@ struct Bar (MyInterface)
 
 fn void Bar.foo(&self) @dynamic
 {
-
 }
 
 fn void Bar.bar(&self) @dynamic
 {
-
 }
 
 int a = foo::get_value(arg0: 123, arg1: 534, null);

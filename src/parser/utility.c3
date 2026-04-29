@@ -15,33 +15,33 @@ const String ANSI_BOLD   = "\x1b[1m";
 
 macro void Parser.info(self, String fmt, ...)
 {
-    self.report(self.current(), "info", ANSI_CYAN, fmt, $vasplat);
+	self.report(self.current(), "info", ANSI_CYAN, fmt, ...$vaarg);
 }
 
 macro void Parser.warn(self, String fmt, ...)
 {
-    self.report(self.current(), "warning", ANSI_YELLOW, fmt, $vasplat);
+	self.report(self.current(), "warning", ANSI_YELLOW, fmt, ...$vaarg);
 }
 
 macro void Parser.error(self, String fmt, ...)
 {
-	log::error(fmt, $vasplat);
-    self.report(self.current(), "error", ANSI_RED, fmt, $vasplat);
+	log::error(fmt, ...$vaarg);
+	self.report(self.current(), "error", ANSI_RED, fmt, ...$vaarg);
 }
 
-fn void Parser.report(Parser* self, Token token, String level, String color, String fmt, args...)
+fn void Parser.report(Parser* self, Token token, String level, String color, String fmt, args ...)
 {
-    Location loc = self.line_map.resolve(token.pos);
+	Location loc = self.line_map.resolve(token.pos);
 
-    io::printf("%s:%s:%s: %s%s:%s ", self.file_path, loc.line, loc.column, color, level, ANSI_RESET);
-    io::printf(fmt, args);
-    io::printn("");
+	io::printf("%s:%s:%s: %s%s:%s ", self.file_path, loc.line, loc.column, color, level, ANSI_RESET);
+	io::printf(fmt, args);
+	io::printn("");
 
-    String line_text = self.line_map.get_line_from_src(self.src, loc.line);
-    io::printf(" %4s | %s\n", loc.line, line_text);
+	String line_text = self.line_map.get_line_from_src(self.src, loc.line);
+	io::printf(" %4s | %s\n", loc.line, line_text);
 
-    io::printf(" %4s | ", "");
-    for (uint i = 1; i < loc.column; i++) 
+	io::printf(" %4s | ", "");
+	for (uint i = 1; i < loc.column; i++)
 	{
 		if (line_text[i - 1] == '\t')
 		{
@@ -52,16 +52,15 @@ fn void Parser.report(Parser* self, Token token, String level, String color, Str
 			io::print(" ");
 		}
 	}
-    io::printf("%s^%s\n", color, ANSI_RESET);
+	io::printf("%s^%s\n", color, ANSI_RESET);
 }
 
-fn bool is_keyword_ident(TokenKind type) 
+fn bool is_keyword_ident(TokenKind type)
 {
-	return type >= TokenKind.ALIAS
-		&& type <= TokenKind.WHILE;
+	return type >= TokenKind.ALIAS && type <= TokenKind.WHILE;
 }
 
-fn bool is_some_ident(TokenKind type) 
+fn bool is_some_ident(TokenKind type)
 {
 	switch (type)
 	{
@@ -84,7 +83,7 @@ fn bool is_type(TokenKind kind)
 		case TokenKind.DOUBLE:
 		case TokenKind.FLOAT:
 		case TokenKind.FLOAT16:
-		case TokenKind.BFLOAT16:
+		case TokenKind.BFLOAT:
 		case TokenKind.INT128:
 		case TokenKind.ICHAR:
 		case TokenKind.INT:
@@ -97,7 +96,7 @@ fn bool is_type(TokenKind kind)
 		case TokenKind.UPTR:
 		case TokenKind.USHORT:
 		case TokenKind.USZ:
-		case TokenKind.ISZ:
+		case TokenKind.SZ:
 		case TokenKind.FLOAT128:
 		case TokenKind.TYPEID:
 		case TokenKind.FAULT:
@@ -106,11 +105,9 @@ fn bool is_type(TokenKind kind)
 		case TokenKind.TYPE_IDENT:
 		case TokenKind.CT_TYPE_IDENT:
 		case TokenKind.CT_TYPEOF:
-		case TokenKind.CT_EVALTYPE:
-		case TokenKind.CT_VATYPE:
 		case TokenKind.CT_TYPEFROM:
 			return true;
-		default: 
+		default:
 			return false;
 	}
 }
