@@ -67,6 +67,8 @@ fn Node? parse_statement(Parser* p)
 			return parse_while_stmt(p)!;
 		case TokenKind.FOR:
 			return parse_for_stmt(p)!;
+		case TokenKind.CT_FOR:
+			return parse_ct_for_stmt(p)!;
 		case TokenKind.ASSERT:
 			return parse_assert_stmt(p)!;
 		default:
@@ -122,6 +124,52 @@ fn Node? parse_for_stmt(Parser* p)
 
 	uint ex = ast::push_extra_block(p.ast, &data);
 	return ast::add_node(p.ast, NodeKind.FOR_STMT, for_token, p.current_pos(), ex);
+}
+
+fn Node? parse_ct_for_stmt(Parser* p)
+{
+    uint start_pos = p.current().pos;
+    advance(p)!;
+
+    Node init;
+    Node cond;
+    Node incr;
+
+    if (!p.is(TokenKind.EOS))
+    {
+        init = parse_ct_expr_list(p)!; 
+    }
+    expect(p, TokenKind.EOS)!;
+
+    cond = parse_expr(p)!;
+    expect(p, TokenKind.EOS)!;
+
+    if (!p.is(TokenKind.COLON))
+    {
+        incr = parse_ct_expr_list(p)!;
+    }
+
+    expect(p, TokenKind.COLON)!;
+
+    List{uint} data;
+    data.tinit(4);
+	data.push(0);
+	data.push((uint)init);
+	data.push((uint)cond);
+	data.push((uint)incr);
+    defer data.free();
+
+    while (!p.is(TokenKind.CT_ENDFOR) && !p.eof())
+    {
+        Node stmt = parse_statement(p)!;
+        data.push((uint)stmt);
+    }
+    expect(p, TokenKind.CT_ENDFOR)!;
+
+	data[0] = (uint)data.len() - 1;
+
+    uint ex = ast::push_extra_block(p.ast, data.array_view()); 
+    return ast::add_node(p.ast, NodeKind.CT_FOR_STMT, start_pos, p.current_pos(), ex);
 }
 
 fn Node? parse_compound(Parser* p)

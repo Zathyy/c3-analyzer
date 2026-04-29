@@ -231,10 +231,9 @@ fn Node? parse_enum(Parser* p)
 	return ast::add_node(p.ast, NodeKind.ENUM_DECL, start_tok, p.current_pos(), ex);
 }
 
-fn Node? parse_fn_decl(Parser* p, ParseFlags flags)
+fn Node? parse_fn_decl(Parser* p, ParseFlags flags) => @scratch()
 {
 	uint start_tok = p.current_pos();
-
 	expect(p, TokenKind.FN)!;
 	log::debug("parse_fn_decl - parse_type");
 	Node ret_type = parse_type(p)!;
@@ -408,40 +407,58 @@ fn Node? parse_macro_decl(Parser* p)
 
 fn Node? parse_param_decl(Parser* p)
 {
-	uint start = p.current_pos();
-	bool is_ref = false;
-	uint name = 0;
-	Node type;
+    uint start = p.current_pos();
+    uint name = 0;
+    Node type;
+    Node init;
+    bool is_variadic = false;
+	uint flags = 0;
 
-	// Handle Reference (&self)
 	if (consume(p, TokenKind.AMP)!)
-	{
-		is_ref = true;
-	}
+    {
+        flags |= 2;
+    }
 
-	// optional type
-	if (is_type(p.current().kind) && p.peek(1).kind != TokenKind.COMMA && p.peek(1).kind != TokenKind.RPAREN)
-	{
-		type = parse_type(p)!;
-	}
+    if (consume(p, TokenKind.ELLIPSIS)!)
+    {        
+		flags |= 1;
 
-	TokenKind k = p.current().kind;
-	if (k == TokenKind.IDENT || k == TokenKind.CT_IDENT || k == TokenKind.CT_TYPE_IDENT || k == TokenKind.HASH_IDENT)
-	{
-		name = p.pool.intern(p.token_text(p.current()));
-		advance(p)!;
-	}
+        if (is_non_type_ident(p.current().kind) || p.current().kind == TokenKind.CT_TYPE_IDENT)
+        {
+            name = p.pool.intern(p.token_text(p.current()));
+            advance(p)!;
+        }
+    }
+    else
+    {
+		if (is_type(p.current().kind) || p.is(TokenKind.CT_TYPE_IDENT))
+		{
+        	type = parse_type(p)!;
 
-	// Handle Default Values
-	Node init;
-	if (consume(p, TokenKind.EQ)!)
-	{
-		init = parse_expr(p, { })!;
-	}
+			if (consume(p, TokenKind.ELLIPSIS)!)
+            {
+                flags |= 1;
+            }
+		}
 
-	uint[4] data = { name, (uint)type, (uint)init, is_ref ? 1 : 0 };
-	uint ex = ast::push_extra_block(p.ast, &data);
-	return ast::add_node(p.ast, NodeKind.PARAM_DECL, start, p.previous_pos(), ex);
+		TokenKind k = p.current().kind;
+		if (is_non_type_ident(k) || k == TokenKind.CT_TYPE_IDENT || k == TokenKind.CT_IDENT)
+        {
+            name = p.pool.intern(p.token_text(p.current()));
+            advance(p)!;
+        }
+    }
+
+    // Default Values ('=' expr)
+    if (name != 0 && consume(p, TokenKind.EQ)!)
+    {
+        init = parse_expr(p)!;
+    }
+
+    uint[4] data = { name, (uint)type, (uint)init, flags };
+    uint ex = ast::push_extra_block(p.ast, &data);
+
+    return ast::add_node(p.ast, NodeKind.PARAM_DECL, start, p.current_pos(), ex);
 }
 
 <*

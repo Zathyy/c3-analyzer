@@ -80,6 +80,9 @@ enum NodeKind : char
 	PRE_UNARY_EXPR,
 	PREFIX_EXPR,
 	NAMED_ARG_EXPR,
+	MAYBE_DEREF_EXPR,
+	SUBSCRIPT_EXPR,
+	EXPR_LIST,
 
 
 	FOR_STMT,
@@ -107,6 +110,7 @@ enum NodeKind : char
 	CT_SWITCH_STMT,
 	CT_CASE_STMT,
 	CT_VAR_DECL,
+	CT_FOR_STMT,
 }
 
 struct Ast
@@ -179,7 +183,7 @@ fn void Ast.set_extra(&self, uint index, uint value) @inline
 }
 
 <*
- @require end_tok >= start_tok : "start needs to be less than end"
+	@require end_tok >= start_tok : "start needs to be less than end"
 *>
 fn Node add_node(Ast* ast, NodeKind kind, uint start_tok, uint end_tok, uint extra_idx)
 {

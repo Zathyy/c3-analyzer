@@ -21,6 +21,30 @@ faultdef
 // length in parts, eg: foo::bar = 2 parts
 const uint PATH_MAX_LENGTH = 16;
 
+tlocal List{uint} scratch;
+
+fn uint[] scratch_view(uint index, uint len)
+{
+	return scratch.entries[index:len];
+}
+
+// defer so it always runs even if the function returns fault
+macro @with_scratch(; @body(index))
+{
+	uint watermark = (uint)scratch.len();
+	defer scratch.size = (Size)watermark;
+	@body(watermark);
+}
+
+// defer so it always runs even if the function returns fault
+macro @scratch(; @body())
+{
+	Size watermark = scratch.len();
+	defer scratch.size = watermark;
+	@body();
+}
+
+
 bitstruct ParseFlags : uint
 {
 	bool is_interface; // Skip function bodies, disallow fields
@@ -241,6 +265,13 @@ fn void? parse_file(Workspace* ws, String path)
 {
 	Parser parser = { .mod = null, .pool = &ws.strings, .file_path = path, // .allow_submodules = true,
 	};
+
+	if (!scratch.is_initialized())
+	{
+		scratch.tinit(1000);
+	}
+
+	scratch.clear();
 
 	String src = (String)file::load(tmem, path)!;
 	Lexer lexer = { .buffer = src, .index = 0, };

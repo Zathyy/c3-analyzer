@@ -227,6 +227,3 @@ fn String LiteralView.value(LiteralView self, StringPool* pool)
 	uint sh = self.ast.extra_indices[(Size)self.handle];
 	return pool.get((StringHandle)sh);
 }
-
-
-// / ------------

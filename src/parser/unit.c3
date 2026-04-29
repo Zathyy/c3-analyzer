@@ -224,18 +224,15 @@ fn Node? parse_type(Parser* p, ParseFlags parse_flags = { })
  @param [&inout] p
  @returns "Extra data index"
 *>
-fn uint? parse_parameter_list(Parser* p)
+fn uint? parse_parameter_list(Parser* p) => @scratch()
 {
 	expect(p, TokenKind.LPAREN)!;
-
-	List{uint} params;
-	params.tinit();
-	params.push(0); // count
+	scratch.push(0); // count
 
 	while (!p.is(TokenKind.RPAREN) && !p.eof())
 	{
 		Node param = parse_param_decl(p)!;
-		params.push((uint)param);
+		scratch.push((uint)param);
 
 		if (consume(p, TokenKind.COMMA)!) continue;
 		if (!p.is(TokenKind.RPAREN))
@@ -244,11 +241,10 @@ fn uint? parse_parameter_list(Parser* p)
 			return 0;
 		}
 	}
+
 	expect(p, TokenKind.RPAREN)!;
-
-	params[0] = (uint)params.len() - 1;
-
-	return ast::push_extra_block(p.ast, params.array_view());
+	scratch[0] = (uint)scratch.len() - 1;
+	return ast::push_extra_block(p.ast, scratch.array_view());
 }
 
 <*
@@ -259,205 +255,159 @@ fn uint? parse_parameter_list(Parser* p)
 *>
 fn Node? parse_interface_impl(Parser* p)
 {
-	uint start_pos = p.current().pos;
-	if (!p.is(TokenKind.LPAREN)) return { };
+    uint start_pos = p.current_pos();
+    if (!consume(p, TokenKind.LPAREN)!) return {};
+    // Handle empty list case: ()
+    if (consume(p, TokenKind.RPAREN)!) return {};
 
-	advance(p)!; // Consume '('
+    uint ex = 0;
 
-	if (p.is(TokenKind.RPAREN))
-	{
-		advance(p)!;
-		return { };
-	}
+    @with_scratch(; watermark)
+    {
+        while (true)
+        {
+            Node type_node = parse_type(p)!;
+            scratch.push((uint)type_node);
 
-	uint[common::MAX_INTERFACE_IMPL] types;
-	uint interf_count = 0;
+            if (!consume(p, TokenKind.COMMA)!) break;
+            if (p.is(TokenKind.RPAREN)) break;
+        }
 
-	while (true)
-	{
-		Node type_node = parse_type(p)!;
-		if (interf_count >= common::MAX_INTERFACE_IMPL)
-		{
-			p.error("Too many interfaces (%s) max is = %s", common::MAX_INTERFACE_IMPL, interf_count);
-			return TOO_MANY_INTERFACE_IMPL~;
-		}
-		types[interf_count++] = (uint)type_node;
+        uint count = (uint)scratch.len() - watermark;
+        ex = ast::push_extra_block(p.ast, scratch_view(watermark, count));
+    };
 
-		if (p.is(TokenKind.COMMA))
-		{
-			advance(p)!;
-			if (p.is(TokenKind.RPAREN)) break;
-		}
-		else
-		{
-			break;
-		}
-	}
-
-	expect(p, TokenKind.RPAREN)!;
-
-	uint[common::MAX_INTERFACE_IMPL + 1] final_block;
-	final_block[0] = interf_count;
-
-	for (uint i = 0; i < interf_count; i++)
-	{
-		final_block[i + 1] = types[i];
-	}
-
-	uint ex = ast::push_extra_block(p.ast, &final_block);
-	return ast::add_node(p.ast, NodeKind.INTERFACE_IMPL, start_pos, p.current_pos(), ex);
+    expect(p, TokenKind.RPAREN)!;
+    return ast::add_node(p.ast, NodeKind.INTERFACE_IMPL, start_pos, p.current_pos(), ex);
 }
 
 <*
- parse attributes
- @param [&inout] p
- @reutrn "extra index"
+	parse attributes
+	@param [&inout] p
+	@reutrn "extra index"
 *>
 fn uint? parse_attributes(Parser* p)
 {
-	if (!p.is(TokenKind.AT_IDENT) && !p.is(TokenKind.AT_TYPE_IDENT)) return 0;
+    if (!p.is(TokenKind.AT_IDENT) && !p.is(TokenKind.AT_TYPE_IDENT)) return 0;
 
-	List{Node} attr_nodes;
-	attr_nodes.tinit();
-	attr_nodes.push({ }); // count
+    uint final_ex = 0;
 
-	while (p.is(TokenKind.AT_IDENT) || p.is(TokenKind.AT_TYPE_IDENT))
+    @with_scratch(; base_watermark)
+    {
+        while (p.is(TokenKind.AT_IDENT) || p.is(TokenKind.AT_TYPE_IDENT))
+        {
+            uint start_tok = p.current_pos();
+            String attr_name = p.token_text(p.current());
+            advance(p)!;
+
+            uint arg_count = 0;
+            uint args_ex = 0;
+
+            // Handle Attribute Arguments
+            if (consume(p, TokenKind.LPAREN)!)
+            {
+                @with_scratch(; watermark)
+                {
+                    while (!p.eof())
+                    {
+                        Node expr = parse_attribute_argument(p)!;
+                        if (expr) scratch.push((uint)expr);
+                        
+                        if (consume(p, TokenKind.RPAREN)!) break;
+                        expect(p, TokenKind.COMMA)!;
+                    }
+                    
+                    uint count = (uint)scratch.len() - watermark;
+                    arg_count = count;
+                    args_ex = ast::push_extra_block(p.ast, scratch_view(watermark, count));
+                };
+            }
+
+            uint[3] attr_block = { 
+                (uint)common::get_attribute_from_string(attr_name), 
+                args_ex, 
+                arg_count 
+            };
+
+            uint ex = ast::push_extra_block(p.ast, &attr_block);
+            Node attr_node = ast::add_node(p.ast, NodeKind.ATTRIBUTE, start_tok, p.previous_pos(), ex);
+
+            scratch.push((uint)attr_node);
+        }
+
+        uint total_attrs = (uint)scratch.len() - base_watermark;
+        final_ex = ast::push_extra_block(p.ast, scratch_view(base_watermark, total_attrs));
+    };
+
+    return final_ex;
+}
+
+fn Node? parse_attribute_argument(Parser* p) 
+{
+    Token curr = p.current();
+    
+    switch (curr.kind) 
 	{
-		Token t = p.current();
-		uint start_tok = p.current_pos();
-		String attr_name = p.token_text(t);
-		advance(p)!;
-
-		uint arg_count = 0;
-		uint args_ex = 0;
-
-		if (consume(p, TokenKind.LPAREN)!)
-		{
-			List{uint} args;
-			args.tinit(4);
-
-			while (!p.eof())
+        case TokenKind.LBRACKET: // []  []=
+            advance(p)!;
+            expect(p, TokenKind.RBRACKET)!;
+            OverloadKind kind = consume(p, TokenKind.EQ)! ? OverloadKind.ELEMENT_SET : OverloadKind.ELEMENT_AT;
+            return ast::add_node(p.ast, NodeKind.OP_OVERLOAD, curr.pos, p.current_pos(), (uint)kind);
+        case TokenKind.AMP: // &[]
+            if (p.peek(1).kind == TokenKind.LBRACKET) 
 			{
-				Node expr;
-				Token curr = p.current();
-
-				switch (curr.kind)
-				{
-					case TokenKind.LBRACKET: // Handles [] and []=
-						advance(p)!;
-						expect(p, TokenKind.RBRACKET)!;
-						if (consume(p, TokenKind.EQ)!)
-						{
-							expr = ast::add_node(
-								p.ast,
-								NodeKind.OP_OVERLOAD,
-								curr.pos,
-								p.current_pos(),
-								(uint)OverloadKind.ELEMENT_SET
-							);
-						}
-						else
-						{
-							expr = ast::add_node(
-								p.ast,
-								NodeKind.OP_OVERLOAD,
-								curr.pos,
-								p.current_pos(),
-								(uint)OverloadKind.ELEMENT_AT
-							);
-						}
-						break;
-					case TokenKind.AMP: // Handles &[]
-						if (p.peek(1).kind == TokenKind.LBRACKET)
-						{
-							advance(p)!; // &
-							advance(p)!; // [
-							expect(p, TokenKind.RBRACKET)!;
-							expr = ast::add_node(
-								p.ast,
-								NodeKind.OP_OVERLOAD,
-								curr.pos,
-								p.current_pos(),
-								(uint)OverloadKind.ELEMENT_REF
-							);
-						}
-						else
-						{
-							advance(p)!;
-							expr = ast::add_node(
-								p.ast,
-								NodeKind.OP_OVERLOAD,
-								curr.pos,
-								p.current_pos(),
-								(uint)get_overload_from_token(curr.kind)
-							);
-						}
-						break;
-					case TokenKind.PLUS:
-					case TokenKind.MINUS:
-					case TokenKind.ASTERISK:
-					case TokenKind.DIV:
-					case TokenKind.MOD:
-					case TokenKind.BIT_NOT:
-					case TokenKind.BIT_OR:
-					case TokenKind.BIT_XOR:
-					case TokenKind.LSHIFT:
-					case TokenKind.RSHIFT:
-					case TokenKind.EQEQ:
-					case TokenKind.NOT_EQUAL:
-					case TokenKind.BIT_AND_ASSIGN:
-					case TokenKind.BIT_OR_ASSIGN:
-					case TokenKind.BIT_XOR_ASSIGN:
-					case TokenKind.PLUS_ASSIGN:
-					case TokenKind.MINUS_ASSIGN:
-					case TokenKind.MULT_ASSIGN:
-					case TokenKind.DIV_ASSIGN:
-					case TokenKind.MOD_ASSIGN:
-					case TokenKind.LSHIFT_ASSIGN:
-					case TokenKind.RSHIFT_ASSIGN:
-						// If the NEXT token is ')', it's an operator name, not an expression
-						if (p.peek(1).kind == TokenKind.RPAREN || p.peek(1).kind == TokenKind.COMMA)
-						{
-							OverloadKind overload_kind = get_overload_from_token(curr.kind);
-							expr = ast::add_node(
-								p.ast,
-								NodeKind.OP_OVERLOAD,
-								curr.pos,
-								p.current_pos(),
-								(uint)overload_kind
-							);
-							advance(p)!;
-						}
-						else
-						{
-							expr = parse_expr(p, { })!;
-						}
-						break;
-					default:
-						// Standard constant expression (e.g., @doc("string"))
-						expr = parse_expr(p, { })!;
-						break;
-				}
-
-				if (expr) args.push((uint)expr);
-				if (consume(p, TokenKind.RPAREN)!) break;
-				expect(p, TokenKind.COMMA)!;
+                advance(p, 2)!;
+                expect(p, TokenKind.RBRACKET)!;
+                return ast::add_node(p.ast, NodeKind.OP_OVERLOAD, curr.pos, p.current_pos(), (uint)OverloadKind.ELEMENT_REF);
+            }
+			else
+			{
+				advance(p)!;
+				return ast::add_node(p.ast, 
+						NodeKind.OP_OVERLOAD, 
+						curr.pos, 
+						p.current_pos(), 
+						(uint)get_overload_from_token(curr.kind));
 			}
+		case TokenKind.PLUS:
+		case TokenKind.MINUS:
+		case TokenKind.ASTERISK:
+		case TokenKind.DIV:
+		case TokenKind.MOD:
+		case TokenKind.BIT_NOT:
+		case TokenKind.BIT_OR:
+		case TokenKind.BIT_XOR:
+		case TokenKind.LSHIFT:
+		case TokenKind.RSHIFT:
+		case TokenKind.EQEQ:
+		case TokenKind.NOT_EQUAL:
+		case TokenKind.BIT_AND_ASSIGN:
+		case TokenKind.BIT_OR_ASSIGN:
+		case TokenKind.BIT_XOR_ASSIGN:
+		case TokenKind.PLUS_ASSIGN:
+		case TokenKind.MINUS_ASSIGN:
+		case TokenKind.MULT_ASSIGN:
+		case TokenKind.DIV_ASSIGN:
+		case TokenKind.MOD_ASSIGN:
+		case TokenKind.LSHIFT_ASSIGN:
+		case TokenKind.RSHIFT_ASSIGN:
+            if (p.peek(1).kind == TokenKind.RPAREN || p.peek(1).kind == TokenKind.COMMA) 
+			{
+                Node n = ast::add_node(p.ast, 
+					NodeKind.OP_OVERLOAD,
+					curr.pos, 
+					p.current_pos(), 
+					(uint)get_overload_from_token(curr.kind));
 
-			arg_count = (uint)args.len();
-			args_ex = ast::push_extra_block(p.ast, args.array_view());
-		}
+                advance(p)!;
+                return n;
+            }
+            return parse_expr(p)!;
+        default:
+            break;
+    }
 
-		uint[*] attr_block = { (uint)common::get_attribute_from_string(attr_name), args_ex, arg_count };
-
-		uint ex = ast::push_extra_block(p.ast, &attr_block);
-		Node attr_node = ast::add_node(p.ast, NodeKind.ATTRIBUTE, start_tok, p.previous_pos(), ex);
-
-		attr_nodes.push(attr_node);
-	}
-
-	attr_nodes[0] = (Node)attr_nodes.len() - 1;
-	return ast::push_extra_block(p.ast, (uint[])attr_nodes.array_view());
+	return parse_expr(p)!;
 }
 
 <*
@@ -560,7 +510,6 @@ fn Node? parse_var_decl(Parser* p, ParseFlags flags)
 			return UNEXPECTED_TOKEN~;
 		}
 
-		log::info("parse_expr");
 		init_expr = parse_expr(p)!;
 	}
 	else if (flags.is_const && !flags.is_extern)
