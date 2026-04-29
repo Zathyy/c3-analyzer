@@ -7,6 +7,7 @@ import c3_parser::common;
 import c3_parser::registry;
 import std::collections::list;
 import c3_parser::workspace @norecurse;
+import std::io;
 
 fn Node? parse_contract(Parser* p)
 {
@@ -88,24 +89,22 @@ fn Node? parse_module(Parser* p, Workspace* ws)
 	uint start = p.current_pos();
 	expect(p, TokenKind.MODULE)!;
 
-	String full_name = "";
-	uint pos = start;
-	while (pos < p.tokens.len)
+	String mod_name = "";
+	uint pos = 0;
+	while MOD_NAME: (true)
 	{
-		Token t = p.tokens[pos];
-
-		if (t.kind == TokenKind.IDENT)
+		Token t = p.peek(pos);
+		switch (t.kind)
 		{
-			String part = p.token_text(t);
-			full_name = full_name.tconcat(part);
-		}
-		else if (t.kind == TokenKind.SCOPE)
-		{
-			full_name = full_name.tconcat("::");
-		}
-		else if (t.kind == TokenKind.EOS)
-		{
-			break; // End of module declaration
+			case IDENT:
+				String part = p.token_text(t);
+				mod_name = mod_name.tconcat(part);
+			case SCOPE:
+				mod_name = mod_name.tconcat("::");
+			case EOS:
+				break MOD_NAME;
+			default:
+				return UNEXPECTED_TOKEN~;
 		}
 
 		pos++;
@@ -116,12 +115,13 @@ fn Node? parse_module(Parser* p, Workspace* ws)
 		last_sec.end_node_idx = start;
 	}
 
-	Module* mod = ws.get_or_create_module(full_name);
+	Node? path_node = parse_path(p);
+
+	Module* mod = ws.get_or_create_module(mod_name);
 	ModuleSection* sec = ws.get_or_create_section(mod, p.sf);
 	p.mod = mod;
 	sec.start_node_idx = start;
 
-	Node? path_node = parse_path(p);
 	if (catch err = path_node)
 	{
 		p.error("failed to parse path for module: %s", err);
