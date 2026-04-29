@@ -685,15 +685,7 @@ fn void f3() {}
 // ------------------------------------------------------------
 // 20. peek_module_name scans the whole file, not just the start
 // ------------------------------------------------------------
-<*
-peek_module_name iterates every token in the file looking for the
-first MODULE keyword.  Therefore a file whose FIRST declaration is
-a plain function but has a "module foo;" later in the body still
-uses "foo" as the module name — the filename-inference path is not
-taken.  All declarations (before and after the header) end up in
-foo's section.
-*>
-fn void test_multi_module_peek_scans_whole_file() @test => @pool()
+fn void test_multi_module_peek_scans_first_token() @test => @pool()
 {
 	// The file has NO leading module header; only one in the middle.
 	// peek_module_name will find "explicit_mod" and use that.
@@ -779,4 +771,944 @@ fn void from_file2() {}
 	{
 		assert(false, "from_file2 not found: %s", e);
 	}
+}
+
+// ============================================================
+// GROUP A: Declaration node types
+// ============================================================
+
+// 22. Basic enum declaration
+fn void test_enum_decl() @test => @pool()
+{
+	String path = write_fixture("enum_basic", `module enum_mod;
+enum Color { RED, GREEN, BLUE }
+`);
+	Workspace ws;
+	ws.init();
+	parser::parse_file(&ws, path)!!;
+
+	Module* mod = ws.modules.get("enum_mod")!!;
+	ModuleSection* s = mod.sections[0];
+	assert(count_kind(s, NodeKind.ENUM_DECL) == 1, "Expected one ENUM_DECL");
+}
+
+// 23. Enum with explicit member values (no base type — base type + brace conflicts with
+//     the parser's generic-argument heuristic, so we test values without it)
+fn void test_enum_with_explicit_values() @test => @pool()
+{
+	String path = write_fixture("enum_vals", `module enum_vals_mod;
+enum Status { OK = 0, FAIL = 1, PENDING = 2 }
+`);
+	Workspace ws;
+	ws.init();
+	parser::parse_file(&ws, path)!!;
+
+	Module* mod = ws.modules.get("enum_vals_mod")!!;
+	ModuleSection* s = mod.sections[0];
+	assert(count_kind(s, NodeKind.ENUM_DECL) == 1, "Expected one ENUM_DECL with explicit values");
+}
+
+// 24. Multiple enums in one file
+fn void test_multiple_enums() @test => @pool()
+{
+	String path = write_fixture("enum_multi", `module multi_enum_mod;
+enum Direction { NORTH, SOUTH, EAST, WEST }
+enum Priority { LOW, MEDIUM, HIGH }
+`);
+	Workspace ws;
+	ws.init();
+	parser::parse_file(&ws, path)!!;
+
+	Module* mod = ws.modules.get("multi_enum_mod")!!;
+	ModuleSection* s = mod.sections[0];
+	assert(count_kind(s, NodeKind.ENUM_DECL) == 2, "Expected two ENUM_DECLs");
+}
+
+// 25. Basic interface declaration
+fn void test_interface_decl() @test => @pool()
+{
+	String path = write_fixture("iface_basic", `module iface_mod;
+interface Drawable {
+	fn void draw();
+}
+`);
+	Workspace ws;
+	ws.init();
+	parser::parse_file(&ws, path)!!;
+
+	Module* mod = ws.modules.get("iface_mod")!!;
+	ModuleSection* s = mod.sections[0];
+	assert(count_kind(s, NodeKind.INTERFACE_DECL) == 1, "Expected one INTERFACE_DECL");
+}
+
+// 26. Interface extending another interface
+fn void test_interface_inheritance() @test => @pool()
+{
+	String path = write_fixture("iface_inherit", `module iface_inherit_mod;
+interface Base {
+	fn void base_method();
+}
+interface Extended : Base {
+	fn void extra_method();
+}
+`);
+	Workspace ws;
+	ws.init();
+	parser::parse_file(&ws, path)!!;
+
+	Module* mod = ws.modules.get("iface_inherit_mod")!!;
+	ModuleSection* s = mod.sections[0];
+	assert(count_kind(s, NodeKind.INTERFACE_DECL) == 2, "Expected two INTERFACE_DECLs");
+}
+
+// 27. Type alias declarations
+fn void test_type_alias_decl() @test => @pool()
+{
+	String path = write_fixture("alias_type", `module alias_mod;
+alias MyInt = int;
+alias MyFloat = float;
+`);
+	Workspace ws;
+	ws.init();
+	parser::parse_file(&ws, path)!!;
+
+	Module* mod = ws.modules.get("alias_mod")!!;
+	ModuleSection* s = mod.sections[0];
+	assert(count_kind(s, NodeKind.TYPE_ALIAS_DECL) == 2, "Expected two TYPE_ALIAS_DECLs");
+}
+
+// 28. Typedef declaration
+fn void test_typedef_decl() @test => @pool()
+{
+	String path = write_fixture("typedef_basic", `module typedef_mod;
+typedef MyAlias = int;
+`);
+	Workspace ws;
+	ws.init();
+	parser::parse_file(&ws, path)!!;
+
+	Module* mod = ws.modules.get("typedef_mod")!!;
+	ModuleSection* s = mod.sections[0];
+	assert(count_kind(s, NodeKind.TYPEDEF_DECL) == 1, "Expected one TYPEDEF_DECL");
+}
+
+// 29. Macro declaration
+fn void test_macro_decl() @test => @pool()
+{
+	String path = write_fixture("macro_basic", `module macro_mod;
+macro my_macro() {}
+`);
+	Workspace ws;
+	ws.init();
+	parser::parse_file(&ws, path)!!;
+
+	Module* mod = ws.modules.get("macro_mod")!!;
+	ModuleSection* s = mod.sections[0];
+	assert(count_kind(s, NodeKind.MACRO_DECL) == 1, "Expected one MACRO_DECL");
+}
+
+// 30. Global variable declaration
+fn void test_global_var_decl() @test => @pool()
+{
+	String path = write_fixture("global_var", `module global_mod;
+int counter = 0;
+`);
+	Workspace ws;
+	ws.init();
+	parser::parse_file(&ws, path)!!;
+
+	Cursor c = ws.lookup("global_mod", "counter")!!;
+	assert(ast::get_kind(&c.section.source_file.ast, c.node) == NodeKind.GLOBAL_DECL,
+		"Expected GLOBAL_DECL for global variable");
+}
+
+// 31. Global variable spelling via workspace lookup
+fn void test_global_decl_spelling() @test => @pool()
+{
+	String path = write_fixture("global_spell", `module gspell_mod;
+float pi_value = 3.14159;
+`);
+	Workspace ws;
+	ws.init();
+	parser::parse_file(&ws, path)!!;
+
+	Cursor c = ws.lookup("gspell_mod", "pi_value")!!;
+	assert(ast::get_kind(&c.section.source_file.ast, c.node) == NodeKind.GLOBAL_DECL,
+		"Expected GLOBAL_DECL");
+	String name = c.spelling()!!;
+	assert(name == "pi_value", "GLOBAL_DECL spelling mismatch: %s", name);
+}
+
+// 32. Thread-local variable declaration
+fn void test_tlocal_var_decl() @test => @pool()
+{
+	String path = write_fixture("tlocal", `module tlocal_mod;
+tlocal int tl_counter;
+`);
+	Workspace ws;
+	ws.init();
+	parser::parse_file(&ws, path)!!;
+
+	Cursor c = ws.lookup("tlocal_mod", "tl_counter")!!;
+	assert(ast::get_kind(&c.section.source_file.ast, c.node) == NodeKind.GLOBAL_DECL,
+		"tlocal var should produce GLOBAL_DECL");
+}
+
+// 33. Mixed declaration kinds in one module
+fn void test_mixed_declarations() @test => @pool()
+{
+	String path = write_fixture("mixed_decls", `module mixed_mod;
+struct Point { float x; float y; }
+enum Dir { NORTH, SOUTH }
+fn void draw() {}
+int counter = 0;
+alias Scalar = float;
+`);
+	Workspace ws;
+	ws.init();
+	parser::parse_file(&ws, path)!!;
+
+	Module* mod = ws.modules.get("mixed_mod")!!;
+	ModuleSection* s = mod.sections[0];
+	assert(count_kind(s, NodeKind.STRUCT_DECL)     == 1, "Expected 1 STRUCT_DECL");
+	assert(count_kind(s, NodeKind.ENUM_DECL)       == 1, "Expected 1 ENUM_DECL");
+	assert(count_kind(s, NodeKind.FN_DECL)         == 1, "Expected 1 FN_DECL");
+	assert(count_kind(s, NodeKind.GLOBAL_DECL)     == 1, "Expected 1 GLOBAL_DECL");
+	assert(count_kind(s, NodeKind.TYPE_ALIAS_DECL) == 1, "Expected 1 TYPE_ALIAS_DECL");
+}
+
+// ============================================================
+// GROUP B: Function variations
+// ============================================================
+
+// 34. Function with arrow body
+fn void test_fn_arrow_body() @test => @pool()
+{
+	String path = write_fixture("fn_arrow", `module arrow_mod;
+fn int double_it(int x) => x * 2;
+`);
+	Workspace ws;
+	ws.init();
+	parser::parse_file(&ws, path)!!;
+
+	Cursor c = ws.lookup("arrow_mod", "double_it")!!;
+	assert(ast::get_kind(&c.section.source_file.ast, c.node) == NodeKind.FN_DECL,
+		"Expected FN_DECL for arrow-body function");
+	FnView fv = { &c.section.source_file.ast, c.node };
+	assert(fv.param_count() == 1, "Expected 1 param");
+	assert(fv.body().is_valid(), "Arrow body should produce a valid body node");
+}
+
+// 35. Function with method syntax (Struct.method)
+fn void test_fn_method_syntax() @test => @pool()
+{
+	String path = write_fixture("fn_method", `module method_mod;
+struct Vec2 { float x; float y; }
+fn float Vec2.length(&self) { return 0.0; }
+`);
+	Workspace ws;
+	ws.init();
+	parser::parse_file(&ws, path)!!;
+
+	// Method is stored under its simple name, not "Vec2.length"
+	Cursor c = ws.lookup("method_mod", "length")!!;
+	assert(ast::get_kind(&c.section.source_file.ast, c.node) == NodeKind.FN_DECL,
+		"Expected FN_DECL for method");
+	FnView fv = { &c.section.source_file.ast, c.node };
+	// associated() holds the StringHandle of the receiver type — non-zero for methods
+	assert(fv.associated().is_valid(), "Method should have a non-zero associated type");
+}
+
+// 36. Function return type node is present
+fn void test_fn_return_type() @test => @pool()
+{
+	String path = write_fixture("fn_rettype", `module rettype_mod;
+fn int get_value() { return 42; }
+fn void do_nothing() {}
+`);
+	Workspace ws;
+	ws.init();
+	parser::parse_file(&ws, path)!!;
+
+	{
+		Cursor c = ws.lookup("rettype_mod", "get_value")!!;
+		FnView fv = { &c.section.source_file.ast, c.node };
+		assert(fv.return_type().is_valid(), "get_value should have a return type node");
+	}
+	{
+		Cursor c = ws.lookup("rettype_mod", "do_nothing")!!;
+		FnView fv = { &c.section.source_file.ast, c.node };
+		assert(fv.return_type().is_valid(), "'void' should still produce a type node");
+	}
+}
+
+// 37. Function body is a COMPOUND_STMT
+fn void test_fn_body_node() @test => @pool()
+{
+	String path = write_fixture("fn_body", `module body_mod;
+fn void with_body() { int x = 1; }
+`);
+	Workspace ws;
+	ws.init();
+	parser::parse_file(&ws, path)!!;
+
+	Cursor c = ws.lookup("body_mod", "with_body")!!;
+	Ast* ast = &c.section.source_file.ast;
+	FnView fv = { ast, c.node };
+	assert(fv.body().is_valid(), "Expected valid body node");
+	assert(ast::get_kind(ast, fv.body()) == NodeKind.COMPOUND_STMT,
+		"Function body must be COMPOUND_STMT");
+}
+
+// 38. Reference parameter (&self) is flagged correctly
+fn void test_fn_ref_param() @test => @pool()
+{
+	String path = write_fixture("fn_ref_param", `module refparam_mod;
+struct Thing { int value; }
+fn int Thing.get(&self) { return 0; }
+`);
+	Workspace ws;
+	ws.init();
+	parser::parse_file(&ws, path)!!;
+
+	Cursor c = ws.lookup("refparam_mod", "get")!!;
+	Ast* ast = &c.section.source_file.ast;
+	FnView fv = { ast, c.node };
+	assert(fv.param_count() == 1, "Expected 1 param (&self)");
+	ParamView pv = { ast, fv.get_param(0) };
+	assert(pv.is_ref(), "Expected &self param to be flagged as reference");
+}
+
+// 39. param_count for 0, 1, and 5 params
+fn void test_fn_param_counts() @test => @pool()
+{
+	String path = write_fixture("fn_pcounts", `module pcount_mod;
+fn void zero_params() {}
+fn void one_param(int a) {}
+fn void five_params(int a, int b, int c, int d, int e) {}
+`);
+	Workspace ws;
+	ws.init();
+	parser::parse_file(&ws, path)!!;
+
+	{
+		Cursor c = ws.lookup("pcount_mod", "zero_params")!!;
+		FnView fv = { &c.section.source_file.ast, c.node };
+		assert(fv.param_count() == 0, "Expected 0 params for zero_params");
+	}
+	{
+		Cursor c = ws.lookup("pcount_mod", "one_param")!!;
+		FnView fv = { &c.section.source_file.ast, c.node };
+		assert(fv.param_count() == 1, "Expected 1 param for one_param");
+	}
+	{
+		Cursor c = ws.lookup("pcount_mod", "five_params")!!;
+		FnView fv = { &c.section.source_file.ast, c.node };
+		assert(fv.param_count() == 5, "Expected 5 params for five_params");
+	}
+}
+
+// 40. FnView.name() round-trips through the string pool
+fn void test_fn_view_name() @test => @pool()
+{
+	String path = write_fixture("fn_name", `module fn_name_mod;
+fn void uniquely_named_function() {}
+`);
+	Workspace ws;
+	ws.init();
+	parser::parse_file(&ws, path)!!;
+
+	Cursor c = ws.lookup("fn_name_mod", "uniquely_named_function")!!;
+	FnView fv = { &c.section.source_file.ast, c.node };
+	String name = fv.name(c.section.source_file.strings);
+	assert(name == "uniquely_named_function", "FnView.name() mismatch: '%s'", name);
+}
+
+// ============================================================
+// GROUP C: Struct variations
+// ============================================================
+
+// 41. Struct with zero fields
+fn void test_struct_empty() @test => @pool()
+{
+	String path = write_fixture("struct_empty", `module empty_struct_mod;
+struct Empty {}
+`);
+	Workspace ws;
+	ws.init();
+	parser::parse_file(&ws, path)!!;
+
+	Cursor sc = ws.lookup("empty_struct_mod", "Empty")!!;
+	assert(ast::get_kind(&sc.section.source_file.ast, sc.node) == NodeKind.STRUCT_DECL,
+		"Expected STRUCT_DECL");
+	StructView sv = { &sc.section.source_file.ast, sc.node };
+	assert(sv.field_count() == 0, "Expected 0 fields in Empty");
+}
+
+// 42. Struct with four fields
+fn void test_struct_many_fields() @test => @pool()
+{
+	String path = write_fixture("struct_many", `module many_mod;
+struct Color {
+	float r;
+	float g;
+	float b;
+	float a;
+}
+`);
+	Workspace ws;
+	ws.init();
+	parser::parse_file(&ws, path)!!;
+
+	Cursor sc = ws.lookup("many_mod", "Color")!!;
+	StructView sv = { &sc.section.source_file.ast, sc.node };
+	assert(sv.field_count() == 4, "Expected 4 fields in Color");
+}
+
+// 43. StructView.name() round-trips through string pool
+fn void test_struct_view_name() @test => @pool()
+{
+	String path = write_fixture("struct_name", `module struct_name_mod;
+struct NamedStruct { int x; int y; }
+`);
+	Workspace ws;
+	ws.init();
+	parser::parse_file(&ws, path)!!;
+
+	Cursor sc = ws.lookup("struct_name_mod", "NamedStruct")!!;
+	StructView sv = { &sc.section.source_file.ast, sc.node };
+	String name = sv.name(sc.section.source_file.strings);
+	assert(name == "NamedStruct", "StructView.name() mismatch: '%s'", name);
+	assert(sv.field_count() == 2, "Expected 2 fields");
+}
+
+// 44. Struct that implements an interface
+fn void test_struct_with_interface() @test => @pool()
+{
+	String path = write_fixture("struct_iface", `module struct_iface_mod;
+interface Shape {
+	fn float area();
+}
+struct Circle (Shape) {
+	float radius;
+}
+fn float Circle.area(&self) { return 0.0; }
+`);
+	Workspace ws;
+	ws.init();
+	parser::parse_file(&ws, path)!!;
+
+	Module* mod = ws.modules.get("struct_iface_mod")!!;
+	ModuleSection* s = mod.sections[0];
+	assert(count_kind(s, NodeKind.INTERFACE_DECL) == 1, "Expected one INTERFACE_DECL");
+	assert(count_kind(s, NodeKind.STRUCT_DECL)    == 1, "Expected one STRUCT_DECL");
+
+	Cursor sc = ws.lookup("struct_iface_mod", "Circle")!!;
+	StructView sv = { &sc.section.source_file.ast, sc.node };
+	assert(sv.field_count() == 1, "Expected 1 field in Circle");
+}
+
+// ============================================================
+// GROUP D: Statement node kinds inside function bodies
+// ============================================================
+
+// 45. for loop produces FOR_STMT
+fn void test_stmt_for_loop() @test => @pool()
+{
+	String path = write_fixture("stmt_for", `module for_mod;
+fn void count_up() {
+	for (int i = 0; i < 10; i++) {}
+}
+`);
+	Workspace ws;
+	ws.init();
+	parser::parse_file(&ws, path)!!;
+
+	Cursor c = ws.lookup("for_mod", "count_up")!!;
+	Ast* ast = &c.section.source_file.ast;
+	FnView fv = { ast, c.node };
+	CompoundView cv = { ast, fv.body() };
+	assert(cv.len() == 1, "Expected 1 stmt in body");
+	assert(ast::get_kind(ast, cv.get(0)) == NodeKind.FOR_STMT, "Expected FOR_STMT");
+}
+
+// 46. BREAK_STMT is accessible via ForView.body
+fn void test_stmt_break() @test => @pool()
+{
+	String path = write_fixture("stmt_break", `module break_mod;
+fn void stop_early() {
+	for (;;) {
+		break;
+	}
+}
+`);
+	Workspace ws;
+	ws.init();
+	parser::parse_file(&ws, path)!!;
+
+	Cursor c = ws.lookup("break_mod", "stop_early")!!;
+	Ast* ast = &c.section.source_file.ast;
+	FnView fv = { ast, c.node };
+	CompoundView outer_cv = { ast, fv.body() };
+	Node for_node = outer_cv.get(0);
+	assert(ast::get_kind(ast, for_node) == NodeKind.FOR_STMT, "Expected FOR_STMT");
+	ForView forv = { ast, for_node };
+	CompoundView inner = { ast, forv.body() };
+	assert(inner.len() == 1, "Expected 1 stmt in for body");
+	assert(ast::get_kind(ast, inner.get(0)) == NodeKind.BREAK_STMT, "Expected BREAK_STMT");
+}
+
+// 47. while loop produces WHILE_STMT
+fn void test_stmt_while_loop() @test => @pool()
+{
+	String path = write_fixture("stmt_while", `module while_mod;
+fn void spin() {
+	while (true) {}
+}
+`);
+	Workspace ws;
+	ws.init();
+	parser::parse_file(&ws, path)!!;
+
+	Cursor c = ws.lookup("while_mod", "spin")!!;
+	Ast* ast = &c.section.source_file.ast;
+	FnView fv = { ast, c.node };
+	CompoundView cv = { ast, fv.body() };
+	assert(cv.len() == 1, "Expected 1 stmt");
+	assert(ast::get_kind(ast, cv.get(0)) == NodeKind.WHILE_STMT, "Expected WHILE_STMT");
+}
+
+// 48. do-while produces DO_WHILE_STMT
+fn void test_stmt_do_while() @test => @pool()
+{
+	String path = write_fixture("stmt_dowhile", `module dowhile_mod;
+fn void run_once() {
+	do {} while (false);
+}
+`);
+	Workspace ws;
+	ws.init();
+	parser::parse_file(&ws, path)!!;
+
+	Cursor c = ws.lookup("dowhile_mod", "run_once")!!;
+	Ast* ast = &c.section.source_file.ast;
+	FnView fv = { ast, c.node };
+	CompoundView cv = { ast, fv.body() };
+	assert(cv.len() == 1, "Expected 1 stmt");
+	assert(ast::get_kind(ast, cv.get(0)) == NodeKind.DO_WHILE_STMT, "Expected DO_WHILE_STMT");
+}
+
+// 49. foreach produces FOREACH_STMT
+fn void test_stmt_foreach() @test => @pool()
+{
+	String path = write_fixture("stmt_foreach", `module foreach_mod;
+fn void iterate() {
+	foreach (x : items) {}
+}
+`);
+	Workspace ws;
+	ws.init();
+	parser::parse_file(&ws, path)!!;
+
+	Cursor c = ws.lookup("foreach_mod", "iterate")!!;
+	Ast* ast = &c.section.source_file.ast;
+	FnView fv = { ast, c.node };
+	CompoundView cv = { ast, fv.body() };
+	assert(cv.len() == 1, "Expected 1 stmt");
+	assert(ast::get_kind(ast, cv.get(0)) == NodeKind.FOREACH_STMT, "Expected FOREACH_STMT");
+}
+
+// 50. foreach_r produces FOREACH_R_STMT
+fn void test_stmt_foreach_r() @test => @pool()
+{
+	String path = write_fixture("stmt_foreach_r", `module foreach_r_mod;
+fn void iter_rev() {
+	foreach_r (x : items) {}
+}
+`);
+	Workspace ws;
+	ws.init();
+	parser::parse_file(&ws, path)!!;
+
+	Cursor c = ws.lookup("foreach_r_mod", "iter_rev")!!;
+	Ast* ast = &c.section.source_file.ast;
+	FnView fv = { ast, c.node };
+	CompoundView cv = { ast, fv.body() };
+	assert(cv.len() == 1, "Expected 1 stmt");
+	assert(ast::get_kind(ast, cv.get(0)) == NodeKind.FOREACH_R_STMT, "Expected FOREACH_R_STMT");
+}
+
+// 51. if/else: both then and else blocks are valid
+fn void test_stmt_if_else() @test => @pool()
+{
+	String path = write_fixture("stmt_if", `module if_mod;
+fn void branch(bool flag) {
+	if (flag) {} else {}
+}
+`);
+	Workspace ws;
+	ws.init();
+	parser::parse_file(&ws, path)!!;
+
+	Cursor c = ws.lookup("if_mod", "branch")!!;
+	Ast* ast = &c.section.source_file.ast;
+	FnView fv = { ast, c.node };
+	CompoundView cv_if = { ast, fv.body() };
+	Node stmt = cv_if.get(0);
+	assert(ast::get_kind(ast, stmt) == NodeKind.IF_STMT, "Expected IF_STMT");
+	IfView iv = { ast, stmt };
+	assert(iv.condition().is_valid(),  "Expected valid condition");
+	assert(iv.then_block().is_valid(), "Expected valid then_block");
+	assert(iv.else_block().is_valid(), "Expected valid else_block for if-else");
+}
+
+// 52. if without else: else_block is invalid
+fn void test_stmt_if_no_else() @test => @pool()
+{
+	String path = write_fixture("stmt_if_no_else", `module if_no_else_mod;
+fn void maybe(bool flag) {
+	if (flag) {}
+}
+`);
+	Workspace ws;
+	ws.init();
+	parser::parse_file(&ws, path)!!;
+
+	Cursor c = ws.lookup("if_no_else_mod", "maybe")!!;
+	Ast* ast = &c.section.source_file.ast;
+	FnView fv = { ast, c.node };
+	CompoundView cv_noelse = { ast, fv.body() };
+	Node stmt = cv_noelse.get(0);
+	assert(ast::get_kind(ast, stmt) == NodeKind.IF_STMT, "Expected IF_STMT");
+	IfView iv = { ast, stmt };
+	assert(iv.condition().is_valid(),   "Expected valid condition");
+	assert(iv.then_block().is_valid(),  "Expected valid then_block");
+	assert(!iv.else_block().is_valid(), "Expected no else_block");
+}
+
+// 53. switch/case produces SWITCH_STMT
+fn void test_stmt_switch() @test => @pool()
+{
+	String path = write_fixture("stmt_switch", `module switch_mod;
+fn void dispatch(int x) {
+	switch (x) {
+		case 0: break;
+		default: break;
+	}
+}
+`);
+	Workspace ws;
+	ws.init();
+	parser::parse_file(&ws, path)!!;
+
+	Cursor c = ws.lookup("switch_mod", "dispatch")!!;
+	Ast* ast = &c.section.source_file.ast;
+	FnView fv = { ast, c.node };
+	CompoundView cv = { ast, fv.body() };
+	assert(cv.len() == 1, "Expected 1 stmt");
+	assert(ast::get_kind(ast, cv.get(0)) == NodeKind.SWITCH_STMT, "Expected SWITCH_STMT");
+}
+
+// 54. defer produces DEFER_STMT
+fn void test_stmt_defer() @test => @pool()
+{
+	String path = write_fixture("stmt_defer", `module defer_mod;
+fn void cleanup() {
+	defer {}
+}
+`);
+	Workspace ws;
+	ws.init();
+	parser::parse_file(&ws, path)!!;
+
+	Cursor c = ws.lookup("defer_mod", "cleanup")!!;
+	Ast* ast = &c.section.source_file.ast;
+	FnView fv = { ast, c.node };
+	CompoundView cv = { ast, fv.body() };
+	assert(cv.len() == 1, "Expected 1 stmt");
+	assert(ast::get_kind(ast, cv.get(0)) == NodeKind.DEFER_STMT, "Expected DEFER_STMT");
+}
+
+// 55. return produces RETURN_STMT
+fn void test_stmt_return() @test => @pool()
+{
+	String path = write_fixture("stmt_return", `module return_mod;
+fn int compute() {
+	return 42;
+}
+`);
+	Workspace ws;
+	ws.init();
+	parser::parse_file(&ws, path)!!;
+
+	Cursor c = ws.lookup("return_mod", "compute")!!;
+	Ast* ast = &c.section.source_file.ast;
+	FnView fv = { ast, c.node };
+	CompoundView cv = { ast, fv.body() };
+	assert(cv.len() == 1, "Expected 1 stmt");
+	assert(ast::get_kind(ast, cv.get(0)) == NodeKind.RETURN_STMT, "Expected RETURN_STMT");
+}
+
+// 56. CONTINUE_STMT is accessible via IfView.then_block inside a for body
+fn void test_stmt_continue() @test => @pool()
+{
+	String path = write_fixture("stmt_continue", `module cont_mod;
+fn void skip(bool flag) {
+	for (;;) {
+		if (flag) continue;
+	}
+}
+`);
+	Workspace ws;
+	ws.init();
+	parser::parse_file(&ws, path)!!;
+
+	Cursor c = ws.lookup("cont_mod", "skip")!!;
+	Ast* ast = &c.section.source_file.ast;
+	FnView fv = { ast, c.node };
+	CompoundView outer_cont = { ast, fv.body() };
+	Node for_node = outer_cont.get(0);
+	ForView forv = { ast, for_node };
+	CompoundView inner_cont = { ast, forv.body() };
+	Node if_node = inner_cont.get(0);
+	assert(ast::get_kind(ast, if_node) == NodeKind.IF_STMT, "Expected IF_STMT inside for");
+	IfView iv = { ast, if_node };
+	assert(ast::get_kind(ast, iv.then_block()) == NodeKind.CONTINUE_STMT,
+		"Expected CONTINUE_STMT as then-branch");
+}
+
+// 57. assert produces ASSERT_STMT
+fn void test_stmt_assert() @test => @pool()
+{
+	String path = write_fixture("stmt_assert", `module assert_mod;
+fn void check(int x) {
+	assert(x > 0);
+}
+`);
+	Workspace ws;
+	ws.init();
+	parser::parse_file(&ws, path)!!;
+
+	Cursor c = ws.lookup("assert_mod", "check")!!;
+	Ast* ast = &c.section.source_file.ast;
+	FnView fv = { ast, c.node };
+	CompoundView cv = { ast, fv.body() };
+	assert(cv.len() == 1, "Expected 1 stmt");
+	assert(ast::get_kind(ast, cv.get(0)) == NodeKind.ASSERT_STMT, "Expected ASSERT_STMT");
+}
+
+// 58. Local variable declarations produce LOCAL_DECL nodes
+fn void test_stmt_local_var() @test => @pool()
+{
+	String path = write_fixture("stmt_localvar", `module localvar_mod;
+fn void declare_vars() {
+	int x = 5;
+	float y = 3;
+}
+`);
+	Workspace ws;
+	ws.init();
+	parser::parse_file(&ws, path)!!;
+
+	Cursor c = ws.lookup("localvar_mod", "declare_vars")!!;
+	Ast* ast = &c.section.source_file.ast;
+	FnView fv = { ast, c.node };
+	CompoundView cv = { ast, fv.body() };
+	assert(cv.len() == 2, "Expected 2 local decls");
+	assert(ast::get_kind(ast, cv.get(0)) == NodeKind.LOCAL_DECL, "First stmt should be LOCAL_DECL");
+	assert(ast::get_kind(ast, cv.get(1)) == NodeKind.LOCAL_DECL, "Second stmt should be LOCAL_DECL");
+}
+
+// 59. Nested compound statements
+fn void test_stmt_nested_blocks() @test => @pool()
+{
+	String path = write_fixture("stmt_nested", `module nested_mod;
+fn void nested() {
+	{
+		{}
+	}
+}
+`);
+	Workspace ws;
+	ws.init();
+	parser::parse_file(&ws, path)!!;
+
+	Cursor c = ws.lookup("nested_mod", "nested")!!;
+	Ast* ast = &c.section.source_file.ast;
+	FnView fv = { ast, c.node };
+	CompoundView outer = { ast, fv.body() };
+	assert(outer.len() == 1, "Expected 1 stmt in outer block");
+	Node mid = outer.get(0);
+	assert(ast::get_kind(ast, mid) == NodeKind.COMPOUND_STMT, "Expected nested COMPOUND_STMT");
+	CompoundView mid_cv = { ast, mid };
+	assert(mid_cv.len() == 1, "Expected 1 stmt in middle block");
+	assert(ast::get_kind(ast, mid_cv.get(0)) == NodeKind.COMPOUND_STMT,
+		"Expected innermost COMPOUND_STMT");
+}
+
+// ============================================================
+// GROUP E: Edge cases and boundary conditions
+// ============================================================
+
+// 60. Module with deeply nested path (foo::bar::baz)
+fn void test_module_nested_path() @test => @pool()
+{
+	String path = write_fixture("nested_path", `module foo::bar::baz;
+fn void deep_fn() {}
+`);
+	Workspace ws;
+	ws.init();
+	parser::parse_file(&ws, path)!!;
+
+	Module* mod = ws.modules.get("foo::bar::baz")!!;
+	assert(mod != null,             "Module 'foo::bar::baz' not found");
+	assert(mod.sections.len() == 1, "Expected one section");
+
+	if (catch e = ws.lookup("foo::bar::baz", "deep_fn"))
+	{
+		assert(false, "deep_fn not found in nested module: %s", e);
+	}
+}
+
+// 61. Two successive top-level errors do not drop surrounding valid declarations
+fn void test_multiple_errors_recovery() @test => @pool()
+{
+	String path = write_fixture("multi_err", `module multi_err_mod;
+fn void good_a() {}
+return;
+return;
+fn void good_b() {}
+`);
+	Workspace ws;
+	ws.init();
+	parser::parse_file(&ws, path)!!;
+
+	if (catch e = ws.lookup("multi_err_mod", "good_a"))
+	{
+		assert(false, "good_a missing after two errors: %s", e);
+	}
+	if (catch e = ws.lookup("multi_err_mod", "good_b"))
+	{
+		assert(false, "good_b missing after two errors: %s", e);
+	}
+}
+
+// 62. Two const declarations are both discoverable
+fn void test_const_decl_two() @test => @pool()
+{
+	String path = write_fixture("const_two", `module const2_mod;
+const int LIMIT = 256;
+const int OFFSET = 8;
+`);
+	Workspace ws;
+	ws.init();
+	parser::parse_file(&ws, path)!!;
+
+	Cursor c1 = ws.lookup("const2_mod", "LIMIT")!!;
+	NodeKind k1 = ast::get_kind(&c1.section.source_file.ast, c1.node);
+	assert(k1 == NodeKind.GLOBAL_DECL || k1 == NodeKind.CONST_DECL,
+		"LIMIT: expected GLOBAL_DECL or CONST_DECL");
+
+	Cursor c2 = ws.lookup("const2_mod", "OFFSET")!!;
+	NodeKind k2 = ast::get_kind(&c2.section.source_file.ast, c2.node);
+	assert(k2 == NodeKind.GLOBAL_DECL || k2 == NodeKind.CONST_DECL,
+		"OFFSET: expected GLOBAL_DECL or CONST_DECL");
+}
+
+// 63. source_text of struct spans its declared name
+fn void test_struct_source_text() @test => @pool()
+{
+	String path = write_fixture("struct_srctext", `module struct_src_mod;
+struct SpecialStruct { int x; }
+`);
+	Workspace ws;
+	ws.init();
+	parser::parse_file(&ws, path)!!;
+
+	Cursor sc = ws.lookup("struct_src_mod", "SpecialStruct")!!;
+	String text = sc.source_text();
+	assert(text.len > 0,                  "source_text should be non-empty");
+	assert(text.contains("SpecialStruct"), "source_text should contain the struct name");
+}
+
+// 64. find_at_location hits a struct declaration at its start column
+fn void test_find_at_struct() @test => @pool()
+{
+	String path = write_fixture("location_struct", `module loc_struct_mod;
+struct Located { int a; }
+`);
+	Workspace ws;
+	ws.init();
+	parser::parse_file(&ws, path)!!;
+
+	Location loc = { .line = 2, .column = 1 };
+	Cursor c = ws.find_at_location(path, loc);
+	assert(c.node.is_valid(), "Expected a valid cursor at struct location (2,1)");
+}
+
+// 65. Three global variables in one module are all individually reachable
+fn void test_three_globals() @test => @pool()
+{
+	String path = write_fixture("three_globals", `module three_glob_mod;
+int alpha = 1;
+int beta = 2;
+int gamma = 3;
+`);
+	Workspace ws;
+	ws.init();
+	parser::parse_file(&ws, path)!!;
+
+	if (catch e = ws.lookup("three_glob_mod", "alpha"))
+	{
+		assert(false, "alpha not found: %s", e);
+	}
+	if (catch e = ws.lookup("three_glob_mod", "beta"))
+	{
+		assert(false, "beta not found: %s", e);
+	}
+	if (catch e = ws.lookup("three_glob_mod", "gamma"))
+	{
+		assert(false, "gamma not found: %s", e);
+	}
+}
+
+// 66. Extern function declaration has no body
+fn void test_fn_no_body() @test => @pool()
+{
+	String path = write_fixture("fn_no_body", `module no_body_mod;
+fn void external_fn() @extern("external_fn");
+`);
+	Workspace ws;
+	ws.init();
+	parser::parse_file(&ws, path)!!;
+
+	Cursor c = ws.lookup("no_body_mod", "external_fn")!!;
+	Ast* ast = &c.section.source_file.ast;
+	assert(ast::get_kind(ast, c.node) == NodeKind.FN_DECL,
+		"Expected FN_DECL for extern fn");
+	FnView fv = { ast, c.node };
+	assert(!fv.body().is_valid(), "Extern fn should have no body");
+}
+
+// 67. find_section_by_path locates each file in a multi-file module
+fn void test_find_section_multi_file() @test => @pool()
+{
+	String path1 = write_fixture("secfind_a", `module secfind_mod;
+fn void from_a() {}
+`);
+	String path2 = write_fixture("secfind_b", `module secfind_mod;
+fn void from_b() {}
+`);
+	Workspace ws;
+	ws.init();
+	parser::parse_file(&ws, path1)!!;
+	parser::parse_file(&ws, path2)!!;
+
+	List{ModuleSection*} sec1 = ws.find_section_by_path(path1);
+	assert(sec1.len() > 0, "Should find section for path1");
+	assert(sec1[0].source_file.file_path == path1, "Section path mismatch for path1");
+
+	List{ModuleSection*} sec2 = ws.find_section_by_path(path2);
+	assert(sec2.len() > 0, "Should find section for path2");
+	assert(sec2[0].source_file.file_path == path2, "Section path mismatch for path2");
 }
