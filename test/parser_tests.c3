@@ -8,6 +8,7 @@ import c3_parser::common;
 import std::io;
 import std::collections::list;
 import std::io::file;
+import std::io::path;
 
 // ------------------------------------------------------------
 // Helpers
@@ -19,7 +20,7 @@ import std::io::file;
 *>
 fn String write_fixture(String name, String content) @private
 {
-	String path = string::tformat("/tmp/c3_test_%s.c3", name);
+	String path = string::tformat("%s/c3_test_%s.c3", path::temp_directory(tmem)!!, name);
 	File f = file::open(path, "w")!!;
 	f.write(content)!!;
 	(void)f.close()!!;

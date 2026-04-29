@@ -394,36 +394,26 @@ fn void? parse_top_level(Parser* p, Workspace* ws)
 	{
 		case TokenKind.CONTRACT:
 			node = parse_contract(p)!;
-			break;
 		case TokenKind.INTERFACE:
 			node = parse_interface(p)!;
-			break;
 		case TokenKind.MODULE:
 			node = parse_module(p, ws)!;
-			break;
 		case TokenKind.FN:
 			node = parse_fn_decl(p, flags)!;
-			break;
 		case TokenKind.MACRO:
 			node = parse_macro_decl(p)!;
-			break;
 		case TokenKind.ALIAS:
 			node = parse_alias(p)!;
-			break;
 		case TokenKind.TYPEDEF:
 			node = parse_typedef(p)!;
-			break;
 		case TokenKind.STRUCT:
 			node = parse_struct(p)!;
-			break;
 		case TokenKind.ENUM:
 			node = parse_enum(p)!;
-			break;
 		case TokenKind.CONST:
 			flags.is_const = true;
 			advance(p)!;
 			node = parse_var_decl(p, flags)!;
-			break;
 		case TokenKind.EOS:
 			p.error("<EOS> appeared in parse_top_level");
 			advance(p)!;

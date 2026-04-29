@@ -292,6 +292,7 @@ fn String? Cursor.spelling(&self)
 			return v.name(self.section.source_file.strings);
 
 		case NodeKind.VAR_DECL_STMT:
+		case NodeKind.CONST_DECL:
 		case NodeKind.FN_DECL:
 		case NodeKind.STRUCT_DECL:
 			StructView v = { ast, self.node };
