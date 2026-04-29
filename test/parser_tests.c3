@@ -602,135 +602,181 @@ fn void fy() {}
 	"Expected one FN_DECL node");
 }
 
-// // ------------------------------------------------------------
-// // 19. Three module headers in one file
-// // ------------------------------------------------------------
-// <*
-// A more extreme case: three headers.  Still only one workspace
-// entry and one section; all three MODULE_DECL nodes are present.
-// *>
-// fn void test_multi_module_three_headers() @test => @pool()
-// {
-// String path = write_fixture("mm_three", `module first;
-// fn void f1() {}
-// module second;
-// fn void f2() {}
-// module third;
-// fn void f3() {}
-// `);
-// 
-// Workspace ws;
-// ws.init();
-// parser::parse_file(&ws, path)!!;
-// 
-// assert(ws.modules.len() == 1,
-// "Expected exactly one workspace module for a three-header file");
-// 
-// Module* mod = ws.modules.get("first")!!;
-// ModuleSection* s = mod.sections[0];
-// 
-// assert(count_kind(s, NodeKind.MODULE_DECL) == 3, "Expected 3 MODULE_DECL nodes");
-// assert(count_kind(s, NodeKind.FN_DECL)     == 3, "Expected 3 FN_DECL nodes");
-// 
-// // All three functions reachable under "first"
-// if (catch e = ws.lookup("first", "f1"))
-// {
-// assert(false, "f1 not found: %s", e);
-// }
-// if (catch e = ws.lookup("first", "f2"))
-// {
-// assert(false, "f2 not found (should be in first's section): %s", e);
-// }
-// if (catch e = ws.lookup("first", "f3"))
-// {
-// assert(false, "f3 not found (should be in first's section): %s", e);
-// }
-// }
-// 
-// // ------------------------------------------------------------
-// // 20. peek_module_name scans the whole file, not just the start
-// // ------------------------------------------------------------
-// <*
-// peek_module_name iterates every token in the file looking for the
-// first MODULE keyword.  Therefore a file whose FIRST declaration is
-// a plain function but has a "module foo;" later in the body still
-// uses "foo" as the module name — the filename-inference path is not
-// taken.  All declarations (before and after the header) end up in
-// foo's section.
-// *>
-// fn void test_multi_module_peek_scans_whole_file() @test => @pool()
-// {
-// // The file has NO leading module header; only one in the middle.
-// // peek_module_name will find "explicit_mod" and use that.
-// String path = write_fixture("mm_peek", `fn void before_header() {}
-// module explicit_mod;
-// fn void after_header() {}
-// `);
-// 
-// Workspace ws;
-// ws.init();
-// parser::parse_file(&ws, path)!!;
-// 
-// assert(ws.modules.len() == 1,
-// "Expected one workspace module (found by peek, not inferred)");
-// 
-// // The module is registered under the file name
-// Module* mod_mm_peek = ws.modules.get("mm_peek") ?? null;
-// assert(mod_mm_peek != null, "Module 'mm_peek' not found");
-// 
-// // The module is registered under the scanned name
-// Module* mod_explicit_mod = ws.modules.get("explicit_mod") ?? null;
-// assert(mod_explicit_mod != null, "Module 'explicit_mod' not found");
-// 
-// // Both functions land in explicit_mod's section
-// if (catch e = ws.lookup("mm_peek", "before_header"))
-// {
-// assert(false, "before_header not found: %s", e);
-// }
-// if (catch e = ws.lookup("explicit_mod", "after_header"))
-// {
-// assert(false, "after_header not found: %s", e);
-// }
-// }
-// 
-// // ------------------------------------------------------------
-// // 21. Multi-module file + another file for the same first module
-// // ------------------------------------------------------------
-// <*
-// When a multi-module file shares its first module name with a
-// separate single-module file, the workspace merges them correctly:
-// one Module with two sections (one per source file).
-// *>
-// fn void test_multi_module_merges_with_external_file() @test => @pool()
-// {
-// // File 1: two-module file whose first header is "shared_mm"
-// String path1 = write_fixture("mm_shared_a", `module shared_mm;
-// fn void from_file1() {}
-// module other_mm;
-// fn void also_from_file1() {}
-// `);
-// // File 2: single-module file also in "shared_mm"
-// String path2 = write_fixture("mm_shared_b", `module shared_mm;
-// fn void from_file2() {}
-// `);
-// 
-// Workspace ws;
-// ws.init();
-// parser::parse_file(&ws, path1)!!;
-// parser::parse_file(&ws, path2)!!;
-// 
-// Module* mod = ws.modules.get("shared_mm")!!;
-// // Two source files → two sections
-// assert(mod.sections.len() == 2,
-// "Expected two sections (one per source file)");
-// 
-// // Symbols from both files reachable
-// if (catch e = ws.lookup("shared_mm", "from_file1"))
-// {
-// assert(false, "from_file1 not found: %s", e);
-// }
-// if (catch e = ws.lookup("shared_mm", "from_file2"))
-// {
-// assert(false, "from_file2 not found: %s", e);
-// }
-// }
+// ------------------------------------------------------------
+// 19. Three module headers in one file
+// ------------------------------------------------------------
+<*
+A more extreme case: three headers.  Three workspace
+entries and three sections; all three have only one MODULE_DECL node.
+*>
+fn void test_multi_module_three_headers() @test => @pool()
+{
+	String path = write_fixture("mm_three", `module first;
+fn void f1() {}
+module second;
+fn void f2() {}
+module third;
+fn void f3() {}
+`);
+
+	Workspace ws;
+	ws.init();
+	parser::parse_file(&ws, path)!!;
+
+	assert(ws.modules.len() == 3,
+	"Expected exactly three workspace modules for a three-header file");
+
+	Module* modfirst = ws.modules.get("first")!!;
+	ModuleSection* sfirst = modfirst.sections[0];
+
+	assert(count_kind(sfirst, NodeKind.MODULE_DECL) == 1, "Expected 1 MODULE_DECL node");
+	assert(count_kind(sfirst, NodeKind.FN_DECL)     == 1, "Expected 1 FN_DECL node");
+
+	if (catch e = ws.lookup("first", "f1"))
+	{
+		assert(false, "f1 not found: %s", e);
+	}
+	if (try ws.lookup("first", "f2"))
+	{
+		assert(false, "f2 found (should not be in first's section)");
+	}
+	if (try ws.lookup("first", "f3"))
+	{
+		assert(false, "f3 found (should not be in first's section)");
+	}
+
+	Module* modsecond = ws.modules.get("second")!!;
+	ModuleSection* ssecond = modsecond.sections[0];
+	assert(count_kind(ssecond, NodeKind.MODULE_DECL) == 1, "Expected 1 MODULE_DECL node");
+	assert(count_kind(ssecond, NodeKind.FN_DECL)     == 1, "Expected 1 FN_DECL node");
+
+	if (catch e = ws.lookup("second", "f2"))
+	{
+		assert(false, "f2 not found: %s", e);
+	}
+	if (try ws.lookup("second", "f1"))
+	{
+		assert(false, "f1 found (should not be in second's section)");
+	}
+	if (try ws.lookup("second", "f3"))
+	{
+		assert(false, "f3 found (should not be in second's section)");
+	}
+
+	Module* modthird = ws.modules.get("third")!!;
+	ModuleSection* sthird = modthird.sections[0];
+	assert(count_kind(sthird, NodeKind.MODULE_DECL) == 1, "Expected 1 MODULE_DECL node");
+	assert(count_kind(sthird, NodeKind.FN_DECL)     == 1, "Expected 1 FN_DECL node");
+
+	if (catch e = ws.lookup("third", "f3"))
+	{
+		assert(false, "f3 not found: %s", e);
+	}
+	if (try ws.lookup("third", "f1"))
+	{
+		assert(false, "f1 found (should not be in third's section)");
+	}
+	if (try ws.lookup("third", "f2"))
+	{
+		assert(false, "f2 found (should not be in third's section)");
+	}
+}
+
+// ------------------------------------------------------------
+// 20. peek_module_name scans the whole file, not just the start
+// ------------------------------------------------------------
+<*
+peek_module_name iterates every token in the file looking for the
+first MODULE keyword.  Therefore a file whose FIRST declaration is
+a plain function but has a "module foo;" later in the body still
+uses "foo" as the module name — the filename-inference path is not
+taken.  All declarations (before and after the header) end up in
+foo's section.
+*>
+fn void test_multi_module_peek_scans_whole_file() @test => @pool()
+{
+	// The file has NO leading module header; only one in the middle.
+	// peek_module_name will find "explicit_mod" and use that.
+	String path = write_fixture("mm_peek", `fn void before_header() {}
+module explicit_mod;
+fn void after_header() {}
+`);
+
+	String inferred_module_name = path.tsplit("/")[^1].strip_suffix(".c3");
+
+	Workspace ws;
+	ws.init();
+	parser::parse_file(&ws, path)!!;
+
+	assert(ws.modules.len() == 2,
+	"Expected two workspace modules (inferred and encountered)");
+
+	// The module is registered under the file name
+	Module* mod_mm_peek = ws.modules.get(inferred_module_name) ?? null;
+	assert(mod_mm_peek != null, "Module 'mm_peek' not found");
+
+	// The module is registered under the scanned name
+	Module* mod_explicit_mod = ws.modules.get("explicit_mod") ?? null;
+	assert(mod_explicit_mod != null, "Module 'explicit_mod' not found");
+
+	// Both functions land in explicit_mod's section
+	if (catch e = ws.lookup(inferred_module_name, "before_header"))
+	{
+		assert(false, "before_header not found: %s", e);
+	}
+	if (try ws.lookup(inferred_module_name, "after_header"))
+	{
+		assert(false, "after_header found in explicit_mod");
+	}
+
+	if (catch e = ws.lookup("explicit_mod", "after_header"))
+	{
+		assert(false, "after_header not found: %s", e);
+	}
+	if (try ws.lookup("explicit_mod", "before_header"))
+	{
+		assert(false, "before_header found in explicit_mod");
+	}
+}
+
+// ------------------------------------------------------------
+// 21. Multi-module file + another file for the same first module
+// ------------------------------------------------------------
+<*
+When a multi-module file shares its first module name with a
+separate single-module file, the workspace merges them correctly:
+one Module with two sections (one per source file).
+*>
+fn void test_multi_module_merges_with_external_file() @test => @pool()
+{
+	// File 1: two-module file whose first header is "shared_mm"
+	String path1 = write_fixture("mm_shared_a", `module shared_mm;
+fn void from_file1() {}
+module other_mm;
+fn void also_from_file1() {}
+`);
+	// File 2: single-module file also in "shared_mm"
+	String path2 = write_fixture("mm_shared_b", `module shared_mm;
+fn void from_file2() {}
+`);
+
+	Workspace ws;
+	ws.init();
+	parser::parse_file(&ws, path1)!!;
+	parser::parse_file(&ws, path2)!!;
+
+	Module* mod = ws.modules.get("shared_mm")!!;
+	// Two source files → two sections
+	assert(mod.sections.len() == 2,
+	"Expected two sections (one per source file)");
+
+	// Symbols from both files reachable
+	if (catch e = ws.lookup("shared_mm", "from_file1"))
+	{
+		assert(false, "from_file1 not found: %s", e);
+	}
+	if (catch e = ws.lookup("shared_mm", "from_file2"))
+	{
+		assert(false, "from_file2 not found: %s", e);
+	}
+}

@@ -286,6 +286,7 @@ fn void? parse_file(Workspace* ws, String path)
 		Module* mod = ws.get_or_create_module(mod_name);
 		ModuleSection* sec = ws.get_or_create_section(mod, parser.sf);
 		parser.mod = mod;
+		sec.start_node_idx = 0;
 		log::info("Inferred module: %s", mod_name);
 	}
 
@@ -308,7 +309,6 @@ fn void? parse_file(Workspace* ws, String path)
 	{
 		last_sec.end_node_idx = parser.sf.ast.len();
 	}
-	// section.end_node_idx = (uint)mod.ast.len();
 	log::info("Succesfully parsed: %s", path);
 }
 
