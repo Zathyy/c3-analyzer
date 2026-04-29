@@ -617,7 +617,7 @@ fn Node? parse_defer(Parser* p)
 fn Node? parse_assert_stmt(Parser* p)
 {
     Token t = p.current();
-    expect(p, TokenKind.ASSERT)!; // consume 'assert'
+    expect(p, TokenKind.ASSERT)!;
     expect(p, TokenKind.LPAREN)!;
 
     Node cond = parse_expr(p)!;
