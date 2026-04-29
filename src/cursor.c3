@@ -220,7 +220,7 @@ fn String file_path(Cursor* self)
 <*
  Returns the actual source code text associated with this cursor.
 *>
-fn String source_text(Cursor* self)
+fn String Cursor.source_text(&self)
 {
 	if (!self.node.is_valid()) return "";
 	if (self.section == null || self.section.source_file.source.len == 0) return "";
@@ -438,7 +438,7 @@ fn String[] get_attribute_names(Cursor c, Allocator allocator)
 fn String get_attribute_full_string(Cursor c, Node attr_node, Allocator allocator)
 {
 	Cursor attr = { c.section, attr_node };
-	return cursor::source_text(&attr);
+	return attr.source_text();
 }
 
 <*
