@@ -9,7 +9,6 @@ import std::collections::list;
 
 import c3_parser::ast @norecurse;
 import c3_parser::cursor;
-import std::io;
 
 faultdef
 	SYMBOL_NOT_FOUND, MODULE_NOT_FOUND
@@ -205,7 +204,6 @@ fn Cursor? Workspace.lookup(&self, String module_name, String symbol_name)
 	{
 		foreach (decl_handle : section.source_file.ast.top_level_nodes)
 		{
-			io::printfn("%d | start=%d | end=%d", decl_handle, section.start_node_idx, section.end_node_idx);
 			if (decl_handle < section.start_node_idx || decl_handle >= section.end_node_idx) continue;
 			Cursor c = { section, (Node)decl_handle };
 			if (c.spelling()! == symbol_name) return c;

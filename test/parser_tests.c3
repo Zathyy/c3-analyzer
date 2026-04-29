@@ -35,7 +35,7 @@ fn uint count_kind(ModuleSection* s, NodeKind kind) @private
 	uint n = 0;
 	foreach (h : s.source_file.ast.top_level_nodes)
 	{
-		if (h < s.start_node_idx || h > s.end_node_idx) continue;
+		if (h < s.start_node_idx || h >= s.end_node_idx) continue;
 		if (ast::get_kind(&s.source_file.ast, (Node)h) == kind) n++;
 	}
 	return n;
@@ -564,38 +564,44 @@ fn void fn_b() {}
 	}
 }
 
-// // ------------------------------------------------------------
-// // 18. Every module header produces a MODULE_DECL top-level node
-// // ------------------------------------------------------------
-// <*
-// Even though the second header does not create a new workspace
-// module, it is still parsed as a MODULE_DECL node inside the
-// first section's top-level node list.
-// *>
-// fn void test_multi_module_decl_nodes_recorded() @test => @pool()
-// {
-// String path = write_fixture("mm_nodes", `module mod_x;
-// fn void fx() {}
-// module mod_y;
-// fn void fy() {}
-// `);
-// 
-// Workspace ws;
-// ws.init();
-// parser::parse_file(&ws, path)!!;
-// 
-// Module* mod = ws.modules.get("mod_x")!!;
-// ModuleSection* s = mod.sections[0];
-// 
-// // Two MODULE_DECL nodes — one per header
-// assert(count_kind(s, NodeKind.MODULE_DECL) == 2,
-// "Expected two MODULE_DECL nodes (one per header in the file)");
-// 
-// // Two FN_DECL nodes
-// assert(count_kind(s, NodeKind.FN_DECL) == 2,
-// "Expected two FN_DECL nodes");
-// }
-// 
+// ------------------------------------------------------------
+// 18. Every module header produces a MODULE_DECL top-level node
+// ------------------------------------------------------------
+<*
+The second header creates a new workspace module, so only one
+MODULE_DECL is found node inside each.
+*>
+fn void test_multi_module_decl_nodes_recorded() @test => @pool()
+{
+	String path = write_fixture("mm_nodes", `module mod_x;
+fn void fx() {}
+module mod_y;
+fn void fy() {}
+`);
+
+	Workspace ws;
+	ws.init();
+	parser::parse_file(&ws, path)!!;
+
+	Module* modx = ws.modules.get("mod_x")!!;
+	ModuleSection* sx = modx.sections[0];
+
+	assert(count_kind(sx, NodeKind.MODULE_DECL) == 1,
+	"Expected one MODULE_DECL node in mod_x");
+
+	assert(count_kind(sx, NodeKind.FN_DECL) == 1,
+	"Expected one FN_DECL node");
+
+	Module* mody = ws.modules.get("mod_y")!!;
+	ModuleSection* sy = mody.sections[0];
+
+	assert(count_kind(sy, NodeKind.MODULE_DECL) == 1,
+	"Expected one MODULE_DECL node in mod_y");
+
+	assert(count_kind(sy, NodeKind.FN_DECL) == 1,
+	"Expected one FN_DECL node");
+}
+
 // // ------------------------------------------------------------
 // // 19. Three module headers in one file
 // // ------------------------------------------------------------
