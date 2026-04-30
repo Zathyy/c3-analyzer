@@ -197,7 +197,10 @@ const int MAX_SIZE = 100;
 	Cursor cc = ws.lookup("const_mod", "MAX_SIZE")!!;
 	// CONST_DECL is stored as a GLOBAL_DECL with a const flag
 	NodeKind k = ast::get_kind(&cc.section.source_file.ast, cc.node);
-	assert (k == NodeKind.GLOBAL_DECL || k == NodeKind.CONST_DECL , "Expected GLOBAL_DECL or CONST_DECL for const");
+
+	VarDeclView view = { &cc.section.source_file.ast, cc.node };
+	assert(k == NodeKind.VAR_DECL , "Expected VAR_DECL");
+	assert(view.is_const(), "Expected const for VAR_DECL");
 }
 
 // ------------------------------------------------------------
@@ -919,8 +922,10 @@ int counter = 0;
 	parser::parse_file(&ws, path)!!;
 
 	Cursor c = ws.lookup("global_mod", "counter")!!;
-	assert(ast::get_kind(&c.section.source_file.ast, c.node) == NodeKind.GLOBAL_DECL,
-		"Expected GLOBAL_DECL for global variable");
+	VarDeclView view = { &c.section.source_file.ast, c.node };
+	assert(ast::get_kind(&c.section.source_file.ast, c.node) == NodeKind.VAR_DECL,
+		"Expected VAR_DECL for global variable");
+	assert(view.is_global(), "Expected VAR_DECL to be global");
 }
 
 // 31. Global variable spelling via workspace lookup
@@ -934,10 +939,12 @@ float pi_value = 3.14159;
 	parser::parse_file(&ws, path)!!;
 
 	Cursor c = ws.lookup("gspell_mod", "pi_value")!!;
-	assert(ast::get_kind(&c.section.source_file.ast, c.node) == NodeKind.GLOBAL_DECL,
-		"Expected GLOBAL_DECL");
+	VarDeclView view = { &c.section.source_file.ast, c.node };
+	assert(ast::get_kind(&c.section.source_file.ast, c.node) == NodeKind.VAR_DECL,
+		"Expected VAR_DECL");
+	assert(view.is_global(), "Expected VAR_DECL to be global");
 	String name = c.spelling()!!;
-	assert(name == "pi_value", "GLOBAL_DECL spelling mismatch: %s", name);
+	assert(name == "pi_value", "VAR_DECL spelling mismatch: %s", name);
 }
 
 // 32. Thread-local variable declaration
@@ -951,8 +958,10 @@ tlocal int tl_counter;
 	parser::parse_file(&ws, path)!!;
 
 	Cursor c = ws.lookup("tlocal_mod", "tl_counter")!!;
-	assert(ast::get_kind(&c.section.source_file.ast, c.node) == NodeKind.GLOBAL_DECL,
-		"tlocal var should produce GLOBAL_DECL");
+	VarDeclView view = { &c.section.source_file.ast, c.node };
+	assert(ast::get_kind(&c.section.source_file.ast, c.node) == NodeKind.VAR_DECL,
+		"tlocal var should produce VAR_DECL");
+	assert(view.is_thread_local(), "expected tlocal variable to have tlocal flag");
 }
 
 // 33. Mixed declaration kinds in one module
@@ -974,7 +983,7 @@ alias Scalar = float;
 	assert(count_kind(s, NodeKind.STRUCT_DECL)     == 1, "Expected 1 STRUCT_DECL");
 	assert(count_kind(s, NodeKind.ENUM_DECL)       == 1, "Expected 1 ENUM_DECL");
 	assert(count_kind(s, NodeKind.FN_DECL)         == 1, "Expected 1 FN_DECL");
-	assert(count_kind(s, NodeKind.GLOBAL_DECL)     == 1, "Expected 1 GLOBAL_DECL");
+	assert(count_kind(s, NodeKind.VAR_DECL)     == 1, "Expected 1 VAR_DECL");
 	assert(count_kind(s, NodeKind.TYPE_ALIAS_DECL) == 1, "Expected 1 TYPE_ALIAS_DECL");
 }
 
@@ -1607,13 +1616,13 @@ const int OFFSET = 8;
 
 	Cursor c1 = ws.lookup("const2_mod", "LIMIT")!!;
 	NodeKind k1 = ast::get_kind(&c1.section.source_file.ast, c1.node);
-	assert(k1 == NodeKind.GLOBAL_DECL || k1 == NodeKind.CONST_DECL,
-		"LIMIT: expected GLOBAL_DECL or CONST_DECL");
+	assert(k1 == NodeKind.VAR_DECL,
+		"LIMIT: expected VAR_DECL");
 
 	Cursor c2 = ws.lookup("const2_mod", "OFFSET")!!;
 	NodeKind k2 = ast::get_kind(&c2.section.source_file.ast, c2.node);
-	assert(k2 == NodeKind.GLOBAL_DECL || k2 == NodeKind.CONST_DECL,
-		"OFFSET: expected GLOBAL_DECL or CONST_DECL");
+	assert(k2 == NodeKind.VAR_DECL,
+		"OFFSET: expected VAR_DECL");
 }
 
 // 63. source_text of struct spans its declared name

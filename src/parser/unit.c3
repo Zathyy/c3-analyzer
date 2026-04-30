@@ -537,12 +537,9 @@ fn Node? parse_var_decl(Parser* p, ParseFlags flags)
 	if (flags.is_const)  packed_flags |= 1 << 1;
 	if (flags.is_inline) packed_flags |= 1 << 2;
 	if (flags.is_local)  packed_flags |= 1 << 3;
+	if (flags.is_thread_local)  packed_flags |= 1 << 4;
 
 	uint[*] data = { name, (uint)type_node, (uint)init_expr, attr, packed_flags };
 	uint ex = ast::push_extra_list(p.ast, &data);
-
-	if (flags.is_const) return ast::add_node(p.ast, NodeKind.CONST_DECL, start_pos, end_tok, ex);
-	if (flags.is_global) return ast::add_node(p.ast, NodeKind.GLOBAL_DECL, start_pos, end_tok, ex);
-
 	return ast::add_node(p.ast, NodeKind.VAR_DECL, start_pos, end_tok, ex);
 }

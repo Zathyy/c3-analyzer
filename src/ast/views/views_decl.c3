@@ -6,12 +6,20 @@ import lexer;
 
 typedef ModuleView = inline View;
 fn Node ModuleView.path(self) => self.get(0);
-fn Node ModuleView.generic(self) => self.get(1);
-fn Node ModuleView.attribute(self) => self.get(2);
+fn uint ModuleView.generics_offset(self) => self.get_uint(1);
+fn uint ModuleView.attributes_offset(self) => self.get_uint(2);
+fn bool ModuleView.is_generic(self) => self.generics_offset() != 0;
+fn bool ModuleView.is_private(self) => self.has_attribute(self.attributes_offset(), AttributeKind.PRIVATE);
+fn bool ModuleView.is_local(self) => self.has_attribute(self.attributes_offset(), AttributeKind.LOCAL);
+fn GenericParamsView ModuleView.generics(self) 
+{
+    return (GenericParamsView){ self.ast, (Node)self.generics_offset() };
+}
 
 typedef ImportView = inline View;
 fn Node ImportView.path(self) => self.get(0);
-fn Node ImportView.attribute(self) => self.get(1);
+fn uint ImportView.attributes_offset(self) => self.get_uint(1);
+fn bool ImportView.is_public(self) => self.has_attribute(self.attributes_offset(), AttributeKind.PUBLIC);
 
 typedef InterfaceImplView = inline View;
 fn uint InterfaceImplView.count(self) => self.ast.extra_data[(Size)self.get_extra_index()];
@@ -57,6 +65,10 @@ fn uint VarDeclView.attributes_offset(self) => self.get_uint(3);
 fn uint VarDeclView.flags(self) => self.get_uint(4);
 fn bool VarDeclView.is_extern(self) => (self.flags() & (1 << 0)) != 0;
 fn bool VarDeclView.is_const(self)  => (self.flags() & (1 << 1)) != 0;
+fn bool VarDeclView.is_inline(self)  => (self.flags() & (1 << 2)) != 0;
+fn bool VarDeclView.is_local(self)  => (self.flags() & (1 << 3)) != 0;
+fn bool VarDeclView.is_thread_local(self)  => (self.flags() & (1 << 4)) != 0;
+fn bool VarDeclView.is_global(self) => !self.is_local();
 
 typedef StructView = inline View;
 fn String StructView.name(self, StringPool* pool) => pool.get((StringHandle)self.get_uint(0));

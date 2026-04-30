@@ -21,6 +21,7 @@ faultdef
 // length in parts, eg: foo::bar = 2 parts
 const uint PATH_MAX_LENGTH = 16;
 
+// Scratch Buffer
 tlocal List{uint} scratch;
 
 fn uint[] scratch_view(uint index, uint len)

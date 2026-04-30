@@ -80,7 +80,7 @@ fn bool visit_children(Cursor parent, CursorVisitor visitor, void* data)
 				if (!visit({ parent.section, v.path() }, parent, visitor, data)) return false;
 				break;
 			}
-		case NodeKind.GLOBAL_DECL:
+		case NodeKind.VAR_DECL:
 			{
 				VarDeclView v = { ast, n };
 				if (!visit({ parent.section, v.type_node() }, parent, visitor, data)) return false;
@@ -276,6 +276,8 @@ fn String? Cursor.spelling(&self)
 	NodeView n = ast::get_node(&self.section.source_file.ast, self.node);
 
 	Ast* ast = &self.section.source_file.ast;
+	
+	// TODO: clean up
 	switch (n.kind)
 	{
 		case NodeKind.PATH:
@@ -286,13 +288,9 @@ fn String? Cursor.spelling(&self)
 		case NodeKind.STRING_LITERAL:
 			LiteralView v = { ast, self.node };
 			return v.value(self.section.source_file.strings);
-
 		case NodeKind.IDENT_EXPR:
 			IdentView v = { ast, self.node };
 			return v.name(self.section.source_file.strings);
-
-		case NodeKind.VAR_DECL_STMT:
-		case NodeKind.CONST_DECL:
 		case NodeKind.FN_DECL:
 		case NodeKind.STRUCT_DECL:
 			StructView v = { ast, self.node };
@@ -305,7 +303,7 @@ fn String? Cursor.spelling(&self)
 		case NodeKind.BINARY_EXPR:
 			BinaryView v = { ast, self.node };
 			return v.op().description;
-		case NodeKind.GLOBAL_DECL:
+		case NodeKind.VAR_DECL:
 			VarDeclView v = { ast, self.node };
 			return v.name(self.section.source_file.strings);
 		case NodeKind.TYPE_EXPR:
