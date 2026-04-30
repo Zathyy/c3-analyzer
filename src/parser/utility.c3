@@ -73,6 +73,12 @@ fn bool is_some_ident(TokenKind type)
 	}
 }
 
+fn bool is_non_type_ident(TokenKind k)
+{
+    return k == TokenKind.IDENT || 
+           k == TokenKind.HASH_IDENT || 
+           k == TokenKind.CT_IDENT;
+}
 
 fn bool is_type(TokenKind kind)
 {

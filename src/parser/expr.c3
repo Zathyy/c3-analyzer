@@ -9,6 +9,8 @@ module c3_parser::parser;
 import c3_parser::ast;
 import lexer;
 
+import c3_parser::common;
+
 import std::io;
 import std::collections::list;
 
@@ -170,7 +172,7 @@ fn Node? parse_prefix_expr(Parser* p)
 			Node ident_node = parse_expr(p, Precedence.MULTIPLICATIVE)!;
 
 			uint[2] data = { (uint)t.kind, (uint)ident_node };
-			uint ex = ast::push_extra_block(p.ast, &data);
+			uint ex = ast::push_extra_list(p.ast, &data);
 
 			if (next.kind == TokenKind.CONST_IDENT)
 			{
@@ -184,15 +186,15 @@ fn Node? parse_prefix_expr(Parser* p)
 			advance(p)!;
 			return ast::add_node(p.ast, NodeKind.NULL_LITERAL, t.pos, t.pos, 0);
 		}
+		case TokenKind.AT_IDENT:
+		case TokenKind.AT_CONST_IDENT:
+		case TokenKind.AT_TYPE_IDENT:
 		case TokenKind.IDENT:
 		case TokenKind.CONST_IDENT:
 		case TokenKind.TYPE_IDENT:
 		case TokenKind.CT_IDENT:
 		case TokenKind.CT_CONST_IDENT:
 		case TokenKind.CT_TYPE_IDENT:
-		case TokenKind.AT_IDENT:
-		case TokenKind.AT_CONST_IDENT:
-		case TokenKind.AT_TYPE_IDENT:
 		case TokenKind.HASH_IDENT:
 		case TokenKind.HASH_CONST_IDENT:
 		case TokenKind.HASH_TYPE_IDENT:
@@ -244,7 +246,7 @@ fn Node? parse_prefix_expr(Parser* p)
 			Node rhs = parse_expr(p, Precedence.UNARY)!;
 
 			uint[2] data = { (uint)t.kind, (uint)rhs };
-			uint ex = ast::push_extra_block(p.ast, &data);
+			uint ex = ast::push_extra_list(p.ast, &data);
 			return ast::add_node(p.ast, NodeKind.UNARY_EXPR, t.pos, p.current_pos(), ex);
 
 		case TokenKind.LPAREN:
@@ -258,7 +260,7 @@ fn Node? parse_prefix_expr(Parser* p)
 				Node operand = parse_expr(p, Precedence.UNARY)!;
 
 				uint[2] data = { (uint)type, (uint)operand };
-				uint ex = ast::push_extra_block(p.ast, &data);
+				uint ex = ast::push_extra_list(p.ast, &data);
 
 				return ast::add_node(p.ast, NodeKind.CAST_EXPR, t.pos, p.current_pos(), ex);
 			}
@@ -287,7 +289,7 @@ fn Node? parse_prefix_expr(Parser* p)
 				Node right = parse_expr(p, Precedence.CALL)!;
 				uint[2] data = { (uint)t.kind, (uint)right };
 
-				uint ex = ast::push_extra_block(p.ast, &data);
+				uint ex = ast::push_extra_list(p.ast, &data);
 				return ast::add_node(p.ast, NodeKind.PRE_UNARY_EXPR, t.pos, p.current_pos(), ex);
 			}
 		default:
@@ -347,7 +349,7 @@ fn Node? parse_infix(Parser* p, Node left, Precedence rbp)
 				Node right = parse_expr(p, rbp)!;
 
 				uint[3] data = { (uint)left, (uint)right, (uint)t.kind };
-				uint ex = ast::push_extra_block(p.ast, &data);
+				uint ex = ast::push_extra_list(p.ast, &data);
 				return ast::add_node(p.ast, NodeKind.BINARY_EXPR, t.pos, p.current_pos(), ex);
 			}
 		case TokenKind.PLUSPLUS:
@@ -358,7 +360,7 @@ fn Node? parse_infix(Parser* p, Node left, Precedence rbp)
 				advance(p)!;
 				uint[2] data = { (uint)t.kind, (uint)left };
 
-				uint ex = ast::push_extra_block(p.ast, &data);
+				uint ex = ast::push_extra_list(p.ast, &data);
 				return ast::add_node(p.ast, NodeKind.POST_UNARY_EXPR, t.pos, p.current_pos(), ex);
 			}
 		case TokenKind.LPAREN:
@@ -376,6 +378,14 @@ fn Node? parse_infix(Parser* p, Node left, Precedence rbp)
 			{
 				advance(p)!;
 				Token member_token = p.current();
+
+				if (member_token.kind == TokenKind.LBRACKET)
+				{
+					advance(p)!;
+					Node deref_node = ast::add_node(p.ast, NodeKind.MAYBE_DEREF_EXPR, member_token.pos, p.current_pos(), (uint)left);
+					return parse_range(p, deref_node, t.pos);
+				}
+
 				if ((!is_type(member_token.kind)) && member_token.kind != TokenKind.IDENT
 					&& member_token.kind != TokenKind.CONST_IDENT
 					&& member_token.kind != TokenKind.TYPE_IDENT)
@@ -389,7 +399,7 @@ fn Node? parse_infix(Parser* p, Node left, Precedence rbp)
 				Node member_node = ast::add_node(p.ast, NodeKind.IDENT_EXPR, member_token.pos, p.current_pos(), sh);
 
 				uint[2] data = { (uint)left, (uint)member_node };
-				uint ex = ast::push_extra_block(p.ast, &data);
+				uint ex = ast::push_extra_list(p.ast, &data);
 				return ast::add_node(p.ast, NodeKind.ACCESS_EXPR, t.pos, p.current_pos(), ex);
 			}
 		case TokenKind.BIT_NOT:
@@ -443,7 +453,7 @@ fn Node? parse_expr(Parser* p, Precedence min_bp = LOWEST)
 	{
 		uint attr = parse_attributes(p)!;
 		uint[2] data = { (uint)left, attr };
-		uint ex = ast::push_extra_block(p.ast, &data);
+		uint ex = ast::push_extra_list(p.ast, &data);
 		left = ast::add_node(p.ast, NodeKind.ATTRIBUTED_EXPR, p.current().pos, p.current_pos(), ex);
 	}
 
@@ -475,7 +485,7 @@ fn Node? parse_ternary(Parser* p, Node condition, Token t, Precedence rbp)
 	Node else_expr = parse_expr(p, rbp)!;
 
 	uint[3] data = { (uint)condition, (uint)then_expr, (uint)else_expr };
-	uint ex = ast::push_extra_block(p.ast, &data);
+	uint ex = ast::push_extra_list(p.ast, &data);
 	return ast::add_node(p.ast, NodeKind.TERNARY_EXPR, t.pos, p.current_pos(), ex);
 }
 
@@ -489,6 +499,7 @@ fn Node? parse_call(Parser* p, Token t, Node callee)
 	defer args.free();
 
 	// allocate slot 0 and 1 to callee and args length
+	args.push(0);
 	args.push(0);
 	args.push(0);
 
@@ -507,7 +518,7 @@ fn Node? parse_call(Parser* p, Token t, Node callee)
 				Node value = parse_expr(p)!;
 
 				uint[2] data = { name, (uint)value };
-				uint ex = ast::push_extra_block(p.ast, &data);
+				uint ex = ast::push_extra_list(p.ast, &data);
 				arg_node = ast::add_node(p.ast, NodeKind.NAMED_ARG_EXPR, name_tok.pos, p.current_pos(), ex);
 			}
 			else
@@ -523,10 +534,17 @@ fn Node? parse_call(Parser* p, Token t, Node callee)
 
 	expect(p, TokenKind.RPAREN)!;
 
+	Node macro_body;
+    if (p.current().kind == TokenKind.LBRACE)
+    {
+        macro_body = parse_compound(p)!; 
+    }
+
 	args[0] = (uint)callee;
 	args[1] = (uint)args.len() - 2;
+	args[2] = (uint)macro_body;
 
-	uint ex = ast::push_extra_block(p.ast, args.array_view());
+	uint ex = ast::push_extra_list(p.ast, args.array_view());
 
 	return ast::add_node(p.ast, NodeKind.CALL_EXPR, t.pos, p.current_pos(), ex);
 }
@@ -562,7 +580,7 @@ fn Node? parse_initializer_list(Parser* p)
 			Node val = parse_expr(p)!;
 
 			uint[2] data = { member_name, (uint)val };
-			uint ex = ast::push_extra_block(p.ast, &data);
+			uint ex = ast::push_extra_list(p.ast, &data);
 			expr = ast::add_node(p.ast, NodeKind.DESIGNATED_INITIALIZER_LIST, member.pos, p.current_pos(), ex);
 		}
 		else if (p.is(TokenKind.LBRACE))
@@ -583,89 +601,104 @@ fn Node? parse_initializer_list(Parser* p)
 	}
 
 	exprs[0] = (uint)exprs.len() - 1;
-	uint ex = ast::push_extra_block(p.ast, exprs.array_view());
+	uint ex = ast::push_extra_list(p.ast, exprs.array_view());
 
 	return ast::add_node(p.ast, NodeKind.INITIALIZER_LIST, start_tok, p.current_pos(), ex);
 }
 
+/**
+ * maybe_range ::= range | ('^'? INTEGER)
+ * range ::= dot_range | colon_range
+ * dot_range ::= ('^'? INTEGER)? .. ('^'? INTEGER)?
+ * colon_range ::= ('^'? INTEGER)? : ('^'? INTEGER)?
+ */
 fn Node? parse_range(Parser* p, Node left, uint start_pos)
 {
-	Node start;
-	Node end;
-	bool is_slice = false;
+    Node start;
+    Node end;
+    bool is_slice = false;
 
-	// leading colon/range: [:5] or [..5]
-	if (p.is(TokenKind.COLON) || p.is(TokenKind.DOTDOT))
-	{
-		is_slice = true;
-		advance(p)!;
+    if (p.is(TokenKind.COLON) || p.is(TokenKind.DOTDOT))
+    {
+        is_slice = true;
+        advance(p)!;
+    }
+    else
+    {
+        if (consume(p, TokenKind.BIT_XOR)!)
+        {
+            Node inner = parse_expr(p, Precedence.CALL)!;
+            uint[2] data = { (uint)TokenKind.BIT_XOR, (uint)inner };
+            uint ex = ast::push_extra_list(p.ast, &data);
+            start = ast::add_node(p.ast, NodeKind.PREFIX_EXPR, p.current().pos, p.current_pos(), ex);
+        }
+        else
+        {
+            start = parse_expr(p, Precedence.LOWEST)!;
+        }
 
-		// Check for hat in the end slot: [:^1]
-		if (consume(p, TokenKind.BIT_XOR)!)
-		{
-			Node inner = parse_expr(p, Precedence.CALL)!;
-			uint[2] data = { (uint)TokenKind.BIT_XOR, (uint)inner };
-			uint ex = ast::push_extra_block(p.ast, &data);
-			end = ast::add_node(p.ast, NodeKind.PREFIX_EXPR, p.current().pos, p.current_pos(), ex);
-		}
-		else
-		{
-			end = parse_expr(p, Precedence.LOWEST)!;
-		}
-	}
-	else
-	{
-		// Check for hat: [^5]
-		if (consume(p, TokenKind.BIT_XOR)!)
-		{
-			Node inner = parse_expr(p, Precedence.CALL)!;
-			uint[2] data = { (uint)TokenKind.BIT_XOR, (uint)inner };
-			uint ex = ast::push_extra_block(p.ast, &data);
-			start = ast::add_node(p.ast, NodeKind.PREFIX_EXPR, p.current().pos, p.current_pos(), ex);
-		}
-		else
-		{
-			start = parse_expr(p, Precedence.LOWEST)!;
-		}
+        if (p.is(TokenKind.COLON) || p.is(TokenKind.DOTDOT))
+        {
+            is_slice = true;
+            advance(p)!;
+        }
+    }
 
-		// [start:end] or [start..end]
-		if (p.is(TokenKind.COLON) || p.is(TokenKind.DOTDOT))
-		{
-			is_slice = true;
-			advance(p)!;
+    if (is_slice && !p.is(TokenKind.RBRACKET))
+    {
+        if (consume(p, TokenKind.BIT_XOR)!)
+        {
+            Node inner = parse_expr(p, Precedence.CALL)!;
+            uint[2] data = { (uint)TokenKind.BIT_XOR, (uint)inner };
+            uint ex = ast::push_extra_list(p.ast, &data);
+            end = ast::add_node(p.ast, NodeKind.PREFIX_EXPR, p.current().pos, p.current_pos(), ex);
+        }
+        else
+        {
+            end = parse_expr(p, Precedence.LOWEST)!;
+        }
+    }
 
-			// [0:5], [0:^1], or [0:]
-			if (!p.is(TokenKind.RBRACKET))
-			{
-				if (consume(p, TokenKind.BIT_XOR)!)
-				{
-					Node inner = parse_expr(p, Precedence.CALL)!;
-					uint[2] data = { (uint)TokenKind.BIT_XOR, (uint)inner };
-					uint ex = ast::push_extra_block(p.ast, &data);
-					end = ast::add_node(p.ast, NodeKind.PREFIX_EXPR, p.current().pos, p.current_pos(), ex);
-				}
-				else
-				{
-					end = parse_expr(p, Precedence.LOWEST)!;
-				}
-			}
-		}
-	}
+    expect(p, TokenKind.RBRACKET)!;
 
-	expect(p, TokenKind.RBRACKET)!;
+    if (is_slice)
+    {
+        uint[2] slice_data = { (uint)start, (uint)end };
+        uint slice_ex = ast::push_extra_list(p.ast, &slice_data);
+        Node slice_node = ast::add_node(p.ast, NodeKind.SLICE_EXPR, start_pos, p.current_pos(), slice_ex);
 
-	if (is_slice)
-	{
-		uint[2] slice_data = { (uint)start, (uint)end };
-		uint slice_ex = ast::push_extra_block(p.ast, &slice_data);
-		Node slice_node = ast::add_node(p.ast, NodeKind.SLICE_EXPR, start_pos, p.current_pos(), slice_ex);
+        uint[2] access_data = { (uint)left, (uint)slice_node };
+        uint access_ex = ast::push_extra_list(p.ast, &access_data);
+        return ast::add_node(p.ast, NodeKind.INDEX_EXPR, start_pos, p.current_pos(), access_ex);
+    }
 
-		uint[2] access_data = { (uint)left, (uint)slice_node };
-		uint access_ex = ast::push_extra_block(p.ast, &access_data);
-		return ast::add_node(p.ast, NodeKind.INDEX_EXPR, start_pos, p.current_pos(), access_ex);
-	}
+    uint[2] data = { (uint)left, (uint)start };
+    uint ex = ast::push_extra_list(p.ast, &data);
+    return ast::add_node(p.ast, NodeKind.INDEX_EXPR, start_pos, p.current_pos(), ex);
+}
 
-	uint[2] data = { (uint)left, (uint)start };
-	uint ex = ast::push_extra_block(p.ast, &data);
-	return ast::add_node(p.ast, NodeKind.INDEX_EXPR, start_pos, p.current_pos(), ex);
+fn Node? parse_ct_expr_list(Parser* p) => @scratch()
+{
+    uint start_pos = p.current().pos;
+	scratch.push(0);
+
+    while (true)
+    {
+        Node expr = parse_expr(p, Precedence.LOWEST)!;
+        scratch.push((uint)expr);
+
+        if (!p.is(TokenKind.COMMA))
+        {
+            break;
+        }
+
+        advance(p)!;
+        if (p.is(TokenKind.EOS) || p.is(TokenKind.COLON))
+        {
+            break;
+        }
+    }
+
+    uint ex = ast::push_extra_list(p.ast, scratch.array_view());
+    return ast::add_node(p.ast, NodeKind.EXPR_LIST, start_pos, p.previous_pos(), ex);
 }

@@ -27,6 +27,7 @@ enum NodeKind : char
 	INTERFACE_METHOD,
 	INTERFACE_PARENT,
 	GENERIC_PARAM,
+	ENUM_MEMBER,
 
 	TYPE,
 	TYPE_DECL,
@@ -49,8 +50,6 @@ enum NodeKind : char
 	ALIAS_DECL,
 	TYPE_ALIAS_DECL,
 	PATH_ALIAS_DECL,
-	GLOBAL_DECL,
-	CONST_DECL,
 	INTERFACE_DECL,
 	MACRO_DECL,
 	TYPEDEF_DECL,
@@ -80,14 +79,13 @@ enum NodeKind : char
 	PRE_UNARY_EXPR,
 	PREFIX_EXPR,
 	NAMED_ARG_EXPR,
-
+	MAYBE_DEREF_EXPR,
+	SUBSCRIPT_EXPR,
+	EXPR_LIST,
 
 	FOR_STMT,
 	COMPOUND_STMT,
-	// { ... }
 	RETURN_STMT,
-	// return
-	VAR_DECL_STMT,
 	EXPR_STMT,
 	IF_STMT,
 	DEFER_STMT,
@@ -107,6 +105,7 @@ enum NodeKind : char
 	CT_SWITCH_STMT,
 	CT_CASE_STMT,
 	CT_VAR_DECL,
+	CT_FOR_STMT,
 }
 
 struct Ast
@@ -179,7 +178,7 @@ fn void Ast.set_extra(&self, uint index, uint value) @inline
 }
 
 <*
- @require end_tok >= start_tok : "start needs to be less than end"
+	@require end_tok >= start_tok : "start needs to be less than end"
 *>
 fn Node add_node(Ast* ast, NodeKind kind, uint start_tok, uint end_tok, uint extra_idx)
 {
@@ -250,7 +249,7 @@ fn uint reserve_extra(Ast* ast, uint size)
 }
 
 /* * Helper to write a slice of values directly into the extra pool. */
-fn uint push_extra_block(Ast* ast, uint[] data)
+fn uint push_extra_list(Ast* ast, uint[] data)
 {
 	uint start = (uint)ast.extra_data.len();
 	ast.extra_data.push_all(data);

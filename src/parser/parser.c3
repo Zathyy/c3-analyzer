@@ -21,6 +21,31 @@ faultdef
 // length in parts, eg: foo::bar = 2 parts
 const uint PATH_MAX_LENGTH = 16;
 
+// Scratch Buffer
+tlocal List{uint} scratch;
+
+fn uint[] scratch_view(uint index, uint len)
+{
+	return scratch.entries[index:len];
+}
+
+// defer so it always runs even if the function returns fault
+macro @with_scratch(; @body(index))
+{
+	uint watermark = (uint)scratch.len();
+	defer scratch.size = (Size)watermark;
+	@body(watermark);
+}
+
+// defer so it always runs even if the function returns fault
+macro @scratch(; @body())
+{
+	Size watermark = scratch.len();
+	defer scratch.size = watermark;
+	@body();
+}
+
+
 bitstruct ParseFlags : uint
 {
 	bool is_interface; // Skip function bodies, disallow fields
@@ -33,6 +58,7 @@ bitstruct ParseFlags : uint
 	bool is_attribute; // Special parsing for @attr(...)
 	bool is_type_only; // Used for casts or sizeof where names aren't expected
 	bool is_const; // Context requires constant expressions
+	bool is_constdef;
 	bool is_call;
 	bool is_lamda;
 	bool is_macro;
@@ -242,6 +268,13 @@ fn void? parse_file(Workspace* ws, String path)
 	Parser parser = { .mod = null, .pool = &ws.strings, .file_path = path, // .allow_submodules = true,
 	};
 
+	if (!scratch.is_initialized())
+	{
+		scratch.tinit(1000);
+	}
+
+	scratch.clear();
+
 	String src = (String)file::load(tmem, path)!;
 	Lexer lexer = { .buffer = src, .index = 0, };
 
@@ -381,7 +414,7 @@ fn void? parse_top_level(Parser* p, Workspace* ws)
 			uint attr = parse_attributes(p)!;
 
 			uint[*] data = { (uint)path_node, attr };
-			uint ex = ast::push_extra_block(p.ast, &data);
+			uint ex = ast::push_extra_list(p.ast, &data);
 			Node imp_node = ast::add_node(p.ast, NodeKind.IMPORT_DECL, start, p.current_pos(), ex);
 			p.ast.top_level_nodes.push((uint)imp_node);
 			if (!consume(p, TokenKind.COMMA)!) break;
@@ -408,12 +441,15 @@ fn void? parse_top_level(Parser* p, Workspace* ws)
 			node = parse_typedef(p)!;
 		case TokenKind.STRUCT:
 			node = parse_struct(p)!;
+		case TokenKind.CONSTDEF:
+			flags.is_constdef = true;
+			node = parse_enum(p, flags)!;
 		case TokenKind.ENUM:
-			node = parse_enum(p)!;
+			node = parse_enum(p, flags)!;
 		case TokenKind.CONST:
 			flags.is_const = true;
 			advance(p)!;
-			node = parse_var_decl(p, flags)!;
+			node = parse_var_decl(p, flags)!;			
 		case TokenKind.EOS:
 			p.error("<EOS> appeared in parse_top_level");
 			advance(p)!;

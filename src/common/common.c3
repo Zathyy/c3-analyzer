@@ -9,8 +9,7 @@ const uint MAX_ATTRIBUTES     = 16;
 const uint MAX_INTERFACE_IMPL = 16;
 
 typedef FileID = ushort;
-alias Size @if(env::ARCH_64_BIT) = long;
-alias Size @if(!env::ARCH_64_BIT) = int;
+alias Size = sz;
 
 struct Location
 {
