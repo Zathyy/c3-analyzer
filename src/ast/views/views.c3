@@ -4,6 +4,10 @@ import string_pool;
 import c3_parser::common;
 import lexer;
 
+faultdef
+    ATTRIBUTE_NOT_PRESENT,
+    ATTRIBUTE_ARG_NOT_PRESENT;
+
 struct NodeView
 {
 	NodeKind kind;
@@ -25,9 +29,9 @@ macro View.get(self, $offset)
 	return (Node)self.ast.extra_data[(Size)self.ast.extra_indices[(Size)self.handle] + $offset];
 }
 
-macro View.get_uint(self, $offset)
+fn uint View.get_uint(self, uint offset)
 {
-	return (uint)self.ast.extra_data[(Size)self.ast.extra_indices[(Size)self.handle] + $offset];
+	return (uint)self.ast.extra_data[(Size)self.ast.extra_indices[(Size)self.handle] + offset];
 }
 
 macro View.get_at(self, $base_offset, index)
@@ -36,22 +40,22 @@ macro View.get_at(self, $base_offset, index)
 	return (Node)self.ast.extra_data[pos];
 }
 
-macro uint View.get_list_count(self, $offset) 
+fn uint View.get_list_count(self, uint offset) 
 {
-    uint list_ptr = self.get_uint($offset);
+    uint list_ptr = self.get_uint(offset);
     return self.ast.extra_data[(Size)list_ptr];
 }
 
-macro Node View.get_list_item(self, $offset, uint index)
+fn Node View.get_list_item(self, uint offset, uint index)
 {
-    uint list_ptr = self.get_uint($offset);
+    uint list_ptr = self.get_uint(offset);
     return (Node)self.ast.extra_data[(Size)list_ptr + 1 + index];
 }
 
-macro Node? View.get_attribute(self, $attr_field_offset, AttributeKind kind)
+fn Node? View.get_attribute(self, uint attr_field_offset, AttributeKind kind)
 {
-    uint list_offset = self.get_uint($attr_field_offset);
-    if (list_offset == 0) return (Node)0;
+    uint list_offset = self.get_uint(attr_field_offset);
+    if (list_offset == 0) return ATTRIBUTE_NOT_PRESENT~;
 
     AttributeListView list = { self.ast, (Node)list_offset };
     for (uint i = 0; i < list.count(); i++)
@@ -60,10 +64,11 @@ macro Node? View.get_attribute(self, $attr_field_offset, AttributeKind kind)
         AttributeView attr = { self.ast, attr_node };
         if (attr.kind() == kind) return attr_node;
     }
-    return (Node)0;
+    
+    return ATTRIBUTE_NOT_PRESENT~;
 }
 
-macro bool View.has_attribute(self, uint attr_field_offset, AttributeKind kind)
+fn bool View.has_attribute(self, uint attr_field_offset, AttributeKind kind)
 {
     uint list_offset = self.get_uint(attr_field_offset);
     if (list_offset == 0) return false;
@@ -75,4 +80,18 @@ macro bool View.has_attribute(self, uint attr_field_offset, AttributeKind kind)
         if (attr.kind() == kind) return true;
     }
     return false;
+}
+
+fn AttributeView? View.get_attribute_view(self, uint attr_field_offset, AttributeKind kind)
+{
+    Node attr_node = self.get_attribute(attr_field_offset, kind)!;
+    if (!attr_node.is_valid()) return ATTRIBUTE_NOT_PRESENT~;
+    return (AttributeView){ self.ast, attr_node };
+}
+
+fn Node? View.get_attr_arg(self, uint attr_field_offset, AttributeKind kind, uint arg_index)
+{
+    AttributeView attr = self.get_attribute_view(attr_field_offset, kind)!;
+    if (arg_index >= attr.arg_count()) return ATTRIBUTE_ARG_NOT_PRESENT~;
+    return attr.get_arg(arg_index);
 }

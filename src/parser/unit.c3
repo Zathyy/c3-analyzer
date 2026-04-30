@@ -521,7 +521,13 @@ fn Node? parse_var_decl(Parser* p, ParseFlags flags)
 
 	expect(p, TokenKind.EOS)!;
 
-	uint[*] data = { name, (uint)type_node, (uint)init_expr, attr };
+	uint packed_flags = 0;
+	if (flags.is_extern) packed_flags |= 1 << 0;
+	if (flags.is_const)  packed_flags |= 1 << 1;
+	if (flags.is_inline) packed_flags |= 1 << 2;
+	if (flags.is_local)  packed_flags |= 1 << 3;
+
+	uint[*] data = { name, (uint)type_node, (uint)init_expr, attr, packed_flags };
 	uint ex = ast::push_extra_list(p.ast, &data);
 
 	if (flags.is_const) return ast::add_node(p.ast, NodeKind.CONST_DECL, start_pos, end_tok, ex);

@@ -20,7 +20,6 @@ fn AttributeKind AttributeView.kind(self) => (AttributeKind)self.get_uint(0);
 fn uint AttributeView.arg_count(self) => self.get_uint(2);
 fn Node AttributeView.get_arg(self, uint index)
 {
-    // args_offset (get_uint(1)) points to the start of the array block
     uint base = self.get_uint(1);
     return (Node)self.ast.extra_data[(Size)base + index];
 }

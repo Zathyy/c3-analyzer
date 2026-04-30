@@ -24,6 +24,9 @@ fn Node FnView.return_type(FnView self) => self.get(2);
 fn uint FnView.attributes_offset(FnView self) => self.get_uint(3);
 fn Node FnView.body(FnView self) => self.get(5);
 
+fn bool FnView.is_inline(self) => self.has_attribute(3, AttributeKind.INLINE);
+fn bool FnView.is_extern(self) => self.has_attribute(3, AttributeKind.EXTERN);
+
 fn uint FnView.param_count(FnView self)
 {
     uint offset = self.get_uint(4); // params index
@@ -49,7 +52,11 @@ typedef VarDeclView = inline View;
 fn String VarDeclView.name(self, StringPool* pool) => pool.get((StringHandle)self.get_uint(0));
 fn Node VarDeclView.type_node(self) => self.get(1);
 fn Node VarDeclView.init_expr(self) => self.get(2);
-fn Node VarDeclView.attribute(self) => self.get(3);
+fn uint VarDeclView.attributes_offset(self) => self.get_uint(3);
+// meta information
+fn uint VarDeclView.flags(self) => self.get_uint(4);
+fn bool VarDeclView.is_extern(self) => (self.flags() & (1 << 0)) != 0;
+fn bool VarDeclView.is_const(self)  => (self.flags() & (1 << 1)) != 0;
 
 typedef StructView = inline View;
 fn String StructView.name(self, StringPool* pool) => pool.get((StringHandle)self.get_uint(0));
