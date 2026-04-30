@@ -52,7 +52,7 @@ fn Node? parse_path(Parser* p)
 	{
 		final_block[i + 1] = stack_parts[i];
 	}
-	uint ex = ast::push_extra_block(p.ast, &final_block);
+	uint ex = ast::push_extra_list(p.ast, &final_block);
 	return ast::add_node(p.ast, NodeKind.PATH, start_tok, p.current_pos(), ex);
 }
 
@@ -105,7 +105,7 @@ fn Node? parse_path_prefix(Parser* p)
 	{
 		final_block[i + 1] = stack_parts[i];
 	}
-	uint ex = ast::push_extra_block(p.ast, &final_block);
+	uint ex = ast::push_extra_list(p.ast, &final_block);
 	return ast::add_node(p.ast, NodeKind.PATH, start_tok, p.current_pos(), ex);
 }
 
@@ -213,7 +213,7 @@ fn Node? parse_type(Parser* p, ParseFlags parse_flags = { })
 		final_block[7 + i] = (uint)desc.gen_args[i];
 	}
 
-	uint ex = ast::push_extra_block(p.ast, &final_block);
+	uint ex = ast::push_extra_list(p.ast, &final_block);
 	Node new_node = ast::add_node(p.ast, NodeKind.TYPE_EXPR, start_tok, p.current_pos(), ex);
 
 	return new_node;
@@ -244,7 +244,7 @@ fn uint? parse_parameter_list(Parser* p) => @scratch()
 
 	expect(p, TokenKind.RPAREN)!;
 	scratch[0] = (uint)scratch.len() - 1;
-	return ast::push_extra_block(p.ast, scratch.array_view());
+	return ast::push_extra_list(p.ast, scratch.array_view());
 }
 
 <*
@@ -274,7 +274,7 @@ fn Node? parse_interface_impl(Parser* p)
         }
 
         uint count = (uint)scratch.len() - watermark;
-        ex = ast::push_extra_block(p.ast, scratch_view(watermark, count));
+        ex = ast::push_extra_list(p.ast, scratch_view(watermark, count));
     };
 
     expect(p, TokenKind.RPAREN)!;
@@ -319,7 +319,7 @@ fn uint? parse_attributes(Parser* p)
                     
                     uint count = (uint)scratch.len() - watermark;
                     arg_count = count;
-                    args_ex = ast::push_extra_block(p.ast, scratch_view(watermark, count));
+                    args_ex = ast::push_extra_list(p.ast, scratch_view(watermark, count));
                 };
             }
 
@@ -329,14 +329,14 @@ fn uint? parse_attributes(Parser* p)
                 arg_count 
             };
 
-            uint ex = ast::push_extra_block(p.ast, &attr_block);
+            uint ex = ast::push_extra_list(p.ast, &attr_block);
             Node attr_node = ast::add_node(p.ast, NodeKind.ATTRIBUTE, start_tok, p.previous_pos(), ex);
 
             scratch.push((uint)attr_node);
         }
 
         uint total_attrs = (uint)scratch.len() - base_watermark;
-        final_ex = ast::push_extra_block(p.ast, scratch_view(base_watermark, total_attrs));
+        final_ex = ast::push_extra_list(p.ast, scratch_view(base_watermark, total_attrs));
     };
 
     return final_ex;
@@ -434,7 +434,7 @@ fn Node? parse_generics(Parser* p)
 
 		uint[2] generic_block = { id, (uint)head };
 
-		uint ex = ast::push_extra_block(p.ast, &generic_block);
+		uint ex = ast::push_extra_list(p.ast, &generic_block);
 		head = ast::add_node(p.ast, NodeKind.GENERIC_PARAM, t.pos, p.current_pos(), ex);
 
 		if (!consume(p, TokenKind.COMMA)!) break;
@@ -522,7 +522,7 @@ fn Node? parse_var_decl(Parser* p, ParseFlags flags)
 	expect(p, TokenKind.EOS)!;
 
 	uint[*] data = { name, (uint)type_node, (uint)init_expr, attr };
-	uint ex = ast::push_extra_block(p.ast, &data);
+	uint ex = ast::push_extra_list(p.ast, &data);
 
 	if (flags.is_const) return ast::add_node(p.ast, NodeKind.CONST_DECL, start_pos, end_tok, ex);
 	if (flags.is_global) return ast::add_node(p.ast, NodeKind.GLOBAL_DECL, start_pos, end_tok, ex);

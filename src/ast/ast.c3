@@ -254,7 +254,7 @@ fn uint reserve_extra(Ast* ast, uint size)
 }
 
 /* * Helper to write a slice of values directly into the extra pool. */
-fn uint push_extra_block(Ast* ast, uint[] data)
+fn uint push_extra_list(Ast* ast, uint[] data)
 {
 	uint start = (uint)ast.extra_data.len();
 	ast.extra_data.push_all(data);

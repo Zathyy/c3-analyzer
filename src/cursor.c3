@@ -456,7 +456,7 @@ fn Node[] get_attributes(Cursor c, Allocator allocator)
 	{
 		case NodeKind.FN_DECL:
 			FnView v = { &c.section.source_file.ast, c.node };
-			offset = v.attributes();
+			offset = v.attributes_offset();
 			break;
 		default:
 			return { };

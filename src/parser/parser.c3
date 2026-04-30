@@ -412,7 +412,7 @@ fn void? parse_top_level(Parser* p, Workspace* ws)
 			uint attr = parse_attributes(p)!;
 
 			uint[*] data = { (uint)path_node, attr };
-			uint ex = ast::push_extra_block(p.ast, &data);
+			uint ex = ast::push_extra_list(p.ast, &data);
 			Node imp_node = ast::add_node(p.ast, NodeKind.IMPORT_DECL, start, p.current_pos(), ex);
 			p.ast.top_level_nodes.push((uint)imp_node);
 			if (!consume(p, TokenKind.COMMA)!) break;

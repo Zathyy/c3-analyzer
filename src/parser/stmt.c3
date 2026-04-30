@@ -122,7 +122,7 @@ fn Node? parse_for_stmt(Parser* p)
 
 	uint[*] data = { (uint)init_stmt, (uint)cond_expr, (uint)incr_expr, (uint)body };
 
-	uint ex = ast::push_extra_block(p.ast, &data);
+	uint ex = ast::push_extra_list(p.ast, &data);
 	return ast::add_node(p.ast, NodeKind.FOR_STMT, for_token, p.current_pos(), ex);
 }
 
@@ -168,7 +168,7 @@ fn Node? parse_ct_for_stmt(Parser* p)
 
 	data[0] = (uint)data.len() - 1;
 
-    uint ex = ast::push_extra_block(p.ast, data.array_view()); 
+    uint ex = ast::push_extra_list(p.ast, data.array_view()); 
     return ast::add_node(p.ast, NodeKind.CT_FOR_STMT, start_pos, p.current_pos(), ex);
 }
 
@@ -199,7 +199,7 @@ fn Node? parse_compound(Parser* p)
 
 	// len - 1 since first one is the size
 	stmts[0] = (uint)stmts.len() - 1;
-	uint ex = ast::push_extra_block(p.ast, stmts.array_view());
+	uint ex = ast::push_extra_list(p.ast, stmts.array_view());
 
 	return ast::add_node(p.ast, NodeKind.COMPOUND_STMT, lbrace_tok, p.current_pos(), ex);
 }
@@ -226,7 +226,7 @@ fn Node? parse_decl_stmt(Parser* p)
 
 		uint name_sh = p.pool.intern(p.token_text(name_tok));
 		uint[*] data = { name_sh, (uint)type_node, (uint)init, attr };
-		uint ex = ast::push_extra_block(p.ast, &data);
+		uint ex = ast::push_extra_list(p.ast, &data);
 		return ast::add_node(p.ast, NodeKind.LOCAL_DECL, name_tok.pos, p.current_pos(), ex);
 	}
 
@@ -284,7 +284,7 @@ fn Node? parse_if(Parser* p)
 	}
 
 	uint[3] data = { (uint)cond, (uint)then_block, (uint)else_block };
-	uint ex = ast::push_extra_block(p.ast, &data);
+	uint ex = ast::push_extra_list(p.ast, &data);
 
 	return ast::add_node(p.ast, NodeKind.IF_STMT, t.pos, p.current_pos(), ex);
 }
@@ -309,7 +309,7 @@ fn Node? parse_ct_if(Parser* p)
 	}
 
 	then_stmts[0] = (uint)then_stmts.len() - 1;
-	uint ex_then = ast::push_extra_block(p.ast, then_stmts.array_view());
+	uint ex_then = ast::push_extra_list(p.ast, then_stmts.array_view());
 	Node then_block = ast::add_node(p.ast, NodeKind.BLOCK, t.pos, p.current_pos(), ex_then);
 
 	Node else_block;
@@ -326,7 +326,7 @@ fn Node? parse_ct_if(Parser* p)
 		}
 
 		else_stmts[0] = (uint)else_stmts.len() - 1;
-		uint ex = ast::push_extra_block(p.ast, else_stmts.array_view());
+		uint ex = ast::push_extra_list(p.ast, else_stmts.array_view());
 		else_block = ast::add_node(p.ast, NodeKind.BLOCK, t.pos, p.current_pos(), ex);
 	}
 
@@ -338,7 +338,7 @@ fn Node? parse_ct_if(Parser* p)
 	}
 
 	uint[3] data = { (uint)condition, (uint)then_block, (uint)else_block };
-	uint ex = ast::push_extra_block(p.ast, &data);
+	uint ex = ast::push_extra_list(p.ast, &data);
 	return ast::add_node(p.ast, NodeKind.CT_IF_STMT, t.pos, p.current_pos(), ex);
 }
 
@@ -387,7 +387,7 @@ fn Node? parse_switch(Parser* p)
 
 	expect(p, TokenKind.RBRACE)!;
 
-	uint ex = ast::push_extra_block(p.ast, cases.array_view());
+	uint ex = ast::push_extra_list(p.ast, cases.array_view());
 	return ast::add_node(p.ast, NodeKind.SWITCH_STMT, t.pos, p.current_pos(), ex);
 }
 
@@ -462,8 +462,8 @@ fn Node? parse_ct_switch(Parser* p)
 
 	expect(p, TokenKind.CT_ENDSWITCH)!;
 
-	uint[2] data = { (uint)condition, (uint)ast::push_extra_block(p.ast, cases.array_view()) };
-	uint ex = ast::push_extra_block(p.ast, &data);
+	uint[2] data = { (uint)condition, (uint)ast::push_extra_list(p.ast, cases.array_view()) };
+	uint ex = ast::push_extra_list(p.ast, &data);
 	return ast::add_node(p.ast, NodeKind.CT_SWITCH_STMT, t.pos, p.current_pos(), ex);
 }
 
@@ -493,8 +493,8 @@ fn Node? parse_ct_case(Parser* p)
 		body.push((uint)parse_statement(p)!);
 	}
 
-	uint[2] data = { (uint)label, (uint)ast::push_extra_block(p.ast, body.array_view()) };
-	uint ex = ast::push_extra_block(p.ast, &data);
+	uint[2] data = { (uint)label, (uint)ast::push_extra_list(p.ast, body.array_view()) };
+	uint ex = ast::push_extra_list(p.ast, &data);
 	return ast::add_node(p.ast, NodeKind.CT_CASE_STMT, t.pos, p.current_pos(), ex);
 }
 
@@ -518,7 +518,7 @@ fn Node? parse_do_while(Parser* p)
 	}
 
 	uint[2] data = { (uint)body, (uint)cond };
-	uint ex = ast::push_extra_block(p.ast, &data);
+	uint ex = ast::push_extra_list(p.ast, &data);
 	return ast::add_node(p.ast, NodeKind.DO_WHILE_STMT, t.pos, p.current_pos(), ex);
 }
 
@@ -542,7 +542,7 @@ fn Node? parse_foreach_var(Parser* p)
 	uint name = p.pool.intern(p.token_text(t));
 
 	uint[3] data = { (uint)var_type, name, is_ref ? 1 : 0 };
-	uint ex = ast::push_extra_block(p.ast, &data);
+	uint ex = ast::push_extra_list(p.ast, &data);
 
 	return ast::add_node(p.ast, NodeKind.FOREACH_VAR, t.pos, p.current_pos(), ex);
 }
@@ -585,7 +585,7 @@ fn Node? parse_foreach(Parser* p)
 	uint[*] data = { label, vars[0], // index
 	vars[1], // variable
 	(uint)iterable, (uint)body };
-	uint ex = ast::push_extra_block(p.ast, &data);
+	uint ex = ast::push_extra_list(p.ast, &data);
 
 	return ast::add_node(
 		p.ast,
@@ -614,7 +614,7 @@ fn Node? parse_while_stmt(Parser* p)
 	Node body = parse_statement(p)!;
 
 	uint[*] data = { label, (uint)condition, (uint)body };
-	uint ex = ast::push_extra_block(p.ast, &data);
+	uint ex = ast::push_extra_list(p.ast, &data);
 	return ast::add_node(p.ast, NodeKind.WHILE_STMT, start_tok, p.current_pos(), ex);
 }
 
@@ -657,7 +657,7 @@ fn Node? parse_defer(Parser* p)
 
 	// Extra Block Layout: [Kind, StmtNode, VarName]
 	uint[3] data = { (uint)kind, (uint)stmt, var_name };
-	uint ex = ast::push_extra_block(p.ast, &data);
+	uint ex = ast::push_extra_list(p.ast, &data);
 
 	return ast::add_node(p.ast, NodeKind.DEFER_STMT, start_tok, p.current_pos(), ex);
 }
@@ -707,6 +707,6 @@ fn Node? parse_assert_stmt(Parser* p)
 
     expect(p, TokenKind.EOS)!;
 
-    uint ex = ast::push_extra_block(p.ast, data.array_view());
+    uint ex = ast::push_extra_list(p.ast, data.array_view());
     return ast::add_node(p.ast, NodeKind.ASSERT_STMT, t.pos, p.current_pos(), ex);
 }

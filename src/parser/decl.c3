@@ -79,7 +79,7 @@ fn Node? parse_contract(Parser* p)
 		}
 	}
 
-	// uint ex = ast::push_extra_block(p.ast, );
+	// uint ex = ast::push_extra_list(p.ast, );
 	// return ast::add_node(p.ast, NodeKind.CONTRACT_DECL, start, ex);
 	return { };
 }
@@ -138,7 +138,7 @@ fn Node? parse_module(Parser* p, Workspace* ws)
 	PathView view = { p.ast, path_node };
 
 	uint[*] data = { (uint)path_node, (uint)generics, attributes };
-	uint ex = ast::push_extra_block(p.ast, &data);
+	uint ex = ast::push_extra_list(p.ast, &data);
 
 	log::debug("parsed module!");
 	return ast::add_node(p.ast, NodeKind.MODULE_DECL, start, p.current_pos(), ex);
@@ -217,7 +217,7 @@ fn Node? parse_enum(Parser* p)
 		if (p.is(TokenKind.LBRACE)) assoc_init = parse_initializer_list(p)!;
 
 		uint[3] member_data = { elem_name, (uint)explicit_val, (uint)assoc_init };
-		elements.push(ast::push_extra_block(p.ast, &member_data));
+		elements.push(ast::push_extra_list(p.ast, &member_data));
 
 		if (!consume(p, TokenKind.COMMA)!) break;
 	}
@@ -225,10 +225,10 @@ fn Node? parse_enum(Parser* p)
 	expect(p, TokenKind.RBRACE)!;
 
 	uint element_count = (uint)elements.len();
-	uint elements_ex = ast::push_extra_block(p.ast, elements.array_view());
+	uint elements_ex = ast::push_extra_list(p.ast, elements.array_view());
 
 	uint[*] decl_data = { name, (uint)base_type, params, attrs, elements_ex, element_count };
-	uint ex = ast::push_extra_block(p.ast, &decl_data);
+	uint ex = ast::push_extra_list(p.ast, &decl_data);
 	return ast::add_node(p.ast, NodeKind.ENUM_DECL, start_tok, p.current_pos(), ex);
 }
 
@@ -316,7 +316,7 @@ fn Node? parse_fn_decl(Parser* p, ParseFlags flags) => @scratch()
 	final_block[5] = (uint)body;
 
 	log::debug("parse_fn_decl - finished.. adding to ast");
-	uint ex = ast::push_extra_block(p.ast, &final_block);
+	uint ex = ast::push_extra_list(p.ast, &final_block);
 	return ast::add_node(p.ast, NodeKind.FN_DECL, start_tok, p.current_pos(), ex);
 }
 
@@ -330,7 +330,7 @@ fn Node? parse_function_type(Parser* p)
 	uint params = parse_parameter_list(p)!;
 
 	uint[*] data = { (uint)return_type, (uint)params };
-	uint ex = ast::push_extra_block(p.ast, &data);
+	uint ex = ast::push_extra_list(p.ast, &data);
 	return ast::add_node(p.ast, NodeKind.TYPE_FUNCTION, pos, p.current_pos(), ex);
 }
 
@@ -401,7 +401,7 @@ fn Node? parse_macro_decl(Parser* p)
 	}
 
 	uint[*] data = { name, (uint)rtype, (uint)method_type, attr, params, (uint)body };
-	uint ex = ast::push_extra_block(p.ast, &data);
+	uint ex = ast::push_extra_list(p.ast, &data);
 
 	return ast::add_node(p.ast, NodeKind.MACRO_DECL, start_tok, p.current_pos(), ex);
 }
@@ -457,7 +457,7 @@ fn Node? parse_param_decl(Parser* p)
     }
 
     uint[4] data = { name, (uint)type, (uint)init, flags };
-    uint ex = ast::push_extra_block(p.ast, &data);
+    uint ex = ast::push_extra_list(p.ast, &data);
 
     return ast::add_node(p.ast, NodeKind.PARAM_DECL, start, p.current_pos(), ex);
 }
@@ -500,7 +500,7 @@ fn Node? parse_type_alias(Parser* p)
 	expect(p, TokenKind.EOS)!;
 
 	uint[*] data = { name_sh, (uint)target_type, attr };
-	uint ex = ast::push_extra_block(p.ast, &data);
+	uint ex = ast::push_extra_list(p.ast, &data);
 
 	return ast::add_node(p.ast, NodeKind.TYPE_ALIAS_DECL, start_tok, end_tok, ex);
 }
@@ -536,7 +536,7 @@ fn Node? parse_ident_alias(Parser* p)
 		Node path = parse_path(p)!;
 
 		uint[*] data = { name, (uint)path, (uint)attr };
-		uint ex = ast::push_extra_block(p.ast, &data);
+		uint ex = ast::push_extra_list(p.ast, &data);
 
 		return ast::add_node(p.ast, NodeKind.PATH_ALIAS_DECL, start_tok, p.current_pos(), ex);
 	}
@@ -544,7 +544,7 @@ fn Node? parse_ident_alias(Parser* p)
 	Node expr = parse_expr(p)!;
 
 	uint[*] data = { name, (uint)expr, attr };
-	uint ex = ast::push_extra_block(p.ast, &data);
+	uint ex = ast::push_extra_list(p.ast, &data);
 
 	return ast::add_node(p.ast, NodeKind.ALIAS_DECL, start_tok, p.current_pos(), ex);
 }
@@ -583,7 +583,7 @@ fn Node? parse_typedef(Parser* p)
 	expect(p, TokenKind.EOS)!;
 
 	uint[*] data = { name_sh, (uint)base_type, (uint)inter };
-	uint ex = ast::push_extra_block(p.ast, &data);
+	uint ex = ast::push_extra_list(p.ast, &data);
 
 	return ast::add_node(p.ast, NodeKind.TYPEDEF_DECL, start_tok, end_tok, ex);
 }
@@ -613,7 +613,7 @@ fn Node? parse_interface(Parser* p)
 			Node parent_type = parse_type(p, { .no_generics = true })!;
 
 			uint[2] link = { (uint)parent_type, (uint)parents_head };
-			uint ex = ast::push_extra_block(p.ast, &link);
+			uint ex = ast::push_extra_list(p.ast, &link);
 			parents_head = ast::add_node(p.ast, NodeKind.INTERFACE_PARENT, p.current_pos(), p.current_pos(), ex);
 
 			if (!consume(p, TokenKind.COMMA)!) break;
@@ -640,7 +640,7 @@ fn Node? parse_interface(Parser* p)
 		Node method = parse_fn_decl(p, { .is_interface = true })!;
 
 		uint[2] link = { (uint)method, (uint)methods_head };
-		uint ex = ast::push_extra_block(p.ast, &link);
+		uint ex = ast::push_extra_list(p.ast, &link);
 		methods_head = ast::add_node(p.ast, NodeKind.INTERFACE_METHOD, p.current_pos(), p.current_pos(), ex);
 	}
 
@@ -650,7 +650,7 @@ fn Node? parse_interface(Parser* p)
 
 	uint[4] data = { name_id, (uint)parents_head, attrs, (uint)methods_head };
 
-	uint ex = ast::push_extra_block(p.ast, &data);
+	uint ex = ast::push_extra_list(p.ast, &data);
 	return ast::add_node(p.ast, NodeKind.INTERFACE_DECL, start_tok, end_tok, ex);
 }
 
@@ -711,7 +711,7 @@ fn Node? parse_struct(Parser* p)
 
 	data[3] = field_count;
 
-	uint ex = ast::push_extra_block(p.ast, data.array_view());
+	uint ex = ast::push_extra_list(p.ast, data.array_view());
 	return ast::add_node(p.ast, NodeKind.STRUCT_DECL, start_tok, end_tok, ex);
 }
 
@@ -733,7 +733,7 @@ fn Node? parse_field_decl(Parser* p)
 	advance(p)!;
 
 	uint[2] data = { name, (uint)type_node };
-	uint ex = ast::push_extra_block(p.ast, &data);
+	uint ex = ast::push_extra_list(p.ast, &data);
 
 	return ast::add_node(p.ast, NodeKind.FIELD_DECL, start_tok, end_tok, ex);
 }

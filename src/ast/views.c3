@@ -36,6 +36,18 @@ macro View.get_at(self, $base_offset, index)
 	return (Node)self.ast.extra_data[pos];
 }
 
+macro uint View.get_list_count(self, $offset) 
+{
+    uint list_ptr = self.get_uint($offset);
+    return self.ast.extra_data[(Size)list_ptr];
+}
+
+macro Node View.get_list_item(self, $offset, uint index)
+{
+    uint list_ptr = self.get_uint($offset);
+    return (Node)self.ast.extra_data[(Size)list_ptr + 1 + index];
+}
+
 // --- General Views ---
 
 typedef ParamView = inline View;
@@ -44,17 +56,19 @@ fn Node ParamView.type_node(ParamView self) => self.get(1);
 fn Node ParamView.init_expr(ParamView self) => self.get(2);
 fn bool ParamView.is_ref(ParamView self) => self.get_uint(3) != 0;
 
+typedef AttributeListView = inline View;
+
+fn uint AttributeListView.count(self) => self.ast.extra_data[(Size)self.get_extra_index()];
+fn Node AttributeListView.get_attr(self, uint index) => (Node)self.ast.extra_data[(Size)self.get_extra_index() + 1 + index];
+// The view for a single @attr(args)
 typedef AttributeView = inline View;
-
-fn AttributeKind AttributeView.kind(AttributeView self) => (AttributeKind)self.get_uint(0);
-fn uint AttributeView.args_offset(AttributeView self) => self.get_uint(1);
-fn uint AttributeView.arg_count(AttributeView self) => self.get_uint(2);
-
-fn Node AttributeView.get_arg(AttributeView self, uint index)
+fn AttributeKind AttributeView.kind(self) => (AttributeKind)self.get_uint(0);
+fn uint AttributeView.arg_count(self) => self.get_uint(2);
+fn Node AttributeView.get_arg(self, uint index)
 {
-	assert (index < self.arg_count() , "Attribute argument index out of bounds");
-	uint base = self.args_offset();
-	return (Node)self.ast.extra_data[(Size)base + index];
+    // args_offset (get_uint(1)) points to the start of the array block
+    uint base = self.get_uint(1);
+    return (Node)self.ast.extra_data[(Size)base + index];
 }
 
 typedef PathView = inline View;
@@ -114,23 +128,30 @@ typedef ImportView = inline View;
 fn Node ImportView.path(self) => self.get(0);
 fn Node ImportView.attribute(self) => self.get(1);
 
+typedef InterfaceImplView = inline View;
+fn uint InterfaceImplView.count(self) => self.ast.extra_data[(Size)self.get_extra_index()];
+fn Node InterfaceImplView.get_type(self, uint index) => (Node)self.ast.extra_data[(Size)self.get_extra_index() + 1 + index];
+
 typedef FnView = inline View;
 
 fn String FnView.name(FnView self, StringPool* pool) => pool.get((StringHandle)self.get_uint(0));
 fn Node FnView.associated(FnView self) => self.get(1);
 fn Node FnView.return_type(FnView self) => self.get(2);
-fn uint FnView.attributes(self) => self.get_uint(3);
+fn uint FnView.attributes_offset(FnView self) => self.get_uint(3);
 fn Node FnView.body(FnView self) => self.get(5);
+
+// Points to the Count-First list pushed by ast::push_extra_block
 fn uint FnView.param_count(FnView self)
 {
-	uint offset = self.get_uint(4);
-	return self.ast.extra_data[(Size)offset];
+    uint offset = self.get_uint(4); // params index
+    return self.ast.extra_data[(Size)offset];
 }
+
 fn Node FnView.get_param(FnView self, uint index)
 {
-	uint offset = self.get_uint(4);
-	// the param block is (count, params...) so thats why + 1
-	return (Node)self.ast.extra_data[(Size)offset + 1 + index];
+    uint offset = self.get_uint(4);
+    // [offset] is count, [offset + 1 + index] is the actual param Node
+    return (Node)self.ast.extra_data[(Size)offset + 1 + index];
 }
 
 // / ---
@@ -185,9 +206,8 @@ fn Node ForView.inc(ForView self) => self.get(2);
 fn Node ForView.body(ForView self) => self.get(3);
 
 typedef CompoundView = inline View;
-
-fn uint CompoundView.len(CompoundView self) => self.get_uint(0);
-fn Node CompoundView.get(CompoundView self, uint index) => self.get_at(1, index);
+fn uint CompoundView.len(self) => self.ast.extra_data[(Size)self.get_extra_index()];
+fn Node CompoundView.get(self, uint index) => (Node)self.ast.extra_data[(Size)self.get_extra_index() + 1 + index];
 
 // / ------------
 
@@ -208,9 +228,9 @@ fn TokenKind UnaryView.op(self) => (TokenKind)self.get_uint(0);
 fn Node UnaryView.rhs(self) => self.get(1);
 
 typedef CallView = inline View;
-fn Node CallView.callee(CallView self) => self.get(0);
-fn uint CallView.arg_count(CallView self) => self.get_uint(1);
-fn Node CallView.get_arg(CallView self, uint i) => self.get_at(2, i);
+fn Node CallView.callee(self) => self.get(0);
+fn uint CallView.arg_count(self) => self.get_list_count(1);
+fn Node CallView.get_arg(self, uint i) => self.get_list_item(1, i);
 
 typedef IfView = inline View;
 
