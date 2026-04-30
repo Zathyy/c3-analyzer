@@ -1,7 +1,7 @@
 build/
 out/
 
-ast/
+ast-debug
 
 .direnv/
 .vscode

@@ -71,7 +71,7 @@ fn int main(String[] args) => @pool()
 
 	if (use_json)
 	{
-		ast::dump_workspace_json(&ws, "ast/")!!;
+		ast::dump_workspace_json(&ws, "ast-debug/")!!;
 	}
 	else
 	{

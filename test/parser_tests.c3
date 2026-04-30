@@ -4,6 +4,7 @@ import c3_parser::workspace;
 import c3_parser::parser;
 import c3_parser::cursor;
 import c3_parser::ast;
+import c3_parser::ast::views;
 import c3_parser::common;
 import std::io;
 import std::collections::list;
