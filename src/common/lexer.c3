@@ -442,7 +442,7 @@ fn Token? Lexer.lex_string(Lexer* self, uint start)
 		{
 			self.advance()!;
 			uint len = (uint)self.index - start;
-			return (Token) { TokenKind.STRING, start, len };
+			return (Token) { STRING, start, len };
 		}
 
 		if (c == '\n')
@@ -530,7 +530,7 @@ fn TokenKind lookup_keyword(String text)
 		case "float128": return FLOAT128;
 		case "fault": return FAULT;
 		case "typeid": return TYPEID;
-		default: return TokenKind.IDENT;
+		default: return IDENT;
 	}
 }
 
@@ -620,7 +620,7 @@ fn Token? Lexer.lex_number(Lexer* self, uint start_pos)
 		}
 	}
 
-	TokenKind kind = is_float ? TokenKind.REAL : TokenKind.INTEGER;
+	TokenKind kind = is_float ? REAL : INTEGER;
 	return self.emit(kind, start_pos, (uint)self.index - start_pos);
 }
 
@@ -852,7 +852,7 @@ fn Token? Lexer.next(&self)
 
 fn TokenKind Lexer.categorize_identifier(Lexer* self, String text)
 {
-	if (text.len == 0) return TokenKind.INVALID;
+	if (text.len == 0) return INVALID;
 
 	char prefix = text[0];
 	String base;
@@ -899,7 +899,7 @@ fn TokenKind Lexer.categorize_identifier(Lexer* self, String text)
 	{
 		base = text;
 		TokenKind kind = lookup_keyword(base);
-		if (kind != TokenKind.IDENT) return kind;
+		if (kind != IDENT) return kind;
 	}
 
 	bool is_type = false;
@@ -920,26 +920,26 @@ fn TokenKind Lexer.categorize_identifier(Lexer* self, String text)
 
 	if (prefix == '@')
 	{
-		if (is_const) return TokenKind.AT_CONST_IDENT;
-		if (is_type) return TokenKind.AT_TYPE_IDENT;
-		return TokenKind.AT_IDENT;
+		if (is_const) return AT_CONST_IDENT;
+		if (is_type) return AT_TYPE_IDENT;
+		return AT_IDENT;
 	}
 	if (prefix == '$')
 	{
-		if (is_const) return TokenKind.CT_CONST_IDENT;
-		if (is_type) return TokenKind.CT_TYPE_IDENT;
-		return TokenKind.CT_IDENT;
+		if (is_const) return CT_CONST_IDENT;
+		if (is_type) return CT_TYPE_IDENT;
+		return CT_IDENT;
 	}
 	if (prefix == '#')
 	{
-		if (is_const) return TokenKind.HASH_CONST_IDENT;
-		if (is_type) return TokenKind.HASH_TYPE_IDENT;
-		return TokenKind.HASH_IDENT;
+		if (is_const) return HASH_CONST_IDENT;
+		if (is_type) return HASH_TYPE_IDENT;
+		return HASH_IDENT;
 	}
 
-	if (is_const) return TokenKind.CONST_IDENT;
-	if (is_type) return TokenKind.TYPE_IDENT;
-	return TokenKind.IDENT;
+	if (is_const) return CONST_IDENT;
+	if (is_type) return TYPE_IDENT;
+	return IDENT;
 }
 
 struct ContractLexer

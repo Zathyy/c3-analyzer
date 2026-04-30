@@ -68,19 +68,19 @@ fn bool visit_children(Cursor parent, CursorVisitor visitor, void* data)
 	// TODO: more cases
 	switch (kind)
 	{
-		case NodeKind.MODULE_DECL:
+		case MODULE_DECL:
 			{
 				ModuleView v = { ast, n };
 				if (!visit({ parent.section, v.path() }, parent, visitor, data)) return false;
 				break;
 			}
-		case NodeKind.IMPORT_DECL:
+		case IMPORT_DECL:
 			{
 				ImportView v = { ast, n };
 				if (!visit({ parent.section, v.path() }, parent, visitor, data)) return false;
 				break;
 			}
-		case NodeKind.VAR_DECL:
+		case VAR_DECL:
 			{
 				VarDeclView v = { ast, n };
 				if (!visit({ parent.section, v.type_node() }, parent, visitor, data)) return false;
@@ -90,13 +90,13 @@ fn bool visit_children(Cursor parent, CursorVisitor visitor, void* data)
 				}
 				break;
 			}
-		case NodeKind.TYPEDEF_DECL:
+		case TYPEDEF_DECL:
 			{
 				TypedefView v = { ast, n };
 				if (!visit({ parent.section, v.base_type() }, parent, visitor, data)) return false;
 				break;
 			}
-		case NodeKind.FN_DECL:
+		case FN_DECL:
 			{
 				FnView v = { ast, n };
 				if (v.return_type().is_valid())
@@ -113,7 +113,7 @@ fn bool visit_children(Cursor parent, CursorVisitor visitor, void* data)
 				}
 				break;
 			}
-		case NodeKind.PARAM_DECL:
+		case PARAM_DECL:
 			{
 				ParamView v = { ast, n };
 				if (v.type_node().is_valid())
@@ -126,14 +126,14 @@ fn bool visit_children(Cursor parent, CursorVisitor visitor, void* data)
 				}
 				break;
 			}
-		case NodeKind.BINARY_EXPR:
+		case BINARY_EXPR:
 			{
 				BinaryView v = { ast, n };
 				if (!visit({ parent.section, v.left() }, parent, visitor, data)) return false;
 				if (!visit({ parent.section, v.right() }, parent, visitor, data)) return false;
 				break;
 			}
-		case NodeKind.COMPOUND_STMT:
+		case COMPOUND_STMT:
 			{
 				CompoundView v = { ast, n };
 				for (uint i = 0; i < v.len(); i++)
@@ -142,7 +142,7 @@ fn bool visit_children(Cursor parent, CursorVisitor visitor, void* data)
 				}
 				break;
 			}
-		case NodeKind.IF_STMT:
+		case IF_STMT:
 			{
 				IfView v = { ast, n };
 				if (!visit({ parent.section, v.condition() }, parent, visitor, data)) return false;
@@ -153,13 +153,13 @@ fn bool visit_children(Cursor parent, CursorVisitor visitor, void* data)
 				}
 				break;
 			}
-		case NodeKind.DEFER_STMT:
+		case DEFER_STMT:
 			{
 				DeferView v = { ast, n };
 				if (!visit({ parent.section, v.stmt() }, parent, visitor, data)) return false;
 				break;
 			}
-		case NodeKind.EXPR_STMT:
+		case EXPR_STMT:
 			{
 				ExprStmtView v = { ast, n };
 				if (!visit({ parent.section, v.expr() }, parent, visitor, data)) return false;
@@ -280,33 +280,33 @@ fn String? Cursor.spelling(&self)
 	// TODO: clean up
 	switch (n.kind)
 	{
-		case NodeKind.PATH:
+		case PATH:
 			PathView v = { ast, self.node };
 			return v.get_full(self.section.source_file.strings);
-		case NodeKind.INT_LITERAL:
-		case NodeKind.FLOAT_LITERAL:
-		case NodeKind.STRING_LITERAL:
+		case INT_LITERAL:
+		case FLOAT_LITERAL:
+		case STRING_LITERAL:
 			LiteralView v = { ast, self.node };
 			return v.value(self.section.source_file.strings);
-		case NodeKind.IDENT_EXPR:
+		case IDENT_EXPR:
 			IdentView v = { ast, self.node };
 			return v.name(self.section.source_file.strings);
-		case NodeKind.FN_DECL:
-		case NodeKind.STRUCT_DECL:
+		case FN_DECL:
+		case STRUCT_DECL:
 			StructView v = { ast, self.node };
 			return v.name(self.section.source_file.strings);
-		case NodeKind.OP_OVERLOAD:
+		case OP_OVERLOAD:
 			{
 				View v = { ast, self.node };
 				return ((OverloadKind)v.get_uint(0)).description;
 			}
-		case NodeKind.BINARY_EXPR:
+		case BINARY_EXPR:
 			BinaryView v = { ast, self.node };
 			return v.op().description;
-		case NodeKind.VAR_DECL:
+		case VAR_DECL:
 			VarDeclView v = { ast, self.node };
 			return v.name(self.section.source_file.strings);
-		case NodeKind.TYPE_EXPR:
+		case TYPE_EXPR:
 			{
 				TypeView v = { ast, self.node };
 				String base = v.name(self.section.source_file.strings);
@@ -394,7 +394,7 @@ fn Node module_decl(Cursor* self)
 	// }
 
 	ModuleSection* s = self.section;
-	if (ast::get_kind(&s.source_file.ast, s.header_node) == NodeKind.MODULE_DECL)
+	if (ast::get_kind(&s.source_file.ast, s.header_node) == MODULE_DECL)
 	{
 		return s.header_node;
 	}
@@ -402,7 +402,7 @@ fn Node module_decl(Cursor* self)
 	for (uint i = s.start_node_idx; i < s.end_node_idx; i++)
 	{
 		Node n = (Node)(s.start_node_idx + i);
-		if (ast::get_kind(&self.section.source_file.ast, n) == NodeKind.MODULE_DECL)
+		if (ast::get_kind(&self.section.source_file.ast, n) == MODULE_DECL)
 		{
 			return n;
 		}
@@ -452,7 +452,7 @@ fn Node[] get_attributes(Cursor c, Allocator allocator)
 
 	switch (kind)
 	{
-		case NodeKind.FN_DECL:
+		case FN_DECL:
 			FnView v = { &c.section.source_file.ast, c.node };
 			offset = v.attributes_offset();
 			break;

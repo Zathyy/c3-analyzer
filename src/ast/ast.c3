@@ -213,7 +213,7 @@ fn NodeView get_node(Ast* ast, Node handle)
 
 fn void free_node(Ast* ast, Node handle)
 {
-	ast.kinds[(Size)handle] = NodeKind.INVALID;
+	ast.kinds[(Size)handle] = INVALID;
 }
 
 fn uint get_extra(Ast* ast, uint index) @inline

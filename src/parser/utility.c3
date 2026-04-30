@@ -57,7 +57,7 @@ fn void Parser.report(Parser* self, Token token, String level, String color, Str
 
 fn bool is_keyword_ident(TokenKind type)
 {
-	return type >= TokenKind.ALIAS && type <= TokenKind.WHILE;
+	return type >= ALIAS && type <= WHILE;
 }
 
 fn bool is_some_ident(TokenKind type)
@@ -75,43 +75,43 @@ fn bool is_some_ident(TokenKind type)
 
 fn bool is_non_type_ident(TokenKind k)
 {
-    return k == TokenKind.IDENT || 
-           k == TokenKind.HASH_IDENT || 
-           k == TokenKind.CT_IDENT;
+    return k == IDENT || 
+           k == HASH_IDENT || 
+           k == CT_IDENT;
 }
 
 fn bool is_type(TokenKind kind)
 {
 	switch (kind)
 	{
-		case TokenKind.BOOL:
-		case TokenKind.CHAR:
-		case TokenKind.DOUBLE:
-		case TokenKind.FLOAT:
-		case TokenKind.FLOAT16:
-		case TokenKind.BFLOAT:
-		case TokenKind.INT128:
-		case TokenKind.ICHAR:
-		case TokenKind.INT:
-		case TokenKind.IPTR:
-		case TokenKind.LONG:
-		case TokenKind.SHORT:
-		case TokenKind.UINT128:
-		case TokenKind.UINT:
-		case TokenKind.ULONG:
-		case TokenKind.UPTR:
-		case TokenKind.USHORT:
-		case TokenKind.USZ:
-		case TokenKind.SZ:
-		case TokenKind.FLOAT128:
-		case TokenKind.TYPEID:
-		case TokenKind.FAULT:
-		case TokenKind.ANY:
-		case TokenKind.VOID:
-		case TokenKind.TYPE_IDENT:
-		case TokenKind.CT_TYPE_IDENT:
-		case TokenKind.CT_TYPEOF:
-		case TokenKind.CT_TYPEFROM:
+		case BOOL:
+		case CHAR:
+		case DOUBLE:
+		case FLOAT:
+		case FLOAT16:
+		case BFLOAT:
+		case INT128:
+		case ICHAR:
+		case INT:
+		case IPTR:
+		case LONG:
+		case SHORT:
+		case UINT128:
+		case UINT:
+		case ULONG:
+		case UPTR:
+		case USHORT:
+		case USZ:
+		case SZ:
+		case FLOAT128:
+		case TYPEID:
+		case FAULT:
+		case ANY:
+		case VOID:
+		case TYPE_IDENT:
+		case CT_TYPE_IDENT:
+		case CT_TYPEOF:
+		case CT_TYPEFROM:
 			return true;
 		default:
 			return false;

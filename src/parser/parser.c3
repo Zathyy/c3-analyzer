@@ -62,6 +62,7 @@ bitstruct ParseFlags : uint
 	bool is_call;
 	bool is_lamda;
 	bool is_macro;
+	bool is_comptime;
 
 	bool no_generics; // dont allow type parsing to check for generics
 }
@@ -82,6 +83,29 @@ struct Parser
 	// bool allow_submodules;
 }
 
+fn void? Parser.skip_until(Parser* p, TokenKind[] targets)
+{
+    while (!p.eof())
+    {
+        TokenKind current = p.current().kind;
+        
+        foreach (t : targets)
+        {
+            if (current == t) return;
+        }
+
+        if (current == EOS || current == RBRACE) return;
+
+        advance(p)!;
+    }
+}
+
+fn Node Parser.push_invalid_node(Parser* p, uint start_pos)
+{
+    uint end_pos = p.current_pos();
+    return ast::add_node(p.ast, INVALID, start_pos, end_pos, 0);
+}
+
 <*
  synchronize the top level/recover top level
  @param [&inout] p
@@ -96,8 +120,8 @@ fn void? synchronize(Parser* p)
 		Location loc = p.line_map.resolve((Size)t.pos);
 
 		// Track depth to ensure we aren't inside a body
-		if (t.kind == TokenKind.LBRACE) brace_depth++;
-		if (t.kind == TokenKind.RBRACE)
+		if (t.kind == LBRACE) brace_depth++;
+		if (t.kind == RBRACE)
 		{
 			brace_depth = (brace_depth > 0) ? brace_depth - 1 : 0;
 		}
@@ -106,24 +130,24 @@ fn void? synchronize(Parser* p)
 		{
 			switch (t.kind)
 			{
-				case TokenKind.CONTRACT:
-				case TokenKind.MODULE:
-				case TokenKind.IMPORT:
-				case TokenKind.ALIAS:
-				case TokenKind.TYPEDEF:
-				case TokenKind.FN:
-				case TokenKind.MACRO:
-				case TokenKind.STRUCT:
-				case TokenKind.CONST:
-				case TokenKind.ENUM:
-				case TokenKind.EXTERN:
+				case CONTRACT:
+				case MODULE:
+				case IMPORT:
+				case ALIAS:
+				case TYPEDEF:
+				case FN:
+				case MACRO:
+				case STRUCT:
+				case CONST:
+				case ENUM:
+				case EXTERN:
 					return;
 				default:
 					break;
 			}
 		}
 
-		if (brace_depth <= 0 && t.kind == TokenKind.EOS)
+		if (brace_depth <= 0 && t.kind == EOS)
 		{
 			advance(p)!;
 			return;
@@ -135,7 +159,7 @@ fn void? synchronize(Parser* p)
 
 fn bool Parser.eof(&self) @inline
 {
-	return self.pos >= self.tokens.len || self.is(TokenKind.EOF);
+	return self.pos >= self.tokens.len || self.is(EOF);
 }
 
 fn bool Parser.is(&self, TokenKind kind)
@@ -226,7 +250,7 @@ fn String Parser.current_text(Parser* self) @inline
 
 fn String peek_module_name(Parser* p)
 {
-	if (p.tokens[0].kind == TokenKind.MODULE)
+	if (p.tokens[0].kind == MODULE)
 	{
 		// Start collecting the name after the 'module' keyword
 		String full_name = "";
@@ -236,16 +260,16 @@ fn String peek_module_name(Parser* p)
 		{
 			Token t = p.tokens[i];
 
-			if (t.kind == TokenKind.IDENT)
+			if (t.kind == IDENT)
 			{
 				String part = p.token_text(t);
 				full_name = full_name.tconcat(part);
 			}
-			else if (t.kind == TokenKind.SCOPE)
+			else if (t.kind == SCOPE)
 			{
 				full_name = full_name.tconcat("::");
 			}
-			else if (t.kind == TokenKind.EOS)
+			else if (t.kind == EOS)
 			{
 				break; // End of module declaration
 			}
@@ -289,7 +313,7 @@ fn void? parse_file(Workspace* ws, String path)
 		log::debug("Added token: <%s> - %s", token.kind, parser.token_text(token));
 	}
 
-	tokens.push({ .kind = TokenKind.EOF, .pos = (tokens.last().pos + tokens.last().len) ?? 0, .len = 0 });
+	tokens.push({ .kind = EOF, .pos = (tokens.last().pos + tokens.last().len) ?? 0, .len = 0 });
 	parser.tokens = tokens.array_view();
 
 
@@ -364,17 +388,17 @@ fn void? parse_top_level(Parser* p, Workspace* ws)
 	{
 		Token t = p.current();
 
-		if (t.kind == TokenKind.EXTERN)
+		if (t.kind == EXTERN)
 		{
 			if (flags.is_extern) p.error("Duplicate 'extern' modifier");
 			flags.is_extern = true;
 		}
-		else if (t.kind == TokenKind.TLOCAL)
+		else if (t.kind == TLOCAL)
 		{
 			if (flags.is_thread_local) p.error("Duplicate 'tlocal' modifier");
 			flags.is_thread_local = true;
 		}
-		else if (t.kind == TokenKind.INLINE)
+		else if (t.kind == INLINE)
 		{
 			if (flags.is_inline) p.error("Duplicate 'inline' modifier");
 			flags.is_inline = true;
@@ -397,7 +421,7 @@ fn void? parse_top_level(Parser* p, Workspace* ws)
 		}
 	}
 
-	if (p.current().kind == TokenKind.IMPORT)
+	if (p.current().kind == IMPORT)
 	{
 		advance(p)!;
 		while (true)
@@ -415,42 +439,42 @@ fn void? parse_top_level(Parser* p, Workspace* ws)
 
 			uint[*] data = { (uint)path_node, attr };
 			uint ex = ast::push_extra_list(p.ast, &data);
-			Node imp_node = ast::add_node(p.ast, NodeKind.IMPORT_DECL, start, p.current_pos(), ex);
+			Node imp_node = ast::add_node(p.ast, IMPORT_DECL, start, p.current_pos(), ex);
 			p.ast.top_level_nodes.push((uint)imp_node);
-			if (!consume(p, TokenKind.COMMA)!) break;
+			if (!consume(p, COMMA)!) break;
 		}
-		expect(p, TokenKind.EOS)!;
+		expect(p, EOS)!;
 		return;
 	}
 
 	switch (p.current().kind)
 	{
-		case TokenKind.CONTRACT:
+		case CONTRACT:
 			node = parse_contract(p)!;
-		case TokenKind.INTERFACE:
+		case INTERFACE:
 			node = parse_interface(p)!;
-		case TokenKind.MODULE:
+		case MODULE:
 			node = parse_module(p, ws)!;
-		case TokenKind.FN:
+		case FN:
 			node = parse_fn_decl(p, flags)!;
-		case TokenKind.MACRO:
+		case MACRO:
 			node = parse_macro_decl(p)!;
-		case TokenKind.ALIAS:
+		case ALIAS:
 			node = parse_alias(p)!;
-		case TokenKind.TYPEDEF:
+		case TYPEDEF:
 			node = parse_typedef(p)!;
-		case TokenKind.STRUCT:
+		case STRUCT:
 			node = parse_struct(p)!;
-		case TokenKind.CONSTDEF:
+		case CONSTDEF:
 			flags.is_constdef = true;
 			node = parse_enum(p, flags)!;
-		case TokenKind.ENUM:
+		case ENUM:
 			node = parse_enum(p, flags)!;
-		case TokenKind.CONST:
+		case CONST:
 			flags.is_const = true;
 			advance(p)!;
 			node = parse_var_decl(p, flags)!;			
-		case TokenKind.EOS:
+		case EOS:
 			p.error("<EOS> appeared in parse_top_level");
 			advance(p)!;
 			return UNEXPECTED_EOS~;

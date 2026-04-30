@@ -38,3 +38,7 @@ fn String LiteralView.value(LiteralView self, StringPool* pool)
 	uint sh = self.ast.extra_indices[(Size)self.handle];
 	return pool.get((StringHandle)sh);
 }
+
+typedef ExprListView = inline View;
+fn uint ExprListView.count(self) => self.get_list_count(0);
+fn Node ExprListView.get_item(self, uint index) => self.get_list_item(0, index);

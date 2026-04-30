@@ -16,7 +16,7 @@ import std::collections::list;
 *>
 fn Node? parse_path(Parser* p)
 {
-	if (!p.is(TokenKind.IDENT) && p.peek().kind != TokenKind.SCOPE)
+	if (!p.is(IDENT) && p.peek().kind != SCOPE)
 	{
 		log::debug("not a valid path");
 		return INVALID_PATH~;
@@ -40,8 +40,8 @@ fn Node? parse_path(Parser* p)
 			return PATH_TOO_LONG~;
 		}
 
-		expect(p, TokenKind.IDENT)!;
-		if (!consume(p, TokenKind.SCOPE)!) break;
+		expect(p, IDENT)!;
+		if (!consume(p, SCOPE)!) break;
 	}
 
 	uint[PATH_MAX_LENGTH + 1] final_block;
@@ -53,7 +53,7 @@ fn Node? parse_path(Parser* p)
 		final_block[i + 1] = stack_parts[i];
 	}
 	uint ex = ast::push_extra_list(p.ast, &final_block);
-	return ast::add_node(p.ast, NodeKind.PATH, start_tok, p.current_pos(), ex);
+	return ast::add_node(p.ast, PATH, start_tok, p.current_pos(), ex);
 }
 
 <*
@@ -62,7 +62,7 @@ fn Node? parse_path(Parser* p)
 *>
 fn Node? parse_path_prefix(Parser* p)
 {
-	if (!is_some_ident(p.current().kind) && p.peek().kind != TokenKind.SCOPE)
+	if (!is_some_ident(p.current().kind) && p.peek().kind != SCOPE)
 	{
 		log::error("not a valid path");
 		return INVALID_PATH~;
@@ -88,7 +88,7 @@ fn Node? parse_path_prefix(Parser* p)
 
 		advance(p)!;
 
-		if (p.is(TokenKind.SCOPE) && is_some_ident(p.peek().kind))
+		if (p.is(SCOPE) && is_some_ident(p.peek().kind))
 		{
 			advance(p)!; // Consume '::'
 		}
@@ -106,7 +106,7 @@ fn Node? parse_path_prefix(Parser* p)
 		final_block[i + 1] = stack_parts[i];
 	}
 	uint ex = ast::push_extra_list(p.ast, &final_block);
-	return ast::add_node(p.ast, NodeKind.PATH, start_tok, p.current_pos(), ex);
+	return ast::add_node(p.ast, PATH, start_tok, p.current_pos(), ex);
 }
 
 <*
@@ -120,12 +120,12 @@ fn Node? parse_type(Parser* p, ParseFlags parse_flags = { })
 	TypeFlags flags;
 
 	// Check for Compile-Time
-	if (current.kind == TokenKind.CT_TYPEOF || current.kind == TokenKind.CT_TYPEFROM)
+	if (current.kind == CT_TYPEOF || current.kind == CT_TYPEFROM)
 	{
 		advance(p)!;
-		expect(p, TokenKind.LPAREN)!;
+		expect(p, LPAREN)!;
 		desc.base_expr = parse_expr(p, { })!;
-		expect(p, TokenKind.RPAREN)!;
+		expect(p, RPAREN)!;
 		flags.is_comptime = true;
 	}
 	else
@@ -135,9 +135,9 @@ fn Node? parse_type(Parser* p, ParseFlags parse_flags = { })
 
 		if (!parse_flags.no_generics)
 		{
-			if (consume(p, TokenKind.LBRACE)!)
+			if (consume(p, LBRACE)!)
 			{
-				while (!p.is(TokenKind.RBRACE))
+				while (!p.is(RBRACE))
 				{
 					desc.gen_args[desc.gen_count++] = parse_type(p)!;
 
@@ -146,19 +146,19 @@ fn Node? parse_type(Parser* p, ParseFlags parse_flags = { })
 						p.error("Too many generics");
 						return TOO_MANY_GENERICS~;
 					}
-					if (!consume(p, TokenKind.COMMA)!) break;
+					if (!consume(p, COMMA)!) break;
 				}
-				expect(p, TokenKind.RBRACE)!;
+				expect(p, RBRACE)!;
 			}
 		}
 	}
 
 	while (true)
 	{
-		if (consume(p, TokenKind.LVEC)!)
+		if (consume(p, LVEC)!)
 		{
 			flags.is_vector = true;
-			if (consume(p, TokenKind.ASTERISK)!)
+			if (consume(p, ASTERISK)!)
 			{
 				desc.array_size = { };
 			}
@@ -166,26 +166,26 @@ fn Node? parse_type(Parser* p, ParseFlags parse_flags = { })
 			{
 				desc.array_size = parse_expr(p)!;
 			}
-			expect(p, TokenKind.RVEC)!;
+			expect(p, RVEC)!;
 			break;
 		}
-		if (consume(p, TokenKind.ASTERISK)!)
+		if (consume(p, ASTERISK)!)
 		{
 			desc.ptr_count++;
 			continue;
 		}
-		if (consume(p, TokenKind.QUESTION)!)
+		if (consume(p, QUESTION)!)
 		{
 			flags.is_optional = true;
 			continue;
 		}
-		if (consume(p, TokenKind.LBRACKET)!)
+		if (consume(p, LBRACKET)!)
 		{
-			if (consume(p, TokenKind.ASTERISK)!)
+			if (consume(p, ASTERISK)!)
 			{
 				desc.array_size = { };
 			}
-			else if (p.is(TokenKind.RBRACKET))
+			else if (p.is(RBRACKET))
 			{
 				desc.array_size = { };
 			}
@@ -193,7 +193,7 @@ fn Node? parse_type(Parser* p, ParseFlags parse_flags = { })
 			{
 				desc.array_size = parse_expr(p)!;
 			}
-			expect(p, TokenKind.RBRACKET)!;
+			expect(p, RBRACKET)!;
 			continue;
 		}
 		break;
@@ -214,7 +214,7 @@ fn Node? parse_type(Parser* p, ParseFlags parse_flags = { })
 	}
 
 	uint ex = ast::push_extra_list(p.ast, &final_block);
-	Node new_node = ast::add_node(p.ast, NodeKind.TYPE_EXPR, start_tok, p.current_pos(), ex);
+	Node new_node = ast::add_node(p.ast, TYPE_EXPR, start_tok, p.current_pos(), ex);
 
 	return new_node;
 }
@@ -226,23 +226,23 @@ fn Node? parse_type(Parser* p, ParseFlags parse_flags = { })
 *>
 fn uint? parse_parameter_list(Parser* p) => @scratch()
 {
-	expect(p, TokenKind.LPAREN)!;
+	expect(p, LPAREN)!;
 	scratch.push(0); // count
 
-	while (!p.is(TokenKind.RPAREN) && !p.eof())
+	while (!p.is(RPAREN) && !p.eof())
 	{
 		Node param = parse_param_decl(p)!;
 		scratch.push((uint)param);
 
-		if (consume(p, TokenKind.COMMA)!) continue;
-		if (!p.is(TokenKind.RPAREN))
+		if (consume(p, COMMA)!) continue;
+		if (!p.is(RPAREN))
 		{
 			p.error("Expected ')'");
 			return 0;
 		}
 	}
 
-	expect(p, TokenKind.RPAREN)!;
+	expect(p, RPAREN)!;
 	scratch[0] = (uint)scratch.len() - 1;
 	return ast::push_extra_list(p.ast, scratch.array_view());
 }
@@ -250,15 +250,15 @@ fn uint? parse_parameter_list(Parser* p) => @scratch()
 <*
  implementing interfaces, e.g. struct Foo (MyInterface)
 
-  NodeKind.INTERFACE_IMPL ::= '(' (type (',' type)* ','? )? ')'
+  INTERFACE_IMPL ::= '(' (type (',' type)* ','? )? ')'
  @param [&inout] p
 *>
 fn Node? parse_interface_impl(Parser* p)
 {
     uint start_pos = p.current_pos();
-    if (!consume(p, TokenKind.LPAREN)!) return {};
+    if (!consume(p, LPAREN)!) return {};
     // Handle empty list case: ()
-    if (consume(p, TokenKind.RPAREN)!) return {};
+    if (consume(p, RPAREN)!) return {};
 
     uint ex = 0;
 
@@ -269,16 +269,16 @@ fn Node? parse_interface_impl(Parser* p)
             Node type_node = parse_type(p)!;
             scratch.push((uint)type_node);
 
-            if (!consume(p, TokenKind.COMMA)!) break;
-            if (p.is(TokenKind.RPAREN)) break;
+            if (!consume(p, COMMA)!) break;
+            if (p.is(RPAREN)) break;
         }
 
         uint count = (uint)scratch.len() - watermark;
         ex = ast::push_extra_list(p.ast, scratch_view(watermark, count));
     };
 
-    expect(p, TokenKind.RPAREN)!;
-    return ast::add_node(p.ast, NodeKind.INTERFACE_IMPL, start_pos, p.current_pos(), ex);
+    expect(p, RPAREN)!;
+    return ast::add_node(p.ast, INTERFACE_IMPL, start_pos, p.current_pos(), ex);
 }
 
 <*
@@ -288,13 +288,13 @@ fn Node? parse_interface_impl(Parser* p)
 *>
 fn uint? parse_attributes(Parser* p)
 {
-    if (!p.is(TokenKind.AT_IDENT) && !p.is(TokenKind.AT_TYPE_IDENT)) return 0;
+    if (!p.is(AT_IDENT) && !p.is(AT_TYPE_IDENT)) return 0;
 
     uint final_ex = 0;
 
     @with_scratch(; base_watermark)
     {
-        while (p.is(TokenKind.AT_IDENT) || p.is(TokenKind.AT_TYPE_IDENT))
+        while (p.is(AT_IDENT) || p.is(AT_TYPE_IDENT))
         {
             uint start_tok = p.current_pos();
             String attr_name = p.token_text(p.current());
@@ -304,7 +304,7 @@ fn uint? parse_attributes(Parser* p)
             uint args_ex = 0;
 
             // Handle Attribute Arguments
-            if (consume(p, TokenKind.LPAREN)!)
+            if (consume(p, LPAREN)!)
             {
                 @with_scratch(; watermark)
                 {
@@ -313,8 +313,8 @@ fn uint? parse_attributes(Parser* p)
                         Node expr = parse_attribute_argument(p)!;
                         if (expr) scratch.push((uint)expr);
                         
-                        if (consume(p, TokenKind.RPAREN)!) break;
-                        expect(p, TokenKind.COMMA)!;
+                        if (consume(p, RPAREN)!) break;
+                        expect(p, COMMA)!;
                     }
                     
                     uint count = (uint)scratch.len() - watermark;
@@ -330,7 +330,7 @@ fn uint? parse_attributes(Parser* p)
             };
 
             uint ex = ast::push_extra_list(p.ast, &attr_block);
-            Node attr_node = ast::add_node(p.ast, NodeKind.ATTRIBUTE, start_tok, p.previous_pos(), ex);
+            Node attr_node = ast::add_node(p.ast, ATTRIBUTE, start_tok, p.previous_pos(), ex);
 
             scratch.push((uint)attr_node);
         }
@@ -348,53 +348,53 @@ fn Node? parse_attribute_argument(Parser* p)
     
     switch (curr.kind) 
 	{
-        case TokenKind.LBRACKET: // []  []=
+        case LBRACKET: // []  []=
             advance(p)!;
-            expect(p, TokenKind.RBRACKET)!;
-            OverloadKind kind = consume(p, TokenKind.EQ)! ? OverloadKind.ELEMENT_SET : OverloadKind.ELEMENT_AT;
-            return ast::add_node(p.ast, NodeKind.OP_OVERLOAD, curr.pos, p.current_pos(), (uint)kind);
-        case TokenKind.AMP: // &[]
-            if (p.peek(1).kind == TokenKind.LBRACKET) 
+            expect(p, RBRACKET)!;
+            OverloadKind kind = consume(p, EQ)! ? OverloadKind.ELEMENT_SET : OverloadKind.ELEMENT_AT;
+            return ast::add_node(p.ast, OP_OVERLOAD, curr.pos, p.current_pos(), (uint)kind);
+        case AMP: // &[]
+            if (p.peek(1).kind == LBRACKET) 
 			{
                 advance(p, 2)!;
-                expect(p, TokenKind.RBRACKET)!;
-                return ast::add_node(p.ast, NodeKind.OP_OVERLOAD, curr.pos, p.current_pos(), (uint)OverloadKind.ELEMENT_REF);
+                expect(p, RBRACKET)!;
+                return ast::add_node(p.ast, OP_OVERLOAD, curr.pos, p.current_pos(), (uint)OverloadKind.ELEMENT_REF);
             }
 			else
 			{
 				advance(p)!;
 				return ast::add_node(p.ast, 
-						NodeKind.OP_OVERLOAD, 
+						OP_OVERLOAD, 
 						curr.pos, 
 						p.current_pos(), 
 						(uint)get_overload_from_token(curr.kind));
 			}
-		case TokenKind.PLUS:
-		case TokenKind.MINUS:
-		case TokenKind.ASTERISK:
-		case TokenKind.DIV:
-		case TokenKind.MOD:
-		case TokenKind.BIT_NOT:
-		case TokenKind.BIT_OR:
-		case TokenKind.BIT_XOR:
-		case TokenKind.LSHIFT:
-		case TokenKind.RSHIFT:
-		case TokenKind.EQEQ:
-		case TokenKind.NOT_EQUAL:
-		case TokenKind.BIT_AND_ASSIGN:
-		case TokenKind.BIT_OR_ASSIGN:
-		case TokenKind.BIT_XOR_ASSIGN:
-		case TokenKind.PLUS_ASSIGN:
-		case TokenKind.MINUS_ASSIGN:
-		case TokenKind.MULT_ASSIGN:
-		case TokenKind.DIV_ASSIGN:
-		case TokenKind.MOD_ASSIGN:
-		case TokenKind.LSHIFT_ASSIGN:
-		case TokenKind.RSHIFT_ASSIGN:
-            if (p.peek(1).kind == TokenKind.RPAREN || p.peek(1).kind == TokenKind.COMMA) 
+		case PLUS:
+		case MINUS:
+		case ASTERISK:
+		case DIV:
+		case MOD:
+		case BIT_NOT:
+		case BIT_OR:
+		case BIT_XOR:
+		case LSHIFT:
+		case RSHIFT:
+		case EQEQ:
+		case NOT_EQUAL:
+		case BIT_AND_ASSIGN:
+		case BIT_OR_ASSIGN:
+		case BIT_XOR_ASSIGN:
+		case PLUS_ASSIGN:
+		case MINUS_ASSIGN:
+		case MULT_ASSIGN:
+		case DIV_ASSIGN:
+		case MOD_ASSIGN:
+		case LSHIFT_ASSIGN:
+		case RSHIFT_ASSIGN:
+            if (p.peek(1).kind == RPAREN || p.peek(1).kind == COMMA) 
 			{
                 Node n = ast::add_node(p.ast, 
-					NodeKind.OP_OVERLOAD,
+					OP_OVERLOAD,
 					curr.pos, 
 					p.current_pos(), 
 					(uint)get_overload_from_token(curr.kind));
@@ -416,7 +416,7 @@ fn Node? parse_attribute_argument(Parser* p)
 *>
 fn uint? parse_generics(Parser* p)
 {
-    if (!consume(p, TokenKind.LESS)!) return 0;
+    if (!consume(p, LESS)!) return 0;
 
     uint final_ex = 0;
 
@@ -435,25 +435,25 @@ fn uint? parse_generics(Parser* p)
             advance(p)!;
 
             // Check for variadic generics: e.g., <T, V...>
-            bool is_variadic = consume(p, TokenKind.ELLIPSIS)!;
+            bool is_variadic = consume(p, ELLIPSIS)!;
 
             uint flags = is_variadic ? 1 : 0;
             uint[2] param_data = { name_id, flags };
             uint ex = ast::push_extra_list(p.ast, &param_data);
             
-            Node param_node = ast::add_node(p.ast, NodeKind.GENERIC_PARAM, t.pos, p.previous_pos(), ex);
+            Node param_node = ast::add_node(p.ast, GENERIC_PARAM, t.pos, p.previous_pos(), ex);
             
             scratch.push((uint)param_node);
 
-            if (!consume(p, TokenKind.COMMA)!) break;
-            if (p.is(TokenKind.GREATER)) break;
+            if (!consume(p, COMMA)!) break;
+            if (p.is(GREATER)) break;
         }
 
         uint count = (uint)scratch.len() - watermark;
         final_ex = ast::push_extra_list(p.ast, scratch_view(watermark, count));
     };
 
-    expect(p, TokenKind.GREATER)!;
+    expect(p, GREATER)!;
     return final_ex;
 }
 
@@ -484,8 +484,8 @@ fn Node? parse_var_decl(Parser* p, ParseFlags flags)
 
 	Node type_node;
 	if (is_type(p.current().kind)
-		&& (p.peek().kind == TokenKind.IDENT || p.peek().kind == TokenKind.CONST_IDENT
-			|| p.peek().kind == TokenKind.CT_IDENT))
+		&& (p.peek().kind == IDENT || p.peek().kind == CONST_IDENT
+			|| p.peek().kind == CT_IDENT))
 	{
 		type_node = parse_type(p)!;
 	}
@@ -493,7 +493,7 @@ fn Node? parse_var_decl(Parser* p, ParseFlags flags)
 	Token t = p.current();
 	if (flags.is_const)
 	{
-		if (t.kind != TokenKind.CONST_IDENT)
+		if (t.kind != CONST_IDENT)
 		{
 			p.error("Constants must use a CONST_IDENT (e.g., MY_VALUE), found '%s'", p.token_text(t));
 			return { };
@@ -501,7 +501,7 @@ fn Node? parse_var_decl(Parser* p, ParseFlags flags)
 	}
 	else
 	{
-		if (t.kind != TokenKind.IDENT && !flags.is_local)
+		if (t.kind != IDENT && !flags.is_local)
 		{
 			p.error("Global variables must use a lower-case IDENT (e.g., my_var), found '%s'", p.token_text(t));
 			return { };
@@ -513,7 +513,7 @@ fn Node? parse_var_decl(Parser* p, ParseFlags flags)
 	uint attr = parse_attributes(p)!;
 
 	Node init_expr = { };
-	if (consume(p, TokenKind.EQ)!)
+	if (consume(p, EQ)!)
 	{
 		if (flags.is_extern)
 		{
@@ -530,7 +530,7 @@ fn Node? parse_var_decl(Parser* p, ParseFlags flags)
 
 	uint end_tok = p.current_pos();
 
-	expect(p, TokenKind.EOS)!;
+	expect(p, EOS)!;
 
 	VarDeclFlags packed_flags = {
 		.is_extern = flags.is_extern,
@@ -542,5 +542,5 @@ fn Node? parse_var_decl(Parser* p, ParseFlags flags)
 
 	uint[*] data = { name, (uint)type_node, (uint)init_expr, attr, (uint)packed_flags };
 	uint ex = ast::push_extra_list(p.ast, &data);
-	return ast::add_node(p.ast, NodeKind.VAR_DECL, start_pos, end_tok, ex);
+	return ast::add_node(p.ast, VAR_DECL, start_pos, end_tok, ex);
 }

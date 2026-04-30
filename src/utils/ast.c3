@@ -59,14 +59,14 @@ fn JsonNode build_json_node(Cursor c, Allocator allocator)
 
   switch (v.kind)
   {
-    case NodeKind.BINARY_EXPR:
+    case BINARY_EXPR:
       dto.op = raw; 
-    case NodeKind.INT_LITERAL:
-    case NodeKind.FLOAT_LITERAL:
+    case INT_LITERAL:
+    case FLOAT_LITERAL:
       dto.numeric = raw;
-    case NodeKind.IDENT_EXPR:
-    case NodeKind.FN_DECL:
-    case NodeKind.STRUCT_DECL:
+    case IDENT_EXPR:
+    case FN_DECL:
+    case STRUCT_DECL:
       dto.name = raw;
 
     default:
@@ -137,9 +137,9 @@ fn ChildVisitResult printer_callback(Cursor c, Cursor p, void* data, bool is_las
   ctx.prefix = make_child_prefix(old_prefix, is_last);
   switch (v.kind)
   {
-    case NodeKind.INT_LITERAL:
-    case NodeKind.FLOAT_LITERAL:
-    case NodeKind.IDENT_EXPR:
+    case INT_LITERAL:
+    case FLOAT_LITERAL:
+    case IDENT_EXPR:
       return ChildVisitResult.CONTINUE; 
 
     default:
