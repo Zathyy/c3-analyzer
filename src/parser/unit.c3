@@ -411,47 +411,58 @@ fn Node? parse_attribute_argument(Parser* p)
 }
 
 <*
- Parses: <T, V ...>
-    Returns the first node in a Linked-List (if valid!)
+ 	Parses: <T, V ...>
+    Returns the index into extra data
 *>
-fn Node? parse_generics(Parser* p)
+fn uint? parse_generics(Parser* p)
 {
-	if (!consume(p, TokenKind.LESS)!) return { };
+    if (!consume(p, TokenKind.LESS)!) return 0;
 
-	Node head;
+    uint final_ex = 0;
 
-	while (true)
-	{
-		Token t = p.current();
-		if (!is_some_ident(t.kind))
-		{
-			p.error("Expected identifier in generic list, got %s", p.token_text(t));
-			return { };
-		}
+    @with_scratch(; watermark)
+    {
+        while (true)
+        {
+            Token t = p.current();
+            if (!is_some_ident(t.kind))
+            {
+                p.error("Expected identifier in generic list, got %s", p.token_text(t));
+                return { };
+            }
 
-		uint id = p.pool.intern(p.token_text(t));
-		advance(p)!;
+            uint name_id = p.pool.intern(p.token_text(t));
+            advance(p)!;
 
-		uint[2] generic_block = { id, (uint)head };
+            // Check for variadic generics: e.g., <T, V...>
+            bool is_variadic = consume(p, TokenKind.ELLIPSIS)!;
 
-		uint ex = ast::push_extra_list(p.ast, &generic_block);
-		head = ast::add_node(p.ast, NodeKind.GENERIC_PARAM, t.pos, p.current_pos(), ex);
+            uint flags = is_variadic ? 1 : 0;
+            uint[2] param_data = { name_id, flags };
+            uint ex = ast::push_extra_list(p.ast, &param_data);
+            
+            Node param_node = ast::add_node(p.ast, NodeKind.GENERIC_PARAM, t.pos, p.previous_pos(), ex);
+            
+            scratch.push((uint)param_node);
 
-		if (!consume(p, TokenKind.COMMA)!) break;
-		if (p.is(TokenKind.GREATER)) break;
-	}
+            if (!consume(p, TokenKind.COMMA)!) break;
+            if (p.is(TokenKind.GREATER)) break;
+        }
 
-	expect(p, TokenKind.GREATER)!;
+        uint count = (uint)scratch.len() - watermark;
+        final_ex = ast::push_extra_list(p.ast, scratch_view(watermark, count));
+    };
 
-	return head;
+    expect(p, TokenKind.GREATER)!;
+    return final_ex;
 }
 
-/* *
- * Unified parser for:
- * - Global variables (is_global)
- * - Local variables (is_local)
- * - var
- * - Constants (is_const) */
+<*
+	Unified parser for:
+	- Global variables (is_global)
+	- Local variables (is_local)
+	- Constants (is_const) 
+*>
 fn Node? parse_var_decl(Parser* p, ParseFlags flags)
 {
 	uint start_pos = p.current_pos();

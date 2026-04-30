@@ -130,14 +130,14 @@ fn Node? parse_module(Parser* p, Workspace* ws)
 	}
 
 
-	Node generics = parse_generics(p)!;
+	uint generics = parse_generics(p)!;
 	uint attributes = parse_attributes(p)!;
 
 	expect(p, TokenKind.EOS)!;
 
 	PathView view = { p.ast, path_node };
 
-	uint[*] data = { (uint)path_node, (uint)generics, attributes };
+	uint[*] data = { (uint)path_node, generics, attributes };
 	uint ex = ast::push_extra_list(p.ast, &data);
 
 	log::debug("parsed module!");
@@ -670,7 +670,7 @@ fn Node? parse_struct(Parser* p)
 
 	Node interf_impl = parse_interface_impl(p)!;
 
-	Node generic_params;
+	uint generic_params;
 	if (p.is(TokenKind.LESS))
 	{
 		generic_params = parse_generics(p)!;
@@ -684,7 +684,7 @@ fn Node? parse_struct(Parser* p)
 
 	data.push(name);
 	data.push((uint)interf_impl);
-	data.push((uint)generic_params);
+	data.push(generic_params);
 	data.push(0); // Placeholder for field count at index [3]
 
 	uint field_count = 0;

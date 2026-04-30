@@ -68,3 +68,13 @@ fn Node TypeView.get_gen_arg(TypeView self, uint index)
 {
 	return self.get_at(5, index);
 }
+
+// The container for the whole <T, V> block
+typedef GenericParamsView = inline View;
+fn uint GenericParamsView.count(self) => self.ast.extra_data[(Size)self.get_extra_index()];
+fn Node GenericParamsView.get_param(self, uint index) => (Node)self.ast.extra_data[(Size)self.get_extra_index() + 1 + index];
+
+// The individual parameter T
+typedef GenericParamView = inline View;
+fn String GenericParamView.name(self, StringPool* pool) => pool.get((StringHandle)self.get_uint(0));
+fn bool GenericParamView.is_variadic(self) => (self.get_uint(1) & 1) != 0;
