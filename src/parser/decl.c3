@@ -129,7 +129,6 @@ fn Node? parse_module(Parser* p, Workspace* ws)
 		return err~;
 	}
 
-
 	uint generics = parse_generics(p)!;
 	uint attributes = parse_attributes(p)!;
 
@@ -176,60 +175,80 @@ fn OverloadKind get_overload_from_token(TokenKind kind)
 	}
 }
 
-fn Node? parse_enum(Parser* p)
+fn Node? parse_enum(Parser* p, ParseFlags flags)
 {
-	uint start_tok = p.current_pos();
-	expect(p, TokenKind.ENUM)!;
-
-	Token name_tok = p.current();
-	expect(p, TokenKind.TYPE_IDENT)!;
-	uint name = p.pool.intern(p.token_text(name_tok));
-
-	Node base_type;
-	if (consume(p, TokenKind.COLON)!) base_type = parse_type(p)!;
-
-	uint params;
-	if (p.is(TokenKind.LPAREN))
+    uint start_tok = p.current_pos();
+	if (!flags.is_constdef)
 	{
-		params = parse_parameter_list(p)!;
+    	expect(p, TokenKind.ENUM)!;
+	}
+	else
+	{
+		expect(p, TokenKind.CONSTDEF)!;
 	}
 
-	uint attrs = parse_attributes(p)!;
+    Token name_tok = p.current();
+    expect(p, TokenKind.TYPE_IDENT)!;
+    uint name = p.pool.intern(p.token_text(name_tok));
 
-	expect(p, TokenKind.LBRACE)!;
+    Node base_type;
+	bool is_inline_type;
 
-	List{uint} elements;
-	elements.tinit(16);
-	defer elements.free();
-
-	while (!p.is(TokenKind.RBRACE) && !p.eof())
+    if (consume(p, TokenKind.COLON)!) 
 	{
-		Token elem_tok = p.current();
-		uint elem_name = p.pool.intern(p.token_text(elem_tok));
-		advance(p)!;
+		if (consume(p, TokenKind.INLINE)!) 
+		{
+			is_inline_type = true;
+		}
 
-		// WAITING = 0
-		Node explicit_val;
-		if (consume(p, TokenKind.EQ)!) explicit_val = parse_expr(p, { })!;
-
-		// { "waiting" }
-		Node assoc_init;
-		if (p.is(TokenKind.LBRACE)) assoc_init = parse_initializer_list(p)!;
-
-		uint[3] member_data = { elem_name, (uint)explicit_val, (uint)assoc_init };
-		elements.push(ast::push_extra_list(p.ast, &member_data));
-
-		if (!consume(p, TokenKind.COMMA)!) break;
+		base_type = parse_type(p)!;
 	}
 
-	expect(p, TokenKind.RBRACE)!;
+    uint params = 0;
+    if (p.is(TokenKind.LPAREN)) params = parse_parameter_list(p)!;
 
-	uint element_count = (uint)elements.len();
-	uint elements_ex = ast::push_extra_list(p.ast, elements.array_view());
+    uint attrs = parse_attributes(p)!;
 
-	uint[*] decl_data = { name, (uint)base_type, params, attrs, elements_ex, element_count };
-	uint ex = ast::push_extra_list(p.ast, &decl_data);
-	return ast::add_node(p.ast, NodeKind.ENUM_DECL, start_tok, p.current_pos(), ex);
+    expect(p, TokenKind.LBRACE)!;
+
+    uint elements_ex = 0;
+
+    @with_scratch(; watermark)
+    {
+        while (!p.is(TokenKind.RBRACE) && !p.eof())
+        {
+            Token elem_tok = p.current();
+            uint elem_name = p.pool.intern(p.token_text(elem_tok));
+            advance(p)!;
+
+            Node explicit_val;
+            if (consume(p, TokenKind.EQ)!) explicit_val = parse_expr(p, { })!;
+
+            Node assoc_init;
+            if (p.is(TokenKind.LBRACE)) assoc_init = parse_initializer_list(p)!;
+
+            uint[3] member_data = { elem_name, (uint)explicit_val, (uint)assoc_init };
+            uint m_ex = ast::push_extra_list(p.ast, &member_data);
+            
+            Node member_node = ast::add_node(p.ast, NodeKind.ENUM_MEMBER, elem_tok.pos, p.previous_pos(), m_ex);
+            scratch.push((uint)member_node);
+
+            if (!consume(p, TokenKind.COMMA)!) break;
+        }
+        
+        uint count = (uint)scratch.len() - watermark;
+        elements_ex = ast::push_extra_list(p.ast, scratch_view(watermark, count));
+    };
+
+    expect(p, TokenKind.RBRACE)!;
+
+	uint packed_flags = 0;
+	if (flags.is_constdef) packed_flags |= (1 << 0);
+    if (is_inline_type)    packed_flags |= (1 << 1);
+
+    uint[6] decl_data = { name, (uint)base_type, params, attrs, elements_ex, packed_flags };
+    uint ex = ast::push_extra_list(p.ast, &decl_data);
+    return ast::add_node(p.ast, NodeKind.ENUM_DECL, start_tok, p.current_pos(), ex);
 }
 
 fn Node? parse_fn_decl(Parser* p, ParseFlags flags) => @scratch()

@@ -58,6 +58,7 @@ bitstruct ParseFlags : uint
 	bool is_attribute; // Special parsing for @attr(...)
 	bool is_type_only; // Used for casts or sizeof where names aren't expected
 	bool is_const; // Context requires constant expressions
+	bool is_constdef;
 	bool is_call;
 	bool is_lamda;
 	bool is_macro;
@@ -440,12 +441,15 @@ fn void? parse_top_level(Parser* p, Workspace* ws)
 			node = parse_typedef(p)!;
 		case TokenKind.STRUCT:
 			node = parse_struct(p)!;
+		case TokenKind.CONSTDEF:
+			flags.is_constdef = true;
+			node = parse_enum(p, flags)!;
 		case TokenKind.ENUM:
-			node = parse_enum(p)!;
+			node = parse_enum(p, flags)!;
 		case TokenKind.CONST:
 			flags.is_const = true;
 			advance(p)!;
-			node = parse_var_decl(p, flags)!;
+			node = parse_var_decl(p, flags)!;			
 		case TokenKind.EOS:
 			p.error("<EOS> appeared in parse_top_level");
 			advance(p)!;

@@ -65,6 +65,8 @@ fn uint VarDeclView.attributes_offset(self) => self.get_uint(3);
 fn uint VarDeclView.flags(self) => self.get_uint(4);
 fn bool VarDeclView.is_extern(self) => (self.flags() & (1 << 0)) != 0;
 fn bool VarDeclView.is_const(self)  => (self.flags() & (1 << 1)) != 0;
+
+// inline keyword as a local variable
 fn bool VarDeclView.is_inline(self)  => (self.flags() & (1 << 2)) != 0;
 fn bool VarDeclView.is_local(self)  => (self.flags() & (1 << 3)) != 0;
 fn bool VarDeclView.is_thread_local(self)  => (self.flags() & (1 << 4)) != 0;
@@ -81,3 +83,16 @@ fn Node StructView.field(self, uint index)
 typedef FieldView = inline View;
 fn String FieldView.name(self, StringPool* pool) => pool.get((StringHandle)self.get_uint(0));
 fn Node FieldView.type_node(self) => self.get(1);
+
+typedef EnumView = inline View;
+fn String EnumView.name(self, StringPool* pool) => pool.get((StringHandle)self.get_uint(0));
+fn Node EnumView.base_type(self) => self.get(1);
+fn uint EnumView.params_offset(self) => self.get_uint(2);
+fn uint EnumView.attributes_offset(self) => self.get_uint(3);
+
+fn uint EnumView.member_count(self) => self.get_list_count(4);
+fn Node EnumView.get_member(self, uint index) => self.get_list_item(4, index);
+
+fn uint EnumView.flags(self) => self.get_uint(5);
+fn bool EnumView.is_const_def(self) => (self.flags() & (1 << 0)) != 0;
+fn bool EnumView.is_inline(self)    => (self.flags() & (1 << 1)) != 0;
