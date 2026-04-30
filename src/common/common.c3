@@ -165,11 +165,13 @@ bitstruct TypeFlags : uint
 	bool is_optional;
 }
 
-bitstruct GlobalFlags : uint
+bitstruct VarDeclFlags : uint
 {
-	bool is_const : 0;
-	bool is_extern : 1;
-	bool is_thread_local : 2;
+	bool is_const;
+	bool is_local;
+	bool is_extern;
+	bool is_thread_local;
+	bool is_inline;
 }
 
 enum DeferKind : uint

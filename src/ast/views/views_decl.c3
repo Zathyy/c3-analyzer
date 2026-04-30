@@ -62,14 +62,14 @@ fn Node VarDeclView.type_node(self) => self.get(1);
 fn Node VarDeclView.init_expr(self) => self.get(2);
 fn uint VarDeclView.attributes_offset(self) => self.get_uint(3);
 // meta information
-fn uint VarDeclView.flags(self) => self.get_uint(4);
-fn bool VarDeclView.is_extern(self) => (self.flags() & (1 << 0)) != 0;
-fn bool VarDeclView.is_const(self)  => (self.flags() & (1 << 1)) != 0;
+fn VarDeclFlags VarDeclView.flags(self) => (VarDeclFlags)self.get_uint(4);
+fn bool VarDeclView.is_extern(self) => self.flags().is_extern;
+fn bool VarDeclView.is_const(self)  => self.flags().is_const;
 
 // inline keyword as a local variable
-fn bool VarDeclView.is_inline(self)  => (self.flags() & (1 << 2)) != 0;
-fn bool VarDeclView.is_local(self)  => (self.flags() & (1 << 3)) != 0;
-fn bool VarDeclView.is_thread_local(self)  => (self.flags() & (1 << 4)) != 0;
+fn bool VarDeclView.is_inline(self)  => self.flags().is_inline;
+fn bool VarDeclView.is_local(self)  => self.flags().is_local;
+fn bool VarDeclView.is_thread_local(self)  => self.flags().is_thread_local;
 fn bool VarDeclView.is_global(self) => !self.is_local();
 
 typedef StructView = inline View;

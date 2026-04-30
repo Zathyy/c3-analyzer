@@ -215,6 +215,8 @@ fn Node? parse_enum(Parser* p, ParseFlags flags)
 
     @with_scratch(; watermark)
     {
+        scratch.push(0); // count placeholder
+
         while (!p.is(TokenKind.RBRACE) && !p.eof())
         {
             Token elem_tok = p.current();
@@ -229,15 +231,16 @@ fn Node? parse_enum(Parser* p, ParseFlags flags)
 
             uint[3] member_data = { elem_name, (uint)explicit_val, (uint)assoc_init };
             uint m_ex = ast::push_extra_list(p.ast, &member_data);
-            
+
             Node member_node = ast::add_node(p.ast, NodeKind.ENUM_MEMBER, elem_tok.pos, p.previous_pos(), m_ex);
             scratch.push((uint)member_node);
 
             if (!consume(p, TokenKind.COMMA)!) break;
         }
-        
-        uint count = (uint)scratch.len() - watermark;
-        elements_ex = ast::push_extra_list(p.ast, scratch_view(watermark, count));
+
+        uint count = (uint)scratch.len() - watermark - 1;
+        scratch[watermark] = count;
+        elements_ex = ast::push_extra_list(p.ast, scratch_view(watermark, count + 1));
     };
 
     expect(p, TokenKind.RBRACE)!;
