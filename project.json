@@ -14,7 +14,7 @@
   // Sources compiled for all targets.
   "sources": [ "src/**" ],
   // Test sources compiled for all targets.
-  "test-sources": [ "test/parser_tests.c3" ],
+  "test-sources": [ "test/**" ],
   // C sources if the project also compiles C sources
   // relative to the project file.
   // "c-sources": [ "csource/**" ],

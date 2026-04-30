@@ -77,7 +77,7 @@ fn String StructView.name(self, StringPool* pool) => pool.get((StringHandle)self
 fn uint StructView.field_count(self) => self.get_uint(3);
 fn Node StructView.field(self, uint index)
 {
-	return self.get_at(2, index);
+	return self.get_at(4, index);
 }
 
 typedef FieldView = inline View;
