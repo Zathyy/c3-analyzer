@@ -194,7 +194,42 @@ fn Cursor Workspace.find_at_location(&self, String file_path, Location loc)
 	return { null, { } };
 }
 
+enum LookupTarget
+{
+	IDENT,
+	MODULE
+}
+
+struct LookupOptions 
+{
+	LookupTarget target;
+	String name;
+}
+
+// 
+// fn Cursor? Workspace.lookup(&self, String symbol_name, LookupOptions options)
+// {
+// 	Module* mod = self.modules.get(module_name)!;
+// 	if (!mod) return MODULE_NOT_FOUND~;
+//
+// 	// Search the module's top-level declarations
+// 	foreach (section : mod.sections)
+// 	{
+// 		foreach (decl_handle : section.source_file.ast.top_level_nodes)
+// 		{
+// 			if (decl_handle < section.start_node_idx || decl_handle >= section.end_node_idx) continue;
+// 			Cursor c = { section, (Node)decl_handle };
+// 			if (c.spelling()! == symbol_name) return c;
+// 		}
+// 	}
+//
+// 	return SYMBOL_NOT_FOUND~;
+// }
+
 fn Cursor? Workspace.lookup(&self, String module_name, String symbol_name)
+	=> self.lookup_in_module(module_name, symbol_name);
+
+fn Cursor? Workspace.lookup_in_module(&self, String module_name, String symbol_name)
 {
 	Module* mod = self.modules.get(module_name)!;
 	if (!mod) return MODULE_NOT_FOUND~;

@@ -235,9 +235,10 @@ fn Node? parse_enum(Parser* p, ParseFlags flags)
 
             if (!consume(p, COMMA)!) break;
         }
-        
-        uint count = (uint)scratch.len() - watermark;
-        elements_ex = ast::push_extra_list(p.ast, scratch_view(watermark, count));
+
+        uint count = (uint)scratch.len() - watermark - 1;
+        scratch[watermark] = count;
+        elements_ex = ast::push_extra_list(p.ast, scratch_view(watermark, count + 1));
     };
 
     expect(p, RBRACE)!;

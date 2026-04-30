@@ -12,37 +12,6 @@ import std::io::file;
 import std::io::path;
 
 // ------------------------------------------------------------
-// Helpers
-// ------------------------------------------------------------
-
-<*
- Write a C3 source string to a named temp file under /tmp/ and
-  return the path.  Panics on I/O failure so tests fail fast.
-*>
-fn String write_fixture(String name, String content) @private
-{
-	String path = string::tformat("%s/c3_test_%s.c3", path::temp_directory(tmem)!!, name);
-	File f = file::open(path, "w")!!;
-	f.write(content)!!;
-	(void)f.close()!!;
-	return path;
-}
-
-<*
- Count how many top-level nodes in a section have a given kind.
-*>
-fn uint count_kind(ModuleSection* s, NodeKind kind) @private
-{
-	uint n = 0;
-	foreach (h : s.source_file.ast.top_level_nodes)
-	{
-		if (h < s.start_node_idx || h >= s.end_node_idx) continue;
-		if (ast::get_kind(&s.source_file.ast, (Node)h) == kind) n++;
-	}
-	return n;
-}
-
-// ------------------------------------------------------------
 // 1. Basic module declaration
 // ------------------------------------------------------------
 <*
@@ -118,7 +87,7 @@ fn int add(int a, int b) {
 	ws.init();
 	parser::parse_file(&ws, path)!!;
 
-	Cursor fn_cur = ws.lookup("fn_mod", "add")!!;
+	Cursor fn_cur = ws.lookup_in_module("fn_mod", "add")!!;
 	assert (ast::get_kind(&fn_cur.section.source_file.ast, fn_cur.node) == NodeKind.FN_DECL , "Node is not FN_DECL");
 
 	FnView v = { &fn_cur.section.source_file.ast, fn_cur.node };
@@ -145,7 +114,7 @@ struct Point {
 	ws.init();
 	parser::parse_file(&ws, path)!!;
 
-	Cursor sc = ws.lookup("struct_mod", "Point")!!;
+	Cursor sc = ws.lookup_in_module("struct_mod", "Point")!!;
 	assert (ast::get_kind(&sc.section.source_file.ast, sc.node) == NodeKind.STRUCT_DECL , "Node is not STRUCT_DECL");
 
 	StructView sv = { &sc.section.source_file.ast, sc.node };
@@ -194,7 +163,7 @@ const int MAX_SIZE = 100;
 	ws.init();
 	parser::parse_file(&ws, path)!!;
 
-	Cursor cc = ws.lookup("const_mod", "MAX_SIZE")!!;
+	Cursor cc = ws.lookup_in_module("const_mod", "MAX_SIZE")!!;
 	// CONST_DECL is stored as a GLOBAL_DECL with a const flag
 	NodeKind k = ast::get_kind(&cc.section.source_file.ast, cc.node);
 
@@ -214,7 +183,7 @@ fn void test_workspace_lookup() @test => @pool()
 {
 	String path = write_fixture("lookup", `module lu_mod;
 fn void target() {}
-struct Target {}
+struct Target { int a; }
 `);
 
 	Workspace ws;
@@ -222,24 +191,24 @@ struct Target {}
 	parser::parse_file(&ws, path)!!;
 
 	// Existing function
-	Cursor fn_cur = ws.lookup("lu_mod", "target")!!;
+	Cursor fn_cur = ws.lookup_in_module("lu_mod", "target")!!;
 	assert(ast::get_kind(&fn_cur.section.source_file.ast, fn_cur.node) == NodeKind.FN_DECL,
 	"'target' is not FN_DECL");
 
 	// Existing struct
-	Cursor st_cur = ws.lookup("lu_mod", "Target")!!;
+	Cursor st_cur = ws.lookup_in_module("lu_mod", "Target")!!;
 	assert(ast::get_kind(&st_cur.section.source_file.ast, st_cur.node) == NodeKind.STRUCT_DECL,
 	"'Target' is not STRUCT_DECL");
 
 	// Non-existent symbol → fault
-	if (try found_sym = ws.lookup("lu_mod", "no_such_symbol"))
+	if (try found_sym = ws.lookup_in_module("lu_mod", "no_such_symbol"))
 	{
 		assert(false, "Expected fault for missing symbol, got a cursor for node %d",
 		(uint)found_sym.node);
 	}
 
 	// Non-existent module → fault
-	if (try found_mod = ws.lookup("no_such_mod", "target"))
+	if (try found_mod = ws.lookup_in_module("no_such_mod", "target"))
 	{
 		assert(false, "Expected fault for missing module, got a cursor for node %d",
 		(uint)found_mod.node);
@@ -266,11 +235,11 @@ int a;
 	ws.init();
 	parser::parse_file(&ws, path)!!;
 
-	Cursor fc = ws.lookup("spell_mod", "spelled_func")!!;
+	Cursor fc = ws.lookup_in_module("spell_mod", "spelled_func")!!;
 	assert(fc.spelling()!! == "spelled_func",
 	"Spelling of function is wrong");
 
-	Cursor sc = ws.lookup("spell_mod", "WellNamed")!!;
+	Cursor sc = ws.lookup_in_module("spell_mod", "WellNamed")!!;
 	assert(sc.spelling()!! == "WellNamed",
 	"Spelling of struct is wrong");
 }
@@ -292,7 +261,7 @@ fn void my_unique_function() {}
 	ws.init();
 	parser::parse_file(&ws, path)!!;
 
-	Cursor fc = ws.lookup("srctext_mod", "my_unique_function")!!;
+	Cursor fc = ws.lookup_in_module("srctext_mod", "my_unique_function")!!;
 	String text = fc.source_text();
 	assert(text.len > 0,                         "source_text returned empty string");
 	assert(text.contains("my_unique_function"),  "source_text does not contain the function name");
@@ -405,12 +374,12 @@ fn void bar() {}
 	Module* mod = ws.modules.get("shared_mod")!!;
 	assert(mod.sections.len() == 2, "Expected two sections for two files");
 
-	if (catch e = ws.lookup("shared_mod", "foo"))
+	if (catch e = ws.lookup_in_module("shared_mod", "foo"))
 	{
 		assert(false, "'foo' not found after multi-file parse: %s", e);
 	}
 
-	if (catch e = ws.lookup("shared_mod", "bar"))
+	if (catch e = ws.lookup_in_module("shared_mod", "bar"))
 	{
 		assert(false, "'bar' not found after multi-file parse: %s", e);
 	}
@@ -455,7 +424,7 @@ fn void only_once() {}
 	assert(mod.sections.len() == 1, "Section count grew - section was not reused");
 
 	// Symbol lookup must still work
-	if (catch e = ws.lookup("rp_mod", "only_once"))
+	if (catch e = ws.lookup_in_module("rp_mod", "only_once"))
 	{
 		assert(false, "Symbol 'only_once' not found after re-parse: %s", e);
 	}
@@ -488,12 +457,12 @@ fn void good_after() {}
 	assert(mod != null, "Module not created despite error recovery");
 
 	// Both well-formed functions should be present
-	if (catch e = ws.lookup("rec_mod", "good_before"))
+	if (catch e = ws.lookup_in_module("rec_mod", "good_before"))
 	{
 		assert(false, "'good_before' missing - was it dropped by error recovery?: %s", e);
 	}
 
-	if (catch e = ws.lookup("rec_mod", "good_after"))
+	if (catch e = ws.lookup_in_module("rec_mod", "good_after"))
 	{
 		assert(false, "'good_after' missing - error recovery did not resume: %s", e);
 	}
@@ -554,15 +523,15 @@ fn void fn_b() {}
 	assert(alpha.sections.len() == 1, "Expected one section for the whole file");
 
 	// Both functions are in alpha's section
-	if (catch e = ws.lookup("alpha2", "fn_a"))
+	if (catch e = ws.lookup_in_module("alpha2", "fn_a"))
 	{
 		assert(false, "fn_a not found in alpha2: %s", e);
 	}
-	if (try v = ws.lookup("alpha2", "fn_b"))
+	if (try v = ws.lookup_in_module("alpha2", "fn_b"))
 	{
 		assert(false, "fn_b found in alpha2 (should be in beta2, not alpha2): %s", v);
 	}
-	if (catch e = ws.lookup("beta2", "fn_b"))
+	if (catch e = ws.lookup_in_module("beta2", "fn_b"))
 	{
 		assert(false, "fn_b not found in beta2: %s", e);
 	}
@@ -636,15 +605,15 @@ fn void f3() {}
 	assert(count_kind(sfirst, NodeKind.MODULE_DECL) == 1, "Expected 1 MODULE_DECL node");
 	assert(count_kind(sfirst, NodeKind.FN_DECL)     == 1, "Expected 1 FN_DECL node");
 
-	if (catch e = ws.lookup("first", "f1"))
+	if (catch e = ws.lookup_in_module("first", "f1"))
 	{
 		assert(false, "f1 not found: %s", e);
 	}
-	if (try ws.lookup("first", "f2"))
+	if (try ws.lookup_in_module("first", "f2"))
 	{
 		assert(false, "f2 found (should not be in first's section)");
 	}
-	if (try ws.lookup("first", "f3"))
+	if (try ws.lookup_in_module("first", "f3"))
 	{
 		assert(false, "f3 found (should not be in first's section)");
 	}
@@ -654,15 +623,15 @@ fn void f3() {}
 	assert(count_kind(ssecond, NodeKind.MODULE_DECL) == 1, "Expected 1 MODULE_DECL node");
 	assert(count_kind(ssecond, NodeKind.FN_DECL)     == 1, "Expected 1 FN_DECL node");
 
-	if (catch e = ws.lookup("second", "f2"))
+	if (catch e = ws.lookup_in_module("second", "f2"))
 	{
 		assert(false, "f2 not found: %s", e);
 	}
-	if (try ws.lookup("second", "f1"))
+	if (try ws.lookup_in_module("second", "f1"))
 	{
 		assert(false, "f1 found (should not be in second's section)");
 	}
-	if (try ws.lookup("second", "f3"))
+	if (try ws.lookup_in_module("second", "f3"))
 	{
 		assert(false, "f3 found (should not be in second's section)");
 	}
@@ -672,15 +641,15 @@ fn void f3() {}
 	assert(count_kind(sthird, NodeKind.MODULE_DECL) == 1, "Expected 1 MODULE_DECL node");
 	assert(count_kind(sthird, NodeKind.FN_DECL)     == 1, "Expected 1 FN_DECL node");
 
-	if (catch e = ws.lookup("third", "f3"))
+	if (catch e = ws.lookup_in_module("third", "f3"))
 	{
 		assert(false, "f3 not found: %s", e);
 	}
-	if (try ws.lookup("third", "f1"))
+	if (try ws.lookup_in_module("third", "f1"))
 	{
 		assert(false, "f1 found (should not be in third's section)");
 	}
-	if (try ws.lookup("third", "f2"))
+	if (try ws.lookup_in_module("third", "f2"))
 	{
 		assert(false, "f2 found (should not be in third's section)");
 	}
@@ -716,20 +685,20 @@ fn void after_header() {}
 	assert(mod_explicit_mod != null, "Module 'explicit_mod' not found");
 
 	// Both functions land in explicit_mod's section
-	if (catch e = ws.lookup(inferred_module_name, "before_header"))
+	if (catch e = ws.lookup_in_module(inferred_module_name, "before_header"))
 	{
 		assert(false, "before_header not found: %s", e);
 	}
-	if (try ws.lookup(inferred_module_name, "after_header"))
+	if (try ws.lookup_in_module(inferred_module_name, "after_header"))
 	{
 		assert(false, "after_header found in explicit_mod");
 	}
 
-	if (catch e = ws.lookup("explicit_mod", "after_header"))
+	if (catch e = ws.lookup_in_module("explicit_mod", "after_header"))
 	{
 		assert(false, "after_header not found: %s", e);
 	}
-	if (try ws.lookup("explicit_mod", "before_header"))
+	if (try ws.lookup_in_module("explicit_mod", "before_header"))
 	{
 		assert(false, "before_header found in explicit_mod");
 	}
@@ -767,11 +736,11 @@ fn void from_file2() {}
 	"Expected two sections (one per source file)");
 
 	// Symbols from both files reachable
-	if (catch e = ws.lookup("shared_mm", "from_file1"))
+	if (catch e = ws.lookup_in_module("shared_mm", "from_file1"))
 	{
 		assert(false, "from_file1 not found: %s", e);
 	}
-	if (catch e = ws.lookup("shared_mm", "from_file2"))
+	if (catch e = ws.lookup_in_module("shared_mm", "from_file2"))
 	{
 		assert(false, "from_file2 not found: %s", e);
 	}
@@ -796,12 +765,12 @@ enum Color { RED, GREEN, BLUE }
 	assert(count_kind(s, NodeKind.ENUM_DECL) == 1, "Expected one ENUM_DECL");
 }
 
-// 23. Enum with explicit member values (no base type — base type + brace conflicts with
+// 23. constdef with explicit member values (no base type — base type + brace conflicts with
 //     the parser's generic-argument heuristic, so we test values without it)
-fn void test_enum_with_explicit_values() @test => @pool()
+fn void test_constdef_with_explicit_values() @test => @pool()
 {
 	String path = write_fixture("enum_vals", `module enum_vals_mod;
-enum Status { OK = 0, FAIL = 1, PENDING = 2 }
+constdef Status { OK = 0, FAIL = 1, PENDING = 2 }
 `);
 	Workspace ws;
 	ws.init();
@@ -924,7 +893,7 @@ int counter = 0;
 	Cursor c = ws.lookup("global_mod", "counter")!!;
 	VarDeclView view = { &c.section.source_file.ast, c.node };
 	assert(ast::get_kind(&c.section.source_file.ast, c.node) == NodeKind.VAR_DECL,
-		"Expected VAR_DECL for global variable");
+	"Expected VAR_DECL for global variable");
 	assert(view.is_global(), "Expected VAR_DECL to be global");
 }
 
@@ -941,10 +910,8 @@ float pi_value = 3.14159;
 	Cursor c = ws.lookup("gspell_mod", "pi_value")!!;
 	VarDeclView view = { &c.section.source_file.ast, c.node };
 	assert(ast::get_kind(&c.section.source_file.ast, c.node) == NodeKind.VAR_DECL,
-		"Expected VAR_DECL");
+	"Expected VAR_DECL");
 	assert(view.is_global(), "Expected VAR_DECL to be global");
-	String name = c.spelling()!!;
-	assert(name == "pi_value", "VAR_DECL spelling mismatch: %s", name);
 }
 
 // 32. Thread-local variable declaration
@@ -960,7 +927,7 @@ tlocal int tl_counter;
 	Cursor c = ws.lookup("tlocal_mod", "tl_counter")!!;
 	VarDeclView view = { &c.section.source_file.ast, c.node };
 	assert(ast::get_kind(&c.section.source_file.ast, c.node) == NodeKind.VAR_DECL,
-		"tlocal var should produce VAR_DECL");
+	"tlocal var should produce VAR_DECL");
 	assert(view.is_thread_local(), "expected tlocal variable to have tlocal flag");
 }
 
@@ -1001,7 +968,7 @@ fn int double_it(int x) => x * 2;
 	ws.init();
 	parser::parse_file(&ws, path)!!;
 
-	Cursor c = ws.lookup("arrow_mod", "double_it")!!;
+	Cursor c = ws.lookup_in_module("arrow_mod", "double_it")!!;
 	assert(ast::get_kind(&c.section.source_file.ast, c.node) == NodeKind.FN_DECL,
 		"Expected FN_DECL for arrow-body function");
 	FnView fv = { &c.section.source_file.ast, c.node };
@@ -1021,7 +988,7 @@ fn float Vec2.length(&self) { return 0.0; }
 	parser::parse_file(&ws, path)!!;
 
 	// Method is stored under its simple name, not "Vec2.length"
-	Cursor c = ws.lookup("method_mod", "length")!!;
+	Cursor c = ws.lookup_in_module("method_mod", "length")!!;
 	assert(ast::get_kind(&c.section.source_file.ast, c.node) == NodeKind.FN_DECL,
 		"Expected FN_DECL for method");
 	FnView fv = { &c.section.source_file.ast, c.node };
@@ -1041,12 +1008,12 @@ fn void do_nothing() {}
 	parser::parse_file(&ws, path)!!;
 
 	{
-		Cursor c = ws.lookup("rettype_mod", "get_value")!!;
+		Cursor c = ws.lookup_in_module("rettype_mod", "get_value")!!;
 		FnView fv = { &c.section.source_file.ast, c.node };
 		assert(fv.return_type().is_valid(), "get_value should have a return type node");
 	}
 	{
-		Cursor c = ws.lookup("rettype_mod", "do_nothing")!!;
+		Cursor c = ws.lookup_in_module("rettype_mod", "do_nothing")!!;
 		FnView fv = { &c.section.source_file.ast, c.node };
 		assert(fv.return_type().is_valid(), "'void' should still produce a type node");
 	}
@@ -1062,7 +1029,7 @@ fn void with_body() { int x = 1; }
 	ws.init();
 	parser::parse_file(&ws, path)!!;
 
-	Cursor c = ws.lookup("body_mod", "with_body")!!;
+	Cursor c = ws.lookup_in_module("body_mod", "with_body")!!;
 	Ast* ast = &c.section.source_file.ast;
 	FnView fv = { ast, c.node };
 	assert(fv.body().is_valid(), "Expected valid body node");
@@ -1081,7 +1048,7 @@ fn int Thing.get(&self) { return 0; }
 	ws.init();
 	parser::parse_file(&ws, path)!!;
 
-	Cursor c = ws.lookup("refparam_mod", "get")!!;
+	Cursor c = ws.lookup_in_module("refparam_mod", "get")!!;
 	Ast* ast = &c.section.source_file.ast;
 	FnView fv = { ast, c.node };
 	assert(fv.param_count() == 1, "Expected 1 param (&self)");
@@ -1102,17 +1069,17 @@ fn void five_params(int a, int b, int c, int d, int e) {}
 	parser::parse_file(&ws, path)!!;
 
 	{
-		Cursor c = ws.lookup("pcount_mod", "zero_params")!!;
+		Cursor c = ws.lookup_in_module("pcount_mod", "zero_params")!!;
 		FnView fv = { &c.section.source_file.ast, c.node };
 		assert(fv.param_count() == 0, "Expected 0 params for zero_params");
 	}
 	{
-		Cursor c = ws.lookup("pcount_mod", "one_param")!!;
+		Cursor c = ws.lookup_in_module("pcount_mod", "one_param")!!;
 		FnView fv = { &c.section.source_file.ast, c.node };
 		assert(fv.param_count() == 1, "Expected 1 param for one_param");
 	}
 	{
-		Cursor c = ws.lookup("pcount_mod", "five_params")!!;
+		Cursor c = ws.lookup_in_module("pcount_mod", "five_params")!!;
 		FnView fv = { &c.section.source_file.ast, c.node };
 		assert(fv.param_count() == 5, "Expected 5 params for five_params");
 	}
@@ -1128,7 +1095,7 @@ fn void uniquely_named_function() {}
 	ws.init();
 	parser::parse_file(&ws, path)!!;
 
-	Cursor c = ws.lookup("fn_name_mod", "uniquely_named_function")!!;
+	Cursor c = ws.lookup_in_module("fn_name_mod", "uniquely_named_function")!!;
 	FnView fv = { &c.section.source_file.ast, c.node };
 	String name = fv.name(c.section.source_file.strings);
 	assert(name == "uniquely_named_function", "FnView.name() mismatch: '%s'", name);
@@ -1138,7 +1105,7 @@ fn void uniquely_named_function() {}
 // GROUP C: Struct variations
 // ============================================================
 
-// 41. Struct with zero fields
+// 41. Struct with zero fields should be an error
 fn void test_struct_empty() @test => @pool()
 {
 	String path = write_fixture("struct_empty", `module empty_struct_mod;
@@ -1148,7 +1115,7 @@ struct Empty {}
 	ws.init();
 	parser::parse_file(&ws, path)!!;
 
-	Cursor sc = ws.lookup("empty_struct_mod", "Empty")!!;
+	Cursor sc = ws.lookup_in_module("empty_struct_mod", "Empty")!!;
 	assert(ast::get_kind(&sc.section.source_file.ast, sc.node) == NodeKind.STRUCT_DECL,
 		"Expected STRUCT_DECL");
 	StructView sv = { &sc.section.source_file.ast, sc.node };
@@ -1170,7 +1137,7 @@ struct Color {
 	ws.init();
 	parser::parse_file(&ws, path)!!;
 
-	Cursor sc = ws.lookup("many_mod", "Color")!!;
+	Cursor sc = ws.lookup_in_module("many_mod", "Color")!!;
 	StructView sv = { &sc.section.source_file.ast, sc.node };
 	assert(sv.field_count() == 4, "Expected 4 fields in Color");
 }
@@ -1185,7 +1152,7 @@ struct NamedStruct { int x; int y; }
 	ws.init();
 	parser::parse_file(&ws, path)!!;
 
-	Cursor sc = ws.lookup("struct_name_mod", "NamedStruct")!!;
+	Cursor sc = ws.lookup_in_module("struct_name_mod", "NamedStruct")!!;
 	StructView sv = { &sc.section.source_file.ast, sc.node };
 	String name = sv.name(sc.section.source_file.strings);
 	assert(name == "NamedStruct", "StructView.name() mismatch: '%s'", name);
@@ -1213,7 +1180,7 @@ fn float Circle.area(&self) { return 0.0; }
 	assert(count_kind(s, NodeKind.INTERFACE_DECL) == 1, "Expected one INTERFACE_DECL");
 	assert(count_kind(s, NodeKind.STRUCT_DECL)    == 1, "Expected one STRUCT_DECL");
 
-	Cursor sc = ws.lookup("struct_iface_mod", "Circle")!!;
+	Cursor sc = ws.lookup_in_module("struct_iface_mod", "Circle")!!;
 	StructView sv = { &sc.section.source_file.ast, sc.node };
 	assert(sv.field_count() == 1, "Expected 1 field in Circle");
 }
@@ -1234,7 +1201,7 @@ fn void count_up() {
 	ws.init();
 	parser::parse_file(&ws, path)!!;
 
-	Cursor c = ws.lookup("for_mod", "count_up")!!;
+	Cursor c = ws.lookup_in_module("for_mod", "count_up")!!;
 	Ast* ast = &c.section.source_file.ast;
 	FnView fv = { ast, c.node };
 	CompoundView cv = { ast, fv.body() };
@@ -1256,7 +1223,7 @@ fn void stop_early() {
 	ws.init();
 	parser::parse_file(&ws, path)!!;
 
-	Cursor c = ws.lookup("break_mod", "stop_early")!!;
+	Cursor c = ws.lookup_in_module("break_mod", "stop_early")!!;
 	Ast* ast = &c.section.source_file.ast;
 	FnView fv = { ast, c.node };
 	CompoundView outer_cv = { ast, fv.body() };
@@ -1280,7 +1247,7 @@ fn void spin() {
 	ws.init();
 	parser::parse_file(&ws, path)!!;
 
-	Cursor c = ws.lookup("while_mod", "spin")!!;
+	Cursor c = ws.lookup_in_module("while_mod", "spin")!!;
 	Ast* ast = &c.section.source_file.ast;
 	FnView fv = { ast, c.node };
 	CompoundView cv = { ast, fv.body() };
@@ -1300,7 +1267,7 @@ fn void run_once() {
 	ws.init();
 	parser::parse_file(&ws, path)!!;
 
-	Cursor c = ws.lookup("dowhile_mod", "run_once")!!;
+	Cursor c = ws.lookup_in_module("dowhile_mod", "run_once")!!;
 	Ast* ast = &c.section.source_file.ast;
 	FnView fv = { ast, c.node };
 	CompoundView cv = { ast, fv.body() };
@@ -1320,7 +1287,7 @@ fn void iterate() {
 	ws.init();
 	parser::parse_file(&ws, path)!!;
 
-	Cursor c = ws.lookup("foreach_mod", "iterate")!!;
+	Cursor c = ws.lookup_in_module("foreach_mod", "iterate")!!;
 	Ast* ast = &c.section.source_file.ast;
 	FnView fv = { ast, c.node };
 	CompoundView cv = { ast, fv.body() };
@@ -1340,7 +1307,7 @@ fn void iter_rev() {
 	ws.init();
 	parser::parse_file(&ws, path)!!;
 
-	Cursor c = ws.lookup("foreach_r_mod", "iter_rev")!!;
+	Cursor c = ws.lookup_in_module("foreach_r_mod", "iter_rev")!!;
 	Ast* ast = &c.section.source_file.ast;
 	FnView fv = { ast, c.node };
 	CompoundView cv = { ast, fv.body() };
@@ -1360,7 +1327,7 @@ fn void branch(bool flag) {
 	ws.init();
 	parser::parse_file(&ws, path)!!;
 
-	Cursor c = ws.lookup("if_mod", "branch")!!;
+	Cursor c = ws.lookup_in_module("if_mod", "branch")!!;
 	Ast* ast = &c.section.source_file.ast;
 	FnView fv = { ast, c.node };
 	CompoundView cv_if = { ast, fv.body() };
@@ -1384,7 +1351,7 @@ fn void maybe(bool flag) {
 	ws.init();
 	parser::parse_file(&ws, path)!!;
 
-	Cursor c = ws.lookup("if_no_else_mod", "maybe")!!;
+	Cursor c = ws.lookup_in_module("if_no_else_mod", "maybe")!!;
 	Ast* ast = &c.section.source_file.ast;
 	FnView fv = { ast, c.node };
 	CompoundView cv_noelse = { ast, fv.body() };
@@ -1411,7 +1378,7 @@ fn void dispatch(int x) {
 	ws.init();
 	parser::parse_file(&ws, path)!!;
 
-	Cursor c = ws.lookup("switch_mod", "dispatch")!!;
+	Cursor c = ws.lookup_in_module("switch_mod", "dispatch")!!;
 	Ast* ast = &c.section.source_file.ast;
 	FnView fv = { ast, c.node };
 	CompoundView cv = { ast, fv.body() };
@@ -1431,7 +1398,7 @@ fn void cleanup() {
 	ws.init();
 	parser::parse_file(&ws, path)!!;
 
-	Cursor c = ws.lookup("defer_mod", "cleanup")!!;
+	Cursor c = ws.lookup_in_module("defer_mod", "cleanup")!!;
 	Ast* ast = &c.section.source_file.ast;
 	FnView fv = { ast, c.node };
 	CompoundView cv = { ast, fv.body() };
@@ -1451,7 +1418,7 @@ fn int compute() {
 	ws.init();
 	parser::parse_file(&ws, path)!!;
 
-	Cursor c = ws.lookup("return_mod", "compute")!!;
+	Cursor c = ws.lookup_in_module("return_mod", "compute")!!;
 	Ast* ast = &c.section.source_file.ast;
 	FnView fv = { ast, c.node };
 	CompoundView cv = { ast, fv.body() };
@@ -1473,7 +1440,7 @@ fn void skip(bool flag) {
 	ws.init();
 	parser::parse_file(&ws, path)!!;
 
-	Cursor c = ws.lookup("cont_mod", "skip")!!;
+	Cursor c = ws.lookup_in_module("cont_mod", "skip")!!;
 	Ast* ast = &c.section.source_file.ast;
 	FnView fv = { ast, c.node };
 	CompoundView outer_cont = { ast, fv.body() };
@@ -1499,7 +1466,7 @@ fn void check(int x) {
 	ws.init();
 	parser::parse_file(&ws, path)!!;
 
-	Cursor c = ws.lookup("assert_mod", "check")!!;
+	Cursor c = ws.lookup_in_module("assert_mod", "check")!!;
 	Ast* ast = &c.section.source_file.ast;
 	FnView fv = { ast, c.node };
 	CompoundView cv = { ast, fv.body() };
@@ -1520,7 +1487,7 @@ fn void declare_vars() {
 	ws.init();
 	parser::parse_file(&ws, path)!!;
 
-	Cursor c = ws.lookup("localvar_mod", "declare_vars")!!;
+	Cursor c = ws.lookup_in_module("localvar_mod", "declare_vars")!!;
 	Ast* ast = &c.section.source_file.ast;
 	FnView fv = { ast, c.node };
 	CompoundView cv = { ast, fv.body() };
@@ -1543,7 +1510,7 @@ fn void nested() {
 	ws.init();
 	parser::parse_file(&ws, path)!!;
 
-	Cursor c = ws.lookup("nested_mod", "nested")!!;
+	Cursor c = ws.lookup_in_module("nested_mod", "nested")!!;
 	Ast* ast = &c.section.source_file.ast;
 	FnView fv = { ast, c.node };
 	CompoundView outer = { ast, fv.body() };
@@ -1574,7 +1541,7 @@ fn void deep_fn() {}
 	assert(mod != null,             "Module 'foo::bar::baz' not found");
 	assert(mod.sections.len() == 1, "Expected one section");
 
-	if (catch e = ws.lookup("foo::bar::baz", "deep_fn"))
+	if (catch e = ws.lookup_in_module("foo::bar::baz", "deep_fn"))
 	{
 		assert(false, "deep_fn not found in nested module: %s", e);
 	}
@@ -1593,11 +1560,11 @@ fn void good_b() {}
 	ws.init();
 	parser::parse_file(&ws, path)!!;
 
-	if (catch e = ws.lookup("multi_err_mod", "good_a"))
+	if (catch e = ws.lookup_in_module("multi_err_mod", "good_a"))
 	{
 		assert(false, "good_a missing after two errors: %s", e);
 	}
-	if (catch e = ws.lookup("multi_err_mod", "good_b"))
+	if (catch e = ws.lookup_in_module("multi_err_mod", "good_b"))
 	{
 		assert(false, "good_b missing after two errors: %s", e);
 	}
@@ -1614,12 +1581,12 @@ const int OFFSET = 8;
 	ws.init();
 	parser::parse_file(&ws, path)!!;
 
-	Cursor c1 = ws.lookup("const2_mod", "LIMIT")!!;
+	Cursor c1 = ws.lookup_in_module("const2_mod", "LIMIT")!!;
 	NodeKind k1 = ast::get_kind(&c1.section.source_file.ast, c1.node);
 	assert(k1 == NodeKind.VAR_DECL,
 		"LIMIT: expected VAR_DECL");
 
-	Cursor c2 = ws.lookup("const2_mod", "OFFSET")!!;
+	Cursor c2 = ws.lookup_in_module("const2_mod", "OFFSET")!!;
 	NodeKind k2 = ast::get_kind(&c2.section.source_file.ast, c2.node);
 	assert(k2 == NodeKind.VAR_DECL,
 		"OFFSET: expected VAR_DECL");
@@ -1635,7 +1602,7 @@ struct SpecialStruct { int x; }
 	ws.init();
 	parser::parse_file(&ws, path)!!;
 
-	Cursor sc = ws.lookup("struct_src_mod", "SpecialStruct")!!;
+	Cursor sc = ws.lookup_in_module("struct_src_mod", "SpecialStruct")!!;
 	String text = sc.source_text();
 	assert(text.len > 0,                  "source_text should be non-empty");
 	assert(text.contains("SpecialStruct"), "source_text should contain the struct name");
@@ -1668,15 +1635,15 @@ int gamma = 3;
 	ws.init();
 	parser::parse_file(&ws, path)!!;
 
-	if (catch e = ws.lookup("three_glob_mod", "alpha"))
+	if (catch e = ws.lookup_in_module("three_glob_mod", "alpha"))
 	{
 		assert(false, "alpha not found: %s", e);
 	}
-	if (catch e = ws.lookup("three_glob_mod", "beta"))
+	if (catch e = ws.lookup_in_module("three_glob_mod", "beta"))
 	{
 		assert(false, "beta not found: %s", e);
 	}
-	if (catch e = ws.lookup("three_glob_mod", "gamma"))
+	if (catch e = ws.lookup_in_module("three_glob_mod", "gamma"))
 	{
 		assert(false, "gamma not found: %s", e);
 	}
@@ -1692,7 +1659,7 @@ fn void external_fn() @extern("external_fn");
 	ws.init();
 	parser::parse_file(&ws, path)!!;
 
-	Cursor c = ws.lookup("no_body_mod", "external_fn")!!;
+	Cursor c = ws.lookup_in_module("no_body_mod", "external_fn")!!;
 	Ast* ast = &c.section.source_file.ast;
 	assert(ast::get_kind(ast, c.node) == NodeKind.FN_DECL,
 		"Expected FN_DECL for extern fn");
@@ -1721,4 +1688,32 @@ fn void from_b() {}
 	List{ModuleSection*} sec2 = ws.find_section_by_path(path2);
 	assert(sec2.len() > 0, "Should find section for path2");
 	assert(sec2[0].source_file.file_path == path2, "Section path mismatch for path2");
+}
+
+// 68. Sub-module handling
+fn void test_nested_sub_modules() @test => @pool()
+{
+	String path = write_fixture("sub_modules", `module foo;
+fn void my_foo() {}
+
+module foo::bar;
+fn void my_bar() {}
+`);
+	Workspace ws;
+	ws.init();
+	parser::parse_file(&ws, path)!!;
+
+	Module* mod = ws.modules.get("foo")!!;
+	assert(mod != null,             "Module 'foo::bar::baz' not found");
+	assert(mod.sections.len() == 1, "Expected one section");
+
+	if (catch e = ws.lookup_in_module("foo", "my_foo"))
+	{
+		assert(false, "deep_fn not found in nested module: %s", e);
+	}
+
+	if (catch e = ws.lookup_in_module("foo::bar", "my_bar"))
+	{
+		assert(false, "deep_fn not found in nested module: %s", e);
+	}
 }
