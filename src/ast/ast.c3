@@ -248,10 +248,25 @@ fn uint reserve_extra(Ast* ast, uint size)
 	return start;
 }
 
-/* * Helper to write a slice of values directly into the extra pool. */
+<*
+	Pushes a list of nodes to extra_data, prepending the count.
+	Memory layout: [Count, Node1, Node2, ...]
+*>
 fn uint push_extra_list(Ast* ast, uint[] data)
 {
 	uint start = (uint)ast.extra_data.len();
-	ast.extra_data.push_all(data);
-	return start;
+    ast.extra_data.push((uint)data.len);
+    ast.extra_data.push_all(data);
+    return start;
+}
+
+<*
+	For fixed-size metadata (Structs/Headers).
+	Layout: [Field0, Field1, Field2...]
+*>
+fn uint push_extra_block(Ast* ast, uint[] data)
+{
+    uint start = (uint)ast.extra_data.len();
+    ast.extra_data.push_all(data);
+    return start;
 }
