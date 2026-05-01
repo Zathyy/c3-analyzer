@@ -28,8 +28,6 @@ enum NodeKind : char
 	INTERFACE_PARENT,
 	GENERIC_PARAM,
 	ENUM_MEMBER,
-	CONTRACT_ENTRY,
-	CONTRACT_PARAM,
 
 	TYPE,
 	TYPE_DECL,
@@ -45,8 +43,9 @@ enum NodeKind : char
 	ENUM_DECL,
 	PARAM_DECL,
 	VAR_DECL,
+	// 
 	STRUCT_DECL,
-	UNION_DECL,
+	// struct
 	FIELD_DECL,
 	ALIAS_DECL,
 	TYPE_ALIAS_DECL,
@@ -83,13 +82,6 @@ enum NodeKind : char
 	MAYBE_DEREF_EXPR,
 	SUBSCRIPT_EXPR,
 	EXPR_LIST,
-	CT_DEFINED_EXPR,
-	SPLAT_EXPR,
-	NONE_EXPR,
-	COND_EXPR,
-	TRY_UNWRAP_CHAIN_EXPR,
-	TRY_UNWRAP_EXPR,
-	CATCH_UNWRAP_EXPR,
 
 	FOR_STMT,
 	COMPOUND_STMT,
@@ -186,7 +178,7 @@ fn void Ast.set_extra(&self, uint index, uint value) @inline
 }
 
 <*
-	@require start_tok <= end_tok  : "start needs to be less than end"
+	@require end_tok >= start_tok : "start needs to be less than end"
 *>
 fn Node add_node(Ast* ast, NodeKind kind, uint start_tok, uint end_tok, uint extra_idx)
 {
