@@ -27,7 +27,7 @@ enum ChildVisitResult : int
 	// Dive into the children of the current node
 }
 
-alias CursorVisitor = fn ChildVisitResult(Cursor cursor, Cursor parent, void* user_data, args...);
+alias CursorVisitor = fn ChildVisitResult(Cursor cursor, Cursor parent, void* user_data, args ...);
 
 struct Cursor
 {
@@ -64,7 +64,7 @@ fn bool visit_children(Cursor parent, CursorVisitor visitor, void* data)
 	Ast* ast = &parent.section.source_file.ast;
 	Node n = parent.node;
 	if (!n.is_valid()) return true;
-	NodeKind kind = ast.get_node(n).kind;
+	NodeKind kind = ast::get_node(ast, n).kind;
 
 	// TODO: more cases
 	switch (kind)
@@ -100,15 +100,13 @@ fn bool visit_children(Cursor parent, CursorVisitor visitor, void* data)
 		case FN_DECL:
 			{
 				FnView v = { ast, n };
-				ParamsListView plv = v.params();
 				if (v.return_type().is_valid())
 				{
 					if (!visit({ parent.section, v.return_type() }, parent, visitor, data)) return false;
 				}
-				for (uint i = 0; i < plv.count(); i++)
+				for (uint i = 0; i < v.param_count(); i++)
 				{
-					ParamView pv = plv.get_param(i);
-					if (!visit({ parent.section, pv.handle }, parent, visitor, data)) return false;
+					if (!visit({ parent.section, v.get_param(i) }, parent, visitor, data)) return false;
 				}
 				if (v.body().is_valid())
 				{
@@ -215,7 +213,7 @@ fn Cursor find_at(ModuleSection* section, uint pos)
 <*
  Gets the file the cursor is associated with.
 *>
-fn String Cursor.file_path(&self)
+fn String file_path(Cursor* self)
 {
 	return self.section.source_file.file_path;
 }
@@ -245,7 +243,7 @@ fn String docs(Cursor self)
 *>
 fn Location location(Cursor* self)
 {
-	Size pos = self.section.source_file.ast.get_start_token(self.node);
+	Size pos = ast::get_start_token(&self.section.source_file.ast, self.node);
 	return self.section.source_file.line_map.resolve(pos);
 }
 
@@ -255,7 +253,7 @@ fn Location location(Cursor* self)
 fn Range range(Cursor* self)
 {
 	Ast* ast = &self.section.source_file.ast;
-	return { .start = (Size)ast.get_start_token(self.node), .end = (Size)ast.get_end_token(self.node), };
+	return { .start = (Size)ast::get_start_token(ast, self.node), .end = (Size)ast::get_end_token(ast, self.node), };
 }
 
 <*
@@ -276,7 +274,7 @@ fn String? Cursor.spelling(&self)
 {
 	if (!self.node.is_valid()) return INVALID_NODE~;
 
-	NodeView n = self.section.source_file.ast.get_node(self.node);
+	NodeView n = ast::get_node(&self.section.source_file.ast, self.node);
 
 	Ast* ast = &self.section.source_file.ast;
 	StringPool* strings = self.section.source_file.strings;
@@ -288,12 +286,6 @@ fn String? Cursor.spelling(&self)
 		case PATH:
 			PathView v = (PathView)view;
 			return v.get_full(strings);
-		case MODULE_DECL:
-		{
-			ModuleView v = (ModuleView)view;
-			Cursor path_cursor = { self.section, v.path() };
-			return path_cursor.spelling();
-		}
 		case INT_LITERAL:
 		case FLOAT_LITERAL:
 		case STRING_LITERAL:
@@ -397,7 +389,7 @@ fn String? Cursor.spelling(&self)
  @param [&in] self
  @require self.section != null
 *>
-fn Node Cursor.module_decl(&self)
+fn Node module_decl(Cursor* self)
 {
 	// ModuleSection* s = section(self);
 	// if (s == null)
@@ -407,10 +399,15 @@ fn Node Cursor.module_decl(&self)
 	// }
 
 	ModuleSection* s = self.section;
+	if (ast::get_kind(&s.source_file.ast, s.header_node) == MODULE_DECL)
+	{
+		return s.header_node;
+	}
+
 	for (uint i = s.start_node_idx; i < s.end_node_idx; i++)
 	{
-		Node n = (Node)s.start_node_idx;
-		if (self.section.source_file.ast.get_kind(n) == MODULE_DECL)
+		Node n = (Node)(s.start_node_idx + i);
+		if (ast::get_kind(&self.section.source_file.ast, n) == MODULE_DECL)
 		{
 			return n;
 		}
@@ -448,33 +445,35 @@ fn String get_attribute_full_string(Cursor c, Node attr_node, Allocator allocato
 }
 
 <*
-	Resolves all attributes for any given cursor.	
-	Returns an empty slice if the node cannot have attributes or has none
-	@deprecated
+ Resolves all attributes for any given cursor.	
+  Returns an empty slice if the node cannot have attributes or has none
 *>
 fn Node[] get_attributes(Cursor c, Allocator allocator)
 {
 	if (!c.node.is_valid()) return { };
 
-	AttributeListView attribute_list_view;
-	NodeKind kind = c.section.source_file.ast.get_kind(c.node);
+	uint offset = 0;
+	NodeKind kind = ast::get_kind(&c.section.source_file.ast, c.node);
 
 	switch (kind)
 	{
 		case FN_DECL:
 			FnView v = { &c.section.source_file.ast, c.node };
-			attribute_list_view = v.attributes();
+			offset = v.attributes_offset();
 			break;
 		default:
 			return { };
 	}
 
-	uint count = attribute_list_view.count();
-	if (count == 0) return {};
+	if (offset == 0) return { };
+
+	uint count = c.section.source_file.ast.extra_data[offset];
+	if (count == 0) return { };
+
 	Node[] result = alloc::new_array(allocator, Node, (Size)count);
 	for (uint i = 0; i < count; i++)
 	{
-		result[i] = attribute_list_view.get_attr(i).handle;
+		result[i] = (Node)c.section.source_file.ast.extra_data[(Size)offset + 1 + i];
 	}
 
 	return result;

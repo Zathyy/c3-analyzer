@@ -61,7 +61,6 @@ bitstruct ParseFlags : ulong
 	bool is_local; // Inside a function/block
 	bool is_var; // has a 'var'
 	bool is_inline;
-	bool is_static;
 	bool is_extern; // C-linkage handling
 	bool is_thread_local;
 	bool is_attribute; // Special parsing for @attr(...)
@@ -69,14 +68,11 @@ bitstruct ParseFlags : ulong
 	bool is_const; // Context requires constant expressions
 	bool is_constdef;
 	bool is_call;
-	bool is_expr;
-	bool is_stmt;
 	bool is_lamda;
 	bool is_macro;
 	bool is_comptime;
 	bool type_as_expression;
 	bool no_generics; // dont allow type parsing to check for generics
-	bool skip_eos;
 }
 
 struct Parser
@@ -91,7 +87,7 @@ struct Parser
 	String src;
 
 	uint pos;
-	Node contract;
+
 	// for when using debbugers so i can keep track of what its at
 	Token current_token @if(env::DEBUG_SYMBOLS);
 	String current_token_string @if(env::DEBUG_SYMBOLS);
@@ -118,7 +114,7 @@ fn void? Parser.skip_until(Parser* p, TokenKind[] targets)
 fn Node Parser.push_invalid_node(Parser* p, uint start_pos)
 {
     uint end_pos = p.current_pos();
-    return p.ast.add_node(INVALID, start_pos, end_pos, 0);
+    return ast::add_node(p.ast, INVALID, start_pos, end_pos, 0);
 }
 
 <*
@@ -208,12 +204,6 @@ fn void Parser.print_current(&self)
 	log::debug("%s", self.token_text(self.current()));
 }
 
-fn void? reverse(Parser* parser, uint position)
-{
-	parser.pos = position;
-	advance(parser, 0)!;
-}
-
 <*
  @param [&inout] parser
 *>
@@ -224,20 +214,11 @@ fn void? advance(Parser* parser, uint len = 1)
 		log::debug("parser::advance() : eof");
 		return io::EOF~;
 	}
-
 	parser.pos += len;
-
 	$if env::DEBUG_SYMBOLS:
-    if (!parser.eof()) 
-    {
-        parser.current_token = parser.current();
-        parser.current_token_string = parser.token_text(parser.current());
-    }
-    else 
-    {
-        parser.current_token_string = "EOF";
-    }
-    $endif
+	parser.current_token = parser.current();
+	parser.current_token_string = parser.token_text(parser.current());
+	$endif
 }
 
 <*
@@ -250,11 +231,10 @@ macro void? expect(Parser* parser, TokenKind kind)
 	{
 		parser.error("Expected '%s' got '%s'", kind.description, parser.current().kind.description);
 		log::error("Error happened here");
+		return UNEXPECTED_TOKEN~;
 	}
-	else
-	{
-		advance(parser)!;
-	}
+
+	advance(parser)!;
 }
 
 <*
@@ -388,7 +368,8 @@ fn void? parse_file(Workspace* ws, String path)
 		{
 			if (err == io::EOF)
 			{
-				break;
+				log::error("EOF");
+				return err~;
 			}
 
 			synchronize(&parser)!;
@@ -400,7 +381,6 @@ fn void? parse_file(Workspace* ws, String path)
 	{
 		last_sec.end_node_idx = parser.sf.ast.len();
 	}
-
 	log::info("Succesfully parsed: %s", path);
 }
 
@@ -416,6 +396,7 @@ fn void? parse_top_level(Parser* p, Workspace* ws)
 
 	Node node;
 	ParseFlags flags = { .is_global = true };
+
 
 	// the individual parse functions will check that the modifiers are used appropiately
 	while (true)
@@ -469,16 +450,11 @@ fn void? parse_top_level(Parser* p, Workspace* ws)
 				return err~;
 			}
 
-			Node attr = parse_attributes(p)!;
+			uint attr = parse_attributes(p)!;
 
-			uint[*] data = views::@data{ImportViewFields}
-			(
-				PATH, path_node,
-				ATTRIBUTES, attr,
-			);
-
-			uint ex = p.ast.push_extra_block(&data);
-			Node imp_node = p.ast.add_node(IMPORT_DECL, start, p.current_pos(), ex);
+			uint[*] data = { (uint)path_node, attr };
+			uint ex = ast::push_extra_list(p.ast, &data);
+			Node imp_node = ast::add_node(p.ast, IMPORT_DECL, start, p.current_pos(), ex);
 			p.ast.top_level_nodes.push((uint)imp_node);
 			if (!consume(p, COMMA)!) break;
 		}
@@ -490,13 +466,10 @@ fn void? parse_top_level(Parser* p, Workspace* ws)
 	{
 		case CONTRACT:
 			node = parse_contract(p)!;
-			p.contract = node;
 		case INTERFACE:
 			node = parse_interface(p)!;
 		case MODULE:
 			node = parse_module(p, ws)!;
-		case FAULTDEF:
-			node = parse_faultdef_decl(p)!;
 		case FN:
 			node = parse_fn_decl(p, flags)!;
 		case MACRO:
@@ -506,10 +479,7 @@ fn void? parse_top_level(Parser* p, Workspace* ws)
 		case TYPEDEF:
 			node = parse_typedef(p)!;
 		case STRUCT:
-		case UNION:
 			node = parse_struct(p)!;
-		case BITSTRUCT:
-			node = parse_bitstruct_decl(p)!;
 		case CONSTDEF:
 			flags.is_constdef = true;
 			node = parse_enum(p, flags)!;
@@ -524,19 +494,12 @@ fn void? parse_top_level(Parser* p, Workspace* ws)
 			advance(p)!;
 			return UNEXPECTED_EOS~;
 		default:
-			p.error("Couldn't find any matching top level declaration: %s", string::from_struct(tmem, p.current()));
+			p.error("Couldn't find any matching top level declaration: %s", p.current());
 			return UNEXPECTED_TOKEN~;
 	}
 
 	if (node.is_valid())
 	{
 		p.ast.top_level_nodes.push((uint)node);
-
-		if (p.contract.is_valid())
-		{
-			attach_contract(p, node, p.contract);
-		}
-
-		p.contract = {};
 	}
 }
