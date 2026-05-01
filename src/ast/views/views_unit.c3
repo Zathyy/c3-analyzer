@@ -25,8 +25,10 @@ fn Node AttributeView.get_arg(self, uint index)
 }
 
 typedef PathView = inline View;
-fn uint PathView.len(PathView self) => self.get_uint(0);
-fn StringHandle PathView.get_string_handle(PathView self, uint index) => (StringHandle)self.get_at(1, index);
+fn uint PathView.len(self) => self.get_uint(0);
+fn StringHandle PathView.get_string_handle(self, uint index) 
+    => (StringHandle)self.get_at(1, index);
+
 fn String PathView.get_full(self, StringPool* pool)
 {
 	uint len = self.len();
