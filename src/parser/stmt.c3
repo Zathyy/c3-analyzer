@@ -263,7 +263,7 @@ fn Node? parse_if(Parser* p)
 	advance(p)!; // consume 'if'
 
 	expect(p, LPAREN)!;
-	Node cond = parse_expr(p, { })!;
+	Node cond = parse_expr(p)!;
 	expect(p, RPAREN)!;
 
 	// Parse the "then" branch
@@ -280,7 +280,7 @@ fn Node? parse_if(Parser* p)
 	}
 
 	uint[3] data = { (uint)cond, (uint)then_block, (uint)else_block };
-	uint ex = ast::push_extra_list(p.ast, &data);
+	uint ex = ast::push_extra_block(p.ast, &data);
 
 	return ast::add_node(p.ast, IF_STMT, t.pos, p.current_pos(), ex);
 }
