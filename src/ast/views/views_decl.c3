@@ -74,11 +74,10 @@ fn bool VarDeclView.is_global(self) => !self.is_local();
 
 typedef StructView = inline View;
 fn String StructView.name(self, StringPool* pool) => pool.get((StringHandle)self.get_uint(0));
-fn uint StructView.field_count(self) => self.get_uint(3);
-fn Node StructView.field(self, uint index)
-{
-	return self.get_at(4, index);
-}
+fn Node StructView.interface_offset(self) => self.get(1);
+fn uint StructView.generic_params(self) => self.get_uint(2);
+fn uint StructView.field_count(self) => self.get_list_count(3);
+fn Node StructView.field(self, uint i) => self.get_list_item(3, i);
 
 typedef FieldView = inline View;
 fn String FieldView.name(self, StringPool* pool) => pool.get((StringHandle)self.get_uint(0));
