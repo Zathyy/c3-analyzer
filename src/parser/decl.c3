@@ -159,9 +159,12 @@ fn Node? parse_enum(Parser* p, ParseFlags flags)
 {
 	uint start_tok = p.current_pos();
 
-	if (flags.is_constdef) {
+	if (flags.is_constdef) 
+	{
 		expect(p, CONSTDEF)!;
-	} else {
+	} 
+	else 
+	{
 		expect(p, ENUM)!;
 	}
 
@@ -196,7 +199,7 @@ fn Node? parse_enum(Parser* p, ParseFlags flags)
 		{
 			while (!p.is(RBRACE) && !p.eof())
 			{
-				if (!p.is(IDENT)) 
+				if (!p.is(CONST_IDENT)) 
 				{
 					p.error("Expected enum member name");
 					p.push_invalid_node(p.previous_pos());
@@ -323,7 +326,7 @@ fn Node? parse_fn_decl(Parser* p, ParseFlags flags) => @scratch()
 	final_block[5] = (uint)body;
 
 	log::debug("parse_fn_decl - finished.. adding to ast");
-	uint ex = ast::push_extra_list(p.ast, &final_block);
+	uint ex = ast::push_extra_block(p.ast, &final_block);
 	return ast::add_node(p.ast, FN_DECL, start_tok, p.current_pos(), ex);
 }
 
@@ -466,7 +469,7 @@ fn Node? parse_param_decl(Parser* p)
     }
 
     uint[4] data = { name, (uint)type, (uint)init, flags };
-    uint ex = ast::push_extra_list(p.ast, &data);
+    uint ex = ast::push_extra_block(p.ast, &data);
 
     return ast::add_node(p.ast, PARAM_DECL, start, p.current_pos(), ex);
 }

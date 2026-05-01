@@ -286,6 +286,12 @@ fn String? Cursor.spelling(&self)
 		case PATH:
 			PathView v = (PathView)view;
 			return v.get_full(strings);
+		case MODULE_DECL:
+		{
+			ModuleView v = (ModuleView)view;
+			Cursor path_cursor = { self.section, v.path() };
+			return path_cursor.spelling();
+		}
 		case INT_LITERAL:
 		case FLOAT_LITERAL:
 		case STRING_LITERAL:
