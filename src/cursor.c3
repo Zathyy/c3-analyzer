@@ -27,7 +27,7 @@ enum ChildVisitResult : int
 	// Dive into the children of the current node
 }
 
-alias CursorVisitor = fn ChildVisitResult(Cursor cursor, Cursor parent, void* user_data, args...);
+alias CursorVisitor = fn ChildVisitResult(Cursor cursor, Cursor parent, void* user_data, args ...);
 
 struct Cursor
 {
@@ -100,15 +100,13 @@ fn bool visit_children(Cursor parent, CursorVisitor visitor, void* data)
 		case FN_DECL:
 			{
 				FnView v = { ast, n };
-				ParamsListView plv = v.params();
 				if (v.return_type().is_valid())
 				{
 					if (!visit({ parent.section, v.return_type() }, parent, visitor, data)) return false;
 				}
-				for (uint i = 0; i < plv.count(); i++)
+				for (uint i = 0; i < v.param_count(); i++)
 				{
-					ParamView pv = plv.get_param(i);
-					if (!visit({ parent.section, pv.handle }, parent, visitor, data)) return false;
+					if (!visit({ parent.section, v.get_param(i) }, parent, visitor, data)) return false;
 				}
 				if (v.body().is_valid())
 				{
@@ -288,12 +286,6 @@ fn String? Cursor.spelling(&self)
 		case PATH:
 			PathView v = (PathView)view;
 			return v.get_full(strings);
-		case MODULE_DECL:
-		{
-			ModuleView v = (ModuleView)view;
-			Cursor path_cursor = { self.section, v.path() };
-			return path_cursor.spelling();
-		}
 		case INT_LITERAL:
 		case FLOAT_LITERAL:
 		case STRING_LITERAL:
@@ -453,33 +445,35 @@ fn String get_attribute_full_string(Cursor c, Node attr_node, Allocator allocato
 }
 
 <*
-	Resolves all attributes for any given cursor.	
-	Returns an empty slice if the node cannot have attributes or has none
-	@deprecated
+ Resolves all attributes for any given cursor.	
+  Returns an empty slice if the node cannot have attributes or has none
 *>
 fn Node[] get_attributes(Cursor c, Allocator allocator)
 {
 	if (!c.node.is_valid()) return { };
 
-	AttributeListView attribute_list_view;
+	uint offset = 0;
 	NodeKind kind = ast::get_kind(&c.section.source_file.ast, c.node);
 
 	switch (kind)
 	{
 		case FN_DECL:
 			FnView v = { &c.section.source_file.ast, c.node };
-			attribute_list_view = v.attributes();
+			offset = v.attributes_offset();
 			break;
 		default:
 			return { };
 	}
 
-	uint count = attribute_list_view.count();
-	if (count == 0) return {};
+	if (offset == 0) return { };
+
+	uint count = c.section.source_file.ast.extra_data[offset];
+	if (count == 0) return { };
+
 	Node[] result = alloc::new_array(allocator, Node, (Size)count);
 	for (uint i = 0; i < count; i++)
 	{
-		result[i] = attribute_list_view.get_attr(i).handle;
+		result[i] = (Node)c.section.source_file.ast.extra_data[(Size)offset + 1 + i];
 	}
 
 	return result;

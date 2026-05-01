@@ -130,7 +130,6 @@ fn void get_binding_power(TokenKind type, int* lbp, int* rbp)
 		case DOT:
 		case SCOPE:
 		case LPAREN:
-		case LBRACE:
 		case LBRACKET:
 			*lbp = Precedence.CALL;
 			*rbp = Precedence.LOWEST; 
@@ -291,21 +290,8 @@ fn Node? parse_prefix_expr(Parser* p)
 			uint sh = p.pool.intern(p.token_text(t));
 			return ast::add_node(p.ast, IDENT_EXPR, t.pos, p.current_pos(), sh);
 		}
-		case CT_DEFINED:
-		{
-			return parse_ct_defined_expr(p)!;
-		}
 		case LBRACE:
 			return parse_initializer_list(p)!;
-		case ELLIPSIS:
-		{
-			advance(p)!;
-			Node rhs = parse_expr(p, Precedence.UNARY)!;
-
-			uint[2] data = { (uint)t.kind, (uint)rhs };
-			uint ex = ast::push_extra_block(p.ast, &data);
-			return ast::add_node(p.ast, SPLAT_EXPR, t.pos, p.current_pos(), ex);
-		}
 		case MINUSMINUS:
 		case PLUSPLUS:
 			{
@@ -368,7 +354,6 @@ fn Node? parse_infix(Parser* p, Node left, Precedence rbp)
 		case QUESTQUEST:
 		case ELVIS:
 		case CT_CONCAT_OP:
-		case CT_AND_OP: 
 			{
 				advance(p)!;
 				Node right = parse_expr(p, rbp)!;
@@ -389,7 +374,6 @@ fn Node? parse_infix(Parser* p, Node left, Precedence rbp)
 				return ast::add_node(p.ast, POST_UNARY_EXPR, t.pos, p.current_pos(), ex);
 			}
 		case LPAREN:
-		case LBRACE:
 			{
 				advance(p)!;
 				return parse_call(p, t, left)!;
@@ -412,11 +396,9 @@ fn Node? parse_infix(Parser* p, Node left, Precedence rbp)
 					return parse_range(p, deref_node, t.pos);
 				}
 
-				if ((!is_type(member_token.kind)) 
-					&& member_token.kind != IDENT
+				if ((!is_type(member_token.kind)) && member_token.kind != IDENT
 					&& member_token.kind != CONST_IDENT
-					&& member_token.kind != TYPE_IDENT
-					&& member_token.kind != AT_IDENT)
+					&& member_token.kind != TYPE_IDENT)
 				{
 					p.error("Expected identifier after '.' got: %s", p.token_text(member_token));
 					return UNEXPECTED_TOKEN~;
@@ -452,10 +434,10 @@ fn Node? parse_infix(Parser* p, Node left, Precedence rbp)
 }
 
 <*
-	parse expressions recursively with Pratt parsing
+ parse expressions recursively with Pratt parsing
 	using Binding power.
-	@param [&inout] p
-	@param min_bp : "Starting binding power, always call with 0, it will call itself recursively with other values"
+ @param [&inout] p
+ @param min_bp : "Starting binding power, always call with 0, it will call itself recursively with other values"
 *>
 fn Node? parse_expr(Parser* p, Precedence min_bp = LOWEST)
 {
@@ -475,20 +457,17 @@ fn Node? parse_expr(Parser* p, Precedence min_bp = LOWEST)
 		left = parse_infix(p, left, (Precedence)rbp)!;
 	}
 
+	// Check for Postfix Attributes
+	// only if min_bp is 0
 	if (min_bp == 0 && p.is(AT_IDENT))
 	{
-		Node attr = parse_attributes(p)!;
-		uint[2] data = { (uint)left, (uint)attr };
+		uint attr = parse_attributes(p)!;
+		uint[2] data = { (uint)left, attr };
 		uint ex = ast::push_extra_block(p.ast, &data);
 		left = ast::add_node(p.ast, ATTRIBUTED_EXPR, p.current().pos, p.current_pos(), ex);
 	}
 
 	return left;
-}
-
-fn Node? parse_constant_expr(Parser* p)
-{
-	return parse_expr(p, ASSIGNMENT + 1);
 }
 
 <*
@@ -501,7 +480,7 @@ fn Node? parse_expr_resuming_with_left(Parser* p, Node left, uint min_bp)
 	{
 		int lbp, rbp;
 		get_binding_power(p.current().kind, &lbp, &rbp);
-		if ((uint) lbp < min_bp) break;
+		if (lbp < min_bp) break;
 
 		left = parse_infix(p, left, (Precedence)rbp)!;
 	}
@@ -521,69 +500,29 @@ fn Node? parse_ternary(Parser* p, Node condition, Token t, Precedence rbp)
 }
 
 <*
- 	TODO: needs more safety checks?
-	TODO: needs better handling/control flow?
+ TODO: needs more safety checks?
 *>
 fn Node? parse_call(Parser* p, Token t, Node callee)
 {
-	Node trailing_block;
-	uint type_args_list_ex;
-	Node macro_body_args;
+    Node trailing_block;
+    uint args_list_ex;
 
-	@with_scratch(; watermark)
-	{
-		if (t.kind == LBRACE)
-		{
-			while (true)
-			{
-				Node arg_node;
-
-				if (p.is(EOS))
-				{
-					arg_node = ast::add_node(p.ast, NONE_EXPR, p.current_pos(), p.current_pos(), 0);
-					advance(p)!;
-					scratch.push((uint)arg_node);
-					arg_node = (Node)parse_parameter_list(p, { .is_call = true })!;
-				}
-				else
-				{
-					arg_node = parse_type(p)!;
-				}
-
-				scratch.push((uint)arg_node);
-
-				if (!p.is(COMMA) && !p.is(EOS)) 
-				{
-					break;
-				}
-
-				advance(p)!;
-			}
-
-			expect(p, RBRACE)!;
-			// skip LPAREN, like parse_infix_expr would do on a non-generic call
-			advance(p)!;
-		}
-
-		type_args_list_ex = ast::push_extra_list(p.ast, scratch_view(watermark, (uint)scratch.len() - watermark));
-	};
-
-
-	uint args_list_ex;
-	@with_scratch(; watermark)
+    @with_scratch(; watermark)
     {
-        if (p.current().kind != RPAREN && p.current().kind != EOS && !p.eof())
+        if (p.current().kind != RPAREN)
         {
             while (true)
             {
                 Node arg_node;
-                // Named argument logic (name: expr)
+
                 if (p.current().kind == IDENT && p.peek().kind == COLON)
                 {
                     Token name_tok = p.current();
                     advance(p, 2)!;
+
                     uint name_sh = p.pool.intern(p.token_text(name_tok));
                     Node value = parse_expr(p)!;
+
                     uint[2] data = { name_sh, (uint)value };
                     uint arg_ex = ast::push_extra_block(p.ast, &data);
                     arg_node = ast::add_node(p.ast, NAMED_ARG_EXPR, name_tok.pos, p.current_pos(), arg_ex);
@@ -597,31 +536,24 @@ fn Node? parse_call(Parser* p, Token t, Node callee)
                 if (!consume(p, COMMA)!) break;
             }
         }
+        expect(p, RPAREN)!;
 
-        if (consume(p, EOS)!)
+        if (p.is(LBRACE))
         {
-            macro_body_args = (Node)parse_parameter_list(p, { .is_call = true })!;
+            trailing_block = parse_compound(p)!;
         }
 
-        expect(p, RPAREN)!;
         args_list_ex = ast::push_extra_list(p.ast, scratch_view(watermark, (uint)scratch.len() - watermark));
     };
 
-	if (p.is(LBRACE))
-    {
-        trailing_block = parse_compound(p)!;
-    }
+    uint[3] header = {
+        (uint)callee,
+        args_list_ex,
+        (uint)trailing_block
+    };
 
-	uint[*] final_data = views::@data{CallViewFields}
-	(	
-		CALLEE, (uint)callee,
-		TYPE_ARG, type_args_list_ex,
-		ARG, args_list_ex,
-		COMPOUND, (uint)trailing_block,
-	);
-
-	uint ex = ast::push_extra_block(p.ast, &final_data);
-	return ast::add_node(p.ast, CALL_EXPR, t.pos, p.current_pos(), ex);
+    uint ex = ast::push_extra_block(p.ast, &header);
+    return ast::add_node(p.ast, CALL_EXPR, t.pos, p.current_pos(), ex);
 }
 
 fn Node? parse_initializer_list(Parser* p)
@@ -791,90 +723,4 @@ fn Node? parse_ct_expr_list(Parser* p) => @with_scratch(; watermark)
     uint count = (uint)scratch.len() - watermark;
     uint ex = ast::push_extra_list(p.ast, scratch_view(watermark, count));
     return ast::add_node(p.ast, EXPR_LIST, start_pos, p.previous_pos(), ex);
-}
-
-fn Node? parse_contract_expr(Parser* p, bool is_ensure)
-{
-    uint start_pos = p.current().pos;
-    Node expr = parse_expr(p)!;
-    Node comment;
-
-    if (consume(p, COLON)!)
-    {
-        comment = parse_expr(p)!; 
-    }
-
-    uint[3] entry_data = { (uint)expr, (uint)comment, is_ensure ? 1 : 0 };
-    uint entry_ex = ast::push_extra_block(p.ast, &entry_data);
-    
-    return ast::add_node(p.ast, CONTRACT_ENTRY, start_pos, p.current_pos(), entry_ex);
-}
-
-fn Node? parse_expr_list(Parser* p) => @with_scratch(; watermark)
-{
-    uint start_pos = p.current().pos;
-
-	while (!p.eof())
-	{
-		scratch.push((uint)parse_decl_or_expr(p)!);
-		if (p.is(EOS) || !consume(p, COMMA)!) break;
-	}
-
-    uint count = (uint)scratch.len() - watermark;
-	uint ex = ast::push_extra_list(p.ast, scratch_view(watermark, count));
-    return ast::add_node(p.ast, EXPR_LIST, start_pos, p.previous_pos(), ex);
-}
-
-fn Node? parse_ct_defined_expr(Parser* p) => @with_scratch(; watermark)
-{
-    uint start_pos = p.current().pos;
-	expect(p, CT_DEFINED)!;
-
-	if (consume(p, LPAREN)!)
-	{
-		while (!p.is(RPAREN) && !p.eof())
-		{
-			scratch.push((uint)parse_decl_or_expr(p)!);
-
-			if (!consume(p, COMMA)!)
-			{
-				if (!consume(p, RPAREN)!)
-				{
-					p.error("Expected closing ')'");
-					p.push_invalid_node(p.current_pos());
-					break;
-				}
-				break;
-			}
-		}
-	}
-	else
-	{
-		p.error("expected '('");
-		p.push_invalid_node(p.current_pos());
-	}
-
-	uint count = (uint)scratch.len() - watermark;
-    uint exprs_list_ex = ast::push_extra_list(p.ast, scratch_view(watermark, count));
-
-    uint[1] entry_data = { exprs_list_ex };
-    uint entry_ex = ast::push_extra_block(p.ast, &entry_data);
-
-    return ast::add_node(p.ast, CT_DEFINED_EXPR, start_pos, p.current_pos(), entry_ex);	
-}
-
-fn Node? parse_decl_or_expr(Parser* p)
-{
-    if (p.is(VAR))
-    {
-        return parse_var_decl(p, { .is_local = true, .skip_eos = true, .is_var = true })!;
-    }
-
-	// Need to check that its not a type expr
-	if (is_type(p.current().kind) && is_declaration_followup(p))
-    {
-        return parse_var_decl(p, { .is_local = true, .skip_eos = true })!;
-    }
-    
-    return parse_expr(p)!;
 }

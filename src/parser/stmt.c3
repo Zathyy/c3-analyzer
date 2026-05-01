@@ -6,19 +6,13 @@ import c3_parser::common;
 
 import std::collections::list;
 
-fn uint? parse_label(Parser* p, bool check_for_colon = false)
+fn uint? parse_label(Parser* p)
 {
 	if (p.is(CONST_IDENT))
 	{
 		uint label = p.pool.intern(p.token_text(p.current()));
 		advance(p)!;
-		if (check_for_colon)
-		{
-			if (!consume(p, COLON)!)
-			{
-				p.error("Expected colon after label");
-			}
-		}
+		expect(p, COLON)!;
 		return label;
 	}
 
@@ -76,9 +70,6 @@ fn Node? parse_statement(Parser* p)
 			return parse_ct_for_stmt(p)!;
 		case ASSERT:
 			return parse_assert_stmt(p)!;
-		case CT_ASSERT:
-		case CT_ERROR:
-			return parse_ct_assert(p);
 		default:
 			{
 				// if it's not a keyword or type, treat it as a expression statement
@@ -88,38 +79,12 @@ fn Node? parse_statement(Parser* p)
 }
 
 <*
-	ct_error_stmt ::= CT_ERROR constant_expression (',' constant_expression)* ';'
+ for_stmt ::= 'for' label? '(' init? ';' cond? ';' incr? ')' statement
+  label    ::= ':' IDENT
+  init     ::= declaration | expression_list
+  cond     ::= expression
+  incr     ::= expression_list
 *>
-fn Node? parse_ct_assert(Parser* p)
-{
-	uint start_pos = p.current().pos;
-    advance(p)!;
-
-	Node message;
-	uint args;
-	@with_scratch(; watermark)
-	{
-		message = parse_constant_expr(p)!;
-		while (consume(p, COMMA)!)
-		{
-			scratch.push((uint)parse_constant_expr(p)!);
-		}
-		expect(p, EOS)!;
-
-		uint count = (uint)scratch.len() - watermark;
-		args = ast::push_extra_list(p.ast, scratch_view(watermark, count));
-	};
-
-	uint[*] data = views::@data{CtAssertViewFields}
-	(
-		MESSAGE, message,
-		ARGS, args,
-	);
-
-	uint ex = ast::push_extra_block(p.ast, &data);
-	return ast::add_node(p.ast, CT_ASSERT_STMT, start_pos, p.current_pos(), ex);
-}
-
 fn Node? parse_for_stmt(Parser* p)
 {
 	uint for_token = p.current_pos();
@@ -129,12 +94,15 @@ fn Node? parse_for_stmt(Parser* p)
 
 	expect(p, LPAREN)!;
 
-	Node init;
+	Node init_stmt;
 	if (!p.is(EOS))
 	{
-		init = parse_expr_list(p)!;
+		init_stmt = parse_statement(p)!;
 	}
-	expect(p, EOS)!;
+	else
+	{
+		expect(p, EOS)!;
+	}
 
 	Node cond_expr;
 	if (!p.is(EOS))
@@ -146,12 +114,12 @@ fn Node? parse_for_stmt(Parser* p)
 	Node incr_expr;
 	if (!p.is(RPAREN))
 	{
-		incr_expr = parse_expr_list(p)!;
+		incr_expr = parse_expr(p)!;
 	}
 	expect(p, RPAREN)!;
 	Node body = parse_statement(p)!;
 
-	uint[*] data = { (uint)init, (uint)cond_expr, (uint)incr_expr, (uint)body };
+	uint[*] data = { (uint)init_stmt, (uint)cond_expr, (uint)incr_expr, (uint)body };
 
 	uint ex = ast::push_extra_block(p.ast, &data);
 	return ast::add_node(p.ast, FOR_STMT, for_token, p.current_pos(), ex);
@@ -236,7 +204,6 @@ fn Node? parse_decl_stmt(Parser* p)
 {
 	Node type_node = parse_type(p)!;
 
-	// TODO: refine/move/make use of parse_var_decl
 	if (p.current().kind == IDENT)
 	{
 		Token name_tok = p.current();
@@ -246,15 +213,15 @@ fn Node? parse_decl_stmt(Parser* p)
 		if (p.current().kind == EQ)
 		{
 			advance(p)!;
-			init = parse_expr(p)!;
+			init = parse_expr(p, { })!;
 		}
 
-		Node attr = parse_attributes(p)!;
+		uint attr = parse_attributes(p)!;
 
 		expect(p, EOS)!;
 
 		uint name_sh = p.pool.intern(p.token_text(name_tok));
-		uint[*] data = { name_sh, (uint)type_node, (uint)init, (uint)attr };
+		uint[*] data = { name_sh, (uint)type_node, (uint)init, attr };
 		uint ex = ast::push_extra_list(p.ast, &data);
 		return ast::add_node(p.ast, LOCAL_DECL, name_tok.pos, p.current_pos(), ex);
 	}
@@ -296,7 +263,7 @@ fn Node? parse_if(Parser* p)
 	advance(p)!; // consume 'if'
 
 	expect(p, LPAREN)!;
-	Node cond = parse_cond(p)!;
+	Node cond = parse_expr(p, { })!;
 	expect(p, RPAREN)!;
 
 	// Parse the "then" branch
@@ -312,14 +279,8 @@ fn Node? parse_if(Parser* p)
 		else_block = parse_statement(p)!;
 	}
 
-	uint[*] data = views::@data{IfViewFields}
-	(
-		CONDITION, cond,
-		THEN_BLOCK, then_block,
-		ELSE_BLOCK, else_block,
-	);
-
-	uint ex = ast::push_extra_block(p.ast, &data);
+	uint[3] data = { (uint)cond, (uint)then_block, (uint)else_block };
+	uint ex = ast::push_extra_list(p.ast, &data);
 
 	return ast::add_node(p.ast, IF_STMT, t.pos, p.current_pos(), ex);
 }
@@ -403,13 +364,10 @@ fn Node? parse_switch(Parser* p)
 {
 	Token t = p.current();
 	advance(p)!;
-	
-	Node cond;
-	if (consume(p, LPAREN)!)
-	{
-		cond = parse_expr(p)!;
-		expect(p, RPAREN)!;	
-	}
+
+	expect(p, LPAREN)!;
+	Node cond = parse_expr(p)!;
+	expect(p, RPAREN)!;
 
 	expect(p, LBRACE)!;
 
@@ -468,11 +426,9 @@ fn Node? parse_break(Parser* p)
 	Token t = p.current();
 	advance(p)!;
 
-	uint label = parse_label(p)!;
-
 	expect(p, EOS)!;
 
-	return ast::add_node(p.ast, BREAK_STMT, t.pos, p.current_pos(), label);
+	return ast::add_node(p.ast, BREAK_STMT, t.pos, p.current_pos(), 0);
 }
 
 fn Node? parse_ct_switch(Parser* p)
@@ -640,7 +596,11 @@ fn Node? parse_while_stmt(Parser* p)
 	uint start_tok = p.current_pos();
 	expect(p, WHILE)!;
 
-	uint label = parse_label(p, true)!;
+	uint label;
+	if (p.is(CONST_IDENT))
+	{
+		label = p.pool.intern(p.token_text(p.current()));
+	}
 
 	expect(p, LPAREN)!;
 	Node condition = parse_expr(p, { })!;
