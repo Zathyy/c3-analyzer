@@ -90,25 +90,12 @@ fn Node? parse_module(Parser* p, Workspace* ws)
 	uint start = p.current_pos();
 	expect(p, MODULE)!;
 
-	String mod_name = "";
-	uint pos = 0;
-	while MOD_NAME: (true)
-	{
-		Token t = p.peek(pos);
-		switch (t.kind)
-		{
-			case IDENT:
-				String part = p.token_text(t);
-				mod_name = mod_name.tconcat(part);
-			case SCOPE:
-				mod_name = mod_name.tconcat("::");
-			case EOS:
-				break MOD_NAME;
-			default:
-				return UNEXPECTED_TOKEN~;
-		}
+	Node? path = parse_path(p)!;
 
-		pos++;
+	if (catch err = path)
+	{
+		p.error("Failed to parse path for module: %s", err);
+		return err~;
 	}
 
 	if (try ModuleSection* last_sec = p.sf.sections.last())
@@ -116,30 +103,23 @@ fn Node? parse_module(Parser* p, Workspace* ws)
 		last_sec.end_node_idx = node_idx;
 	}
 
-	Node? path_node = parse_path(p);
+	PathView view = { p.ast, path };
+	String mod_name = view.get_full(p.pool);
 
 	Module* mod = ws.get_or_create_module(mod_name);
 	ModuleSection* sec = ws.get_or_create_section(mod, p.sf);
 	p.mod = mod;
 	sec.start_node_idx = node_idx;
 
-	if (catch err = path_node)
-	{
-		p.error("failed to parse path for module: %s", err);
-		return err~;
-	}
-
 	uint generics = parse_generics(p)!;
 	uint attributes = parse_attributes(p)!;
 
 	expect(p, EOS)!;
 
-	PathView view = { p.ast, path_node };
+	log::debug("parsed module: %s", mod_name);
 
-	uint[*] data = { (uint)path_node, generics, attributes };
-	uint ex = ast::push_extra_list(p.ast, &data);
-
-	log::debug("parsed module!");
+	uint[*] data = { (uint)path, generics, attributes };
+	uint ex = ast::push_extra_block(p.ast, &data);
 	return ast::add_node(p.ast, MODULE_DECL, start, p.current_pos(), ex);
 }
 
@@ -178,78 +158,83 @@ fn OverloadKind get_overload_from_token(TokenKind kind)
 fn Node? parse_enum(Parser* p, ParseFlags flags)
 {
 	uint start_tok = p.current_pos();
-	if (!flags.is_constdef)
-	{
+
+	if (flags.is_constdef) {
+		expect(p, CONSTDEF)!;
+	} else {
 		expect(p, ENUM)!;
 	}
-	else
-	{
-		expect(p, CONSTDEF)!;
-	}
 
-	Token name_tok = p.current();
-	expect(p, TYPE_IDENT)!;
-	uint name = p.pool.intern(p.token_text(name_tok));
+	uint name;
+	if (p.is(TYPE_IDENT)) 
+	{
+		name = p.pool.intern(p.token_text(p.current()));
+		advance(p)!;
+	} 
+	else 
+	{
+		p.error("Expected type identifier for enum name");
+		p.push_invalid_node(p.previous_pos());
+		p.skip_until({ COLON, LPAREN, LBRACE, EOS })!;
+	}
 
 	Node base_type;
-	bool is_inline_type;
-
+	bool is_inline_type = false;
 	if (consume(p, COLON)!) 
 	{
-		if (consume(p, INLINE)!) 
-		{
-			is_inline_type = true;
-		}
-
-		base_type = parse_type(p)!;
+		if (consume(p, INLINE)!) is_inline_type = true;
+		base_type = parse_type(p) ?? p.push_invalid_node(p.current_pos());
 	}
 
-	uint params = 0;
-	if (p.is(LPAREN)) params = parse_parameter_list(p)!;
-
+	uint params = p.is(LPAREN) ? parse_parameter_list(p)! : 0;
 	uint attrs = parse_attributes(p)!;
 
-	expect(p, LBRACE)!;
-
 	uint elements_ex = 0;
-
-	@with_scratch(; watermark)
+	if (consume(p, LBRACE)!) 
+	{
+		@with_scratch(; watermark)
 		{
-			scratch.push(0);
 			while (!p.is(RBRACE) && !p.eof())
 			{
+				if (!p.is(IDENT)) 
+				{
+					p.error("Expected enum member name");
+					p.push_invalid_node(p.previous_pos());
+					p.skip_until({ COMMA, RBRACE })!;
+					if (consume(p, COMMA)!) continue;
+					break;
+				}
+
 				Token elem_tok = p.current();
 				uint elem_name = p.pool.intern(p.token_text(elem_tok));
 				advance(p)!;
 
-				Node explicit_val;
-				if (consume(p, EQ)!) explicit_val = parse_expr(p, { })!;
-
-				Node assoc_init;
-				if (p.is(LBRACE)) assoc_init = parse_initializer_list(p)!;
+				Node explicit_val = consume(p, EQ)! ? (parse_expr(p)!) : 0;
+				Node assoc_init = p.is(LBRACE) ? (parse_initializer_list(p)!) : 0;
 
 				uint[3] member_data = { elem_name, (uint)explicit_val, (uint)assoc_init };
-				uint m_ex = ast::push_extra_list(p.ast, &member_data);
-
-				Node member_node = ast::add_node(p.ast, ENUM_MEMBER, elem_tok.pos, p.previous_pos(), m_ex);
-				scratch.push((uint)member_node);
+				uint m_ex = ast::push_extra_block(p.ast, &member_data);
+				
+				scratch.push((uint)ast::add_node(p.ast, ENUM_MEMBER, elem_tok.pos, p.previous_pos(), m_ex));
 
 				if (!consume(p, COMMA)!) break;
 			}
 
-			uint count = (uint)scratch.len() - watermark - 1;
-			scratch[watermark] = count;
-			elements_ex = ast::push_extra_list(p.ast, scratch_view(watermark, count + 1));
+			elements_ex = ast::push_extra_list(p.ast, scratch_view(watermark, (uint)scratch.len() - watermark));
 		};
-
-	expect(p, RBRACE)!;
+		expect(p, RBRACE)!;
+	}
+	else
+	{
+		elements_ex = ast::push_extra_list(p.ast, {});
+	}
 
 	uint packed_flags = 0;
 	if (flags.is_constdef) packed_flags |= (1 << 0);
-	if (is_inline_type)    packed_flags |= (1 << 1);
+	if (is_inline_type)	packed_flags |= (1 << 1);
 
 	uint[6] decl_data = { name, (uint)base_type, params, attrs, elements_ex, packed_flags };
-	uint ex = ast::push_extra_list(p.ast, &decl_data);
+	uint ex = ast::push_extra_block(p.ast, &decl_data);
 	return ast::add_node(p.ast, ENUM_DECL, start_tok, p.current_pos(), ex);
 }
 
@@ -289,6 +274,7 @@ fn Node? parse_fn_decl(Parser* p, ParseFlags flags) => @scratch()
 		}
 
 		name = p.pool.intern(p.token_text(p.current()));
+		log::debug(p.pool.get((StringHandle)name));
 		advance(p)!;
 	}
 
@@ -357,74 +343,76 @@ fn Node? parse_function_type(Parser* p)
 
 fn Node? parse_macro_decl(Parser* p)
 {
-	uint start_tok = p.current_pos();
-	expect(p, MACRO)!;
+    uint start_tok = p.current_pos();
+    expect(p, MACRO)!;
 
-	Node rtype;
-	Node method_type;
-	uint name; // name of fn
+    Node rtype;
+    Node method_type;
+    uint name;
 
-	// /log::info("parse_macro_decl - current : %s", p.current().kind);
-	// /log::info("parse_macro_decl - 1 : %s", p.peek().kind);
-	// /log::info("parse_macro_decl - 2 : %s", p.peek(2).kind);
-
-	if ((p.is(IDENT) || p.is(AT_IDENT)) && p.peek(1).kind != DOT)
+    if ((p.is(IDENT) || p.is(AT_IDENT)) && p.peek(1).kind != DOT)
 	{
 		name = p.pool.intern(p.token_text(p.current()));
 		advance(p)!;
 	}
-	else
-	{
-		rtype = parse_type(p)!;
+    else
+    {
+        rtype = parse_type(p)!;
 
-		if (!p.is(DOT) && !p.is(IDENT) && !p.is(AT_IDENT))
+        if (!p.is(DOT) && !p.is(IDENT) && !p.is(AT_IDENT))
 		{
 			method_type = parse_type(p)!;
 		}
 
-		if (consume(p, DOT)!)
-		{
-			if (!method_type.is_valid())
-			{
-				method_type = rtype;
-				rtype = { };
-			}
-		}
+        if (consume(p, DOT)!)
+        {
+            if (!method_type.is_valid())
+            {
+                method_type = rtype;
+                rtype = { };
+            }
+        }
 
-		if (!p.is(IDENT) && !p.is(AT_IDENT))
-		{
-			p.error("Expected macro name, got %s", p.token_text(p.current()));
-			return UNEXPECTED_TOKEN~;
-		}
-
+        if (!p.is(IDENT) && !p.is(AT_IDENT))
+        {
+            p.error("Expected macro name");
+			p.push_invalid_node(p.current_pos());
+            p.skip_until({ LPAREN, LBRACE, EOS })!;
+        }
+    
 		name = p.pool.intern(p.token_text(p.current()));
 		advance(p)!;
-	}
+    }
 
-	uint params;
-	if (p.is(LPAREN))
-	{
-		params = parse_parameter_list(p)!;
-	}
+    uint params = p.is(LPAREN) ? parse_parameter_list(p)! : 0;
+    uint attr = parse_attributes(p)!;
 
-	uint attr = parse_attributes(p)!;
+    Node body;
+    if (consume(p, IMPLIES)!)
+    {
+        body = parse_expr(p)!;
+        expect(p, EOS)!;
+    }
+    else if (p.is(LBRACE))
+    {
+        body = parse_statement(p)!;
+    }
+    else
+    {
+        expect(p, EOS)!;
+    }
 
-	Node body;
-	if (p.is(IMPLIES))
-	{
-		advance(p)!;
-		body = parse_expr(p)!;
-		expect(p, EOS)!;
-	}
-	else if (p.is(LBRACE))
-	{
-		body = parse_statement(p)!;
-	}
-
-	uint[*] data = { name, (uint)rtype, (uint)method_type, attr, params, (uint)body };
-	uint ex = ast::push_extra_list(p.ast, &data);
-
-	return ast::add_node(p.ast, MACRO_DECL, start_tok, p.current_pos(), ex);
+    uint[6] data = { 
+        name, 
+        (uint)rtype, 
+        (uint)method_type, 
+        attr, 
+        params, 
+        (uint)body 
+    };
+    
+    uint ex = ast::push_extra_block(p.ast, &data);
+    return ast::add_node(p.ast, MACRO_DECL, start_tok, p.current_pos(), ex);
 }
 
 fn Node? parse_param_decl(Parser* p)
@@ -557,7 +545,7 @@ fn Node? parse_ident_alias(Parser* p)
 		Node path = parse_path(p)!;
 
 		uint[*] data = { name, (uint)path, (uint)attr };
-		uint ex = ast::push_extra_list(p.ast, &data);
+		uint ex = ast::push_extra_block(p.ast, &data);
 
 		return ast::add_node(p.ast, PATH_ALIAS_DECL, start_tok, p.current_pos(), ex);
 	}
@@ -565,8 +553,7 @@ fn Node? parse_ident_alias(Parser* p)
 	Node expr = parse_expr(p)!;
 
 	uint[*] data = { name, (uint)expr, attr };
-	uint ex = ast::push_extra_list(p.ast, &data);
-
+	uint ex = ast::push_extra_block(p.ast, &data);
 	return ast::add_node(p.ast, ALIAS_DECL, start_tok, p.current_pos(), ex);
 }
 
@@ -604,7 +591,7 @@ fn Node? parse_typedef(Parser* p)
 	expect(p, EOS)!;
 
 	uint[*] data = { name_sh, (uint)base_type, (uint)inter };
-	uint ex = ast::push_extra_list(p.ast, &data);
+	uint ex = ast::push_extra_block(p.ast, &data);
 
 	return ast::add_node(p.ast, TYPEDEF_DECL, start_tok, end_tok, ex);
 }
@@ -661,7 +648,7 @@ fn Node? parse_interface(Parser* p)
 		Node method = parse_fn_decl(p, { .is_interface = true })!;
 
 		uint[2] link = { (uint)method, (uint)methods_head };
-		uint ex = ast::push_extra_list(p.ast, &link);
+		uint ex = ast::push_extra_block(p.ast, &link);
 		methods_head = ast::add_node(p.ast, INTERFACE_METHOD, p.current_pos(), p.current_pos(), ex);
 	}
 
@@ -671,7 +658,7 @@ fn Node? parse_interface(Parser* p)
 
 	uint[4] data = { name_id, (uint)parents_head, attrs, (uint)methods_head };
 
-	uint ex = ast::push_extra_list(p.ast, &data);
+	uint ex = ast::push_extra_block(p.ast, &data);
 	return ast::add_node(p.ast, INTERFACE_DECL, start_tok, end_tok, ex);
 }
 
@@ -698,49 +685,50 @@ fn Node? parse_struct(Parser* p)
 	}
 
 	expect(p, LBRACE)!;
+	uint fields_list_ex;
+	
+	@with_scratch(; watermark)
+    {
+        while (!p.is(RBRACE) && !p.eof())
+        {
+            Node field = parse_field_decl(p)!;
+            if (field.is_valid())
+            {
+                scratch.push((uint)field);
+            }
 
-	List{uint} data;
-	data.tinit(32);
-	defer data.free();
+            expect(p, EOS)!;
+            consume(p, CONTRACT)!; 
+            
+            if (!p.is(TYPE_IDENT) && !is_type(p.current().kind) && !p.is(RBRACE))
+            {
+                break;
+            }
+        }
 
-	data.push(name);
-	data.push((uint)interf_impl);
-	data.push(generic_params);
-	data.push(0); // Placeholder for field count at index [3]
+        fields_list_ex = ast::push_extra_list(p.ast, scratch_view(watermark, (uint)scratch.len() - watermark));
+    };
 
-	uint field_count = 0;
-	while (!p.is(RBRACE))
-	{
-		Node field = parse_field_decl(p)!;
-		if (field.is_valid())
-		{
-			data.push((uint)field);
-			field_count++;
-		}
+    uint end_tok = p.current_pos();
+    expect(p, RBRACE)!;
 
-		expect(p, EOS)!;
-		consume(p, CONTRACT)!; // some contracts might be used as a doc
-		if (!p.is(TYPE_IDENT) && !is_type(p.current().kind))
-		{
-			break;
-		}
-	}
+    uint[4] header = { 
+        name, 
+        (uint)interf_impl, 
+        generic_params, 
+        fields_list_ex 
+    };
 
-	uint end_tok = p.current_pos();
-
-	expect(p, RBRACE)!;
-
-	data[3] = field_count;
-
-	uint ex = ast::push_extra_list(p.ast, data.array_view());
-	return ast::add_node(p.ast, STRUCT_DECL, start_tok, end_tok, ex);
+    uint ex = ast::push_extra_block(p.ast, &header);
+    return ast::add_node(p.ast, STRUCT_DECL, start_tok, end_tok, ex);
 }
 
 fn Node? parse_field_decl(Parser* p)
 {
 	uint start_tok = p.current_pos();
-
 	Node type_node = parse_type(p)!;
+
+	Token current = p.current();
 
 	if (!p.is(IDENT))
 	{
@@ -749,12 +737,10 @@ fn Node? parse_field_decl(Parser* p)
 	}
 
 	uint name = p.pool.intern(p.token_text(p.current()));
-
 	uint end_tok = p.current_pos();
 	advance(p)!;
 
 	uint[2] data = { name, (uint)type_node };
-	uint ex = ast::push_extra_list(p.ast, &data);
-
+	uint ex = ast::push_extra_block(p.ast, &data);
 	return ast::add_node(p.ast, FIELD_DECL, start_tok, end_tok, ex);
 }

@@ -15,7 +15,15 @@ import std::collections::list;
 import std::collections::maybe;
 
 faultdef
-	UNKNOWN, UNEXPECTED_EOS, MODULE_HEADER_FAILED, CONTRACT_NOT_ALLOWED, INVALID_PATH, PATH_TOO_LONG, TOO_MANY_INTERFACE_IMPL, TOO_MANY_GENERICS, EXPECTED_EXPRESSION, UNEXPECTED_TOKEN,
+	UNKNOWN,
+	UNEXPECTED_EOS, 
+	MODULE_HEADER_FAILED, 
+	CONTRACT_NOT_ALLOWED, 
+	INVALID_PATH,
+	NOT_A_PATH,
+	PATH_TOO_LONG, 
+	EXPECTED_EXPRESSION, 
+	UNEXPECTED_TOKEN,
 ;
 
 // length in parts, eg: foo::bar = 2 parts
@@ -46,7 +54,7 @@ macro @scratch(; @body())
 }
 
 
-bitstruct ParseFlags : uint
+bitstruct ParseFlags : ulong
 {
 	bool is_interface; // Skip function bodies, disallow fields
 	bool is_global; // Top-level declarations
@@ -63,7 +71,7 @@ bitstruct ParseFlags : uint
 	bool is_lamda;
 	bool is_macro;
 	bool is_comptime;
-
+	bool type_as_expression;
 	bool no_generics; // dont allow type parsing to check for generics
 }
 
@@ -80,6 +88,9 @@ struct Parser
 
 	uint pos;
 
+	// for when using debbugers so i can keep track of what its at
+	Token current_token @if(env::DEBUG_SYMBOLS);
+	String current_token_string @if(env::DEBUG_SYMBOLS);
 	// bool allow_submodules;
 }
 
@@ -204,6 +215,10 @@ fn void? advance(Parser* parser, uint len = 1)
 		return io::EOF~;
 	}
 	parser.pos += len;
+	$if env::DEBUG_SYMBOLS:
+	parser.current_token = parser.current();
+	parser.current_token_string = parser.token_text(parser.current());
+	$endif
 }
 
 <*

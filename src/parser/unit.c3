@@ -11,49 +11,45 @@ import std::io;
 import std::collections::list;
 
 <*
- Parse a full path e.g. foo::bar::baz;
- @param [&inout] p
+	Parse a full path e.g. foo::bar::baz;
+	@param [&inout] p
 *>
 fn Node? parse_path(Parser* p)
 {
-	if (!p.is(IDENT) && p.peek().kind != SCOPE)
+	uint start_pos = p.current_pos();
+
+	if (!p.is(IDENT))
 	{
 		log::debug("not a valid path");
 		return INVALID_PATH~;
 	}
 
-	uint start_tok = p.current_pos();
-	uint[PATH_MAX_LENGTH] stack_parts;
-	uint count = 0;
-
-	while (true)
+	@with_scratch(; watermark)
 	{
-		Token t = p.current();
-		uint sh = p.pool.intern(p.token_text(t));
-		if (count < PATH_MAX_LENGTH)
+		while (true)
 		{
-			stack_parts[count++] = sh;
+			Token t = p.current();
+			
+			uint sh = p.pool.intern(p.token_text(t));
+			scratch.push(sh);
+			
+			advance(p)!;
+
+			if (!consume(p, SCOPE)!) break;
+
+			if (!is_some_ident(p.current().kind))
+			{
+				p.error("Expected identifier after '::'");
+				return UNEXPECTED_TOKEN~;
+			}
 		}
-		else
-		{
-			p.error("Path too long (max %s segments)", PATH_MAX_LENGTH);
-			return PATH_TOO_LONG~;
-		}
 
-		expect(p, IDENT)!;
-		if (!consume(p, SCOPE)!) break;
-	}
+		uint count = (uint)scratch.len() - watermark;
+		uint[] parts = scratch_view(watermark, count);
 
-	uint[PATH_MAX_LENGTH + 1] final_block;
-	final_block[0] = count;
-
-	// Copy the parts into the block
-	for (uint i = 0; i < count; i++)
-	{
-		final_block[i + 1] = stack_parts[i];
-	}
-	uint ex = ast::push_extra_list(p.ast, &final_block);
-	return ast::add_node(p.ast, PATH, start_tok, p.current_pos(), ex);
+		uint ex = ast::push_extra_list(p.ast, parts);
+		return ast::add_node(p.ast, PATH, start_pos, p.current_pos(), ex);
+	};
 }
 
 <*
@@ -64,159 +60,133 @@ fn Node? parse_path_prefix(Parser* p)
 {
 	if (!is_some_ident(p.current().kind) && p.peek().kind != SCOPE)
 	{
-		log::error("not a valid path");
-		return INVALID_PATH~;
+		return NOT_A_PATH~;
 	}
 
-	uint start_tok = p.current_pos();
-	uint[PATH_MAX_LENGTH] stack_parts;
-	uint count = 0;
+    uint start_tok = p.current_pos();
+    uint ex = 0;
 
-	while (true)
+    @with_scratch(; watermark) 
 	{
-		Token t = p.current();
-		uint sh = p.pool.intern(p.token_text(t));
-		if (count < PATH_MAX_LENGTH)
+        while (true) 
 		{
-			stack_parts[count++] = sh;
-		}
-		else
-		{
-			p.error("Path too long (max %s segments)", PATH_MAX_LENGTH);
-			return PATH_TOO_LONG~;
-		}
+            Token t = p.current();
+            scratch.push((uint)p.pool.intern(p.token_text(t)));
+            advance(p)!;
 
-		advance(p)!;
+            if (p.is(SCOPE) && is_some_ident(p.peek().kind)) 
+			{
+                advance(p)!; // Consume '::'
+            } 
+			else 
+			{
+                break;
+            }
+        }
 
-		if (p.is(SCOPE) && is_some_ident(p.peek().kind))
-		{
-			advance(p)!; // Consume '::'
-		}
-		else
-		{
-			break;
-		}
-	}
+        ex = ast::push_extra_list(p.ast, scratch_view(watermark, (uint)scratch.len() - watermark));
+    };
 
-	uint[PATH_MAX_LENGTH + 1] final_block;
-	final_block[0] = count;
-
-	for (uint i = 0; i < count; i++)
-	{
-		final_block[i + 1] = stack_parts[i];
-	}
-	uint ex = ast::push_extra_list(p.ast, &final_block);
-	return ast::add_node(p.ast, PATH, start_tok, p.current_pos(), ex);
+    return ast::add_node(p.ast, PATH, start_tok, p.current_pos(), ex);
 }
 
 <*
- TYPE_EXPR - unresolved type, parser only cares about the syntax
+	TYPE_EXPR - unresolved type, parser only cares about the syntax
 *>
 fn Node? parse_type(Parser* p, ParseFlags parse_flags = { })
 {
 	uint start_tok = p.current_pos();
-	Token current = p.current();
-	TypeDescriptor desc;
-	TypeFlags flags;
+	uint name_or_path;
+	Node base_expr;
+	uint gen_args_list_ex;
 
-	// Check for Compile-Time
-	if (current.kind == CT_TYPEOF || current.kind == CT_TYPEFROM)
+	TypeFlags flags;
+	uint ptr_count;
+	Node array_size;
+
+	if (p.is(CT_TYPEOF) || p.is(CT_TYPEFROM)) 
 	{
 		advance(p)!;
 		expect(p, LPAREN)!;
-		desc.base_expr = parse_expr(p, { })!;
+		base_expr = parse_expr(p)!;
 		expect(p, RPAREN)!;
 		flags.is_comptime = true;
-	}
-	else
+	} 
+	else 
 	{
-		desc.name = p.pool.intern(p.token_text(p.current()));
-		advance(p)!;
+		if (parse_flags.type_as_expression && p.peek().kind == SCOPE)
+        {
+            name_or_path = p.pool.intern(p.token_text(p.current()));
+            advance(p)!;
+        }
+        else 
+        {
+            uint? path = (uint)parse_path_prefix(p);
+            if (try path)
+            {
+                name_or_path = path;
+            }
+            else
+            {
+                name_or_path = p.pool.intern(p.token_text(p.current()));
+                advance(p)!;
+            }
+        }
 
-		if (!parse_flags.no_generics)
+		if (!parse_flags.no_generics && consume(p, LBRACE)!) 
 		{
-			if (consume(p, LBRACE)!)
+			@with_scratch(; watermark) 
 			{
 				while (!p.is(RBRACE))
 				{
-					desc.gen_args[desc.gen_count++] = parse_type(p)!;
-
-					if (desc.gen_count >= common::MAX_GENERICS)
-					{
-						p.error("Too many generics");
-						return TOO_MANY_GENERICS~;
-					}
+					scratch.push((uint)parse_type(p)!);
 					if (!consume(p, COMMA)!) break;
 				}
-				expect(p, RBRACE)!;
-			}
+				gen_args_list_ex = ast::push_extra_list(p.ast, scratch_view(watermark, (uint)scratch.len() - watermark));
+			};
+			expect(p, RBRACE)!;
 		}
 	}
 
-	while (true)
+	while (true) 
 	{
-		if (consume(p, LVEC)!)
-		{
-			flags.is_vector = true;
-			if (consume(p, ASTERISK)!)
-			{
-				desc.array_size = { };
-			}
-			else
-			{
-				desc.array_size = parse_expr(p)!;
-			}
-			expect(p, RVEC)!;
-			break;
+		// Vector <*4>
+        if (consume(p, LVEC)!)
+		{ 
+            flags.is_vector = true;
+            array_size = consume(p, ASTERISK)! ? 0 : parse_expr(p)!;
+            expect(p, RVEC)!;
+            break; 
+        }
+        if (consume(p, ASTERISK)!) 
+		{ 
+			ptr_count++; continue; 
 		}
-		if (consume(p, ASTERISK)!)
-		{
-			desc.ptr_count++;
-			continue;
-		}
-		if (consume(p, QUESTION)!)
+        if (consume(p, QUESTION)!) 
 		{
 			flags.is_optional = true;
-			continue;
+			continue; 
 		}
-		if (consume(p, LBRACKET)!)
-		{
-			if (consume(p, ASTERISK)!)
-			{
-				desc.array_size = { };
-			}
-			else if (p.is(RBRACKET))
-			{
-				desc.array_size = { };
-			}
-			else
-			{
-				desc.array_size = parse_expr(p)!;
-			}
+		if (consume(p, LBRACKET)!) {
+			array_size = (p.is(RBRACKET) || p.peek().kind == ASTERISK) ? 0 : parse_expr(p)!;
+			if (p.is(ASTERISK)) advance(p)!;
 			expect(p, RBRACKET)!;
 			continue;
 		}
 		break;
 	}
 
-	uint[common::MAX_GENERICS + 6] final_block;
+	uint[6] header = { 
+		name_or_path, 
+		ptr_count, 
+		(uint)array_size, 
+		gen_args_list_ex, 
+		(uint)base_expr, 
+		(uint)flags 
+	};
 
-	final_block[0] = (uint)desc.name;
-	final_block[1] = (uint)desc.ptr_count;
-	final_block[2] = (uint)desc.array_size;
-	final_block[3] = (uint)desc.gen_count;
-	final_block[4] = (uint)desc.base_expr;
-	final_block[5] = (uint)flags;
-
-	for (uint i = 0; i < desc.gen_count; i++)
-	{
-		final_block[7 + i] = (uint)desc.gen_args[i];
-	}
-
-	uint ex = ast::push_extra_list(p.ast, &final_block);
-	Node new_node = ast::add_node(p.ast, TYPE_EXPR, start_tok, p.current_pos(), ex);
-
-	return new_node;
+	uint ex = ast::push_extra_block(p.ast, &header);
+	return ast::add_node(p.ast, TYPE_EXPR, start_tok, p.current_pos(), ex);
 }
 
 <*
@@ -224,10 +194,9 @@ fn Node? parse_type(Parser* p, ParseFlags parse_flags = { })
  @param [&inout] p
  @returns "Extra data index"
 *>
-fn uint? parse_parameter_list(Parser* p) => @scratch()
+fn uint? parse_parameter_list(Parser* p) => @with_scratch(; watermark)
 {
 	expect(p, LPAREN)!;
-	scratch.push(0); // count
 
 	while (!p.is(RPAREN) && !p.eof())
 	{
@@ -243,8 +212,8 @@ fn uint? parse_parameter_list(Parser* p) => @scratch()
 	}
 
 	expect(p, RPAREN)!;
-	scratch[0] = (uint)scratch.len() - 1;
-	return ast::push_extra_list(p.ast, scratch.array_view());
+	uint count = (uint)scratch.len() - watermark;
+	return ast::push_extra_list(p.ast, scratch_view(watermark, count));
 }
 
 <*
@@ -299,11 +268,9 @@ fn uint? parse_attributes(Parser* p)
             uint start_tok = p.current_pos();
             String attr_name = p.token_text(p.current());
             advance(p)!;
+            
+            uint args_list_ex = 0;
 
-            uint arg_count = 0;
-            uint args_ex = 0;
-
-            // Handle Attribute Arguments
             if (consume(p, LPAREN)!)
             {
                 @with_scratch(; watermark)
@@ -316,22 +283,17 @@ fn uint? parse_attributes(Parser* p)
                         if (consume(p, RPAREN)!) break;
                         expect(p, COMMA)!;
                     }
-                    
-                    uint count = (uint)scratch.len() - watermark;
-                    arg_count = count;
-                    args_ex = ast::push_extra_list(p.ast, scratch_view(watermark, count));
+                    args_list_ex = ast::push_extra_list(p.ast, scratch_view(watermark, (uint)scratch.len() - watermark));
                 };
             }
 
-            uint[3] attr_block = { 
+            uint[2] attr_data = {
                 (uint)common::get_attribute_from_string(attr_name), 
-                args_ex, 
-                arg_count 
+                args_list_ex, 
             };
 
-            uint ex = ast::push_extra_list(p.ast, &attr_block);
+            uint ex = ast::push_extra_block(p.ast, &attr_data);
             Node attr_node = ast::add_node(p.ast, ATTRIBUTE, start_tok, p.previous_pos(), ex);
-
             scratch.push((uint)attr_node);
         }
 
@@ -344,22 +306,22 @@ fn uint? parse_attributes(Parser* p)
 
 fn Node? parse_attribute_argument(Parser* p) 
 {
-    Token curr = p.current();
-    
-    switch (curr.kind) 
+	Token curr = p.current();
+
+	switch (curr.kind) 
 	{
-        case LBRACKET: // []  []=
-            advance(p)!;
-            expect(p, RBRACKET)!;
-            OverloadKind kind = consume(p, EQ)! ? OverloadKind.ELEMENT_SET : OverloadKind.ELEMENT_AT;
-            return ast::add_node(p.ast, OP_OVERLOAD, curr.pos, p.current_pos(), (uint)kind);
-        case AMP: // &[]
-            if (p.peek(1).kind == LBRACKET) 
+		case LBRACKET: // []  []=
+			advance(p)!;
+			expect(p, RBRACKET)!;
+			OverloadKind kind = consume(p, EQ)! ? OverloadKind.ELEMENT_SET : OverloadKind.ELEMENT_AT;
+			return ast::add_node(p.ast, OP_OVERLOAD, curr.pos, p.current_pos(), (uint)kind);
+		case AMP: // &[]
+			if (p.peek(1).kind == LBRACKET) 
 			{
-                advance(p, 2)!;
-                expect(p, RBRACKET)!;
-                return ast::add_node(p.ast, OP_OVERLOAD, curr.pos, p.current_pos(), (uint)OverloadKind.ELEMENT_REF);
-            }
+				advance(p, 2)!;
+				expect(p, RBRACKET)!;
+				return ast::add_node(p.ast, OP_OVERLOAD, curr.pos, p.current_pos(), (uint)OverloadKind.ELEMENT_REF);
+			}
 			else
 			{
 				advance(p)!;
@@ -391,21 +353,21 @@ fn Node? parse_attribute_argument(Parser* p)
 		case MOD_ASSIGN:
 		case LSHIFT_ASSIGN:
 		case RSHIFT_ASSIGN:
-            if (p.peek(1).kind == RPAREN || p.peek(1).kind == COMMA) 
+			if (p.peek(1).kind == RPAREN || p.peek(1).kind == COMMA) 
 			{
-                Node n = ast::add_node(p.ast, 
+				Node n = ast::add_node(p.ast, 
 					OP_OVERLOAD,
 					curr.pos, 
 					p.current_pos(), 
 					(uint)get_overload_from_token(curr.kind));
 
-                advance(p)!;
-                return n;
-            }
-            return parse_expr(p)!;
-        default:
-            break;
-    }
+				advance(p)!;
+				return n;
+			}
+			return parse_expr(p)!;
+		default:
+			break;
+	}
 
 	return parse_expr(p)!;
 }
@@ -482,6 +444,11 @@ fn Node? parse_var_decl(Parser* p, ParseFlags flags)
 		}
 	}
 
+	if (flags.is_var)
+	{
+		advance(p)!;
+	}
+
 	Node type_node;
 	if (is_type(p.current().kind)
 		&& (p.peek().kind == IDENT || p.peek().kind == CONST_IDENT
@@ -512,7 +479,7 @@ fn Node? parse_var_decl(Parser* p, ParseFlags flags)
 
 	uint attr = parse_attributes(p)!;
 
-	Node init_expr = { };
+	Node init_expr;
 	if (consume(p, EQ)!)
 	{
 		if (flags.is_extern)
@@ -541,6 +508,6 @@ fn Node? parse_var_decl(Parser* p, ParseFlags flags)
 	};
 
 	uint[*] data = { name, (uint)type_node, (uint)init_expr, attr, (uint)packed_flags };
-	uint ex = ast::push_extra_list(p.ast, &data);
+	uint ex = ast::push_extra_block(p.ast, &data);
 	return ast::add_node(p.ast, VAR_DECL, start_pos, end_tok, ex);
 }
