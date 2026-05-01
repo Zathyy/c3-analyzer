@@ -177,24 +177,24 @@ fn OverloadKind get_overload_from_token(TokenKind kind)
 
 fn Node? parse_enum(Parser* p, ParseFlags flags)
 {
-    uint start_tok = p.current_pos();
+	uint start_tok = p.current_pos();
 	if (!flags.is_constdef)
 	{
-    	expect(p, ENUM)!;
+		expect(p, ENUM)!;
 	}
 	else
 	{
 		expect(p, CONSTDEF)!;
 	}
 
-    Token name_tok = p.current();
-    expect(p, TYPE_IDENT)!;
-    uint name = p.pool.intern(p.token_text(name_tok));
+	Token name_tok = p.current();
+	expect(p, TYPE_IDENT)!;
+	uint name = p.pool.intern(p.token_text(name_tok));
 
-    Node base_type;
+	Node base_type;
 	bool is_inline_type;
 
-    if (consume(p, COLON)!) 
+	if (consume(p, COLON)!) 
 	{
 		if (consume(p, INLINE)!) 
 		{
@@ -204,52 +204,53 @@ fn Node? parse_enum(Parser* p, ParseFlags flags)
 		base_type = parse_type(p)!;
 	}
 
-    uint params = 0;
-    if (p.is(LPAREN)) params = parse_parameter_list(p)!;
+	uint params = 0;
+	if (p.is(LPAREN)) params = parse_parameter_list(p)!;
 
-    uint attrs = parse_attributes(p)!;
+	uint attrs = parse_attributes(p)!;
 
-    expect(p, LBRACE)!;
+	expect(p, LBRACE)!;
 
-    uint elements_ex = 0;
+	uint elements_ex = 0;
 
-    @with_scratch(; watermark)
-    {
-        while (!p.is(RBRACE) && !p.eof())
-        {
-            Token elem_tok = p.current();
-            uint elem_name = p.pool.intern(p.token_text(elem_tok));
-            advance(p)!;
+	@with_scratch(; watermark)
+		{
+			scratch.push(0);
+			while (!p.is(RBRACE) && !p.eof())
+			{
+				Token elem_tok = p.current();
+				uint elem_name = p.pool.intern(p.token_text(elem_tok));
+				advance(p)!;
 
-            Node explicit_val;
-            if (consume(p, EQ)!) explicit_val = parse_expr(p, { })!;
+				Node explicit_val;
+				if (consume(p, EQ)!) explicit_val = parse_expr(p, { })!;
 
-            Node assoc_init;
-            if (p.is(LBRACE)) assoc_init = parse_initializer_list(p)!;
+				Node assoc_init;
+				if (p.is(LBRACE)) assoc_init = parse_initializer_list(p)!;
 
-            uint[3] member_data = { elem_name, (uint)explicit_val, (uint)assoc_init };
-            uint m_ex = ast::push_extra_list(p.ast, &member_data);
-            
-            Node member_node = ast::add_node(p.ast, ENUM_MEMBER, elem_tok.pos, p.previous_pos(), m_ex);
-            scratch.push((uint)member_node);
+				uint[3] member_data = { elem_name, (uint)explicit_val, (uint)assoc_init };
+				uint m_ex = ast::push_extra_list(p.ast, &member_data);
 
-            if (!consume(p, COMMA)!) break;
-        }
+				Node member_node = ast::add_node(p.ast, ENUM_MEMBER, elem_tok.pos, p.previous_pos(), m_ex);
+				scratch.push((uint)member_node);
 
-        uint count = (uint)scratch.len() - watermark - 1;
-        scratch[watermark] = count;
-        elements_ex = ast::push_extra_list(p.ast, scratch_view(watermark, count + 1));
-    };
+				if (!consume(p, COMMA)!) break;
+			}
 
-    expect(p, RBRACE)!;
+			uint count = (uint)scratch.len() - watermark - 1;
+			scratch[watermark] = count;
+			elements_ex = ast::push_extra_list(p.ast, scratch_view(watermark, count + 1));
+		};
+
+	expect(p, RBRACE)!;
 
 	uint packed_flags = 0;
 	if (flags.is_constdef) packed_flags |= (1 << 0);
-    if (is_inline_type)    packed_flags |= (1 << 1);
+	if (is_inline_type)    packed_flags |= (1 << 1);
 
-    uint[6] decl_data = { name, (uint)base_type, params, attrs, elements_ex, packed_flags };
-    uint ex = ast::push_extra_list(p.ast, &decl_data);
-    return ast::add_node(p.ast, ENUM_DECL, start_tok, p.current_pos(), ex);
+	uint[6] decl_data = { name, (uint)base_type, params, attrs, elements_ex, packed_flags };
+	uint ex = ast::push_extra_list(p.ast, &decl_data);
+	return ast::add_node(p.ast, ENUM_DECL, start_tok, p.current_pos(), ex);
 }
 
 fn Node? parse_fn_decl(Parser* p, ParseFlags flags) => @scratch()
