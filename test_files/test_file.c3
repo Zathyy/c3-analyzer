@@ -1,38 +1,17 @@
-module foo::bar @if(FOO);
+module bv;
 
 import std::io;
 
-alias MyType = uint;
-
-typedef MyOtherType = bool*****;
-typedef MyThirdType = Bar{float};
-
-
-tlocal bool my_var;
-
-fn void test(int foo, void* bar) @extern("test_extern_attr")
+fn int sum(int a, int b) 
 {
-	if (foo > 5 && foo < 10)
-	{
-		defer (catch err)
-
-		{
-		}
-
-		defer try io::print("");
-		defer catch io::print("");
-		return;
-	}
-	else if (foo < 0)
-	{
-	}
-	else
-	{
-	}
+	return a + b; 
 }
 
-struct Foo
+macro HashMap* HashMap.init_with_key_values(&self, Allocator allocator, ..., sz capacity = DEFAULT_INITIAL_CAPACITY, float load_factor = DEFAULT_LOAD_FACTOR)
 {
-	uint a;
-	uint b;
+	self.init(allocator, capacity, load_factor);
+	$for var $i = 0; $i < $vaarg.len; $i += 2:
+		self.set($vaarg[$i], $vaarg[$i + 1]);
+	$endfor
+	return self;
 }
