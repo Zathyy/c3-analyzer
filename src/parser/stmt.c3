@@ -78,6 +78,13 @@ fn Node? parse_statement(Parser* p)
 	}
 }
 
+<*
+ for_stmt ::= 'for' label? '(' init? ';' cond? ';' incr? ')' statement
+  label    ::= ':' IDENT
+  init     ::= declaration | expression_list
+  cond     ::= expression
+  incr     ::= expression_list
+*>
 fn Node? parse_for_stmt(Parser* p)
 {
 	uint for_token = p.current_pos();
@@ -87,12 +94,15 @@ fn Node? parse_for_stmt(Parser* p)
 
 	expect(p, LPAREN)!;
 
-	Node init;
+	Node init_stmt;
 	if (!p.is(EOS))
 	{
-		init = parse_expr_list(p)!;
+		init_stmt = parse_statement(p)!;
 	}
-	expect(p, EOS)!;
+	else
+	{
+		expect(p, EOS)!;
+	}
 
 	Node cond_expr;
 	if (!p.is(EOS))
@@ -104,12 +114,12 @@ fn Node? parse_for_stmt(Parser* p)
 	Node incr_expr;
 	if (!p.is(RPAREN))
 	{
-		incr_expr = parse_expr_list(p)!;
+		incr_expr = parse_expr(p)!;
 	}
 	expect(p, RPAREN)!;
 	Node body = parse_statement(p)!;
 
-	uint[*] data = { (uint)init, (uint)cond_expr, (uint)incr_expr, (uint)body };
+	uint[*] data = { (uint)init_stmt, (uint)cond_expr, (uint)incr_expr, (uint)body };
 
 	uint ex = ast::push_extra_block(p.ast, &data);
 	return ast::add_node(p.ast, FOR_STMT, for_token, p.current_pos(), ex);
@@ -253,7 +263,7 @@ fn Node? parse_if(Parser* p)
 	advance(p)!; // consume 'if'
 
 	expect(p, LPAREN)!;
-	Node cond = parse_cond(p)!;
+	Node cond = parse_expr(p, { })!;
 	expect(p, RPAREN)!;
 
 	// Parse the "then" branch
@@ -269,14 +279,8 @@ fn Node? parse_if(Parser* p)
 		else_block = parse_statement(p)!;
 	}
 
-	uint[*] data = views::@data{IfViewFields}
-	(
-		CONDITION, cond,
-		THEN_BLOCK, then_block,
-		ELSE_BLOCK, else_block,
-	);
-
-	uint ex = ast::push_extra_block(p.ast, &data);
+	uint[3] data = { (uint)cond, (uint)then_block, (uint)else_block };
+	uint ex = ast::push_extra_list(p.ast, &data);
 
 	return ast::add_node(p.ast, IF_STMT, t.pos, p.current_pos(), ex);
 }
@@ -360,13 +364,10 @@ fn Node? parse_switch(Parser* p)
 {
 	Token t = p.current();
 	advance(p)!;
-	
-	Node cond;
-	if (consume(p, LPAREN)!)
-	{
-		cond = parse_cond(p)!;
-		expect(p, RPAREN)!;	
-	}
+
+	expect(p, LPAREN)!;
+	Node cond = parse_expr(p)!;
+	expect(p, RPAREN)!;
 
 	expect(p, LBRACE)!;
 

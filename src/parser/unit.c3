@@ -194,34 +194,24 @@ fn Node? parse_type(Parser* p, ParseFlags parse_flags = { })
  @param [&inout] p
  @returns "Extra data index"
 *>
-fn uint? parse_parameter_list(Parser* p, ParseFlags flags = {}) => @with_scratch(; watermark)
+fn uint? parse_parameter_list(Parser* p) => @with_scratch(; watermark)
 {
-	if (!flags.is_call)
-	{
-		expect(p, LPAREN)!;
-	}
+	expect(p, LPAREN)!;
 
 	while (!p.is(RPAREN) && !p.eof())
 	{
 		Node param = parse_param_decl(p)!;
 		scratch.push((uint)param);
 
-		if (p.is(COMMA) || p.is(EOS))
+		if (consume(p, COMMA)!) continue;
+		if (!p.is(RPAREN))
 		{
-			advance(p)!;
-			if (p.is(RPAREN)) break; 
-		}
-		else if (!p.is(RPAREN))
-		{
-			p.error("Expected ',' or ';' between parameters, found '%s'", p.token_text(p.current()));
-			p.push_invalid_node(p.current_pos());
+			p.error("Expected ')'");
+			return 0;
 		}
 	}
 
-	if (!flags.is_call)
-	{
-		expect(p, RPAREN)!;
-	}
+	expect(p, RPAREN)!;
 	uint count = (uint)scratch.len() - watermark;
 	return ast::push_extra_list(p.ast, scratch_view(watermark, count));
 }
@@ -269,7 +259,7 @@ fn uint? parse_attributes(Parser* p)
 {
     if (!p.is(AT_IDENT) && !p.is(AT_TYPE_IDENT)) return 0;
 
-    uint final_ex;
+    uint final_ex = 0;
 
     @with_scratch(; base_watermark)
     {
@@ -279,7 +269,7 @@ fn uint? parse_attributes(Parser* p)
             String attr_name = p.token_text(p.current());
             advance(p)!;
             
-            uint args_list_ex;
+            uint args_list_ex = 0;
 
             if (consume(p, LPAREN)!)
             {
@@ -296,12 +286,6 @@ fn uint? parse_attributes(Parser* p)
                     args_list_ex = ast::push_extra_list(p.ast, scratch_view(watermark, (uint)scratch.len() - watermark));
                 };
             }
-			else if (p.is(STRING))
-			{
-				Node msg_expr = parse_expr(p)!; 
-				uint[1] single_arg = { (uint)msg_expr };
-				args_list_ex = ast::push_extra_list(p.ast, &single_arg);
-			}
 
             uint[2] attr_data = {
                 (uint)common::get_attribute_from_string(attr_name), 
@@ -526,202 +510,4 @@ fn Node? parse_var_decl(Parser* p, ParseFlags flags)
 	uint[*] data = { name, (uint)type_node, (uint)init_expr, attr, (uint)packed_flags };
 	uint ex = ast::push_extra_block(p.ast, &data);
 	return ast::add_node(p.ast, VAR_DECL, start_pos, end_tok, ex);
-}
-
-fn Node? parse_contract_param(Parser* p)
-{
-    uint start = p.current_pos();
-
-	ContractParamFlags flags;
-	InOutModifier mod;
-
-	if (consume(p, LBRACKET)!)
-	{
-		flags.is_ref = consume(p, AMP)!;
-		String modifer_name = p.current_text();
-		switch (modifer_name)
-		{
-			case "in":
-				mod = IN;
-				advance(p)!;
-				break;
-			case "inout":
-				mod = INOUT;
-				advance(p)!;
-				break;
-			case "out":
-				mod = OUT;
-				advance(p)!;
-				break;
-			default:
-				p.error("'in', 'out' or 'inout' expected");
-				p.push_invalid_node(p.current_pos());
-		}
-
-		if (!consume(p, RBRACKET)!)
-		{
-			p.error("Expected a closing ']'");
-			p.push_invalid_node(p.current_pos());
-		}
-	}
-    
-	Node param_name;
-    if (!p.is(IDENT) && 
-		!p.is(CT_IDENT) && 
-		!p.is(TYPE_IDENT) &&
-		!p.is(CT_TYPE_IDENT)) 
-    {
-        p.error("Expected parameter name after @param");
-        p.push_invalid_node(p.current_pos());
-    }
-	else
-	{
-		// ident_expr
-		param_name = parse_expr(p)!;
-	}
-
-	uint description;
-    if (p.is(COLON))
-	{
-		description = p.pool.intern(p.current_text());
-		advance(p)!;
-	}
-	else
-	{
-		p.error("Forgot colon after");
-		p.push_invalid_node(p.current_pos());
-	}
-
-    uint[4] data = { (uint)param_name, description, (uint)flags, (uint)mod };
-    uint ex = ast::push_extra_block(p.ast, &data);
-    return ast::add_node(p.ast, CONTRACT_PARAM, start, p.current_pos(), ex);
-}
-
-fn Node? parse_cond(Parser* p) => @with_scratch(; watermark)
-{
-    uint start_pos = p.current().pos;
-
-    while (true)
-    {
-        if (p.is(TRY))
-        {
-            Node try_node = parse_try_unwrap_chain(p)!;
-            scratch.push((uint)try_node);
-            
-            if (p.is(COMMA)) 
-			{
-                p.error("The 'try' must be placed last in the condition list.");
-            }
-            break; 
-        }
-
-        if (p.is(CATCH))
-        {
-            Node catch_node = parse_catch_unwrap(p)!;
-            scratch.push((uint)catch_node);
-            
-            if (p.is(COMMA)) 
-			{
-                p.error("The 'catch' must be placed last in the condition list.");
-            }
-            break;
-        }
-
-        Node item = parse_decl_or_expr(p)!;
-        scratch.push((uint)item);
-
-        if (!consume(p, COMMA)!) break;
-        if (p.eof()) break;
-    }
-
-    uint count = (uint)scratch.len() - watermark;
-    uint ex = ast::push_extra_list(p.ast, scratch_view(watermark, count));
-    return ast::add_node(p.ast, COND_EXPR, start_pos, p.previous_pos(), ex);
-}
-
-fn Node? parse_try_unwrap_chain(Parser* p) => @with_scratch(; watermark)
-{
-    uint start_pos = p.current_pos();
-
-    Node first = parse_try_unwrap(p)!;
-    scratch.push((uint)first);
-
-    // Look for '&&' chains 
-    while (consume(p, AND)!)
-    {
-        if (p.is(TRY))
-        {
-            // Another explicit 'try' (e.g., && try foo())
-            scratch.push((uint)parse_try_unwrap(p)!);
-        }
-        else
-        {
-            // A regular expression in the chain (e.g., && bar == 2)
-            scratch.push((uint)parse_expr(p)!);
-        }
-    }
-
-    uint count = (uint)scratch.len() - watermark;
-    uint ex = ast::push_extra_list(p.ast, scratch_view(watermark, count));
-    return ast::add_node(p.ast, TRY_UNWRAP_CHAIN_EXPR, start_pos, p.previous_pos(), ex);
-}
-
-fn Node? parse_try_unwrap(Parser* p)
-{
-    uint pos = p.current_pos();
-    expect(p, TRY)!;
-    Node expr = parse_expr(p)!;
-    return ast::add_node(p.ast, TRY_UNWRAP_EXPR, pos, p.previous_pos(), (uint)expr);
-}
-
-fn Node? parse_catch_unwrap(Parser* p) => @with_scratch(; watermark)
-{
-    uint start_pos = p.current_pos();
-    advance(p)!; // consume 'catch'
-
-    Node type_node;
-    Node var_node;
-    Node sub_expr = parse_expr(p)!;
-
-    // Chain (catch expr1, expr2...)
-    if (consume(p, COMMA)!)
-    {
-        scratch.push((uint)sub_expr);
-        do 
-		{
-            scratch.push((uint)parse_expr(p)!);
-        } 
-		while (consume(p, COMMA)!);
-        
-        uint count = (uint)scratch.len() - watermark;
-        uint ex = ast::push_extra_list(p.ast, scratch_view(watermark, count));
-        return ast::add_node(p.ast, CATCH_UNWRAP_EXPR, start_pos, p.previous_pos(), ex);
-    }
-
-    if (ast::get_kind(p.ast, sub_expr) == TYPE_EXPR) 
-    {
-        type_node = sub_expr;
-        var_node = parse_expr(p)!;
-    }
-    else
-    {
-        var_node = sub_expr;
-    }
-
-    if (consume(p, EQ)!)
-    {
-        do 
-		{
-            scratch.push((uint)parse_expr(p)!);
-        } 
-		while (consume(p, COMMA)!);
-    }
-
-    uint count = (uint)scratch.len() - watermark;
-    uint list_ex = ast::push_extra_list(p.ast, scratch_view(watermark, count));
-    
-    uint[*] data = { (uint)type_node, (uint)var_node, list_ex };
-    uint ex = ast::push_extra_block(p.ast, &data);
-
-    return ast::add_node(p.ast, CATCH_UNWRAP_EXPR, start_pos, p.previous_pos(), ex);
 }

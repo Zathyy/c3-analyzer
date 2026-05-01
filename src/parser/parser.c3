@@ -87,7 +87,7 @@ struct Parser
 	String src;
 
 	uint pos;
-	Node contract;
+
 	// for when using debbugers so i can keep track of what its at
 	Token current_token @if(env::DEBUG_SYMBOLS);
 	String current_token_string @if(env::DEBUG_SYMBOLS);
@@ -204,12 +204,6 @@ fn void Parser.print_current(&self)
 	log::debug("%s", self.token_text(self.current()));
 }
 
-fn void? reverse(Parser* parser, uint position)
-{
-	parser.pos = position;
-	advance(parser, 0)!;
-}
-
 <*
  @param [&inout] parser
 *>
@@ -220,20 +214,11 @@ fn void? advance(Parser* parser, uint len = 1)
 		log::debug("parser::advance() : eof");
 		return io::EOF~;
 	}
-
 	parser.pos += len;
-
 	$if env::DEBUG_SYMBOLS:
-    if (!parser.eof()) 
-    {
-        parser.current_token = parser.current();
-        parser.current_token_string = parser.token_text(parser.current());
-    }
-    else 
-    {
-        parser.current_token_string = "EOF";
-    }
-    $endif
+	parser.current_token = parser.current();
+	parser.current_token_string = parser.token_text(parser.current());
+	$endif
 }
 
 <*
@@ -246,11 +231,10 @@ macro void? expect(Parser* parser, TokenKind kind)
 	{
 		parser.error("Expected '%s' got '%s'", kind.description, parser.current().kind.description);
 		log::error("Error happened here");
+		return UNEXPECTED_TOKEN~;
 	}
-	else
-	{
-		advance(parser)!;
-	}
+
+	advance(parser)!;
 }
 
 <*
@@ -384,7 +368,8 @@ fn void? parse_file(Workspace* ws, String path)
 		{
 			if (err == io::EOF)
 			{
-				break;
+				log::error("EOF");
+				return err~;
 			}
 
 			synchronize(&parser)!;
@@ -396,7 +381,6 @@ fn void? parse_file(Workspace* ws, String path)
 	{
 		last_sec.end_node_idx = parser.sf.ast.len();
 	}
-
 	log::info("Succesfully parsed: %s", path);
 }
 
@@ -412,6 +396,7 @@ fn void? parse_top_level(Parser* p, Workspace* ws)
 
 	Node node;
 	ParseFlags flags = { .is_global = true };
+
 
 	// the individual parse functions will check that the modifiers are used appropiately
 	while (true)
@@ -468,7 +453,7 @@ fn void? parse_top_level(Parser* p, Workspace* ws)
 			uint attr = parse_attributes(p)!;
 
 			uint[*] data = { (uint)path_node, attr };
-			uint ex = ast::push_extra_block(p.ast, &data);
+			uint ex = ast::push_extra_list(p.ast, &data);
 			Node imp_node = ast::add_node(p.ast, IMPORT_DECL, start, p.current_pos(), ex);
 			p.ast.top_level_nodes.push((uint)imp_node);
 			if (!consume(p, COMMA)!) break;
@@ -481,7 +466,6 @@ fn void? parse_top_level(Parser* p, Workspace* ws)
 	{
 		case CONTRACT:
 			node = parse_contract(p)!;
-			p.contract = node;
 		case INTERFACE:
 			node = parse_interface(p)!;
 		case MODULE:
@@ -517,12 +501,5 @@ fn void? parse_top_level(Parser* p, Workspace* ws)
 	if (node.is_valid())
 	{
 		p.ast.top_level_nodes.push((uint)node);
-
-		if (p.contract.is_valid())
-		{
-			attach_contract(p, node, p.contract);
-		}
-
-		p.contract = {};
 	}
 }
