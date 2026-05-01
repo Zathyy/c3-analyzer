@@ -247,3 +247,18 @@ fn Cursor? Workspace.lookup_in_module(&self, String module_name, String symbol_n
 
 	return SYMBOL_NOT_FOUND~;
 }
+
+fn Cursor[]? Workspace.lookup_symbol(&self, String symbol_name) 
+{
+	List{Cursor} candidates;
+
+	self.modules.@each(; mod_name, mod)
+	{
+			if (try c = self.lookup_in_module(mod_name, symbol_name))
+			{
+				candidates.push(c);
+			}
+	};
+
+	return candidates.to_tarray();
+}
