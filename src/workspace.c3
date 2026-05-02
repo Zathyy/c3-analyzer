@@ -11,7 +11,8 @@ import c3_parser::ast @norecurse;
 import c3_parser::cursor;
 
 faultdef
-	SYMBOL_NOT_FOUND, MODULE_NOT_FOUND
+	SYMBOL_NOT_FOUND, 
+	MODULE_NOT_FOUND
 ;
 
 struct SourceFile

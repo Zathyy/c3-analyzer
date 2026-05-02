@@ -4,17 +4,14 @@ import lexer;
 import string_pool;
 
 import c3_parser::common;
+import c3_parser::constants;
 import c3_parser::registry;
 import std::collections::list;
 import c3_parser::workspace @norecurse;
 import std::io;
 
-fn Node? parse_contract(Parser* p)
+fn Node? parse_contract(Parser* p) => @pool()
 {
-	advance(p)!;
-
-	return UNEXPECTED_TOKEN~;
-
 	uint start = p.current_pos();
 	if (!p.is(CONTRACT))
 	{
@@ -24,6 +21,7 @@ fn Node? parse_contract(Parser* p)
 
 	Token t = p.current();
 	String slice = p.src[(Size)t.pos:t.len];
+	String original_src = p.src;
 
 	// skip the contract for the parser
 	advance(p)!;
@@ -36,52 +34,84 @@ fn Node? parse_contract(Parser* p)
 	{
 		p.tokens = main_tokens;
 		p.pos = main_index;
+		p.src = original_src;
 	}
 
 	List{Token} contract_tokens;
 	contract_tokens.tinit();
 
-	ContractLexer cl;
-	cl.init(slice);
-
+	ContractLexer cl; cl.init(slice);
+	
 	while (try next = cl.next())
 	{
+		// make return a identifier so the it can be parsed as expr
+		if (next.kind == RETURN)
+		{
+			next.kind = IDENT;
+		} 
+
 		contract_tokens.push(next);
+
+		log::debug("ContractLexer - added: %s", next.kind);
 	}
 
 	p.tokens = contract_tokens.array_view();
 	p.pos = 0;
-
-	List{uint} ensures;
-	List{uint} requires;
-	ensures.tinit();
-	requires.tinit();
+	p.src = cl.lexer.buffer;
+	
+	List{uint} ensures;  ensures.tinit();
+	List{uint} requires; requires.tinit();
+	List{uint} params;   params.tinit();
+	ContractFlags flags;
+	uint deprecated;
 
 	while (!p.eof())
 	{
+		String attr = p.token_text(p.current());
+		log::debug("parse_contract - attribute = %s", attr);
+	
 		if (consume(p, AT_IDENT)!)
 		{
-			String tok_text = p.token_text(p.current());
-
-			switch (tok_text)
+			if (attr == constants::KW_AT_REQUIRE)
 			{
-				case "ensure":
-					{
-						ensures.push((uint)parse_expr(p)!);
-					}
-				case "requires":
-					{
-						ensures.push((uint)parse_expr(p)!);
-					}
+				requires.push((uint)parse_contract_expr(p, false)!);
 			}
-
-			Node condition = parse_expr(p)!;
+			else if (attr == constants::KW_AT_ENSURE)
+			{
+				ensures.push((uint)parse_contract_expr(p, true)!);
+			}
+			else if (attr == constants::KW_AT_PARAM)
+			{
+				params.push((uint)parse_contract_param(p))!;
+			}
+			else if (attr == constants::KW_AT_DEPRECATED)
+			{
+				deprecated = parse_attributes(p)!;
+			}
+			else if (attr == constants::KW_AT_PURE)
+			{
+				advance(p)!;
+				flags.is_pure = true;
+			}
+			else
+			{
+				if (catch advance(p)) break;
+			}
+		}
+		else
+		{
+			if (catch advance(p)) break;
 		}
 	}
 
-	// uint ex = ast::push_extra_list(p.ast, );
-	// return ast::add_node(p.ast, CONTRACT_DECL, start, ex);
-	return { };
+	uint req_idx = ast::push_extra_list(p.ast, requires.array_view());
+    uint ens_idx = ast::push_extra_list(p.ast, ensures.array_view());
+    uint params_idx = ast::push_extra_list(p.ast, params.array_view());
+
+	uint[5] final_data = { req_idx, ens_idx, params_idx, (uint)flags, deprecated };
+
+	uint ex = ast::push_extra_block(p.ast, &final_data);
+	return ast::add_node(p.ast, CONTRACT_DECL, start, p.previous_pos(), ex);
 }
 
 fn Node? parse_module(Parser* p, Workspace* ws)
