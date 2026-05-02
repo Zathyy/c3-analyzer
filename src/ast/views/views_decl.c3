@@ -95,3 +95,24 @@ fn Node EnumView.get_member(self, uint index) => self.get_list_item(4, index);
 fn uint EnumView.flags(self) => self.get_uint(5);
 fn bool EnumView.is_const_def(self) => (self.flags() & (1 << 0)) != 0;
 fn bool EnumView.is_inline(self)    => (self.flags() & (1 << 1)) != 0;
+
+typedef ContractView = inline View;
+fn uint ContractView.requires_count(self) => self.get_list_count(0);
+fn uint ContractView.ensures_count(self) => self.get_list_count(1);
+
+fn ContractEntryView ContractView.get_req(self, uint index) 
+{
+	Node entry = self.get_list_item(0, index);
+	return (ContractEntryView){ self.ast, entry };
+}
+
+fn ContractEntryView ContractView.get_ensure(self, uint index) 
+{
+	Node entry = self.get_list_item(1, index);
+	return (ContractEntryView){ self.ast, entry };
+}
+
+typedef ContractEntryView = inline View;
+fn Node ContractEntryView.condition(self) => self.get(0);
+fn Node ContractEntryView.message(self) => self.get(1);
+fn bool ContractEntryView.has_message(self) => self.message().is_valid();
