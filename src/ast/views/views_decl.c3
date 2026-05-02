@@ -8,6 +8,8 @@ typedef ModuleView = inline View;
 fn Node ModuleView.path(self) => self.get(0);
 fn uint ModuleView.generics_offset(self) => self.get_uint(1);
 fn uint ModuleView.attributes_offset(self) => self.get_uint(2);
+fn Node ModuleView.contract_node(self) => self.get(3);
+fn bool ModuleView.has_contract(self) => self.contract_node().is_valid();
 fn bool ModuleView.is_generic(self) => self.generics_offset() != 0;
 fn bool ModuleView.is_private(self) => self.has_attribute(self.attributes_offset(), AttributeKind.PRIVATE);
 fn bool ModuleView.is_local(self) => self.has_attribute(self.attributes_offset(), AttributeKind.LOCAL);
@@ -99,6 +101,8 @@ fn bool EnumView.is_inline(self)    => (self.flags() & (1 << 1)) != 0;
 typedef ContractView = inline View;
 fn uint ContractView.requires_count(self) => self.get_list_count(0);
 fn uint ContractView.ensures_count(self) => self.get_list_count(1);
+fn uint ContractView.params_count(self) => self.get_list_count(2);
+fn uint ContractView.optional_returns_count(self) => self.get_list_count(3);
 
 fn ContractEntryView ContractView.get_req(self, uint index) 
 {
@@ -109,6 +113,18 @@ fn ContractEntryView ContractView.get_req(self, uint index)
 fn ContractEntryView ContractView.get_ensure(self, uint index) 
 {
 	Node entry = self.get_list_item(1, index);
+	return (ContractEntryView){ self.ast, entry };
+}
+
+fn ContractEntryView ContractView.get_param(self, uint index)
+{
+	Node entry = self.get_list_item(2, index);
+	return (ContractEntryView){ self.ast, entry };
+}
+
+fn ContractEntryView ContractView.get_optional_return(self, uint index)
+{
+	Node entry = self.get_list_item(3, index);
 	return (ContractEntryView){ self.ast, entry };
 }
 
