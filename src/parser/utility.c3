@@ -29,11 +29,6 @@ macro void Parser.error(self, String fmt, ...)
 	self.report(self.current(), "error", ANSI_RED, fmt, ...$vaarg);
 }
 
-macro void Parser.error_at(self, Token t, String fmt, ...)
-{
-    self.report(t, "error", ANSI_RED, fmt, ...$vaarg);
-}
-
 fn void Parser.report(Parser* self, Token token, String level, String color, String fmt, args ...)
 {
 	Location loc = self.line_map.resolve(token.pos);
@@ -126,90 +121,22 @@ fn bool is_type(TokenKind kind)
 fn void attach_contract(Parser* p, Node decl, Node contract)
 {
 	if (!decl.is_valid()) return;
-	if (!contract.is_valid()) return;
+	if (!decl.is_valid()) return;
 
     NodeKind kind = ast::get_kind(p.ast, decl);
+
+	if (kind == MODULE_DECL) return;
     
     uint offset = 0;
     switch (kind)
     {
-		case MODULE_DECL:  offset = ModuleViewFields.CONTRACT;
-        case FN_DECL:      offset = FnViewFields.CONTRACT;
-        case STRUCT_DECL:  offset = StructViewFields.CONTRACT;
-		case UNION_DECL:   offset = StructViewFields.CONTRACT;
+		case MODULE_DECL:  offset = 3;
+        case FN_DECL:      offset = 4;
+        case VAR_DECL:     offset = 3;
+        case STRUCT_DECL:  offset = 3;
         default: return;
     }
     
 	uint base_extra_idx = ast::get_extra(p.ast, (uint)decl);
     p.ast.set_extra(base_extra_idx + offset, (uint)contract);
-}
-
-fn OverloadKind get_overload_from_token(TokenKind kind)
-{
-	switch (kind)
-	{
-		case PLUS: return OverloadKind.PLUS;
-		case PLUS_ASSIGN: return OverloadKind.PLUS_ASSIGN;
-		case MINUS: return OverloadKind.MINUS;
-		case MINUS_ASSIGN: return OverloadKind.MINUS_ASSIGN;
-		case ASTERISK: return OverloadKind.MULTIPLY;
-		case MULT_ASSIGN: return OverloadKind.MULTIPLY_ASSIGN;
-		case DIV: return OverloadKind.DIVIDE;
-		case DIV_ASSIGN: return OverloadKind.DIVIDE_ASSIGN;
-		case MOD: return OverloadKind.REMINDER;
-		case MOD_ASSIGN: return OverloadKind.REMINDER_ASSIGN;
-		case AMP: return OverloadKind.AND;
-		case BIT_AND_ASSIGN: return OverloadKind.AND_ASSIGN;
-		case BIT_OR: return OverloadKind.OR;
-		case BIT_OR_ASSIGN: return OverloadKind.OR_ASSIGN;
-		case BIT_XOR: return OverloadKind.XOR;
-		case BIT_XOR_ASSIGN: return OverloadKind.XOR_ASSIGN;
-		case LSHIFT: return OverloadKind.SHL;
-		case LSHIFT_ASSIGN: return OverloadKind.SHL_ASSIGN;
-		case RSHIFT: return OverloadKind.SHR;
-		case RSHIFT_ASSIGN: return OverloadKind.SHR_ASSIGN;
-		case BIT_NOT: return OverloadKind.NEGATE;
-		case EQEQ: return OverloadKind.EQUAL;
-		case NOT_EQUAL: return OverloadKind.NOT_EQUAL;
-		default:
-			unreachable();
-	}
-}
-
-fn bool is_declaration_followup(Parser* p)
-{
-    uint i = 1;
-    
-    while (true)
-    {
-        TokenKind k = p.peek(i).kind;
-        
-        // Skip over common type modifiers
-        if (k == ASTERISK || k == QUESTION) 
-        {
-            i++;
-        } 
-        else if (k == LBRACKET) 
-        {
-            // Skip the entire [ ... ] block
-            i++;
-            while (p.peek(i).kind != RBRACKET && p.peek(i).kind != EOF) i++;
-            i++; 
-        } 
-        else if (k == LVEC)
-        {
-            // Skip the entire <* ... > block
-            i++;
-            while (p.peek(i).kind != RVEC && p.peek(i).kind != EOF) i++;
-            i++;
-        }
-        else 
-        {
-            break;
-        }
-    }
-
-    // After skipping modifiers, do we see a variable name?
-    TokenKind final_k = p.peek(i).kind;
-    return final_k == IDENT || final_k == CONST_IDENT || final_k == CT_IDENT;
 }

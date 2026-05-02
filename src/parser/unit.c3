@@ -533,12 +533,15 @@ fn Node? parse_contract_param(Parser* p)
 		{
 			case "in":
 				mod = IN;
+				advance(p)!;
 				break;
 			case "inout":
 				mod = INOUT;
+				advance(p)!;
 				break;
 			case "out":
 				mod = OUT;
+				advance(p)!;
 				break;
 			default:
 				p.error("'in', 'out' or 'inout' expected");
@@ -552,15 +555,20 @@ fn Node? parse_contract_param(Parser* p)
 		}
 	}
     
-    if (!p.is(IDENT)) 
+	Node param_name;
+    if (!p.is(IDENT) && 
+		!p.is(CT_IDENT) && 
+		!p.is(TYPE_IDENT) &&
+		!p.is(CT_TYPE_IDENT)) 
     {
         p.error("Expected parameter name after @param");
         p.push_invalid_node(p.current_pos());
     }
-
-	// ident_expr
-    Node param_name = parse_expr(p)!;
-    advance(p)!;
+	else
+	{
+		// ident_expr
+		param_name = parse_expr(p)!;
+	}
 
 	uint description;
     if (p.is(COLON))
