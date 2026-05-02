@@ -14,24 +14,24 @@ import std::os::process;
 const STDLIB_PATH = "";
 
 const String[*] FILES = {
-  "anylist.c3",
-  "atomic.c3",
-  "bits.c3",
-  "deque.c3",
-  "elastic_array.c3",
-  "enummap.c3",
-  "enumset.c3",
+	"anylist.c3",
+	"atomic.c3",
+	"bits.c3",
+	"deque.c3",
+	"elastic_array.c3",
+	"enummap.c3",
+	"enumset.c3",
 };
 
 fn void bench() @benchmark
 {
-  log::set_logger(&&(NullLogger) {});
-  Workspace ws;
-  ws.init();
+	log::set_logger(&&(NullLogger) {});
+	Workspace ws;
+	ws.init();
 
-  $foreach $file : FILES:
-    parser::parse_file(&ws, @sprintf("bench/std/%s", $file))!!;
-  $endforeach
+	$foreach $file : FILES:
+	parser::parse_file(&ws, @sprintf("bench/std/%s", $file))!!;
+	$endforeach
 
 }
 
