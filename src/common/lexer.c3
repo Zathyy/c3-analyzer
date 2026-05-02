@@ -954,7 +954,8 @@ struct ContractLexer
 fn void ContractLexer.init(&self, String contract)
 {
 	// Strip the decorators <* and *>
-	String inner = contract[2:^2];
+	String inner = contract[2:^4];
+	log::debug("ContractLexer - string = %s", inner);
 
 	usz i = 0;
 	bool line_start = true;
@@ -986,6 +987,7 @@ fn void ContractLexer.init(&self, String contract)
 	self.description = inner[0:first_at_index].trim();
 
 	self.lexer = { .buffer = inner[first_at_index..], .index = 0 };
+	log::debug("ContractLexer - buffer = %s", self.lexer.buffer);
 }
 
 fn Token? ContractLexer.next(&self) => self.lexer.next();
