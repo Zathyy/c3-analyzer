@@ -3,10 +3,9 @@ module bv;
 import std::io;
 
 <*
-	my awesome contract
-
-	@require a > 0 : "a not greater"
-	@ensure return != 0 : "returned 0"
+	@param $Type : "The type of the first element"
+	@return "The first element"
+	@return? TYPE_MISMATCH, NO_MORE_ELEMENT
 *>
 fn int sum(int a, int b) 
 {

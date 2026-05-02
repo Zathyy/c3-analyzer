@@ -12,7 +12,6 @@ import std::io;
 
 fn Node? parse_contract(Parser* p) => @pool()
 {
-	uint start = p.current_pos();
 	if (!p.is(CONTRACT))
 	{
 		p.error("Expected a contract start here.");
@@ -54,6 +53,8 @@ fn Node? parse_contract(Parser* p) => @pool()
 
 		log::debug("ContractLexer - added: %s", next.kind);
 	}
+ 
+	contract_tokens.push({ .kind = EOF, .pos = (contract_tokens.last().pos + contract_tokens.last().len) ?? 0, .len = 0 });
 
 	p.tokens = contract_tokens.array_view();
 	p.pos = 0;
@@ -62,8 +63,10 @@ fn Node? parse_contract(Parser* p) => @pool()
 	List{uint} ensures;  ensures.tinit();
 	List{uint} requires; requires.tinit();
 	List{uint} params;   params.tinit();
+	List{uint} returns;  returns.tinit();
 	ContractFlags flags;
 	uint deprecated;
+	uint return_desc;
 
 	while (!p.eof())
 	{
@@ -90,8 +93,26 @@ fn Node? parse_contract(Parser* p) => @pool()
 			}
 			else if (attr == constants::KW_AT_PURE)
 			{
-				advance(p)!;
 				flags.is_pure = true;
+			}
+			else if (attr == constants::KW_AT_RETURN)
+			{
+				if (p.is(QUESTION))
+				{
+					advance(p)!;
+					while (!p.eof())
+					{
+						returns.push((uint)parse_expr(p)!);
+						if (!consume(p, COMMA)!)
+						{
+							break;
+						}
+					}
+				}
+				else
+				{	
+					return_desc = (uint)parse_expr(p)!;
+				}
 			}
 			else
 			{
@@ -107,11 +128,12 @@ fn Node? parse_contract(Parser* p) => @pool()
 	uint req_idx = ast::push_extra_list(p.ast, requires.array_view());
     uint ens_idx = ast::push_extra_list(p.ast, ensures.array_view());
     uint params_idx = ast::push_extra_list(p.ast, params.array_view());
+    uint returns_idx = ast::push_extra_list(p.ast, returns.array_view());
 
-	uint[5] final_data = { req_idx, ens_idx, params_idx, (uint)flags, deprecated };
+	uint[7] final_data = { req_idx, ens_idx, params_idx, returns_idx, return_desc, (uint)flags, deprecated };
 
 	uint ex = ast::push_extra_block(p.ast, &final_data);
-	return ast::add_node(p.ast, CONTRACT_DECL, start, p.previous_pos(), ex);
+	return ast::add_node(p.ast, CONTRACT_DECL, 0, p.current_pos(), ex);
 }
 
 fn Node? parse_module(Parser* p, Workspace* ws)
@@ -148,7 +170,8 @@ fn Node? parse_module(Parser* p, Workspace* ws)
 
 	log::debug("parsed module: %s", mod_name);
 
-	uint[*] data = { (uint)path, generics, attributes };
+	// last is to reserve for contract (if any)
+	uint[*] data = { (uint)path, generics, attributes, 0 };
 	uint ex = ast::push_extra_block(p.ast, &data);
 	return ast::add_node(p.ast, MODULE_DECL, start, p.current_pos(), ex);
 }

@@ -290,6 +290,10 @@ fn Node? parse_prefix_expr(Parser* p)
 			uint sh = p.pool.intern(p.token_text(t));
 			return ast::add_node(p.ast, IDENT_EXPR, t.pos, p.current_pos(), sh);
 		}
+		case CT_DEFINED:
+		{
+			return parse_ct_defined_expr(p)!;
+		}
 		case LBRACE:
 			return parse_initializer_list(p)!;
 		case MINUSMINUS:
@@ -740,4 +744,42 @@ fn Node? parse_contract_expr(Parser* p, bool is_ensure)
     uint entry_ex = ast::push_extra_block(p.ast, &entry_data);
     
     return ast::add_node(p.ast, CONTRACT_ENTRY, start_pos, p.current_pos(), entry_ex);
+}
+
+fn Node? parse_ct_defined_expr(Parser* p) => @with_scratch(; watermark)
+{
+    uint start_pos = p.current().pos;
+	expect(p, CT_DEFINED)!;
+
+	if (consume(p, LPAREN)!)
+	{
+		while (!p.is(RPAREN) && !p.eof())
+		{
+			scratch.push((uint)parse_expr(p)!);
+
+			if (!consume(p, COMMA)!)
+			{
+				if (!consume(p, RPAREN)!)
+				{
+					p.error("Expected closing ')'");
+					p.push_invalid_node(p.current_pos());
+					break;
+				}
+				break;
+			}
+		}
+	}
+	else
+	{
+		p.error("expected '('");
+		p.push_invalid_node(p.current_pos());
+	}
+
+	uint count = (uint)scratch.len() - watermark;
+    uint exprs_list_ex = ast::push_extra_list(p.ast, scratch_view(watermark, count));
+
+    uint[1] entry_data = { exprs_list_ex };
+    uint entry_ex = ast::push_extra_block(p.ast, &entry_data);
+
+    return ast::add_node(p.ast, CT_DEFINED_EXPR, start_pos, p.current_pos(), entry_ex);	
 }
