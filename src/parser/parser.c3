@@ -87,7 +87,7 @@ struct Parser
 	String src;
 
 	uint pos;
-
+	Node contract;
 	// for when using debbugers so i can keep track of what its at
 	Token current_token @if(env::DEBUG_SYMBOLS);
 	String current_token_string @if(env::DEBUG_SYMBOLS);
@@ -222,7 +222,7 @@ fn void? advance(Parser* parser, uint len = 1)
 	}
 
 	parser.pos += len;
-	
+
 	$if env::DEBUG_SYMBOLS:
     if (!parser.eof()) 
     {
@@ -383,8 +383,7 @@ fn void? parse_file(Workspace* ws, String path)
 		{
 			if (err == io::EOF)
 			{
-				log::error("EOF");
-				return err~;
+				break;
 			}
 
 			synchronize(&parser)!;
@@ -396,6 +395,7 @@ fn void? parse_file(Workspace* ws, String path)
 	{
 		last_sec.end_node_idx = parser.sf.ast.len();
 	}
+
 	log::info("Succesfully parsed: %s", path);
 }
 
@@ -411,7 +411,6 @@ fn void? parse_top_level(Parser* p, Workspace* ws)
 
 	Node node;
 	ParseFlags flags = { .is_global = true };
-
 
 	// the individual parse functions will check that the modifiers are used appropiately
 	while (true)
@@ -481,6 +480,7 @@ fn void? parse_top_level(Parser* p, Workspace* ws)
 	{
 		case CONTRACT:
 			node = parse_contract(p)!;
+			p.contract = node;
 		case INTERFACE:
 			node = parse_interface(p)!;
 		case MODULE:
@@ -516,5 +516,12 @@ fn void? parse_top_level(Parser* p, Workspace* ws)
 	if (node.is_valid())
 	{
 		p.ast.top_level_nodes.push((uint)node);
+
+		if (p.contract.is_valid())
+		{
+			attach_contract(p, node, p.contract);
+		}
+
+		p.contract = {};
 	}
 }
