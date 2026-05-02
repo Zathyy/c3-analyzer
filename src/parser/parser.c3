@@ -204,6 +204,12 @@ fn void Parser.print_current(&self)
 	log::debug("%s", self.token_text(self.current()));
 }
 
+fn void? reverse(Parser* parser, uint position)
+{
+	parser.pos = position;
+	advance(parser, 0)!;
+}
+
 <*
  @param [&inout] parser
 *>
@@ -214,11 +220,20 @@ fn void? advance(Parser* parser, uint len = 1)
 		log::debug("parser::advance() : eof");
 		return io::EOF~;
 	}
+
 	parser.pos += len;
+	
 	$if env::DEBUG_SYMBOLS:
-	parser.current_token = parser.current();
-	parser.current_token_string = parser.token_text(parser.current());
-	$endif
+    if (!parser.eof()) 
+    {
+        parser.current_token = parser.current();
+        parser.current_token_string = parser.token_text(parser.current());
+    }
+    else 
+    {
+        parser.current_token_string = "EOF";
+    }
+    $endif
 }
 
 <*
