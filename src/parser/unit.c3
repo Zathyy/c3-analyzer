@@ -259,7 +259,7 @@ fn uint? parse_attributes(Parser* p)
 {
     if (!p.is(AT_IDENT) && !p.is(AT_TYPE_IDENT)) return 0;
 
-    uint final_ex = 0;
+    uint final_ex;
 
     @with_scratch(; base_watermark)
     {
@@ -269,7 +269,7 @@ fn uint? parse_attributes(Parser* p)
             String attr_name = p.token_text(p.current());
             advance(p)!;
             
-            uint args_list_ex = 0;
+            uint args_list_ex;
 
             if (consume(p, LPAREN)!)
             {
@@ -286,6 +286,12 @@ fn uint? parse_attributes(Parser* p)
                     args_list_ex = ast::push_extra_list(p.ast, scratch_view(watermark, (uint)scratch.len() - watermark));
                 };
             }
+			else if (p.is(STRING))
+			{
+				Node msg_expr = parse_expr(p)!; 
+				uint[1] single_arg = { (uint)msg_expr };
+				args_list_ex = ast::push_extra_list(p.ast, &single_arg);
+			}
 
             uint[2] attr_data = {
                 (uint)common::get_attribute_from_string(attr_name), 
@@ -510,4 +516,65 @@ fn Node? parse_var_decl(Parser* p, ParseFlags flags)
 	uint[*] data = { name, (uint)type_node, (uint)init_expr, attr, (uint)packed_flags };
 	uint ex = ast::push_extra_block(p.ast, &data);
 	return ast::add_node(p.ast, VAR_DECL, start_pos, end_tok, ex);
+}
+
+fn Node? parse_contract_param(Parser* p)
+{
+    uint start = p.current_pos();
+
+	ContractParamFlags flags;
+	InOutModifier mod;
+
+	if (consume(p, LBRACKET)!)
+	{
+		flags.is_ref = consume(p, AMP)!;
+		String modifer_name = p.current_text();
+		switch (modifer_name)
+		{
+			case "in":
+				mod = IN;
+				break;
+			case "inout":
+				mod = INOUT;
+				break;
+			case "out":
+				mod = OUT;
+				break;
+			default:
+				p.error("'in', 'out' or 'inout' expected");
+				p.push_invalid_node(p.current_pos());
+		}
+
+		if (!consume(p, RBRACKET)!)
+		{
+			p.error("Expected a closing ']'");
+			p.push_invalid_node(p.current_pos());
+		}
+	}
+    
+    if (!p.is(IDENT)) 
+    {
+        p.error("Expected parameter name after @param");
+        p.push_invalid_node(p.current_pos());
+    }
+
+	// ident_expr
+    Node param_name = parse_expr(p)!;
+    advance(p)!;
+
+	uint description;
+    if (p.is(COLON))
+	{
+		description = p.pool.intern(p.current_text());
+		advance(p)!;
+	}
+	else
+	{
+		p.error("Forgot colon after");
+		p.push_invalid_node(p.current_pos());
+	}
+
+    uint[4] data = { (uint)param_name, description, (uint)flags, (uint)mod };
+    uint ex = ast::push_extra_block(p.ast, &data);
+    return ast::add_node(p.ast, CONTRACT_PARAM, start, p.current_pos(), ex);
 }

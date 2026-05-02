@@ -724,3 +724,20 @@ fn Node? parse_ct_expr_list(Parser* p) => @with_scratch(; watermark)
     uint ex = ast::push_extra_list(p.ast, scratch_view(watermark, count));
     return ast::add_node(p.ast, EXPR_LIST, start_pos, p.previous_pos(), ex);
 }
+
+fn Node? parse_contract_expr(Parser* p, bool is_ensure)
+{
+    uint start_pos = p.current().pos;
+    Node expr = parse_expr(p)!;
+    Node comment;
+
+    if (consume(p, COLON)!)
+    {
+        comment = parse_expr(p)!; 
+    }
+
+    uint[3] entry_data = { (uint)expr, (uint)comment, is_ensure ? 1 : 0 };
+    uint entry_ex = ast::push_extra_block(p.ast, &entry_data);
+    
+    return ast::add_node(p.ast, CONTRACT_ENTRY, start_pos, p.current_pos(), entry_ex);
+}
