@@ -654,8 +654,8 @@ fn Node? parse_typedef(Parser* p)
 }
 
 <*
- interface_declaration ::= 'interface' TYPE_IDENT (':' type (',' type)*)? attributes? interface_body
-  interface_body        ::= '{' (fn_declaration)* '}'
+	interface_declaration ::= 'interface' TYPE_IDENT (':' type (',' type)*)? attributes? interface_body
+	interface_body        ::= '{' (fn_declaration)* '}'
 *>
 fn Node? parse_interface(Parser* p)
 {
@@ -719,19 +719,21 @@ fn Node? parse_interface(Parser* p)
 	return ast::add_node(p.ast, INTERFACE_DECL, start_tok, end_tok, ex);
 }
 
+<*
+	struct_or_union TYPE_IDENT opt_interfaces opt_attributes struct_body
+*>
 fn Node? parse_struct(Parser* p)
 {
 	uint start_tok = p.current_pos();
+	bool is_struct = consume(p, STRUCT)!;
+    if (!is_struct) consume(p, UNION)!;
 
-	expect(p, STRUCT)!;
-
-	if (!p.is(TYPE_IDENT))
+	uint name;
+	if (p.is(TYPE_IDENT))
 	{
-		p.error("Expected struct name");
-		return UNEXPECTED_TOKEN~;
+		name = p.pool.intern(p.token_text(p.current()));
+		advance(p)!;
 	}
-	uint name = p.pool.intern(p.token_text(p.current()));
-	advance(p)!;
 
 	Node interf_impl = parse_interface_impl(p)!;
 
@@ -742,27 +744,33 @@ fn Node? parse_struct(Parser* p)
 	}
 
 	expect(p, LBRACE)!;
+
 	uint fields_list_ex;
-	
 	@with_scratch(; watermark)
     {
         while (!p.is(RBRACE) && !p.eof())
-        {
-            consume(p, CONTRACT)!; 
-			Node field = parse_field_decl(p)!;
-            if (field.is_valid())
-            {
-                scratch.push((uint)field);
-            }
+		{
+			consume(p, CONTRACT)!; 
+			
+			Node member;
+			// Check if the next thing is a nested struct/union
+			if (p.is(STRUCT) || p.is(UNION))
+			{
+				member = parse_struct(p)!; 
+			}
+			else
+			{
+				member = parse_field_decl(p)!;
+				expect(p, EOS)!;
+			}
 
-            expect(p, EOS)!;
-            consume(p, CONTRACT)!; 
-            
-            if (!p.is(TYPE_IDENT) && !is_type(p.current().kind) && !p.is(RBRACE))
-            {
-                break;
-            }
-        }
+			if (member.is_valid())
+			{
+				scratch.push((uint)member);
+			}
+
+			consume(p, CONTRACT)!; 
+		}
 
         fields_list_ex = ast::push_extra_list(p.ast, scratch_view(watermark, (uint)scratch.len() - watermark));
     };
@@ -777,8 +785,9 @@ fn Node? parse_struct(Parser* p)
         fields_list_ex 
     };
 
+	NodeKind kind = is_struct ? STRUCT_DECL : UNION_DECL;
     uint ex = ast::push_extra_block(p.ast, &header);
-    return ast::add_node(p.ast, STRUCT_DECL, start_tok, end_tok, ex);
+    return ast::add_node(p.ast, kind, start_tok, end_tok, ex);
 }
 
 fn Node? parse_field_decl(Parser* p)
