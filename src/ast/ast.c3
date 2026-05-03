@@ -45,9 +45,8 @@ enum NodeKind : char
 	ENUM_DECL,
 	PARAM_DECL,
 	VAR_DECL,
-	// 
 	STRUCT_DECL,
-	// struct
+	UNION_DECL,
 	FIELD_DECL,
 	ALIAS_DECL,
 	TYPE_ALIAS_DECL,
