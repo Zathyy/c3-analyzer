@@ -246,10 +246,11 @@ macro void? expect(Parser* parser, TokenKind kind)
 	{
 		parser.error("Expected '%s' got '%s'", kind.description, parser.current().kind.description);
 		log::error("Error happened here");
-		return UNEXPECTED_TOKEN~;
 	}
-
-	advance(parser)!;
+	else
+	{
+		advance(parser)!;
+	}
 }
 
 <*
