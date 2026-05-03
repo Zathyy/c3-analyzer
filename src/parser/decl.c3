@@ -18,9 +18,11 @@ fn Node? parse_contract(Parser* p) => @pool()
 		return UNEXPECTED_TOKEN~;
 	}
 
+	Token contract_start_tok = p.current(); 
+	uint global_offset = contract_start_tok.pos;	
+
 	Token t = p.current();
 	String slice = p.src[(Size)t.pos:t.len];
-	String original_src = p.src;
 
 	// skip the contract for the parser
 	advance(p)!;
@@ -33,7 +35,6 @@ fn Node? parse_contract(Parser* p) => @pool()
 	{
 		p.tokens = main_tokens;
 		p.pos = main_index;
-		p.src = original_src;
 	}
 
 	List{Token} contract_tokens;
@@ -49,6 +50,7 @@ fn Node? parse_contract(Parser* p) => @pool()
 			next.kind = IDENT;
 		} 
 
+		next.pos += global_offset;
 		contract_tokens.push(next);
 
 		log::debug("ContractLexer - added: %s", next.kind);
@@ -58,7 +60,6 @@ fn Node? parse_contract(Parser* p) => @pool()
 
 	p.tokens = contract_tokens.array_view();
 	p.pos = 0;
-	p.src = cl.lexer.buffer;
 	
 	List{uint} ensures;  ensures.tinit();
 	List{uint} requires; requires.tinit();
@@ -474,51 +475,51 @@ fn Node? parse_macro_decl(Parser* p)
 fn Node? parse_param_decl(Parser* p)
 {
     uint start = p.current_pos();
-    uint name = 0;
+    uint name;
     Node type;
     Node init;
-    bool is_variadic = false;
-	uint flags = 0;
+    uint flags;
 
-	if (consume(p, AMP)!)
+    if (consume(p, AMP)!) flags |= 2;
+    bool ellipsis_prefix = consume(p, ELLIPSIS)!;
+
+    if (p.is(AT_IDENT)) 
     {
-        flags |= 2;
+        
     }
 
-    if (consume(p, ELLIPSIS)!)
-    {        
-		flags |= 1;
-
-        if (is_non_type_ident(p.current().kind) || p.current().kind == CT_TYPE_IDENT)
-        {
-            name = p.pool.intern(p.token_text(p.current()));
-            advance(p)!;
-        }
-    }
-    else
+    if (is_type(p.current().kind) || p.is(CT_TYPE_IDENT))
     {
-		if (is_type(p.current().kind) || p.is(CT_TYPE_IDENT))
-		{
-        	type = parse_type(p)!;
-
-			if (consume(p, ELLIPSIS)!)
-            {
-                flags |= 1;
-            }
-		}
-
-		TokenKind k = p.current().kind;
-		if (is_non_type_ident(k) || k == CT_TYPE_IDENT || k == CT_IDENT)
-        {
-            name = p.pool.intern(p.token_text(p.current()));
-            advance(p)!;
-        }
+        type = parse_type(p)!;
+        // Check for "Type..."
+        if (consume(p, ELLIPSIS)!) flags |= 1;
     }
 
-    // Default Values ('=' expr)
-    if (name != 0 && consume(p, EQ)!)
+    TokenKind k = p.current().kind;
+    if (is_non_type_ident(k) || k == CT_TYPE_IDENT || k == CT_IDENT || k == HASH_IDENT)
+    {
+        name = p.pool.intern(p.token_text(p.current()));
+        advance(p)!;
+        
+        // Check for "name..."
+        if (consume(p, ELLIPSIS)!) flags |= 1;
+    }
+
+    uint attributes;
+    if (p.is(AT_IDENT))
+    {
+        attributes = parse_attributes(p)!;
+    }
+
+    if (consume(p, EQ)!)
     {
         init = parse_expr(p)!;
+    }
+
+    if (!type.is_valid() && name == 0 && attributes == 0 && !ellipsis_prefix)
+    {
+        p.error("Expected parameter declaration");
+        p.push_invalid_node(start);
     }
 
     uint[4] data = { name, (uint)type, (uint)init, flags };
@@ -747,7 +748,8 @@ fn Node? parse_struct(Parser* p)
     {
         while (!p.is(RBRACE) && !p.eof())
         {
-            Node field = parse_field_decl(p)!;
+            consume(p, CONTRACT)!; 
+			Node field = parse_field_decl(p)!;
             if (field.is_valid())
             {
                 scratch.push((uint)field);
@@ -786,17 +788,20 @@ fn Node? parse_field_decl(Parser* p)
 
 	Token current = p.current();
 
+	uint name;
 	if (!p.is(IDENT))
 	{
-		p.error("Expected field name");
-		return UNEXPECTED_TOKEN~;
+		expect(p, IDENT)!;
+		name = (uint)p.push_invalid_node(p.current_pos());
+	}
+	else
+	{
+		name = p.pool.intern(p.token_text(p.current()));
 	}
 
-	uint name = p.pool.intern(p.token_text(p.current()));
-	uint end_tok = p.current_pos();
 	advance(p)!;
 
 	uint[2] data = { name, (uint)type_node };
 	uint ex = ast::push_extra_block(p.ast, &data);
-	return ast::add_node(p.ast, FIELD_DECL, start_tok, end_tok, ex);
+	return ast::add_node(p.ast, FIELD_DECL, start_tok, p.current_pos(), ex);
 }
