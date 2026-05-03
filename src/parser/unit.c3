@@ -194,24 +194,34 @@ fn Node? parse_type(Parser* p, ParseFlags parse_flags = { })
  @param [&inout] p
  @returns "Extra data index"
 *>
-fn uint? parse_parameter_list(Parser* p) => @with_scratch(; watermark)
+fn uint? parse_parameter_list(Parser* p, ParseFlags flags = {}) => @with_scratch(; watermark)
 {
-	expect(p, LPAREN)!;
+	if (!flags.is_call)
+	{
+		expect(p, LPAREN)!;
+	}
 
 	while (!p.is(RPAREN) && !p.eof())
 	{
 		Node param = parse_param_decl(p)!;
 		scratch.push((uint)param);
 
-		if (consume(p, COMMA)!) continue;
-		if (!p.is(RPAREN))
+		if (p.is(COMMA) || p.is(EOS))
 		{
-			p.error("Expected ')'");
-			return 0;
+			advance(p)!;
+			if (p.is(RPAREN)) break; 
+		}
+		else if (!p.is(RPAREN))
+		{
+			p.error("Expected ',' or ';' between parameters, found '%s'", p.token_text(p.current()));
+			p.push_invalid_node(p.current_pos());
 		}
 	}
 
-	expect(p, RPAREN)!;
+	if (!flags.is_call)
+	{
+		expect(p, RPAREN)!;
+	}
 	uint count = (uint)scratch.len() - watermark;
 	return ast::push_extra_list(p.ast, scratch_view(watermark, count));
 }
@@ -585,4 +595,133 @@ fn Node? parse_contract_param(Parser* p)
     uint[4] data = { (uint)param_name, description, (uint)flags, (uint)mod };
     uint ex = ast::push_extra_block(p.ast, &data);
     return ast::add_node(p.ast, CONTRACT_PARAM, start, p.current_pos(), ex);
+}
+
+fn Node? parse_cond(Parser* p) => @with_scratch(; watermark)
+{
+    uint start_pos = p.current().pos;
+
+    while (true)
+    {
+        if (p.is(TRY))
+        {
+            Node try_node = parse_try_unwrap_chain(p)!;
+            scratch.push((uint)try_node);
+            
+            if (p.is(COMMA)) 
+			{
+                p.error("The 'try' must be placed last in the condition list.");
+            }
+            break; 
+        }
+
+        if (p.is(CATCH))
+        {
+            Node catch_node = parse_catch_unwrap(p)!;
+            scratch.push((uint)catch_node);
+            
+            if (p.is(COMMA)) 
+			{
+                p.error("The 'catch' must be placed last in the condition list.");
+            }
+            break;
+        }
+
+        Node item = parse_decl_or_expr(p)!;
+        scratch.push((uint)item);
+
+        if (!consume(p, COMMA)!) break;
+        if (p.eof()) break;
+    }
+
+    uint count = (uint)scratch.len() - watermark;
+    uint ex = ast::push_extra_list(p.ast, scratch_view(watermark, count));
+    return ast::add_node(p.ast, COND_LIST_EXPR, start_pos, p.previous_pos(), ex);
+}
+
+fn Node? parse_try_unwrap_chain(Parser* p) => @with_scratch(; watermark)
+{
+    uint start_pos = p.current_pos();
+
+    Node first = parse_try_unwrap(p)!;
+    scratch.push((uint)first);
+
+    // Look for '&&' chains 
+    while (consume(p, AND)!)
+    {
+        if (p.is(TRY))
+        {
+            // Another explicit 'try' (e.g., && try foo())
+            scratch.push((uint)parse_try_unwrap(p)!);
+        }
+        else
+        {
+            // A regular expression in the chain (e.g., && bar == 2)
+            scratch.push((uint)parse_expr(p)!);
+        }
+    }
+
+    uint count = (uint)scratch.len() - watermark;
+    uint ex = ast::push_extra_list(p.ast, scratch_view(watermark, count));
+    return ast::add_node(p.ast, TRY_UNWRAP_CHAIN_EXPR, start_pos, p.previous_pos(), ex);
+}
+
+fn Node? parse_try_unwrap(Parser* p)
+{
+    uint pos = p.current_pos();
+    expect(p, TRY)!;
+    Node expr = parse_expr(p)!;
+    return ast::add_node(p.ast, TRY_UNWRAP_EXPR, pos, p.previous_pos(), (uint)expr);
+}
+
+fn Node? parse_catch_unwrap(Parser* p) => @with_scratch(; watermark)
+{
+    uint start_pos = p.current_pos();
+    advance(p)!; // consume 'catch'
+
+    Node type_node;
+    Node var_node;
+    Node sub_expr = parse_expr(p)!;
+
+    // Chain (catch expr1, expr2...)
+    if (consume(p, COMMA)!)
+    {
+        scratch.push((uint)sub_expr);
+        do 
+		{
+            scratch.push((uint)parse_expr(p)!);
+        } 
+		while (consume(p, COMMA)!);
+        
+        uint count = (uint)scratch.len() - watermark;
+        uint ex = ast::push_extra_list(p.ast, scratch_view(watermark, count));
+        return ast::add_node(p.ast, CATCH_UNWRAP_EXPR, start_pos, p.previous_pos(), ex);
+    }
+
+    if (ast::get_kind(p.ast, sub_expr) == TYPE_EXPR) 
+    {
+        type_node = sub_expr;
+        var_node = parse_expr(p)!;
+    }
+    else
+    {
+        var_node = sub_expr;
+    }
+
+    if (consume(p, EQ)!)
+    {
+        do 
+		{
+            scratch.push((uint)parse_expr(p)!);
+        } 
+		while (consume(p, COMMA)!);
+    }
+
+    uint count = (uint)scratch.len() - watermark;
+    uint list_ex = ast::push_extra_list(p.ast, scratch_view(watermark, count));
+    
+    uint[*] data = { (uint)type_node, (uint)var_node, list_ex };
+    uint ex = ast::push_extra_block(p.ast, &data);
+
+    return ast::add_node(p.ast, CATCH_UNWRAP_EXPR, start_pos, p.previous_pos(), ex);
 }

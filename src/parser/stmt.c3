@@ -78,13 +78,6 @@ fn Node? parse_statement(Parser* p)
 	}
 }
 
-<*
- for_stmt ::= 'for' label? '(' init? ';' cond? ';' incr? ')' statement
-  label    ::= ':' IDENT
-  init     ::= declaration | expression_list
-  cond     ::= expression
-  incr     ::= expression_list
-*>
 fn Node? parse_for_stmt(Parser* p)
 {
 	uint for_token = p.current_pos();
@@ -94,15 +87,12 @@ fn Node? parse_for_stmt(Parser* p)
 
 	expect(p, LPAREN)!;
 
-	Node init_stmt;
+	Node init;
 	if (!p.is(EOS))
 	{
-		init_stmt = parse_statement(p)!;
+		init = parse_expr_list(p)!;
 	}
-	else
-	{
-		expect(p, EOS)!;
-	}
+	expect(p, EOS)!;
 
 	Node cond_expr;
 	if (!p.is(EOS))
@@ -114,12 +104,12 @@ fn Node? parse_for_stmt(Parser* p)
 	Node incr_expr;
 	if (!p.is(RPAREN))
 	{
-		incr_expr = parse_expr(p)!;
+		incr_expr = parse_expr_list(p)!;
 	}
 	expect(p, RPAREN)!;
 	Node body = parse_statement(p)!;
 
-	uint[*] data = { (uint)init_stmt, (uint)cond_expr, (uint)incr_expr, (uint)body };
+	uint[*] data = { (uint)init, (uint)cond_expr, (uint)incr_expr, (uint)body };
 
 	uint ex = ast::push_extra_block(p.ast, &data);
 	return ast::add_node(p.ast, FOR_STMT, for_token, p.current_pos(), ex);
@@ -263,7 +253,7 @@ fn Node? parse_if(Parser* p)
 	advance(p)!; // consume 'if'
 
 	expect(p, LPAREN)!;
-	Node cond = parse_expr(p)!;
+	Node cond = parse_cond(p)!;
 	expect(p, RPAREN)!;
 
 	// Parse the "then" branch
@@ -364,10 +354,13 @@ fn Node? parse_switch(Parser* p)
 {
 	Token t = p.current();
 	advance(p)!;
-
-	expect(p, LPAREN)!;
-	Node cond = parse_expr(p)!;
-	expect(p, RPAREN)!;
+	
+	Node cond;
+	if (consume(p, LPAREN)!)
+	{
+		cond = parse_expr(p)!;
+		expect(p, RPAREN)!;	
+	}
 
 	expect(p, LBRACE)!;
 
