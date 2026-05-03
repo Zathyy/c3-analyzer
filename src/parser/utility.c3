@@ -29,6 +29,11 @@ macro void Parser.error(self, String fmt, ...)
 	self.report(self.current(), "error", ANSI_RED, fmt, ...$vaarg);
 }
 
+macro void Parser.error_at(self, Token t, String fmt, ...)
+{
+    self.report(t, "error", ANSI_RED, fmt, ...$vaarg);
+}
+
 fn void Parser.report(Parser* self, Token token, String level, String color, String fmt, args ...)
 {
 	Location loc = self.line_map.resolve(token.pos);
