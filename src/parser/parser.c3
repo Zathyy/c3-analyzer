@@ -73,6 +73,7 @@ bitstruct ParseFlags : ulong
 	bool is_comptime;
 	bool type_as_expression;
 	bool no_generics; // dont allow type parsing to check for generics
+	bool skip_eos;
 }
 
 struct Parser
