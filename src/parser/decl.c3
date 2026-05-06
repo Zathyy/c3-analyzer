@@ -133,13 +133,13 @@ fn Node? parse_contract(Parser* p) => @pool()
 
 	uint[*] final_data = views::@data{ContractViewFields}
 	(
-		REQUIRES, req_idx, 
-		ENSURES, ens_idx, 
-		PARAMS, params_idx, 
-		OPTIONAL_RETURNS, returns_idx, 
-		RETURN, return_desc, 
-		FLAGS, flags, 
-		DEPRECATED, deprecated 
+	 REQUIRES, req_idx, 
+	 ENSURES, ens_idx, 
+	 PARAMS, params_idx, 
+	 OPTIONAL_RETURNS, returns_idx, 
+	 RETURN, return_desc, 
+	 FLAGS, flags, 
+	 DEPRECATED, deprecated 
 	);
 
 	uint ex = ast::push_extra_block(p.ast, &final_data);
@@ -183,45 +183,13 @@ fn Node? parse_module(Parser* p, Workspace* ws)
 	// last is to reserve for contract (if any)
 	uint[*] data = views::@data{ModuleViewFields}
 	(
-	 PATH, path, 
-	 GENERICS, generics, 
-	 ATTRIBUTES, attributes, 
-	 CONTRACT, 0 
+		PATH, path, 
+		GENERICS, generics, 
+		ATTRIBUTES, attributes, 
+		CONTRACT, 0
 	);
 	uint ex = ast::push_extra_block(p.ast, &data);
 	return ast::add_node(p.ast, MODULE_DECL, start, p.current_pos(), ex);
-}
-
-fn OverloadKind get_overload_from_token(TokenKind kind)
-{
-	switch (kind)
-	{
-		case PLUS: return OverloadKind.PLUS;
-		case PLUS_ASSIGN: return OverloadKind.PLUS_ASSIGN;
-		case MINUS: return OverloadKind.MINUS;
-		case MINUS_ASSIGN: return OverloadKind.MINUS_ASSIGN;
-		case ASTERISK: return OverloadKind.MULTIPLY;
-		case MULT_ASSIGN: return OverloadKind.MULTIPLY_ASSIGN;
-		case DIV: return OverloadKind.DIVIDE;
-		case DIV_ASSIGN: return OverloadKind.DIVIDE_ASSIGN;
-		case MOD: return OverloadKind.REMINDER;
-		case MOD_ASSIGN: return OverloadKind.REMINDER_ASSIGN;
-		case AMP: return OverloadKind.AND;
-		case BIT_AND_ASSIGN: return OverloadKind.AND_ASSIGN;
-		case BIT_OR: return OverloadKind.OR;
-		case BIT_OR_ASSIGN: return OverloadKind.OR_ASSIGN;
-		case BIT_XOR: return OverloadKind.XOR;
-		case BIT_XOR_ASSIGN: return OverloadKind.XOR_ASSIGN;
-		case LSHIFT: return OverloadKind.SHL;
-		case LSHIFT_ASSIGN: return OverloadKind.SHL_ASSIGN;
-		case RSHIFT: return OverloadKind.SHR;
-		case RSHIFT_ASSIGN: return OverloadKind.SHR_ASSIGN;
-		case BIT_NOT: return OverloadKind.NEGATE;
-		case EQEQ: return OverloadKind.EQUAL;
-		case NOT_EQUAL: return OverloadKind.NOT_EQUAL;
-		default:
-			unreachable();
-	}
 }
 
 fn Node? parse_enum(Parser* p, ParseFlags flags)
@@ -312,12 +280,13 @@ fn Node? parse_enum(Parser* p, ParseFlags flags)
 
 	uint[*] decl_data = views::@data{EnumViewFields}
 	( 
-	 NAME, name, 
-	 BASE_TYPE, base_type, 
-	 PARAMS, params, 
-	 ATTRIBUTES, attrs, 
-	 MEMBERS, elements_ex, 
-	 FLAGS, packed_flags 
+		NAME, name, 
+		BASE_TYPE, base_type, 
+		PARAMS, params, 
+		ATTRIBUTES, attrs,
+		CONTRACT, 0,
+		MEMBERS, elements_ex, 
+		FLAGS, packed_flags 
 	);
 	uint ex = ast::push_extra_block(p.ast, &decl_data);
 	return ast::add_node(p.ast, ENUM_DECL, start_tok, p.current_pos(), ex);
@@ -404,13 +373,14 @@ fn Node? parse_fn_decl(Parser* p, ParseFlags flags) => @scratch()
 
 	uint[*] final_block = views::@data{FnViewFields}
 	(
-	 NAME, name,
-	 ASSOCIATED, method_type,
-	 RETURN_TYPE, ret_type,
-	 ATTRIBUTES, attr,
-	 PARAMS, params,
-	 GENERICS, type_params,
-	 BODY, body,
+		NAME, name,
+		ASSOCIATED, method_type,
+		RETURN_TYPE, ret_type,
+		ATTRIBUTES, attr,
+		PARAMS, params,
+		GENERICS, type_params,
+		CONTRACT, 0,
+		BODY, body,
 	);
 
 	log::debug("parse_fn_decl - finished.. adding to ast");
@@ -501,13 +471,14 @@ fn Node? parse_macro_decl(Parser* p)
 
 	uint[*] data = views::@data{MacroViewFields}
 	(
-	 NAME, name,
-	 ASSOCIATED, method_type, 
-	 RETURN_TYPE, rtype, 
-	 ATTRIBUTES, attr, 
-	 PARAMS, params, 
-	 GENERICS, type_params,
-	 BODY, body,
+		NAME, name,
+		ASSOCIATED, method_type, 
+		RETURN_TYPE, rtype, 
+		ATTRIBUTES, attr, 
+		PARAMS, params, 
+		GENERICS, type_params,
+		CONTRACT, 0,
+		BODY, body,
 	);
 
 	uint ex = ast::push_extra_block(p.ast, &data);
@@ -566,10 +537,10 @@ fn Node? parse_param_decl(Parser* p)
 
 	uint[*] data = views::@data{ParamViewFields}
 	( 
-	 NAME, name, 
-	 TYPE, type, 
-	 INIT, init, 
-	 FLAGS, flags,
+		NAME, name,
+		TYPE, type,
+		INIT, init,
+		FLAGS, flags,
 	);
 	uint ex = ast::push_extra_block(p.ast, &data);
 
@@ -615,9 +586,9 @@ fn Node? parse_type_alias(Parser* p)
 
 	uint[*] data = views::@data{TypeAliasViewFields}
 	( 
-	 NAME, name_sh, 
-	 TARGET_TYPE, target_type, 
-	 ATTRIBUTES, attr,
+		NAME, name_sh, 
+		TARGET_TYPE, target_type, 
+		ATTRIBUTES, attr,
 	);
 	uint ex = ast::push_extra_list(p.ast, &data);
 
@@ -669,9 +640,9 @@ fn Node? parse_ident_alias(Parser* p)
 
 	uint[*] data = views::@data{ExprAliasViewFields}
 	( 
-	 NAME, name, 
-	 EXPR, expr, 
-	 ATTRIBUTES, attr,
+		NAME, name, 
+		EXPR, expr, 
+		ATTRIBUTES, attr,
 	);
 	uint ex = ast::push_extra_block(p.ast, &data);
 	return ast::add_node(p.ast, ALIAS_DECL, start_tok, p.current_pos(), ex);
@@ -712,9 +683,9 @@ fn Node? parse_typedef(Parser* p)
 
 	uint[*] data = views::@data{TypedefViewFields}
 	(
-	 NAME, name_sh, 
-	 BASE_TYPE, base_type, 
-	 INTERFACES, inter,
+		NAME, name_sh, 
+		BASE_TYPE, base_type, 
+		INTERFACES, inter,
 	);
 	uint ex = ast::push_extra_block(p.ast, &data);
 
@@ -783,10 +754,10 @@ fn Node? parse_interface(Parser* p)
 
 	uint[*] data = views::@data{InterfaceViewFields}
 	(
-	 NAME, name_id, 
-	 PARENTS, parents_head, 
-	 ATTRIBUTES, attrs, 
-	 METHODS, methods_head 
+		NAME, name_id, 
+		PARENTS, parents_head, 
+		ATTRIBUTES, attrs, 
+		METHODS, methods_head 
 	);
 
 	uint ex = ast::push_extra_block(p.ast, &data);
@@ -854,10 +825,11 @@ fn Node? parse_struct(Parser* p)
 
 	uint[*] header = views::@data{StructViewFields}
 	(
-	 NAME, name, 
-	 INTERFACES, interf_impl, 
-	 GENERICS, generic_params, 
-	 FIELDS, fields_list_ex 
+		NAME, name, 
+		INTERFACES, interf_impl, 
+		GENERICS, generic_params, 
+		FIELDS, fields_list_ex,
+		CONTRACT, 0,
 	);
 
 	NodeKind kind = is_struct ? STRUCT_DECL : UNION_DECL;
@@ -887,8 +859,8 @@ fn Node? parse_field_decl(Parser* p)
 
 	uint[*] data = views::@data{FieldViewFields}
 	(
-	 NAME, name, 
-	 TYPE, type_node,
+		NAME, name, 
+		TYPE, type_node,
 	);
 	uint ex = ast::push_extra_block(p.ast, &data);
 	return ast::add_node(p.ast, FIELD_DECL, start_tok, p.current_pos(), ex);
