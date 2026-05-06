@@ -882,7 +882,8 @@ fn void test(bool flag) {
 	FnView fv = { ast, c.node };
 	CompoundView cv = { ast, fv.body() };
 	IfView iv = { ast, cv.get(0) };
-	assert(ast::get_kind(ast, iv.condition()) == NodeKind.IDENT_EXPR, "condition is IDENT_EXPR");
+	io::printn(ast::get_kind(ast, iv.condition()));
+	assert(ast::get_kind(ast, iv.condition()) == NodeKind.COND_LIST_EXPR, "condition is COND_LIST_EXPR");
 }
 
 // ============================================================

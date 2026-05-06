@@ -495,7 +495,7 @@ fn Node? parse_expr_resuming_with_left(Parser* p, Node left, uint min_bp)
 	{
 		int lbp, rbp;
 		get_binding_power(p.current().kind, &lbp, &rbp);
-		if (lbp < min_bp) break;
+		if ((uint) lbp < min_bp) break;
 
 		left = parse_infix(p, left, (Precedence)rbp)!;
 	}

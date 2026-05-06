@@ -19,8 +19,8 @@ fn String CSVDocument.to_string(&self) {
   DString s;
   s.init(mem);
 
-  ulong num_cols = self.len();
-  ulong num_rows = 0;
+  long num_cols = self.len();
+  long num_rows = 0;
 
   // Header row
   int col_i = 0;
@@ -33,7 +33,7 @@ fn String CSVDocument.to_string(&self) {
   s.append("\n");
 
   // Data rows
-  for (ulong row = 0; row < num_rows; row++) {
+  for (long row = 0; row < num_rows; row++) {
     col_i = 0;
     self.@each_entry(; entry) {
       if (row < entry.value.len()) {
@@ -132,8 +132,8 @@ fn void? CSVSerializer.serialize_string(&self, String s) @dynamic {
 
 fn void? CSVSerializer.struct_start(&self, String name) @dynamic {}
 fn void? CSVSerializer.struct_end(&self, String name) @dynamic {}
-fn void? CSVSerializer.serialize_slice_start(&self, ulong len) @dynamic {}
-fn void? CSVSerializer.serialize_slice_end(&self, ulong len) @dynamic {}
+fn void? CSVSerializer.serialize_slice_start(&self, long len) @dynamic {}
+fn void? CSVSerializer.serialize_slice_end(&self, long len) @dynamic {}
 
 fn void? CSVSerializer.serialize_field_start(&self, String name, FieldAttrs fmt) @dynamic {
   if (catch self.headers.get(name)) {
