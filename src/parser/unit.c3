@@ -636,7 +636,7 @@ fn Node? parse_cond(Parser* p) => @with_scratch(; watermark)
 
     uint count = (uint)scratch.len() - watermark;
     uint ex = ast::push_extra_list(p.ast, scratch_view(watermark, count));
-    return ast::add_node(p.ast, COND_LIST_EXPR, start_pos, p.previous_pos(), ex);
+    return ast::add_node(p.ast, COND_EXPR, start_pos, p.previous_pos(), ex);
 }
 
 fn Node? parse_try_unwrap_chain(Parser* p) => @with_scratch(; watermark)
