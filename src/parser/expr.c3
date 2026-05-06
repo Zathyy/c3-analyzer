@@ -538,6 +538,10 @@ fn Node? parse_call(Parser* p, Token t, Node callee)
 					scratch.push((uint)arg_node);
 					arg_node = (Node)parse_parameter_list(p, { .is_call = true })!;
 				}
+				else if (!p.is(COMMA) && !p.is(EOS) && !p.is(RPAREN))
+				{
+					arg_node = parse_decl_or_expr(p)!;
+				}
                 else if (p.current().kind == IDENT && p.peek().kind == COLON)
                 {
                     Token name_tok = p.current();
@@ -557,12 +561,13 @@ fn Node? parse_call(Parser* p, Token t, Node callee)
 
                 scratch.push((uint)arg_node);
 
-				if (!p.is(COMMA) && !p.is(EOS)) 
+				if (p.is(COMMA) || p.is(EOS)) 
 				{
-					break;
+					advance(p)!;
+					continue;
 				}
 
-				advance(p)!;
+				break;
             }
         }
         expect(p, RPAREN)!;

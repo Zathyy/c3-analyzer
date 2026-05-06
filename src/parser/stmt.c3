@@ -358,7 +358,7 @@ fn Node? parse_switch(Parser* p)
 	Node cond;
 	if (consume(p, LPAREN)!)
 	{
-		cond = parse_expr(p)!;
+		cond = parse_cond(p)!;
 		expect(p, RPAREN)!;	
 	}
 
