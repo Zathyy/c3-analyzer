@@ -41,7 +41,7 @@ fn Node? parse_contract(Parser* p) => @pool()
 	contract_tokens.tinit();
 
 	ContractLexer cl; cl.init(slice);
-	
+
 	while (try next = cl.next())
 	{
 		// make return a identifier so the it can be parsed as expr
@@ -55,12 +55,12 @@ fn Node? parse_contract(Parser* p) => @pool()
 
 		log::debug("ContractLexer - added: %s", next.kind);
 	}
- 
+
 	contract_tokens.push({ .kind = EOF, .pos = (contract_tokens.last().pos + contract_tokens.last().len) ?? 0, .len = 0 });
 
 	p.tokens = contract_tokens.array_view();
 	p.pos = 0;
-	
+
 	List{uint} ensures;  ensures.tinit();
 	List{uint} requires; requires.tinit();
 	List{uint} params;   params.tinit();
@@ -73,7 +73,7 @@ fn Node? parse_contract(Parser* p) => @pool()
 	{
 		String attr = p.token_text(p.current());
 		log::debug("parse_contract - attribute = %s", attr);
-	
+
 		if (consume(p, AT_IDENT)!)
 		{
 			if (attr == constants::KW_AT_REQUIRE)
@@ -127,11 +127,20 @@ fn Node? parse_contract(Parser* p) => @pool()
 	}
 
 	uint req_idx = ast::push_extra_list(p.ast, requires.array_view());
-    uint ens_idx = ast::push_extra_list(p.ast, ensures.array_view());
-    uint params_idx = ast::push_extra_list(p.ast, params.array_view());
-    uint returns_idx = ast::push_extra_list(p.ast, returns.array_view());
+	uint ens_idx = ast::push_extra_list(p.ast, ensures.array_view());
+	uint params_idx = ast::push_extra_list(p.ast, params.array_view());
+	uint returns_idx = ast::push_extra_list(p.ast, returns.array_view());
 
-	uint[7] final_data = { req_idx, ens_idx, params_idx, returns_idx, return_desc, (uint)flags, deprecated };
+	uint[*] final_data = views::@data{ContractViewFields}
+	(
+	 REQUIRES, req_idx, 
+	 ENSURES, ens_idx, 
+	 PARAMS, params_idx, 
+	 OPTIONAL_RETURNS, returns_idx, 
+	 RETURN, return_desc, 
+	 FLAGS, flags, 
+	 DEPRECATED, deprecated 
+	);
 
 	uint ex = ast::push_extra_block(p.ast, &final_data);
 	return ast::add_node(p.ast, CONTRACT_DECL, 0, p.current_pos(), ex);
@@ -172,7 +181,13 @@ fn Node? parse_module(Parser* p, Workspace* ws)
 	log::debug("parsed module: %s", mod_name);
 
 	// last is to reserve for contract (if any)
-	uint[*] data = { (uint)path, generics, attributes, 0 };
+	uint[*] data = views::@data{ModuleViewFields}
+	(
+	 PATH, path, 
+	 GENERICS, generics, 
+	 ATTRIBUTES, attributes, 
+	 CONTRACT, 0 
+	);
 	uint ex = ast::push_extra_block(p.ast, &data);
 	return ast::add_node(p.ast, MODULE_DECL, start, p.current_pos(), ex);
 }
@@ -269,9 +284,14 @@ fn Node? parse_enum(Parser* p, ParseFlags flags)
 				Node explicit_val = consume(p, EQ)! ? (parse_expr(p)!) : 0;
 				Node assoc_init = p.is(LBRACE) ? (parse_initializer_list(p)!) : 0;
 
-				uint[3] member_data = { elem_name, (uint)explicit_val, (uint)assoc_init };
+				uint[*] member_data = views::@data{EnumMemberViewFields}
+				(
+				 NAME, elem_name, 
+				 EXPLICIT_VALUE, explicit_val, 
+				 ASSOCIATED, assoc_init 
+				);
 				uint m_ex = ast::push_extra_block(p.ast, &member_data);
-				
+
 				scratch.push((uint)ast::add_node(p.ast, ENUM_MEMBER, elem_tok.pos, p.previous_pos(), m_ex));
 
 				if (!consume(p, COMMA)!) break;
@@ -290,7 +310,15 @@ fn Node? parse_enum(Parser* p, ParseFlags flags)
 	if (flags.is_constdef) packed_flags |= (1 << 0);
 	if (is_inline_type)	packed_flags |= (1 << 1);
 
-	uint[6] decl_data = { name, (uint)base_type, params, attrs, elements_ex, packed_flags };
+	uint[*] decl_data = views::@data{EnumViewFields}
+	( 
+	 NAME, name, 
+	 BASE_TYPE, base_type, 
+	 PARAMS, params, 
+	 ATTRIBUTES, attrs, 
+	 MEMBERS, elements_ex, 
+	 FLAGS, packed_flags 
+	);
 	uint ex = ast::push_extra_block(p.ast, &decl_data);
 	return ast::add_node(p.ast, ENUM_DECL, start_tok, p.current_pos(), ex);
 }
@@ -376,13 +404,13 @@ fn Node? parse_fn_decl(Parser* p, ParseFlags flags) => @scratch()
 
 	uint[*] final_block = views::@data{FnViewFields}
 	(
-		NAME, name,
-		ASSOCIATED, method_type,
-		RETURN_TYPE, ret_type,
-		ATTRIBUTES, attr,
-		PARAMS, params,
-		GENERICS, type_params,
-		BODY, body,
+	 NAME, name,
+	 ASSOCIATED, method_type,
+	 RETURN_TYPE, ret_type,
+	 ATTRIBUTES, attr,
+	 PARAMS, params,
+	 GENERICS, type_params,
+	 BODY, body,
 	);
 
 	log::debug("parse_fn_decl - finished.. adding to ast");
@@ -399,7 +427,11 @@ fn Node? parse_function_type(Parser* p)
 
 	uint params = parse_parameter_list(p)!;
 
-	uint[*] data = { (uint)return_type, (uint)params };
+	uint[*] data = views::@data{FnTypeViewFields}
+	( 
+	 RETURN_TYPE, return_type, 
+	 PARAMS, params 
+	);
 	uint ex = ast::push_extra_list(p.ast, &data);
 	return ast::add_node(p.ast, TYPE_FUNCTION, pos, p.current_pos(), ex);
 }
@@ -622,7 +654,12 @@ fn Node? parse_ident_alias(Parser* p)
 
 		Node path = parse_path(p)!;
 
-		uint[*] data = { name, (uint)path, (uint)attr };
+		uint[*] data = views::@data{PathAliasViewFields}
+		( 
+		 NAME, name, 
+		 PATH, path, 
+		 ATTRIBUTES, attr,
+		);
 		uint ex = ast::push_extra_block(p.ast, &data);
 
 		return ast::add_node(p.ast, PATH_ALIAS_DECL, start_tok, p.current_pos(), ex);
@@ -630,7 +667,7 @@ fn Node? parse_ident_alias(Parser* p)
 
 	Node expr = parse_expr(p)!;
 
-	uint[*] data = views::@data{AliasViewFields}
+	uint[*] data = views::@data{ExprAliasViewFields}
 	( 
 	 NAME, name, 
 	 EXPR, expr, 
@@ -817,10 +854,10 @@ fn Node? parse_struct(Parser* p)
 
 	uint[*] header = views::@data{StructViewFields}
 	(
-		NAME, name, 
-		INTERFACES, interf_impl, 
-		GENERICS, generic_params, 
-		FIELDS, fields_list_ex 
+	 NAME, name, 
+	 INTERFACES, interf_impl, 
+	 GENERICS, generic_params, 
+	 FIELDS, fields_list_ex 
 	);
 
 	NodeKind kind = is_struct ? STRUCT_DECL : UNION_DECL;
