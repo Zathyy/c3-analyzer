@@ -501,13 +501,13 @@ fn Node? parse_macro_decl(Parser* p)
 
 	uint[*] data = views::@data{MacroViewFields}
 	(
-	 NAME, name,
-	 ASSOCIATED, method_type, 
-	 RETURN_TYPE, rtype, 
-	 ATTRIBUTES, attr, 
-	 PARAMS, params, 
-	 GENERICS, type_params,
-	 BODY, body,
+		NAME, name,
+		ASSOCIATED, method_type, 
+		RETURN_TYPE, rtype, 
+		ATTRIBUTES, attr, 
+		PARAMS, params, 
+		GENERICS, type_params,
+		BODY, body,
 	);
 
 	uint ex = ast::push_extra_block(p.ast, &data);
@@ -566,10 +566,10 @@ fn Node? parse_param_decl(Parser* p)
 
 	uint[*] data = views::@data{ParamViewFields}
 	( 
-	 NAME, name, 
-	 TYPE, type, 
-	 INIT, init, 
-	 FLAGS, flags,
+		NAME, name,
+		TYPE, type,
+		INIT, init,
+		FLAGS, flags,
 	);
 	uint ex = ast::push_extra_block(p.ast, &data);
 
@@ -615,9 +615,9 @@ fn Node? parse_type_alias(Parser* p)
 
 	uint[*] data = views::@data{TypeAliasViewFields}
 	( 
-	 NAME, name_sh, 
-	 TARGET_TYPE, target_type, 
-	 ATTRIBUTES, attr,
+		NAME, name_sh, 
+		TARGET_TYPE, target_type, 
+		ATTRIBUTES, attr,
 	);
 	uint ex = ast::push_extra_list(p.ast, &data);
 
@@ -669,9 +669,9 @@ fn Node? parse_ident_alias(Parser* p)
 
 	uint[*] data = views::@data{ExprAliasViewFields}
 	( 
-	 NAME, name, 
-	 EXPR, expr, 
-	 ATTRIBUTES, attr,
+		NAME, name, 
+		EXPR, expr, 
+		ATTRIBUTES, attr,
 	);
 	uint ex = ast::push_extra_block(p.ast, &data);
 	return ast::add_node(p.ast, ALIAS_DECL, start_tok, p.current_pos(), ex);
@@ -712,9 +712,9 @@ fn Node? parse_typedef(Parser* p)
 
 	uint[*] data = views::@data{TypedefViewFields}
 	(
-	 NAME, name_sh, 
-	 BASE_TYPE, base_type, 
-	 INTERFACES, inter,
+		NAME, name_sh, 
+		BASE_TYPE, base_type, 
+		INTERFACES, inter,
 	);
 	uint ex = ast::push_extra_block(p.ast, &data);
 
@@ -783,10 +783,10 @@ fn Node? parse_interface(Parser* p)
 
 	uint[*] data = views::@data{InterfaceViewFields}
 	(
-	 NAME, name_id, 
-	 PARENTS, parents_head, 
-	 ATTRIBUTES, attrs, 
-	 METHODS, methods_head 
+		NAME, name_id, 
+		PARENTS, parents_head, 
+		ATTRIBUTES, attrs, 
+		METHODS, methods_head 
 	);
 
 	uint ex = ast::push_extra_block(p.ast, &data);
@@ -854,10 +854,10 @@ fn Node? parse_struct(Parser* p)
 
 	uint[*] header = views::@data{StructViewFields}
 	(
-	 NAME, name, 
-	 INTERFACES, interf_impl, 
-	 GENERICS, generic_params, 
-	 FIELDS, fields_list_ex 
+		NAME, name, 
+		INTERFACES, interf_impl, 
+		GENERICS, generic_params, 
+		FIELDS, fields_list_ex 
 	);
 
 	NodeKind kind = is_struct ? STRUCT_DECL : UNION_DECL;
@@ -887,8 +887,8 @@ fn Node? parse_field_decl(Parser* p)
 
 	uint[*] data = views::@data{FieldViewFields}
 	(
-	 NAME, name, 
-	 TYPE, type_node,
+		NAME, name, 
+		TYPE, type_node,
 	);
 	uint ex = ast::push_extra_block(p.ast, &data);
 	return ast::add_node(p.ast, FIELD_DECL, start_tok, p.current_pos(), ex);
