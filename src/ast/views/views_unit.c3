@@ -78,6 +78,13 @@ fn Node TypeView.get_gen_arg(TypeView self, uint index)
 	return self.get_at(5, index);
 }
 
+constdef FnTypeViewFields : inline uint
+{
+	RETURN_TYPE,
+	PARAMS
+}
+typedef FnTypeView = inline View;
+
 // The container for the whole <T, V> block
 typedef GenericParamsView = inline View;
 fn uint GenericParamsView.count(self) => self.ast.extra_data[(Size)self.get_extra_index()];
