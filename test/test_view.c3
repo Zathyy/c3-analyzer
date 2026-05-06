@@ -78,8 +78,7 @@ fn void empty_params() {}
 	Cursor c = ws.lookup("fv", "empty_params")!!;
 	Ast* ast = &c.section.source_file.ast;
 	FnView fv = { ast, c.node };
-	ParamsListView plv = fv.params();
-	assert(plv.count() == 0, "zero params");
+	assert(fv.param_count() == 0, "zero params");
 }
 
 fn void test_fn_view_param_count_two() @test => @pool()
@@ -92,8 +91,7 @@ fn void add(int x, int y) {}
 	Cursor c = ws.lookup("fv", "add")!!;
 	Ast* ast = &c.section.source_file.ast;
 	FnView fv = { ast, c.node };
-	ParamsListView plv = fv.params();
-	assert(plv.count() == 2, "two params");
+	assert(fv.param_count() == 2, "two params");
 }
 
 fn void test_fn_view_param_names() @test => @pool()
@@ -106,9 +104,8 @@ fn int sub(int a, int b) { return a; }
 	Cursor c = ws.lookup("fv", "sub")!!;
 	Ast* ast = &c.section.source_file.ast;
 	FnView fv = { ast, c.node };
-	ParamsListView plv = fv.params();
-	ParamView p0 = plv.get_param(0);
-	ParamView p1 = plv.get_param(1);
+	ParamView p0 = { ast, fv.get_param(0) };
+	ParamView p1 = { ast, fv.get_param(1) };
 	assert(p0.name(&ws.strings) == "a", "first param 'a'");
 	assert(p1.name(&ws.strings) == "b", "second param 'b'");
 }
@@ -155,8 +152,7 @@ fn void scale(float f) {}
 	Cursor c = ws.lookup("pv", "scale")!!;
 	Ast* ast = &c.section.source_file.ast;
 	FnView fv = { ast, c.node };
-	ParamsListView plv = fv.params();
-	ParamView pv = plv.get_param(0);
+	ParamView pv = { ast, fv.get_param(0) };
 	TypeView tv = { ast, pv.type_node() };
 	assert(tv.name(&ws.strings) == "float", "param type is float");
 }
@@ -171,8 +167,7 @@ fn void ptr_param(int* p) {}
 	Cursor c = ws.lookup("pv", "ptr_param")!!;
 	Ast* ast = &c.section.source_file.ast;
 	FnView fv = { ast, c.node };
-	ParamsListView plv = fv.params();
-	ParamView pv = plv.get_param(0);
+	ParamView pv = { ast, fv.get_param(0) };
 	TypeView tv = { ast, pv.type_node() };
 	assert(tv.name(&ws.strings) == "int", "ptr base type is int");
 	assert(tv.ptr_count() == 1, "one pointer level");
@@ -457,8 +452,7 @@ fn void f(int* p) {}
 	Cursor c = ws.lookup("tv", "f")!!;
 	Ast* ast = &c.section.source_file.ast;
 	FnView fv = { ast, c.node };
-	ParamsListView plv = fv.params();
-	ParamView pv = plv.get_param(0); 
+	ParamView pv = { ast, fv.get_param(0) };
 	TypeView tv = { ast, pv.type_node() };
 	assert(tv.ptr_count() == 1, "one pointer level");
 }
@@ -473,8 +467,7 @@ fn void f(char** pp) {}
 	Cursor c = ws.lookup("tv", "f")!!;
 	Ast* ast = &c.section.source_file.ast;
 	FnView fv = { ast, c.node };
-	ParamsListView plv = fv.params();
-	ParamView pv = plv.get_param(0);
+	ParamView pv = { ast, fv.get_param(0) };
 	TypeView tv = { ast, pv.type_node() };
 	assert(tv.ptr_count() == 2, "two pointer levels");
 }
@@ -489,8 +482,7 @@ fn void f(int x) {}
 	Cursor c = ws.lookup("tv", "f")!!;
 	Ast* ast = &c.section.source_file.ast;
 	FnView fv = { ast, c.node };
-	ParamsListView plv = fv.params();
-	ParamView pv = plv.get_param(0);
+	ParamView pv = { ast, fv.get_param(0) };
 	TypeView tv = { ast, pv.type_node() };
 	assert(tv.gen_count() == 0, "plain int has no generic args");
 }
@@ -568,7 +560,6 @@ fn void test_module_view_not_generic() @test => @pool()
 	Ast* ast = &sec.source_file.ast;
 	Node mn = first_node_of_kind(sec, NodeKind.MODULE_DECL);
 	ModuleView mv = { ast, mn };
-	log::error("Module num generics: %s", mv.generics().parameters_count());
 	assert(!mv.is_generic(), "plain module is not generic");
 }
 
@@ -892,7 +883,7 @@ fn void test(bool flag) {
 	CompoundView cv = { ast, fv.body() };
 	IfView iv = { ast, cv.get(0) };
 	io::printn(ast::get_kind(ast, iv.condition()));
-	assert(ast::get_kind(ast, iv.condition()) == NodeKind.COND_EXPR, "condition is COND_EXPR");
+	assert(ast::get_kind(ast, iv.condition()) == NodeKind.COND_LIST_EXPR, "condition is COND_LIST_EXPR");
 }
 
 // ============================================================
