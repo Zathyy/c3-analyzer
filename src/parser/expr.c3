@@ -617,14 +617,15 @@ fn Node? parse_call(Parser* p, Token t, Node callee)
 		args_list_ex = ast::push_extra_list(p.ast, scratch_view(watermark, (uint)scratch.len() - watermark));
 	};
 
-	uint[4] header = {
-		(uint)callee,
-		type_args_list_ex,
-		args_list_ex,
-		(uint)trailing_block,
-	};
+	uint[*] final_data = views::@data{CallViewFields}
+	(	
+		CALLEE, (uint)callee,
+		TYPE_ARG, type_args_list_ex,
+		ARG, args_list_ex,
+		COMPOUND, (uint)trailing_block,
+	);
 
-	uint ex = ast::push_extra_block(p.ast, &header);
+	uint ex = ast::push_extra_block(p.ast, &final_data);
 	return ast::add_node(p.ast, CALL_EXPR, t.pos, p.current_pos(), ex);
 }
 
