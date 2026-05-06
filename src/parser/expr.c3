@@ -523,8 +523,9 @@ fn Node? parse_ternary(Parser* p, Node condition, Token t, Precedence rbp)
 fn Node? parse_call(Parser* p, Token t, Node callee)
 {
 	Node trailing_block;
-
 	uint type_args_list_ex;
+	Node macro_body_args;
+
 	@with_scratch(; watermark)
 	{
 		if (t.kind == LBRACE)
@@ -566,56 +567,46 @@ fn Node? parse_call(Parser* p, Token t, Node callee)
 
 	uint args_list_ex;
 	@with_scratch(; watermark)
-	{
-		if (p.current().kind != RPAREN && !p.eof())
-		{
-			while (true)
-			{
-				Node arg_node;
+    {
+        if (p.current().kind != RPAREN && p.current().kind != EOS && !p.eof())
+        {
+            while (true)
+            {
+                Node arg_node;
+                // Named argument logic (name: expr)
+                if (p.current().kind == IDENT && p.peek().kind == COLON)
+                {
+                    Token name_tok = p.current();
+                    advance(p, 2)!;
+                    uint name_sh = p.pool.intern(p.token_text(name_tok));
+                    Node value = parse_expr(p)!;
+                    uint[2] data = { name_sh, (uint)value };
+                    uint arg_ex = ast::push_extra_block(p.ast, &data);
+                    arg_node = ast::add_node(p.ast, NAMED_ARG_EXPR, name_tok.pos, p.current_pos(), arg_ex);
+                }
+                else
+                {
+                    arg_node = parse_expr(p)!;
+                }
 
-				if (p.is(EOS))
-				{
-					arg_node = ast::add_node(p.ast, NONE_EXPR, p.current_pos(), p.current_pos(), 0);
-					advance(p)!;
-					scratch.push((uint)arg_node);
-					arg_node = (Node)parse_parameter_list(p, { .is_call = true })!;
-				}
-				else if (p.current().kind == IDENT && p.peek().kind == COLON)
-				{
-					Token name_tok = p.current();
-					advance(p, 2)!;
+                scratch.push((uint)arg_node);
+                if (!consume(p, COMMA)!) break;
+            }
+        }
 
-					uint name_sh = p.pool.intern(p.token_text(name_tok));
-					Node value = parse_expr(p)!;
+        if (consume(p, EOS)!)
+        {
+            macro_body_args = (Node)parse_parameter_list(p, { .is_call = true })!;
+        }
 
-					uint[2] data = { name_sh, (uint)value };
-					uint arg_ex = ast::push_extra_block(p.ast, &data);
-					arg_node = ast::add_node(p.ast, NAMED_ARG_EXPR, name_tok.pos, p.current_pos(), arg_ex);
-				}
-				else
-				{
-					arg_node = parse_expr(p)!;
-				}
+        expect(p, RPAREN)!;
+        args_list_ex = ast::push_extra_list(p.ast, scratch_view(watermark, (uint)scratch.len() - watermark));
+    };
 
-				scratch.push((uint)arg_node);
-
-				if (!p.is(COMMA) && !p.is(EOS)) 
-				{
-					break;
-				}
-
-				advance(p)!;
-			}
-		}
-		expect(p, RPAREN)!;
-
-		if (p.is(LBRACE))
-		{
-			trailing_block = parse_compound(p)!;
-		}
-
-		args_list_ex = ast::push_extra_list(p.ast, scratch_view(watermark, (uint)scratch.len() - watermark));
-	};
+	if (p.is(LBRACE))
+    {
+        trailing_block = parse_compound(p)!;
+    }
 
 	uint[*] final_data = views::@data{CallViewFields}
 	(	
@@ -822,7 +813,7 @@ fn Node? parse_expr_list(Parser* p) => @with_scratch(; watermark)
 	while (!p.eof())
 	{
 		scratch.push((uint)parse_decl_or_expr(p)!);
-		if (!consume(p, COMMA)!) break;
+		if (p.is(EOS) || !consume(p, COMMA)!) break;
 	}
 
     uint count = (uint)scratch.len() - watermark;
@@ -870,10 +861,16 @@ fn Node? parse_ct_defined_expr(Parser* p) => @with_scratch(; watermark)
 
 fn Node? parse_decl_or_expr(Parser* p)
 {
-    if (is_type(p.peek(0).kind)) 
+    if (p.is(VAR))
     {
-        return parse_param_decl(p); 
+        return parse_var_decl(p, { .is_local = true, .skip_eos = true, .is_var = true })!;
+    }
+
+	// Need to check that its not a type expr
+	if (is_type(p.current().kind) && is_declaration_followup(p))
+    {
+        return parse_var_decl(p, { .is_local = true, .skip_eos = true })!;
     }
     
-	return parse_expr(p); 
+    return parse_expr(p)!;
 }
