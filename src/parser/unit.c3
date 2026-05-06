@@ -466,9 +466,7 @@ fn Node? parse_var_decl(Parser* p, ParseFlags flags)
 	}
 
 	Node type_node;
-	if (is_type(p.current().kind)
-		&& (p.peek().kind == IDENT || p.peek().kind == CONST_IDENT
-			|| p.peek().kind == CT_IDENT))
+	if (is_type(p.current().kind) && is_declaration_followup(p))
 	{
 		type_node = parse_type(p)!;
 	}
@@ -513,7 +511,10 @@ fn Node? parse_var_decl(Parser* p, ParseFlags flags)
 
 	uint end_tok = p.current_pos();
 
-	expect(p, EOS)!;
+	if (!flags.skip_eos)
+	{
+		expect(p, EOS)!;
+	}
 
 	VarDeclFlags packed_flags = {
 		.is_extern = flags.is_extern,
