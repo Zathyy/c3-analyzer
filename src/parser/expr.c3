@@ -130,6 +130,7 @@ fn void get_binding_power(TokenKind type, int* lbp, int* rbp)
 		case DOT:
 		case SCOPE:
 		case LPAREN:
+		case LBRACE:
 		case LBRACKET:
 			*lbp = Precedence.CALL;
 			*rbp = Precedence.LOWEST; 
@@ -387,6 +388,7 @@ fn Node? parse_infix(Parser* p, Node left, Precedence rbp)
 				return ast::add_node(p.ast, POST_UNARY_EXPR, t.pos, p.current_pos(), ex);
 			}
 		case LPAREN:
+		case LBRACE:
 			{
 				advance(p)!;
 				return parse_call(p, t, left)!;
@@ -520,16 +522,16 @@ fn Node? parse_ternary(Parser* p, Node condition, Token t, Precedence rbp)
 *>
 fn Node? parse_call(Parser* p, Token t, Node callee)
 {
-    Node trailing_block;
-    uint args_list_ex;
+	Node trailing_block;
 
-    @with_scratch(; watermark)
-    {
-        if (p.current().kind != RPAREN && !p.eof())
-        {
-            while (true)
-            {
-                Node arg_node;
+	uint type_args_list_ex;
+	@with_scratch(; watermark)
+	{
+		if (t.kind == LBRACE)
+		{
+			while (true)
+			{
+				Node arg_node;
 
 				if (p.is(EOS))
 				{
@@ -538,56 +540,92 @@ fn Node? parse_call(Parser* p, Token t, Node callee)
 					scratch.push((uint)arg_node);
 					arg_node = (Node)parse_parameter_list(p, { .is_call = true })!;
 				}
-				else if (!p.is(COMMA) && !p.is(EOS) && !p.is(RPAREN))
+				else
 				{
-					arg_node = parse_decl_or_expr(p)!;
+					arg_node = parse_type(p)!;
 				}
-                else if (p.current().kind == IDENT && p.peek().kind == COLON)
-                {
-                    Token name_tok = p.current();
-                    advance(p, 2)!;
 
-                    uint name_sh = p.pool.intern(p.token_text(name_tok));
-                    Node value = parse_expr(p)!;
+				scratch.push((uint)arg_node);
 
-                    uint[2] data = { name_sh, (uint)value };
-                    uint arg_ex = ast::push_extra_block(p.ast, &data);
-                    arg_node = ast::add_node(p.ast, NAMED_ARG_EXPR, name_tok.pos, p.current_pos(), arg_ex);
-                }
-                else
-                {
-                    arg_node = parse_expr(p)!;
-                }
-
-                scratch.push((uint)arg_node);
-
-				if (p.is(COMMA) || p.is(EOS)) 
+				if (!p.is(COMMA) && !p.is(EOS)) 
 				{
+					break;
+				}
+
+				advance(p)!;
+			}
+
+			expect(p, RBRACE)!;
+			// skip LPAREN, like parse_infix_expr would do on a non-generic call
+			advance(p)!;
+		}
+
+		type_args_list_ex = ast::push_extra_list(p.ast, scratch_view(watermark, (uint)scratch.len() - watermark));
+	};
+
+
+	uint args_list_ex;
+	@with_scratch(; watermark)
+	{
+		if (p.current().kind != RPAREN && !p.eof())
+		{
+			while (true)
+			{
+				Node arg_node;
+
+				if (p.is(EOS))
+				{
+					arg_node = ast::add_node(p.ast, NONE_EXPR, p.current_pos(), p.current_pos(), 0);
 					advance(p)!;
-					continue;
+					scratch.push((uint)arg_node);
+					arg_node = (Node)parse_parameter_list(p, { .is_call = true })!;
+				}
+				else if (p.current().kind == IDENT && p.peek().kind == COLON)
+				{
+					Token name_tok = p.current();
+					advance(p, 2)!;
+
+					uint name_sh = p.pool.intern(p.token_text(name_tok));
+					Node value = parse_expr(p)!;
+
+					uint[2] data = { name_sh, (uint)value };
+					uint arg_ex = ast::push_extra_block(p.ast, &data);
+					arg_node = ast::add_node(p.ast, NAMED_ARG_EXPR, name_tok.pos, p.current_pos(), arg_ex);
+				}
+				else
+				{
+					arg_node = parse_expr(p)!;
 				}
 
-				break;
-            }
-        }
-        expect(p, RPAREN)!;
+				scratch.push((uint)arg_node);
 
-        if (p.is(LBRACE))
-        {
-            trailing_block = parse_compound(p)!;
-        }
+				if (!p.is(COMMA) && !p.is(EOS)) 
+				{
+					break;
+				}
 
-        args_list_ex = ast::push_extra_list(p.ast, scratch_view(watermark, (uint)scratch.len() - watermark));
-    };
+				advance(p)!;
+			}
+		}
+		expect(p, RPAREN)!;
 
-    uint[3] header = {
-        (uint)callee,
-        args_list_ex,
-        (uint)trailing_block
-    };
+		if (p.is(LBRACE))
+		{
+			trailing_block = parse_compound(p)!;
+		}
 
-    uint ex = ast::push_extra_block(p.ast, &header);
-    return ast::add_node(p.ast, CALL_EXPR, t.pos, p.current_pos(), ex);
+		args_list_ex = ast::push_extra_list(p.ast, scratch_view(watermark, (uint)scratch.len() - watermark));
+	};
+
+	uint[4] header = {
+		(uint)callee,
+		type_args_list_ex,
+		args_list_ex,
+		(uint)trailing_block,
+	};
+
+	uint ex = ast::push_extra_block(p.ast, &header);
+	return ast::add_node(p.ast, CALL_EXPR, t.pos, p.current_pos(), ex);
 }
 
 fn Node? parse_initializer_list(Parser* p)

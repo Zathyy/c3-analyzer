@@ -20,8 +20,10 @@ fn Node UnaryView.rhs(self) => self.get(1);
 
 typedef CallView = inline View;
 fn Node CallView.callee(self) => self.get(0);
-fn uint CallView.arg_count(self) => self.get_list_count(1);
-fn Node CallView.get_arg(self, uint i) => self.get_list_item(1, i);
+fn uint CallView.type_arg_count(self) => self.get_list_count(1);
+fn Node CallView.get_type_arg(self, uint i) => self.get_list_item(1, i);
+fn uint CallView.arg_count(self) => self.get_list_count(2);
+fn Node CallView.get_arg(self, uint i) => self.get_list_item(2, i);
 
 typedef IfView = inline View;
 
