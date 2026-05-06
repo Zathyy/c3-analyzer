@@ -40,6 +40,7 @@ constdef CallViewFields : inline uint
 	CALLEE = 0,
 	TYPE_ARG,
 	ARG,
+	COMPOUND,
 }
 typedef CallView = inline View;
 fn Node CallView.callee(self) => self.get(CallViewFields.CALLEE);
@@ -47,6 +48,7 @@ fn uint CallView.type_arg_count(self) => self.get_list_count(CallViewFields.TYPE
 fn Node CallView.get_type_arg(self, uint i) => self.get_list_item(CallViewFields.TYPE_ARG, i);
 fn uint CallView.arg_count(self) => self.get_list_count(CallViewFields.ARG);
 fn Node CallView.get_arg(self, uint i) => self.get_list_item(CallViewFields.ARG, i);
+fn Node CallView.get_compound(self) => self.get(CallViewFields.COMPOUND);
 
 constdef IfViewFields : inline uint
 {

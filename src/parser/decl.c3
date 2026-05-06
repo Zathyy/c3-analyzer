@@ -133,13 +133,13 @@ fn Node? parse_contract(Parser* p) => @pool()
 
 	uint[*] final_data = views::@data{ContractViewFields}
 	(
-	 REQUIRES, req_idx, 
-	 ENSURES, ens_idx, 
-	 PARAMS, params_idx, 
-	 OPTIONAL_RETURNS, returns_idx, 
-	 RETURN, return_desc, 
-	 FLAGS, flags, 
-	 DEPRECATED, deprecated 
+		REQUIRES, req_idx, 
+		ENSURES, ens_idx, 
+		PARAMS, params_idx, 
+		OPTIONAL_RETURNS, returns_idx, 
+		RETURN, return_desc, 
+		FLAGS, flags, 
+		DEPRECATED, deprecated 
 	);
 
 	uint ex = ast::push_extra_block(p.ast, &final_data);
