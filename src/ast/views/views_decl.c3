@@ -54,6 +54,7 @@ constdef MacroViewFields : inline uint
 	ATTRIBUTES,
 	PARAMS,
 	GENERICS,
+	CONTRACT, 
 	BODY,
 }
 
@@ -65,6 +66,7 @@ constdef FnViewFields : inline uint
 	ATTRIBUTES,
 	PARAMS,
 	GENERICS,
+	CONTRACT,
 	BODY,
 }
 typedef FnView = inline View;
@@ -173,6 +175,7 @@ constdef StructViewFields : inline uint
 	INTERFACES,
 	GENERICS,
 	FIELDS,
+	CONTRACT,
 }
 typedef StructView = inline View;
 fn String StructView.name(self, StringPool* pool) => pool.get((StringHandle)self.get_uint(StructViewFields.NAME));
@@ -196,6 +199,7 @@ constdef EnumViewFields : inline uint
 	BASE_TYPE,
 	PARAMS,
 	ATTRIBUTES,
+	CONTRACT,
 	MEMBERS,
 	FLAGS,
 }
