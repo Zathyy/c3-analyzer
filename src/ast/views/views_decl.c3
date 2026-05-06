@@ -32,10 +32,23 @@ fn String FnView.name(FnView self, StringPool* pool) => pool.get((StringHandle)s
 fn Node FnView.associated(FnView self) => self.get(1);
 fn Node FnView.return_type(FnView self) => self.get(2);
 fn uint FnView.attributes_offset(FnView self) => self.get_uint(3);
-fn Node FnView.body(FnView self) => self.get(5);
+fn Node FnView.body(FnView self) => self.get(6);
 
 fn bool FnView.is_inline(self) => self.has_attribute(3, AttributeKind.INLINE);
 fn bool FnView.is_extern(self) => self.has_attribute(3, AttributeKind.EXTERN);
+
+fn uint FnView.type_param_count(FnView self)
+{
+    uint offset = self.get_uint(5); // params index
+    return self.ast.extra_data[(Size)offset];
+}
+
+fn Node FnView.get_type_param(FnView self, uint index)
+{
+    uint offset = self.get_uint(5);
+    // [offset] is count, [offset + 1 + index] is the actual param Node
+    return (Node)self.ast.extra_data[(Size)offset + 1 + index];
+}
 
 fn uint FnView.param_count(FnView self)
 {

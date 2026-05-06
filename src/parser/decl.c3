@@ -339,6 +339,9 @@ fn Node? parse_fn_decl(Parser* p, ParseFlags flags) => @scratch()
 
 	uint params = parse_parameter_list(p)!;
 
+	log::debug("parse_fn_decl - parse_generics");
+	uint type_params = parse_generics(p)!;
+
 	log::debug("parse_fn_decl - parse_attributes");
 	uint attr = parse_attributes(p)!;
 
@@ -371,13 +374,14 @@ fn Node? parse_fn_decl(Parser* p, ParseFlags flags) => @scratch()
 		expect(p, EOS)!;
 	}
 
-	uint[6] final_block;
+	uint[7] final_block;
 	final_block[0] = name;
 	final_block[1] = method_type;
 	final_block[2] = (uint)ret_type;
 	final_block[3] = attr;
 	final_block[4] = params;
-	final_block[5] = (uint)body;
+	final_block[5] = type_params;
+	final_block[6] = (uint)body;
 
 	log::debug("parse_fn_decl - finished.. adding to ast");
 	uint ex = ast::push_extra_block(p.ast, &final_block);
