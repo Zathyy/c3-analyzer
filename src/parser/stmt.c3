@@ -269,7 +269,13 @@ fn Node? parse_if(Parser* p)
 		else_block = parse_statement(p)!;
 	}
 
-	uint[3] data = { (uint)cond, (uint)then_block, (uint)else_block };
+	uint[*] data = views::@data{IfViewFields}
+	(
+		CONDITION, cond,
+		THEN_BLOCK, then_block,
+		ELSE_BLOCK, else_block,
+	);
+
 	uint ex = ast::push_extra_block(p.ast, &data);
 
 	return ast::add_node(p.ast, IF_STMT, t.pos, p.current_pos(), ex);
