@@ -4,11 +4,18 @@ import string_pool;
 import c3_parser::common;
 import lexer;
 
+constdef ParamViewFields : inline uint
+{
+	NAME = 0,
+	TYPE,
+	INIT,
+	FLAGS,
+}
 typedef ParamView = inline View;
-fn String ParamView.name(ParamView self, StringPool* pool) => pool.get((StringHandle)self.get_uint(0));
-fn Node ParamView.type_node(ParamView self) => self.get(1);
-fn Node ParamView.init_expr(ParamView self) => self.get(2);
-fn bool ParamView.is_ref(ParamView self) => self.get_uint(3) != 0;
+fn String ParamView.name(ParamView self, StringPool* pool) => pool.get((StringHandle)self.get_uint(ParamViewFields.NAME));
+fn Node ParamView.type_node(ParamView self) => self.get(ParamViewFields.TYPE);
+fn Node ParamView.init_expr(ParamView self) => self.get(ParamViewFields.INIT);
+fn bool ParamView.is_ref(ParamView self) => self.get_uint(ParamViewFields.FLAGS) != 0;
 
 typedef AttributeListView = inline View;
 fn uint AttributeListView.count(self) => self.get_list_count(0);
