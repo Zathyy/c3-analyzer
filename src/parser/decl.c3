@@ -374,14 +374,16 @@ fn Node? parse_fn_decl(Parser* p, ParseFlags flags) => @scratch()
 		expect(p, EOS)!;
 	}
 
-	uint[7] final_block;
-	final_block[0] = name;
-	final_block[1] = method_type;
-	final_block[2] = (uint)ret_type;
-	final_block[3] = attr;
-	final_block[4] = params;
-	final_block[5] = type_params;
-	final_block[6] = (uint)body;
+	uint[*] final_block = views::@data{FnViewFields}
+	(
+		NAME, name,
+		ASSOCIATED, method_type,
+		RETURN_TYPE, ret_type,
+		ATTRIBUTES, attr,
+		PARAMS, params,
+		TYPE_PARAMS, type_params,
+		BODY, body,
+	);
 
 	log::debug("parse_fn_decl - finished.. adding to ast");
 	uint ex = ast::push_extra_block(p.ast, &final_block);
@@ -404,76 +406,80 @@ fn Node? parse_function_type(Parser* p)
 
 fn Node? parse_macro_decl(Parser* p)
 {
-    uint start_tok = p.current_pos();
-    expect(p, MACRO)!;
+	uint start_tok = p.current_pos();
+	expect(p, MACRO)!;
 
-    Node rtype;
-    Node method_type;
-    uint name;
+	Node rtype;
+	Node method_type;
+	uint name;
 
-    if ((p.is(IDENT) || p.is(AT_IDENT)) && p.peek(1).kind != DOT)
+	if ((p.is(IDENT) || p.is(AT_IDENT)) && p.peek(1).kind != DOT)
 	{
 		name = p.pool.intern(p.token_text(p.current()));
 		advance(p)!;
 	}
-    else
-    {
-        rtype = parse_type(p)!;
+	else
+	{
+		rtype = parse_type(p)!;
 
-        if (!p.is(DOT) && !p.is(IDENT) && !p.is(AT_IDENT))
+		if (!p.is(DOT) && !p.is(IDENT) && !p.is(AT_IDENT))
 		{
 			method_type = parse_type(p)!;
 		}
 
-        if (consume(p, DOT)!)
-        {
-            if (!method_type.is_valid())
-            {
-                method_type = rtype;
-                rtype = { };
-            }
-        }
+		if (consume(p, DOT)!)
+		{
+			if (!method_type.is_valid())
+			{
+				method_type = rtype;
+				rtype = { };
+			}
+		}
 
-        if (!p.is(IDENT) && !p.is(AT_IDENT))
-        {
-            p.error("Expected macro name");
+		if (!p.is(IDENT) && !p.is(AT_IDENT))
+		{
+			p.error("Expected macro name");
 			p.push_invalid_node(p.current_pos());
-            p.skip_until({ LPAREN, LBRACE, EOS })!;
-        }
-    
+			p.skip_until({ LPAREN, LBRACE, EOS })!;
+		}
+
 		name = p.pool.intern(p.token_text(p.current()));
 		advance(p)!;
-    }
+	}
 
-    uint params = p.is(LPAREN) ? parse_parameter_list(p)! : 0;
-    uint attr = parse_attributes(p)!;
+	uint type_params = parse_generics(p)!;
 
-    Node body;
-    if (consume(p, IMPLIES)!)
-    {
-        body = parse_expr(p)!;
-        expect(p, EOS)!;
-    }
-    else if (p.is(LBRACE))
-    {
-        body = parse_statement(p)!;
-    }
-    else
-    {
-        expect(p, EOS)!;
-    }
+	uint params = p.is(LPAREN) ? parse_parameter_list(p)! : 0;
+	uint attr = parse_attributes(p)!;
 
-    uint[6] data = { 
-        name, 
-        (uint)rtype, 
-        (uint)method_type, 
-        attr, 
-        params, 
-        (uint)body 
-    };
-    
-    uint ex = ast::push_extra_block(p.ast, &data);
-    return ast::add_node(p.ast, MACRO_DECL, start_tok, p.current_pos(), ex);
+	Node body;
+	if (consume(p, IMPLIES)!)
+	{
+		body = parse_expr(p)!;
+		expect(p, EOS)!;
+	}
+	else if (p.is(LBRACE))
+	{
+		body = parse_statement(p)!;
+	}
+	else
+	{
+		expect(p, EOS)!;
+	}
+
+	uint[*] data = views::@data{FnViewFields}
+	(
+	 NAME, name,
+	 ASSOCIATED, method_type, 
+	 RETURN_TYPE, rtype, 
+	 ATTRIBUTES, attr, 
+	 PARAMS, params, 
+	 TYPE_PARAMS, type_params,
+	 BODY, body,
+	);
+
+	uint ex = ast::push_extra_block(p.ast, &data);
+	return ast::add_node(p.ast, MACRO_DECL, start_tok, p.current_pos(), ex);
 }
 
 fn Node? parse_param_decl(Parser* p)
@@ -526,7 +532,13 @@ fn Node? parse_param_decl(Parser* p)
         p.push_invalid_node(start);
     }
 
-    uint[4] data = { name, (uint)type, (uint)init, flags };
+    uint[*] data = views::@data{ParamViewFields}
+		( 
+			NAME, name, 
+			TYPE, type, 
+			INIT, init, 
+			FLAGS, flags,
+		);
     uint ex = ast::push_extra_block(p.ast, &data);
 
     return ast::add_node(p.ast, PARAM_DECL, start, p.current_pos(), ex);
@@ -651,7 +663,12 @@ fn Node? parse_typedef(Parser* p)
 	uint end_tok = p.current_pos();
 	expect(p, EOS)!;
 
-	uint[*] data = { name_sh, (uint)base_type, (uint)inter };
+	uint[*] data = views::@data{TypedefViewFields}
+	(
+	 NAME, name_sh, 
+	 BASE_TYPE, base_type, 
+	 INTERFACES, inter,
+	);
 	uint ex = ast::push_extra_block(p.ast, &data);
 
 	return ast::add_node(p.ast, TYPEDEF_DECL, start_tok, end_tok, ex);
@@ -717,7 +734,13 @@ fn Node? parse_interface(Parser* p)
 
 	expect(p, RBRACE)!;
 
-	uint[4] data = { name_id, (uint)parents_head, attrs, (uint)methods_head };
+	uint[*] data = views::@data{InterfaceViewFields}
+	(
+	 NAME, name_id, 
+	 PARENTS, parents_head, 
+	 ATTRIBUTES, attrs, 
+	 METHODS, methods_head 
+	);
 
 	uint ex = ast::push_extra_block(p.ast, &data);
 	return ast::add_node(p.ast, INTERFACE_DECL, start_tok, end_tok, ex);
