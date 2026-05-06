@@ -35,6 +35,13 @@ fn Node ImportView.path(self) => self.get(ImportViewFields.PATH);
 fn uint ImportView.attributes_offset(self) => self.get_uint(ImportViewFields.ATTRIBUTES);
 fn bool ImportView.is_public(self) => self.has_attribute(self.attributes_offset(), AttributeKind.PUBLIC);
 
+constdef InterfaceViewFields : inline uint
+{
+	NAME = 0,
+	PARENTS,
+	ATTRIBUTES,
+	METHODS,
+}
 typedef InterfaceImplView = inline View;
 fn uint InterfaceImplView.count(self) => self.ast.extra_data[(Size)self.get_extra_index()];
 fn Node InterfaceImplView.get_type(self, uint index) => (Node)self.ast.extra_data[(Size)self.get_extra_index() + 1 + index];
@@ -98,6 +105,7 @@ constdef TypedefViewFields : inline uint
 {
 	NAME = 0,
 	BASE_TYPE,
+	INTERFACES,
 }
 typedef TypedefView = inline View;
 fn String TypedefView.name(TypedefView self, StringPool* pool) => pool.get((StringHandle)self.get_uint(TypedefViewFields.NAME));
