@@ -113,15 +113,25 @@ typedef TypeAliasView = inline View;
 fn String TypeAliasView.name(self, StringPool* pool) => pool.get((StringHandle)self.get_uint(TypeAliasViewFields.NAME));
 fn Node TypeAliasView.target_type(self) => self.get(TypeAliasViewFields.TARGET_TYPE);
 
-constdef AliasViewFields : inline uint
+constdef ExprAliasViewFields : inline uint
 {
 	NAME = 0,
 	EXPR,
 	ATTRIBUTES,
 }
-typedef AliasView = inline View;
-fn String AliasView.name(AliasView self, StringPool* pool) => pool.get((StringHandle)self.get_uint(AliasViewFields.NAME));
-fn Node AliasView.expr(AliasView self) => self.get(AliasViewFields.EXPR);
+typedef ExprAliasView = inline View;
+fn String ExprAliasView.name(self, StringPool* pool) => pool.get((StringHandle)self.get_uint(ExprAliasViewFields.NAME));
+fn Node ExprAliasView.expr(self) => self.get(ExprAliasViewFields.EXPR);
+
+constdef PathAliasViewFields : inline uint
+{
+	NAME = 0,
+	PATH,
+	ATTRIBUTES,
+}
+typedef PathAliasView = inline View;
+fn String PathAliasView.name(self, StringPool* pool) => pool.get((StringHandle)self.get_uint(PathAliasViewFields.NAME));
+fn Node PathAliasView.path(self) => self.get(PathAliasViewFields.PATH);
 
 constdef TypedefViewFields : inline uint
 {
@@ -202,12 +212,22 @@ fn uint EnumView.flags(self) => self.get_uint(EnumViewFields.FLAGS);
 fn bool EnumView.is_const_def(self) => (self.flags() & (1 << 0)) != 0;
 fn bool EnumView.is_inline(self)    => (self.flags() & (1 << 1)) != 0;
 
+constdef EnumMemberViewFields : inline uint
+{
+	NAME = 0,
+	EXPLICIT_VALUE,
+	ASSOCIATED,
+}
+
 constdef ContractViewFields : inline uint
 {
 	REQUIRES = 0,
 	ENSURES,
 	PARAMS,
 	OPTIONAL_RETURNS,
+	RETURN,
+	FLAGS,
+	DEPRECATED,
 }
 typedef ContractView = inline View;
 fn uint ContractView.requires_count(self) => self.get_list_count(ContractViewFields.REQUIRES);
