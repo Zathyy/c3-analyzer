@@ -46,6 +46,17 @@ typedef InterfaceImplView = inline View;
 fn uint InterfaceImplView.count(self) => self.ast.extra_data[(Size)self.get_extra_index()];
 fn Node InterfaceImplView.get_type(self, uint index) => (Node)self.ast.extra_data[(Size)self.get_extra_index() + 1 + index];
 
+constdef MacroViewFields : inline uint
+{
+	NAME = 0,
+	ASSOCIATED,
+	RETURN_TYPE,
+	ATTRIBUTES,
+	PARAMS,
+	GENERICS,
+	BODY,
+}
+
 constdef FnViewFields : inline uint
 {
 	NAME = 0,
@@ -53,7 +64,7 @@ constdef FnViewFields : inline uint
 	RETURN_TYPE,
 	ATTRIBUTES,
 	PARAMS,
-	TYPE_PARAMS,
+	GENERICS,
 	BODY,
 }
 typedef FnView = inline View;
@@ -68,13 +79,13 @@ fn bool FnView.is_extern(self) => self.has_attribute(FnViewFields.ATTRIBUTES, At
 
 fn uint FnView.type_param_count(FnView self)
 {
-    uint offset = self.get_uint(FnViewFields.TYPE_PARAMS); // params index
+    uint offset = self.get_uint(FnViewFields.GENERICS); // params index
     return self.ast.extra_data[(Size)offset];
 }
 
 fn Node FnView.get_type_param(FnView self, uint index)
 {
-    uint offset = self.get_uint(FnViewFields.TYPE_PARAMS);
+    uint offset = self.get_uint(FnViewFields.GENERICS);
     // [offset] is count, [offset + 1 + index] is the actual param Node
     return (Node)self.ast.extra_data[(Size)offset + 1 + index];
 }
@@ -92,14 +103,25 @@ fn Node FnView.get_param(FnView self, uint index)
     return (Node)self.ast.extra_data[(Size)offset + 1 + index];
 }
 
-constdef AliasViewFields : inline uint
+constdef TypeAliasViewFields : inline uint
 {
 	NAME = 0,
 	TARGET_TYPE,
+	ATTRIBUTES,
+}
+typedef TypeAliasView = inline View;
+fn String TypeAliasView.name(self, StringPool* pool) => pool.get((StringHandle)self.get_uint(TypeAliasViewFields.NAME));
+fn Node TypeAliasView.target_type(self) => self.get(TypeAliasViewFields.TARGET_TYPE);
+
+constdef AliasViewFields : inline uint
+{
+	NAME = 0,
+	EXPR,
+	ATTRIBUTES,
 }
 typedef AliasView = inline View;
 fn String AliasView.name(AliasView self, StringPool* pool) => pool.get((StringHandle)self.get_uint(AliasViewFields.NAME));
-fn Node AliasView.target_type(AliasView self) => self.get(AliasViewFields.TARGET_TYPE);
+fn Node AliasView.expr(AliasView self) => self.get(AliasViewFields.EXPR);
 
 constdef TypedefViewFields : inline uint
 {
