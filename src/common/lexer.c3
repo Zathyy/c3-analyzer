@@ -426,34 +426,44 @@ fn void? Lexer.skip_block_comment(Lexer* self)
 
 fn Token? Lexer.lex_string(Lexer* self, uint start)
 {
-	self.advance()!;
+    self.index++;
 
-	while (self.index < self.buffer.len)
-	{
-		char c = self.buffer[self.index];
+    while (self.index < self.buffer.len)
+    {
+        char c = self.buffer[self.index];
 
-		if (c == '\\' && self.index + 1 < self.buffer.len)
-		{
-			self.index += 2;
-			continue;
-		}
+        if (c == '"')
+        {
+            self.index++; 
+            return (Token) { STRING, start, (uint)self.index - start };
+        }
 
-		if (c == '"')
-		{
-			self.advance()!;
-			uint len = (uint)self.index - start;
-			return (Token) { STRING, start, len };
-		}
+        if (c == '\\') 
+        {
+            self.index += 2;
+            continue;
+        }
 
-		if (c == '\n')
-		{
-			break;
-		}
+        self.index++; 
+    }
 
-		self.advance()!;
-	}
+    return (Token) { INVALID, start, (uint)self.index - start };
+}
 
-	return (Token) { INVALID, start, (uint)self.index - start };
+fn Token? Lexer.lex_raw_string(Lexer* self, uint start)
+{
+    self.index++; // Skip the opening `
+
+    while (self.index < self.buffer.len)
+    {
+        if (self.peek() == '`') // Only stop at a backtick
+        {
+            self.index++;
+            return (Token) { STRING, start, (uint)self.index - start };
+        }
+        self.index++;
+    }
+    return (Token) { INVALID, start, (uint)self.index - start };
 }
 
 fn TokenKind lookup_keyword(String text)
@@ -831,8 +841,9 @@ fn Token? Lexer.next(&self)
 		case ',': self.advance()!; return self.emit(COMMA, start, 1);
 		case '/': self.advance()!; return self.emit(DIV, start, 1);
 		case '"':
-		case '`':
 			return self.lex_string(start);
+		case '`':
+			return self.lex_raw_string(start);
 		case '$':
 			if (self.peek(1) == '$')
 			{
@@ -954,7 +965,8 @@ struct ContractLexer
 fn void ContractLexer.init(&self, String contract)
 {
 	// Strip the decorators <* and *>
-	String inner = contract[2:^2];
+	String inner = contract[2:^4];
+	log::debug("ContractLexer - string = %s", inner);
 
 	usz i = 0;
 	bool line_start = true;
@@ -986,6 +998,7 @@ fn void ContractLexer.init(&self, String contract)
 	self.description = inner[0:first_at_index].trim();
 
 	self.lexer = { .buffer = inner[first_at_index..], .index = 0 };
+	log::debug("ContractLexer - buffer = %s", self.lexer.buffer);
 }
 
 fn Token? ContractLexer.next(&self) => self.lexer.next();

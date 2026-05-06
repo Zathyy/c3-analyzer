@@ -63,7 +63,7 @@ fn void? JsonValue.print(self) {
       io::printf("\"%s\"", self.value.s);
     case ARRAY:
       io::printf("[");
-      ulong l_len = self.value.l.len();
+      long l_len = self.value.l.len();
       foreach (i, item : self.value.l) {
         item.print()!;
         if (i < l_len - 1) {
@@ -73,7 +73,7 @@ fn void? JsonValue.print(self) {
      io::printf("]");
     case DICT:
       io::printf("{");
-      ulong d_len = self.value.d.len();
+      long d_len = self.value.d.len();
       
       int i = 0;
       self.value.d.@each_entry(; entry) {
@@ -107,7 +107,7 @@ fn String? JsonValue.to_string(self) {
       DString s;
       s.init(mem);
       s.append("[");
-      ulong l_len = self.value.l.len();
+      long l_len = self.value.l.len();
       foreach (i, item : self.value.l) {
         s.append(item.to_string()!);
         if (i < l_len - 1) {
@@ -120,7 +120,7 @@ fn String? JsonValue.to_string(self) {
       DString s;
       s.init(mem);
       s.append("{");
-      ulong d_len = self.value.d.len();
+      long d_len = self.value.d.len();
       
       int i = 0;
       self.value.d.@each_entry(; entry) {
@@ -163,7 +163,7 @@ fn String to_pretty_string(JsonValue self, int indent = 2, int depth = 0) @priva
     case ARRAY:
       DString s;
       s.init(mem);
-      ulong l_len = self.value.l.len();
+      long l_len = self.value.l.len();
       if (l_len == 0) return "[]";
       s.append("[\n");
       foreach (i, item : self.value.l) {
@@ -178,7 +178,7 @@ fn String to_pretty_string(JsonValue self, int indent = 2, int depth = 0) @priva
     case DICT:
       DString s;
       s.init(mem);
-      ulong d_len = self.value.d.len();
+      long d_len = self.value.d.len();
       if (d_len == 0) return "{}";
       s.append("{\n");
       int i = 0;
@@ -252,8 +252,8 @@ fn void? JsonSerializer.struct_start(&self, String name) @dynamic {
 
 fn void? JsonSerializer.struct_end(&self, String name) @dynamic {}
 
-fn void? JsonSerializer.serialize_slice_start(&self, ulong len) @dynamic {}
-fn void? JsonSerializer.serialize_slice_end(&self, ulong len) @dynamic {
+fn void? JsonSerializer.serialize_slice_start(&self, long len) @dynamic {}
+fn void? JsonSerializer.serialize_slice_end(&self, long len) @dynamic {
   List{JsonValue} l;
   l.init(mem);
   for (int i = 0; i < len; i++) {

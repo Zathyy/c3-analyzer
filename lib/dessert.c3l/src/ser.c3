@@ -11,10 +11,10 @@ interface Serializer {
   fn void? serialize_field_end(String name, FieldAttrs fmt);
   fn void? struct_end(String name);
 
-  fn void? serialize_slice_start(ulong len);
+  fn void? serialize_slice_start(long len);
   fn void? serialize_slice_item_start(usz idx) @optional;
   fn void? serialize_slice_item_end(usz idx) @optional;
-  fn void? serialize_slice_end(ulong len);
+  fn void? serialize_slice_end(long len);
 
   fn void? serialize_null();
   fn void? serialize_bool(bool b);

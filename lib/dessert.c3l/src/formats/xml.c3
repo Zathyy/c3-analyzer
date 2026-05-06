@@ -47,8 +47,8 @@ fn void? XMLSerializer.struct_end(&self, String name) @dynamic {
   self.output.append(">");
 }
 
-fn void? XMLSerializer.serialize_slice_start(&self, ulong len) @dynamic {}
-fn void? XMLSerializer.serialize_slice_end(&self, ulong len) @dynamic {}
+fn void? XMLSerializer.serialize_slice_start(&self, long len) @dynamic {}
+fn void? XMLSerializer.serialize_slice_end(&self, long len) @dynamic {}
 
 fn void? XMLSerializer.serialize_slice_item_start(&self, usz idx) @dynamic {
   String name = self.current_field[^1] ?: "el";

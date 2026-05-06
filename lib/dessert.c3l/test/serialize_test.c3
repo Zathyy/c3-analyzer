@@ -3,14 +3,15 @@ import std;
 import dessert;
 import json;
 import csv;
+import derive;
 
 // ── Test types ───────────────────────────────────────────────────────────────
 
+$expand(derive{SPoint}(dessert::serialize));
 struct SPoint {
   int x;
   int y;
 }
-fn void? SPoint.serialize(&self, Serializer serializer) => ser::impl_serialize(self, serializer);
 
 struct SBox {
   String label;

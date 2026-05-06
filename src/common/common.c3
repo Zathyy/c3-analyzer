@@ -8,6 +8,9 @@ const uint MAX_GENERICS       = 16;
 const uint MAX_ATTRIBUTES     = 16;
 const uint MAX_INTERFACE_IMPL = 16;
 
+
+
+
 typedef FileID = ushort;
 alias Size = sz;
 
@@ -174,6 +177,16 @@ bitstruct VarDeclFlags : uint
 	bool is_inline;
 }
 
+bitstruct ContractFlags : uint
+{
+	bool is_pure;
+}
+
+bitstruct ContractParamFlags : uint
+{
+	bool is_ref;
+} 
+
 enum DeferKind : uint
 {
 	NORMAL,
@@ -219,6 +232,14 @@ enum OverloadKind : uint
 	SHR_ASSIGN,
 }
 
+enum InOutModifier
+{
+	ANY,
+	IN,
+	OUT,
+	INOUT,
+}
+
 struct TypeDescriptor
 {
 	uint name; // The StringPool handle
@@ -228,3 +249,4 @@ struct TypeDescriptor
 	uint gen_count;
 	Node[MAX_GENERICS] gen_args;
 }
+

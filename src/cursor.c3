@@ -9,6 +9,7 @@ module c3_parser::cursor;
 import c3_parser::workspace;
 import c3_parser::ast;
 import c3_parser::common;
+import string_pool;
 
 import std::io;
 
@@ -26,7 +27,7 @@ enum ChildVisitResult : int
 	// Dive into the children of the current node
 }
 
-alias CursorVisitor = fn ChildVisitResult(Cursor cursor, Cursor parent, void* user_data, args ...);
+alias CursorVisitor = fn ChildVisitResult(Cursor cursor, Cursor parent, void* user_data, args...);
 
 struct Cursor
 {
@@ -276,40 +277,50 @@ fn String? Cursor.spelling(&self)
 	NodeView n = ast::get_node(&self.section.source_file.ast, self.node);
 
 	Ast* ast = &self.section.source_file.ast;
+	StringPool* strings = self.section.source_file.strings;
+	View view = { ast, self.node };
 	
 	// TODO: clean up
 	switch (n.kind)
 	{
 		case PATH:
-			PathView v = { ast, self.node };
-			return v.get_full(self.section.source_file.strings);
+			PathView v = (PathView)view;
+			return v.get_full(strings);
+		case MODULE_DECL:
+		{
+			ModuleView v = (ModuleView)view;
+			Cursor path_cursor = { self.section, v.path() };
+			return path_cursor.spelling();
+		}
 		case INT_LITERAL:
 		case FLOAT_LITERAL:
 		case STRING_LITERAL:
-			LiteralView v = { ast, self.node };
-			return v.value(self.section.source_file.strings);
+			LiteralView v = (LiteralView)view;
+			return v.value(strings);
 		case IDENT_EXPR:
-			IdentView v = { ast, self.node };
-			return v.name(self.section.source_file.strings);
+			IdentView v = (IdentView)view;
+			return v.name(strings);
 		case FN_DECL:
+			FnView v = (FnView)view;
+			return v.name(strings);
 		case STRUCT_DECL:
-			StructView v = { ast, self.node };
-			return v.name(self.section.source_file.strings);
+			StructView v = (StructView)view;
+			return v.name(strings);
 		case OP_OVERLOAD:
 			{
 				View v = { ast, self.node };
 				return ((OverloadKind)v.get_uint(0)).description;
 			}
 		case BINARY_EXPR:
-			BinaryView v = { ast, self.node };
+			BinaryView v = (BinaryView)view;
 			return v.op().description;
 		case VAR_DECL:
-			VarDeclView v = { ast, self.node };
-			return v.name(self.section.source_file.strings);
+			VarDeclView v = (VarDeclView)view;
+			return v.name(strings);
 		case TYPE_EXPR:
 			{
 				TypeView v = { ast, self.node };
-				String base = v.name(self.section.source_file.strings);
+				String base = v.name(strings);
 
 				uint ptrs = v.ptr_count();
 				for (uint i = 0; i < ptrs; i++)

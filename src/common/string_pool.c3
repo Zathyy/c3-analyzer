@@ -62,8 +62,18 @@ fn StringHandle StringPool.intern(StringPool* self, String s)
 *>
 fn String StringPool.get(StringPool* self, StringHandle id)
 {
+	if ((Size)id >= self.offsets.len())
+    {
+        return ""; 
+    }
+
 	uint start = self.offsets[(Size)id];
 	uint len = self.lengths[(Size)id];
+
+	if ((Size)start + len > self.data.len())
+    {
+        return "";
+    }
 
 	// Return a slice of the internal data
 	return (String)self.data.array_view()[start:len];

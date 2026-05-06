@@ -29,6 +29,11 @@ macro void Parser.error(self, String fmt, ...)
 	self.report(self.current(), "error", ANSI_RED, fmt, ...$vaarg);
 }
 
+macro void Parser.error_at(self, Token t, String fmt, ...)
+{
+    self.report(t, "error", ANSI_RED, fmt, ...$vaarg);
+}
+
 fn void Parser.report(Parser* self, Token token, String level, String color, String fmt, args ...)
 {
 	Location loc = self.line_map.resolve(token.pos);
@@ -116,4 +121,27 @@ fn bool is_type(TokenKind kind)
 		default:
 			return false;
 	}
+}
+
+fn void attach_contract(Parser* p, Node decl, Node contract)
+{
+	if (!decl.is_valid()) return;
+	if (!decl.is_valid()) return;
+
+    NodeKind kind = ast::get_kind(p.ast, decl);
+
+	if (kind == MODULE_DECL) return;
+    
+    uint offset = 0;
+    switch (kind)
+    {
+		case MODULE_DECL:  offset = 3;
+        case FN_DECL:      offset = 4;
+        case VAR_DECL:     offset = 3;
+        case STRUCT_DECL:  offset = 3;
+        default: return;
+    }
+    
+	uint base_extra_idx = ast::get_extra(p.ast, (uint)decl);
+    p.ast.set_extra(base_extra_idx + offset, (uint)contract);
 }
