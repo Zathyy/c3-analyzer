@@ -6,13 +6,19 @@ import c3_parser::common;
 
 import std::collections::list;
 
-fn uint? parse_label(Parser* p)
+fn uint? parse_label(Parser* p, bool check_for_colon = false)
 {
 	if (p.is(CONST_IDENT))
 	{
 		uint label = p.pool.intern(p.token_text(p.current()));
 		advance(p)!;
-		expect(p, COLON)!;
+		if (check_for_colon)
+		{
+			if (!consume(p, COLON)!)
+			{
+				p.error("Expected colon after label");
+			}
+		}
 		return label;
 	}
 
@@ -230,6 +236,7 @@ fn Node? parse_decl_stmt(Parser* p)
 {
 	Node type_node = parse_type(p)!;
 
+	// TODO: refine/move/make use of parse_var_decl
 	if (p.current().kind == IDENT)
 	{
 		Token name_tok = p.current();
@@ -239,15 +246,15 @@ fn Node? parse_decl_stmt(Parser* p)
 		if (p.current().kind == EQ)
 		{
 			advance(p)!;
-			init = parse_expr(p, { })!;
+			init = parse_expr(p)!;
 		}
 
-		uint attr = parse_attributes(p)!;
+		Node attr = parse_attributes(p)!;
 
 		expect(p, EOS)!;
 
 		uint name_sh = p.pool.intern(p.token_text(name_tok));
-		uint[*] data = { name_sh, (uint)type_node, (uint)init, attr };
+		uint[*] data = { name_sh, (uint)type_node, (uint)init, (uint)attr };
 		uint ex = ast::push_extra_list(p.ast, &data);
 		return ast::add_node(p.ast, LOCAL_DECL, name_tok.pos, p.current_pos(), ex);
 	}
@@ -461,9 +468,11 @@ fn Node? parse_break(Parser* p)
 	Token t = p.current();
 	advance(p)!;
 
+	uint label = parse_label(p)!;
+
 	expect(p, EOS)!;
 
-	return ast::add_node(p.ast, BREAK_STMT, t.pos, p.current_pos(), 0);
+	return ast::add_node(p.ast, BREAK_STMT, t.pos, p.current_pos(), label);
 }
 
 fn Node? parse_ct_switch(Parser* p)
@@ -631,11 +640,7 @@ fn Node? parse_while_stmt(Parser* p)
 	uint start_tok = p.current_pos();
 	expect(p, WHILE)!;
 
-	uint label;
-	if (p.is(CONST_IDENT))
-	{
-		label = p.pool.intern(p.token_text(p.current()));
-	}
+	uint label = parse_label(p, true)!;
 
 	expect(p, LPAREN)!;
 	Node condition = parse_expr(p, { })!;

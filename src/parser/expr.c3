@@ -474,12 +474,10 @@ fn Node? parse_expr(Parser* p, Precedence min_bp = LOWEST)
 		left = parse_infix(p, left, (Precedence)rbp)!;
 	}
 
-	// Check for Postfix Attributes
-	// only if min_bp is 0
 	if (min_bp == 0 && p.is(AT_IDENT))
 	{
-		uint attr = parse_attributes(p)!;
-		uint[2] data = { (uint)left, attr };
+		Node attr = parse_attributes(p)!;
+		uint[2] data = { (uint)left, (uint)attr };
 		uint ex = ast::push_extra_block(p.ast, &data);
 		left = ast::add_node(p.ast, ATTRIBUTED_EXPR, p.current().pos, p.current_pos(), ex);
 	}

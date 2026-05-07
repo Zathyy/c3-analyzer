@@ -466,9 +466,14 @@ fn void? parse_top_level(Parser* p, Workspace* ws)
 				return err~;
 			}
 
-			uint attr = parse_attributes(p)!;
+			Node attr = parse_attributes(p)!;
 
-			uint[*] data = { (uint)path_node, attr };
+			uint[*] data = views::@data{ImportViewFields}
+			(
+				PATH, path_node,
+				ATTRIBUTES, attr,
+			);
+
 			uint ex = ast::push_extra_block(p.ast, &data);
 			Node imp_node = ast::add_node(p.ast, IMPORT_DECL, start, p.current_pos(), ex);
 			p.ast.top_level_nodes.push((uint)imp_node);

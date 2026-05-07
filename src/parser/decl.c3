@@ -90,7 +90,7 @@ fn Node? parse_contract(Parser* p) => @pool()
 			}
 			else if (attr == constants::KW_AT_DEPRECATED)
 			{
-				deprecated = parse_attributes(p)!;
+				deprecated = (uint)parse_attributes(p)!;
 			}
 			else if (attr == constants::KW_AT_PURE)
 			{
@@ -173,8 +173,8 @@ fn Node? parse_module(Parser* p, Workspace* ws)
 	p.mod = mod;
 	sec.start_node_idx = node_idx;
 
-	uint generics = parse_generics(p)!;
-	uint attributes = parse_attributes(p)!;
+	Node generics = parse_generic_decl(p)!;
+	Node attributes = parse_attributes(p)!;
 
 	expect(p, EOS)!;
 
@@ -227,7 +227,7 @@ fn Node? parse_enum(Parser* p, ParseFlags flags)
 	}
 
 	Node params = p.is(LPAREN) ? parse_parameter_list(p)! : {};
-	uint attrs = parse_attributes(p)!;
+	Node attrs = parse_attributes(p)!;
 
 	uint elements_ex = 0;
 	if (consume(p, LBRACE)!) 
@@ -338,10 +338,10 @@ fn Node? parse_fn_decl(Parser* p, ParseFlags flags) => @scratch()
 	Node params = parse_parameter_list(p)!;
 
 	log::debug("parse_fn_decl - parse_generics");
-	uint type_params = parse_generics(p)!;
+	Node type_params = parse_generic_decl(p)!;
 
 	log::debug("parse_fn_decl - parse_attributes");
-	uint attr = parse_attributes(p)!;
+	Node attr = parse_attributes(p)!;
 
 	Node body;
 	if (p.is(LBRACE))
@@ -451,10 +451,10 @@ fn Node? parse_macro_decl(Parser* p)
 		advance(p)!;
 	}
 
-	uint type_params = parse_generics(p)!;
+	Node type_params = parse_generic_decl(p)!;
 
 	Node params = p.is(LPAREN) ? parse_macro_params(p)! : {};
-	uint attr = parse_attributes(p)!;
+	Node attr = parse_attributes(p)!;
 
 	Node body;
 	if (consume(p, IMPLIES)!)
@@ -591,7 +591,7 @@ fn Node? parse_param_decl(Parser* p)
 		if (consume(p, ELLIPSIS)!) flags |= 1;
 	}
 
-	uint attributes;
+	Node attributes;
 	if (p.is(AT_IDENT))
 	{
 		attributes = parse_attributes(p)!;
@@ -602,7 +602,7 @@ fn Node? parse_param_decl(Parser* p)
 		init = parse_expr(p)!;
 	}
 
-	if (!type.is_valid() && name == 0 && attributes == 0 && !ellipsis_prefix)
+	if (!type.is_valid() && name == 0 && !attributes.is_valid() && !ellipsis_prefix)
 	{
 		p.error("Expected parameter declaration");
 		p.push_invalid_node(start);
@@ -640,7 +640,7 @@ fn Node? parse_type_alias(Parser* p)
 	expect(p, TYPE_IDENT)!;
 	uint name_sh = p.pool.intern(p.token_text(name_tok));
 
-	uint attr = parse_attributes(p)!;
+	Node attr = parse_attributes(p)!;
 
 	expect(p, EQ)!;
 
@@ -669,7 +669,7 @@ fn Node? parse_type_alias(Parser* p)
 }
 
 <*
- PATH_ALIAS_DECL ::= 'alias' (IDENT | CONST_IDENT | AT_IDENT) attributes? '=' (('module' path) | identifier_alias generic_params?)
+ 	PATH_ALIAS_DECL ::= 'alias' (IDENT | CONST_IDENT | AT_IDENT) attributes? '=' (('module' path) | identifier_alias generic_params?)
     ALIAS_DECL ::= path? (IDENT | CONST_IDENT | AT_IDENT)
 *>
 fn Node? parse_ident_alias(Parser* p)
@@ -688,7 +688,7 @@ fn Node? parse_ident_alias(Parser* p)
 
 	advance(p)!;
 
-	uint attr = parse_attributes(p)!;
+	Node attr = parse_attributes(p)!;
 
 	expect(p, EQ)!;
 
@@ -733,6 +733,62 @@ fn Node? parse_alias(Parser* p)
 }
 
 <*
+	GENERIC_DECL ::= <...>
+*>
+fn Node? parse_generic_decl(Parser* p)
+{
+	uint start_tok = p.current_pos();
+	if (!consume(p, LESS)!) return {};
+	if (consume(p, GREATER)!)
+	{
+		p.error("Generic paramter list cannot be empty");
+	}
+
+	uint list;
+	@with_scratch(; watermark)
+	{
+		while (true)
+		{
+			switch (p.current().kind)
+			{
+				case TYPE_IDENT:
+				case CONST_IDENT:
+					break;
+				case COMMA:
+					p.error("Unexpected ','");
+					return {};
+				case IDENT:
+				case CT_IDENT:
+				case CT_TYPE_IDENT:
+					p.error("The generic parameter cannot be a $-prefixed name.");
+					return {};
+				default:
+					p.error("Only generic parameters are allowed here.");
+					return {};
+			}
+
+			uint name = p.pool.intern(p.current_text());
+			scratch.push(name);
+			advance(p)!;
+			if (!consume(p, COMMA)!)
+			{
+				expect(p, GREATER)!;
+				break;
+			}
+		}
+
+		list = ast::push_extra_list(p.ast, scratch_view(watermark, (uint)scratch.len() - watermark));
+	};
+
+	uint[*] data = views::@data{GenericDeclViewFields}
+	(
+		PARAMETERS, list 
+	);
+	uint ex = ast::push_extra_block(p.ast, &data);
+	return ast::add_node(p.ast, GENERIC_DECL, start_tok, p.current_pos(), ex);
+}
+
+<*
 	TYPEDEF_DECL ::= 'typedef' TYPE_IDENT opt_interfaces attributes? '=' 'inline'? type ';'
 *>
 fn Node? parse_typedef(Parser* p)
@@ -745,7 +801,7 @@ fn Node? parse_typedef(Parser* p)
 	uint name_sh = p.pool.intern(p.token_text(name_tok));
 
 	Node inter = parse_interface_impl(p)!;
-
+	Node generics = parse_generic_decl(p)!;
 	expect(p, EQ)!;
 
 	if (consume(p, INLINE)!)
@@ -762,6 +818,7 @@ fn Node? parse_typedef(Parser* p)
 		NAME, name_sh, 
 		BASE_TYPE, base_type, 
 		INTERFACES, inter,
+		GENERICS, generics,
 	);
 	uint ex = ast::push_extra_block(p.ast, &data);
 
@@ -804,7 +861,7 @@ fn Node? parse_interface(Parser* p)
 		}
 	}
 
-	uint attrs = parse_attributes(p)!;
+	Node attrs = parse_attributes(p)!;
 
 	expect(p, LBRACE)!;
 
@@ -858,10 +915,10 @@ fn Node? parse_struct(Parser* p)
 
 	Node interf_impl = parse_interface_impl(p)!;
 
-	uint generic_params;
+	Node generic_params;
 	if (p.is(LESS))
 	{
-		generic_params = parse_generics(p)!;
+		generic_params = parse_generic_decl(p)!;
 	}
 
 	expect(p, LBRACE)!;
