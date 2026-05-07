@@ -30,6 +30,8 @@ enum NodeKind : char
 	ENUM_MEMBER,
 	CONTRACT_ENTRY,
 	CONTRACT_PARAM,
+	MACRO_PARAMS,
+	PARAM_LIST,
 
 	TYPE,
 	TYPE_DECL,
@@ -58,6 +60,7 @@ enum NodeKind : char
 	IMPORT_DECL,
 	LOCAL_DECL,
 	CONTRACT_DECL,
+	BODY_PARAM_DECL,
 
 	REQUIRE_EXPR,
 	ENSURE_EXPR,
@@ -114,6 +117,7 @@ enum NodeKind : char
 	CT_CASE_STMT,
 	CT_VAR_DECL,
 	CT_FOR_STMT,
+	CT_ASSERT_STMT,
 }
 
 struct Ast
