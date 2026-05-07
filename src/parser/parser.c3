@@ -61,6 +61,7 @@ bitstruct ParseFlags : ulong
 	bool is_local; // Inside a function/block
 	bool is_var; // has a 'var'
 	bool is_inline;
+	bool is_static;
 	bool is_extern; // C-linkage handling
 	bool is_thread_local;
 	bool is_attribute; // Special parsing for @attr(...)

@@ -43,6 +43,9 @@ fn Node? parse_statement(Parser* p)
 		case CONST:
 			advance(p)!;
 			return parse_var_decl(p, { .is_const = true, .is_local = true })!;
+		case STATIC:
+			advance(p)!;
+			return parse_var_decl(p, { .is_static = true, .is_local = true })!;
 		case RETURN:
 			return parse_return(p)!;
 		case DEFER:
@@ -458,7 +461,14 @@ fn Node? parse_switch_case(Parser* p)
 	Token t = p.current();
 	if (consume(p, CASE)!)
 	{
-		Node label = parse_expr(p, { })!;
+		Node label = parse_expr(p)!;
+		Node range_end;
+
+		if (consume(p, DOTDOT)!)
+		{
+			range_end = parse_expr(p)!;
+		}
+
 		expect(p, COLON)!;
 
 		Node body;
@@ -467,7 +477,7 @@ fn Node? parse_switch_case(Parser* p)
 			body = parse_statement(p)!;
 		}
 
-		uint[*] data = { (uint)label, (uint)body };
+		uint[*] data = { (uint)label, (uint)range_end, (uint)body };
 		return ast::add_node(p.ast, CASE_STMT, t.pos, p.current_pos(), (uint)body);
 	}
 	else if (consume(p, DEFAULT)!)
