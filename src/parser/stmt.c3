@@ -70,12 +70,48 @@ fn Node? parse_statement(Parser* p)
 			return parse_ct_for_stmt(p)!;
 		case ASSERT:
 			return parse_assert_stmt(p)!;
+		case CT_ASSERT:
+		case CT_ERROR:
+			return parse_ct_assert(p);
 		default:
 			{
 				// if it's not a keyword or type, treat it as a expression statement
 				return parse_expr_stmt(p)!;
 			}
 	}
+}
+
+<*
+	ct_error_stmt ::= CT_ERROR constant_expression (',' constant_expression)* ';'
+*>
+fn Node? parse_ct_assert(Parser* p)
+{
+	uint start_pos = p.current().pos;
+    advance(p)!;
+
+	Node message;
+	uint args;
+	@with_scratch(; watermark)
+	{
+		message = parse_constant_expr(p)!;
+		while (consume(p, COMMA)!)
+		{
+			scratch.push((uint)parse_constant_expr(p)!);
+		}
+		expect(p, EOS)!;
+
+		uint count = (uint)scratch.len() - watermark;
+		args = ast::push_extra_list(p.ast, scratch_view(watermark, count));
+	};
+
+	uint[*] data = views::@data{CtAssertViewFields}
+	(
+		MESSAGE, message,
+		ARGS, args,
+	);
+
+	uint ex = ast::push_extra_block(p.ast, &data);
+	return ast::add_node(p.ast, CT_ASSERT_STMT, start_pos, p.current_pos(), ex);
 }
 
 fn Node? parse_for_stmt(Parser* p)

@@ -190,13 +190,15 @@ fn Node? parse_type(Parser* p, ParseFlags parse_flags = { })
 }
 
 <*
- Parses Parameters
- @param [&inout] p
- @returns "Extra data index"
+	Parses Parameters
+	@param [&inout] p
+	@returns "Extra data index"
 *>
-fn uint? parse_parameter_list(Parser* p, ParseFlags flags = {}) => @with_scratch(; watermark)
+fn Node? parse_parameter_list(Parser* p, ParseFlags flags = {}) => @with_scratch(; watermark)
 {
-	if (!flags.is_call)
+	uint start_pos = p.current_pos();
+
+	if (!flags.is_call && !flags.is_macro)
 	{
 		expect(p, LPAREN)!;
 	}
@@ -218,19 +220,20 @@ fn uint? parse_parameter_list(Parser* p, ParseFlags flags = {}) => @with_scratch
 		}
 	}
 
-	if (!flags.is_call)
+	if (!flags.is_call && !flags.is_macro)
 	{
 		expect(p, RPAREN)!;
 	}
 	uint count = (uint)scratch.len() - watermark;
-	return ast::push_extra_list(p.ast, scratch_view(watermark, count));
+	uint ex = ast::push_extra_list(p.ast, scratch_view(watermark, count));
+	return ast::add_node(p.ast, PARAM_LIST, start_pos, p.current_pos(), ex);
 }
 
 <*
- implementing interfaces, e.g. struct Foo (MyInterface)
+	implementing interfaces, e.g. struct Foo (MyInterface)
 
-  INTERFACE_IMPL ::= '(' (type (',' type)* ','? )? ')'
- @param [&inout] p
+	INTERFACE_IMPL ::= '(' (type (',' type)* ','? )? ')'
+	@param [&inout] p
 *>
 fn Node? parse_interface_impl(Parser* p)
 {

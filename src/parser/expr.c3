@@ -487,6 +487,11 @@ fn Node? parse_expr(Parser* p, Precedence min_bp = LOWEST)
 	return left;
 }
 
+fn Node? parse_constant_expr(Parser* p)
+{
+	return parse_expr(p, ASSIGNMENT + 1);
+}
+
 <*
  "Shortcut" for when a left node has already been parsed (like an identifier) 
 	and want to continue building an expression from that specific point without starting over
@@ -830,7 +835,7 @@ fn Node? parse_ct_defined_expr(Parser* p) => @with_scratch(; watermark)
 	{
 		while (!p.is(RPAREN) && !p.eof())
 		{
-			scratch.push((uint)parse_expr(p)!);
+			scratch.push((uint)parse_decl_or_expr(p)!);
 
 			if (!consume(p, COMMA)!)
 			{
