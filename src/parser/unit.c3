@@ -167,9 +167,18 @@ fn Node? parse_type(Parser* p, ParseFlags parse_flags = { })
 			flags.is_optional = true;
 			continue; 
 		}
-		if (consume(p, LBRACKET)!) {
-			array_size = (p.is(RBRACKET) || p.peek().kind == ASTERISK) ? 0 : parse_expr(p)!;
-			if (p.is(ASTERISK)) advance(p)!;
+		if (consume(p, LBRACKET)!) 
+		{
+			if (p.is(ASTERISK) || p.is(RBRACKET)) 
+			{
+				array_size = (Node)0;
+				if (p.is(ASTERISK)) advance(p)!;
+			} 
+			else 
+			{
+				array_size = parse_expr(p)!;
+			}
+			
 			expect(p, RBRACKET)!;
 			continue;
 		}

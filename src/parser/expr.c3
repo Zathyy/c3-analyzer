@@ -368,6 +368,7 @@ fn Node? parse_infix(Parser* p, Node left, Precedence rbp)
 		case QUESTQUEST:
 		case ELVIS:
 		case CT_CONCAT_OP:
+		case CT_AND_OP: 
 			{
 				advance(p)!;
 				Node right = parse_expr(p, rbp)!;
@@ -451,10 +452,10 @@ fn Node? parse_infix(Parser* p, Node left, Precedence rbp)
 }
 
 <*
- parse expressions recursively with Pratt parsing
+	parse expressions recursively with Pratt parsing
 	using Binding power.
- @param [&inout] p
- @param min_bp : "Starting binding power, always call with 0, it will call itself recursively with other values"
+	@param [&inout] p
+	@param min_bp : "Starting binding power, always call with 0, it will call itself recursively with other values"
 *>
 fn Node? parse_expr(Parser* p, Precedence min_bp = LOWEST)
 {

@@ -158,6 +158,7 @@ constdef StructViewFields : inline uint
 	NAME = 0,
 	INTERFACES,
 	GENERICS,
+	ATTRIBUTES,
 	FIELDS,
 	CONTRACT,
 }
@@ -172,6 +173,7 @@ constdef FieldViewFields : inline uint
 {
 	NAME = 0,
 	TYPE,
+	ATTRIBUTES,
 }
 typedef FieldView = inline View;
 fn String FieldView.name(self, StringPool* pool) => pool.get((StringHandle)self.get_uint(FieldViewFields.NAME));
@@ -275,3 +277,9 @@ fn String GenericDeclView.get_parameter(self, StringPool* pool, uint index)
 	Node item = self.get_list_item(GenericDeclViewFields.PARAMETERS, index);
 	return pool.get((StringHandle)item);
 }
+
+constdef FaultdefDeclViewFields : inline uint
+{
+	FAULTS = 0,
+}
+typedef FaultdefDeclView = inline View;

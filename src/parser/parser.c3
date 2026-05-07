@@ -492,6 +492,8 @@ fn void? parse_top_level(Parser* p, Workspace* ws)
 			node = parse_interface(p)!;
 		case MODULE:
 			node = parse_module(p, ws)!;
+		case FAULTDEF:
+			node = parse_faultdef_decl(p)!;
 		case FN:
 			node = parse_fn_decl(p, flags)!;
 		case MACRO:

@@ -293,6 +293,46 @@ fn Node? parse_enum(Parser* p, ParseFlags flags)
 	return ast::add_node(p.ast, ENUM_DECL, start_tok, p.current_pos(), ex);
 }
 
+<*
+	FAULTDEF_DECL ::= FAULTDEF CONST_IDENT (',' CONST_IDENT)* ','? ';'
+*>
+fn Node? parse_faultdef_decl(Parser* p)
+{
+    uint start_tok = p.current_pos();
+    expect(p, FAULTDEF)!;
+
+    uint fault_list_idx = 0;
+
+    @with_scratch(; watermark)
+    {
+        while (!p.is(EOS) && !p.eof())
+        {
+            Token name_tok = p.current();
+            expect(p, CONST_IDENT)!;
+            uint name_sh = p.pool.intern(p.token_text(name_tok));
+            scratch.push(name_sh);
+
+            if (!consume(p, COMMA)!) break;
+        }
+        
+        uint count = (uint)scratch.len() - watermark;
+        if (count > 0)
+        {
+            fault_list_idx = ast::push_extra_list(p.ast, scratch_view(watermark, count));
+        }
+    };
+
+    expect(p, EOS)!;
+
+    uint[*] data = views::@data{FaultdefDeclViewFields}
+    (
+        FAULTS, fault_list_idx
+    );
+    
+    uint ex = ast::push_extra_block(p.ast, &data);
+    return ast::add_node(p.ast, FAULTDEF_DECL, start_tok, p.current_pos(), ex);
+}
+
 fn Node? parse_fn_decl(Parser* p, ParseFlags flags) => @scratch()
 {
 	uint start_tok = p.current_pos();
@@ -921,6 +961,8 @@ fn Node? parse_struct(Parser* p)
 		generic_params = parse_generic_decl(p)!;
 	}
 
+	Node attributes = parse_attributes(p)!;
+
 	expect(p, LBRACE)!;
 
 	uint fields_list_ex;
@@ -960,7 +1002,8 @@ fn Node? parse_struct(Parser* p)
 	(
 		NAME, name, 
 		INTERFACES, interf_impl, 
-		GENERICS, generic_params, 
+		GENERICS, generic_params,
+		ATTRIBUTES, attributes,
 		FIELDS, fields_list_ex,
 		CONTRACT, 0,
 	);
@@ -990,10 +1033,13 @@ fn Node? parse_field_decl(Parser* p)
 
 	advance(p)!;
 
+	Node attr = parse_attributes(p)!;
+
 	uint[*] data = views::@data{FieldViewFields}
 	(
 		NAME, name, 
 		TYPE, type_node,
+		ATTRIBUTES, attr,
 	);
 	uint ex = ast::push_extra_block(p.ast, &data);
 	return ast::add_node(p.ast, FIELD_DECL, start_tok, p.current_pos(), ex);
