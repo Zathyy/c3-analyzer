@@ -226,7 +226,7 @@ fn Node? parse_enum(Parser* p, ParseFlags flags)
 		base_type = parse_type(p) ?? p.push_invalid_node(p.current_pos());
 	}
 
-	uint params = p.is(LPAREN) ? parse_parameter_list(p)! : 0;
+	Node params = p.is(LPAREN) ? parse_parameter_list(p)! : {};
 	uint attrs = parse_attributes(p)!;
 
 	uint elements_ex = 0;
@@ -274,6 +274,7 @@ fn Node? parse_enum(Parser* p, ParseFlags flags)
 		elements_ex = ast::push_extra_list(p.ast, {});
 	}
 
+	// TODO: bitstruct
 	uint packed_flags = 0;
 	if (flags.is_constdef) packed_flags |= (1 << 0);
 	if (is_inline_type)	packed_flags |= (1 << 1);
@@ -334,7 +335,7 @@ fn Node? parse_fn_decl(Parser* p, ParseFlags flags) => @scratch()
 
 	log::debug("parse_fn_decl - %s", p.pool.get((StringHandle)name));
 
-	uint params = parse_parameter_list(p)!;
+	Node params = parse_parameter_list(p)!;
 
 	log::debug("parse_fn_decl - parse_generics");
 	uint type_params = parse_generics(p)!;
@@ -395,12 +396,12 @@ fn Node? parse_function_type(Parser* p)
 
 	Node return_type = parse_type(p)!;
 
-	uint params = parse_parameter_list(p)!;
+	Node params = parse_parameter_list(p)!;
 
 	uint[*] data = views::@data{FnTypeViewFields}
 	( 
-	 RETURN_TYPE, return_type, 
-	 PARAMS, params 
+		RETURN_TYPE, return_type, 
+		PARAMS, (uint)params 
 	);
 	uint ex = ast::push_extra_list(p.ast, &data);
 	return ast::add_node(p.ast, TYPE_FUNCTION, pos, p.current_pos(), ex);
@@ -415,7 +416,7 @@ fn Node? parse_macro_decl(Parser* p)
 	Node method_type;
 	uint name;
 
-	if ((p.is(IDENT) || p.is(AT_IDENT)) && p.peek(1).kind != DOT)
+	if IF: ((p.is(IDENT) || p.is(AT_IDENT)) && p.peek(1).kind != DOT)
 	{
 		name = p.pool.intern(p.token_text(p.current()));
 		advance(p)!;
@@ -443,6 +444,7 @@ fn Node? parse_macro_decl(Parser* p)
 			p.error("Expected macro name");
 			p.push_invalid_node(p.current_pos());
 			p.skip_until({ LPAREN, LBRACE, EOS })!;
+			break IF;
 		}
 
 		name = p.pool.intern(p.token_text(p.current()));
@@ -451,7 +453,7 @@ fn Node? parse_macro_decl(Parser* p)
 
 	uint type_params = parse_generics(p)!;
 
-	uint params = p.is(LPAREN) ? parse_parameter_list(p)! : 0;
+	Node params = p.is(LPAREN) ? parse_macro_params(p)! : {};
 	uint attr = parse_attributes(p)!;
 
 	Node body;
@@ -485,6 +487,60 @@ fn Node? parse_macro_decl(Parser* p)
 	return ast::add_node(p.ast, MACRO_DECL, start_tok, p.current_pos(), ex);
 }
 
+fn Node? parse_macro_params(Parser* p)
+{
+	uint start_pos = p.current_pos();
+	expect(p, LPAREN)!;
+
+    // Parse the "regular" parameters (before eos)
+    Node params = parse_parameter_list(p, { .is_macro = true, .skip_eos = true })!;
+    Node body_param;
+    
+    if (consume(p, EOS)!)
+    {
+        uint start = p.current_pos();
+        
+        // This MUST be the @body part
+        if (!p.is(AT_IDENT)) 
+		{
+            p.error("Expected @body after ';'");
+            body_param = p.push_invalid_node(p.current_pos());
+			p.skip_until({ RPAREN, EOS })!;
+        }
+        
+        uint body_name = p.pool.intern(p.token_text(p.current()));
+        advance(p)!; // Consume @ident
+
+        Node inner_params;
+        if (consume(p, LPAREN)!)
+        {
+            // Parse the parameters INSIDE the @ident(...)
+            inner_params = parse_parameter_list(p, { .is_call = false })!;
+            expect(p, RPAREN)!;
+        }
+
+		uint[*] data = views::@data{BodyParamViewFields}
+		(
+			NAME, body_name,
+			INNER_PARAMS, inner_params,
+		);
+        
+		uint ex = ast::push_extra_block(p.ast, &data);
+        body_param = ast::add_node(p.ast, BODY_PARAM_DECL, start, p.current_pos(), ex);
+    }
+
+    expect(p, RPAREN)!;
+
+	uint[*] data = views::@data{MacroParamsViewFields}
+	(
+		PARAMS, params,
+		BODY_PARAMS, body_param,
+	);
+    
+    uint ex = ast::push_extra_block(p.ast, &data);
+    return ast::add_node(p.ast, MACRO_PARAMS, start_pos, p.current_pos(), ex);
+}
+
 fn Node? parse_param_decl(Parser* p)
 {
 	uint start = p.current_pos();
@@ -493,13 +549,30 @@ fn Node? parse_param_decl(Parser* p)
 	Node init;
 	uint flags;
 
+	if (p.is(AT_IDENT))
+    {
+        name = p.pool.intern(p.current_text());
+        advance(p)!;
+
+        Node inner_params;
+        if (consume(p, LPAREN)!)
+        {
+            inner_params = parse_parameter_list(p, { .is_macro = true })!;
+            expect(p, RPAREN)!;
+        }
+
+        // Return a specific BODY_PARAM_DECL node
+        uint[*] data = views::@data{BodyParamViewFields}
+        (
+            NAME, name,
+            INNER_PARAMS, inner_params
+        );
+        uint ex = ast::push_extra_block(p.ast, &data);
+        return ast::add_node(p.ast, BODY_PARAM_DECL, start, p.current_pos(), ex);
+    }
+
 	if (consume(p, AMP)!) flags |= 2;
 	bool ellipsis_prefix = consume(p, ELLIPSIS)!;
-
-	if (p.is(AT_IDENT)) 
-	{
-
-	}
 
 	if (is_type(p.current().kind) || p.is(CT_TYPE_IDENT))
 	{
@@ -659,6 +732,9 @@ fn Node? parse_alias(Parser* p)
 	}
 }
 
+<*
+	TYPEDEF_DECL ::= 'typedef' TYPE_IDENT opt_interfaces attributes? '=' 'inline'? type ';'
+*>
 fn Node? parse_typedef(Parser* p)
 {
 	uint start_tok = p.current_pos();
