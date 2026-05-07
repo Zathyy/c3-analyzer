@@ -100,13 +100,15 @@ fn bool visit_children(Cursor parent, CursorVisitor visitor, void* data)
 		case FN_DECL:
 			{
 				FnView v = { ast, n };
+				ParamsListView plv = v.params();
 				if (v.return_type().is_valid())
 				{
 					if (!visit({ parent.section, v.return_type() }, parent, visitor, data)) return false;
 				}
-				for (uint i = 0; i < v.param_count(); i++)
+				for (uint i = 0; i < plv.count(); i++)
 				{
-					if (!visit({ parent.section, v.get_param(i) }, parent, visitor, data)) return false;
+					ParamView pv = plv.get_param(i);
+					if (!visit({ parent.section, pv.handle }, parent, visitor, data)) return false;
 				}
 				if (v.body().is_valid())
 				{
@@ -451,35 +453,33 @@ fn String get_attribute_full_string(Cursor c, Node attr_node, Allocator allocato
 }
 
 <*
- Resolves all attributes for any given cursor.	
-  Returns an empty slice if the node cannot have attributes or has none
+	Resolves all attributes for any given cursor.	
+	Returns an empty slice if the node cannot have attributes or has none
+	@deprecated
 *>
 fn Node[] get_attributes(Cursor c, Allocator allocator)
 {
 	if (!c.node.is_valid()) return { };
 
-	uint offset = 0;
+	AttributeListView attribute_list_view;
 	NodeKind kind = ast::get_kind(&c.section.source_file.ast, c.node);
 
 	switch (kind)
 	{
 		case FN_DECL:
 			FnView v = { &c.section.source_file.ast, c.node };
-			offset = v.attributes_offset();
+			attribute_list_view = v.attributes();
 			break;
 		default:
 			return { };
 	}
 
-	if (offset == 0) return { };
-
-	uint count = c.section.source_file.ast.extra_data[offset];
-	if (count == 0) return { };
-
+	uint count = attribute_list_view.count();
+	if (count == 0) return {};
 	Node[] result = alloc::new_array(allocator, Node, (Size)count);
 	for (uint i = 0; i < count; i++)
 	{
-		result[i] = (Node)c.section.source_file.ast.extra_data[(Size)offset + 1 + i];
+		result[i] = attribute_list_view.get_attr(i).handle;
 	}
 
 	return result;

@@ -91,7 +91,9 @@ fn int add(int a, int b) {
 	assert (ast::get_kind(&fn_cur.section.source_file.ast, fn_cur.node) == NodeKind.FN_DECL , "Node is not FN_DECL");
 
 	FnView v = { &fn_cur.section.source_file.ast, fn_cur.node };
-	assert (v.param_count() == 2 , "Expected 2 parameters");
+	ParamsListView plv = v.params();
+	log::error("num params: %s", plv.count());
+	assert (plv.count() == 2 , "Expected 2 parameters");
 }
 
 // ------------------------------------------------------------
@@ -972,7 +974,8 @@ fn int double_it(int x) => x * 2;
 	assert(ast::get_kind(&c.section.source_file.ast, c.node) == NodeKind.FN_DECL,
 		"Expected FN_DECL for arrow-body function");
 	FnView fv = { &c.section.source_file.ast, c.node };
-	assert(fv.param_count() == 1, "Expected 1 param");
+	ParamsListView plv = fv.params();
+	assert(plv.count() == 1, "Expected 1 param");
 	assert(fv.body().is_valid(), "Arrow body should produce a valid body node");
 }
 
@@ -1051,8 +1054,9 @@ fn int Thing.get(&self) { return 0; }
 	Cursor c = ws.lookup_in_module("refparam_mod", "get")!!;
 	Ast* ast = &c.section.source_file.ast;
 	FnView fv = { ast, c.node };
-	assert(fv.param_count() == 1, "Expected 1 param (&self)");
-	ParamView pv = { ast, fv.get_param(0) };
+	ParamsListView plv = fv.params();
+	assert(plv.count() == 1, "Expected 1 param (&self)");
+	ParamView pv = plv.get_param(0);
 	assert(pv.is_ref(), "Expected &self param to be flagged as reference");
 }
 
@@ -1071,17 +1075,20 @@ fn void five_params(int a, int b, int c, int d, int e) {}
 	{
 		Cursor c = ws.lookup_in_module("pcount_mod", "zero_params")!!;
 		FnView fv = { &c.section.source_file.ast, c.node };
-		assert(fv.param_count() == 0, "Expected 0 params for zero_params");
+		ParamsListView plv = fv.params();
+		assert(plv.count() == 0, "Expected 0 params for zero_params");
 	}
 	{
 		Cursor c = ws.lookup_in_module("pcount_mod", "one_param")!!;
 		FnView fv = { &c.section.source_file.ast, c.node };
-		assert(fv.param_count() == 1, "Expected 1 param for one_param");
+		ParamsListView plv = fv.params();
+		assert(plv.count() == 1, "Expected 1 param for one_param");
 	}
 	{
 		Cursor c = ws.lookup_in_module("pcount_mod", "five_params")!!;
 		FnView fv = { &c.section.source_file.ast, c.node };
-		assert(fv.param_count() == 5, "Expected 5 params for five_params");
+		ParamsListView plv = fv.params();
+		assert(plv.count() == 5, "Expected 5 params for five_params");
 	}
 }
 

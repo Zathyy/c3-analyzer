@@ -73,6 +73,7 @@ bitstruct ParseFlags : ulong
 	bool is_comptime;
 	bool type_as_expression;
 	bool no_generics; // dont allow type parsing to check for generics
+	bool skip_eos;
 }
 
 struct Parser
@@ -465,9 +466,14 @@ fn void? parse_top_level(Parser* p, Workspace* ws)
 				return err~;
 			}
 
-			uint attr = parse_attributes(p)!;
+			Node attr = parse_attributes(p)!;
 
-			uint[*] data = { (uint)path_node, attr };
+			uint[*] data = views::@data{ImportViewFields}
+			(
+				PATH, path_node,
+				ATTRIBUTES, attr,
+			);
+
 			uint ex = ast::push_extra_block(p.ast, &data);
 			Node imp_node = ast::add_node(p.ast, IMPORT_DECL, start, p.current_pos(), ex);
 			p.ast.top_level_nodes.push((uint)imp_node);
@@ -486,6 +492,8 @@ fn void? parse_top_level(Parser* p, Workspace* ws)
 			node = parse_interface(p)!;
 		case MODULE:
 			node = parse_module(p, ws)!;
+		case FAULTDEF:
+			node = parse_faultdef_decl(p)!;
 		case FN:
 			node = parse_fn_decl(p, flags)!;
 		case MACRO:

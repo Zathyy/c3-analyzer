@@ -17,11 +17,59 @@ fn Node ParamView.type_node(ParamView self) => self.get(ParamViewFields.TYPE);
 fn Node ParamView.init_expr(ParamView self) => self.get(ParamViewFields.INIT);
 fn bool ParamView.is_ref(ParamView self) => self.get_uint(ParamViewFields.FLAGS) != 0;
 
+constdef ParamsListViewFields : inline uint
+{
+	PARAMS = 0,
+}
+typedef ParamsListView = inline View;
+fn uint ParamsListView.count(self) => self.get_list_count(ParamsListViewFields.PARAMS);
+fn ParamView ParamsListView.get_param(self, uint index) 
+{
+    return { self.ast, self.get_list_item(ParamsListViewFields.PARAMS, index) };
+}
+
+constdef BodyParamViewFields : inline uint
+{
+    NAME = 0,
+    INNER_PARAMS
+}
+typedef BodyParamView = inline View; 
+fn String BodyParamView.name(self, StringPool* pool) 
+{
+	return pool.get((StringHandle)self.get_uint(BodyParamViewFields.NAME));
+}
+fn ParamsListView BodyParamView.inner_params(self) 
+{
+    Node list_handle = self.get(BodyParamViewFields.INNER_PARAMS);
+    return { self.ast, list_handle };
+}
+
+constdef AttributeListViewFields : inline uint
+{
+    ATTRIBUTES = 0,
+}
 typedef AttributeListView = inline View;
 fn uint AttributeListView.count(self) => self.get_list_count(0);
-fn Node AttributeListView.get_attr(self, uint index) => self.get_list_item(0, index);
+fn AttributeView AttributeListView.get_attr(self, uint index)
+{
+	return { self.ast, self.get_list_item(AttributeListViewFields.ATTRIBUTES, index) };
+}
+fn AttributeView? AttributeListView.find(self, AttributeKind kind)
+{
+	for (uint i = 0; i < self.count(); i++)
+    {
+        AttributeView attr = self.get_attr(i);
+        if (attr.kind() == kind) return attr;
+    }
+    return ATTRIBUTE_NOT_PRESENT~;
+}
 
 // The view for a single @attr(args)
+constdef AttributeViewFields : inline uint
+{
+    KIND = 0,
+	ARGS
+}
 typedef AttributeView = inline View;
 fn AttributeKind AttributeView.kind(self) => (AttributeKind)self.get_uint(0);
 fn uint AttributeView.arg_count(self) => self.get_uint(2);
@@ -94,3 +142,26 @@ fn Node GenericParamsView.get_param(self, uint index) => (Node)self.ast.extra_da
 typedef GenericParamView = inline View;
 fn String GenericParamView.name(self, StringPool* pool) => pool.get((StringHandle)self.get_uint(0));
 fn bool GenericParamView.is_variadic(self) => (self.get_uint(1) & 1) != 0;
+
+constdef MacroParamsViewFields : inline uint
+{
+	PARAMS,
+	BODY_PARAMS
+}
+typedef MacroParamsView = inline View;
+fn ParamsListView MacroParamsView.params(self) 
+{ 
+	return { self.ast, self.get(MacroParamsViewFields.PARAMS) };
+}
+
+fn bool MacroParamsView.has_body(self)
+{
+	return self.get(MacroParamsViewFields.BODY_PARAMS).is_valid();
+}
+
+fn BodyParamView MacroParamsView.body_params(self) 
+{
+    Node body_node = self.get(MacroParamsViewFields.BODY_PARAMS);
+    if (!body_node.is_valid()) return {};
+    return { self.ast, body_node };
+}

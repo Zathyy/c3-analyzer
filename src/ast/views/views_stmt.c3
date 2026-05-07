@@ -25,3 +25,13 @@ fn Node ForView.body(ForView self) => self.get(3);
 typedef CompoundView = inline View;
 fn uint CompoundView.len(self) => self.ast.extra_data[(Size)self.get_extra_index()];
 fn Node CompoundView.get(self, uint index) => (Node)self.ast.extra_data[(Size)self.get_extra_index() + 1 + index];
+
+constdef CtAssertViewFields : inline uint
+{
+	MESSAGE = 0,
+	ARGS,
+}
+typedef CtAssertView = inline View;
+fn Node CtAssertView.message(self) => self.get(CtAssertViewFields.MESSAGE);
+fn uint CtAssertView.get_args_count(self) => self.get_list_count(CtAssertViewFields.ARGS);
+fn Node CtAssertView.get_arg(self, uint index) => self.get_list_item(CtAssertViewFields.ARGS, index);

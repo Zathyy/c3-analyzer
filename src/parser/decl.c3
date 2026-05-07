@@ -90,7 +90,7 @@ fn Node? parse_contract(Parser* p) => @pool()
 			}
 			else if (attr == constants::KW_AT_DEPRECATED)
 			{
-				deprecated = parse_attributes(p)!;
+				deprecated = (uint)parse_attributes(p)!;
 			}
 			else if (attr == constants::KW_AT_PURE)
 			{
@@ -173,8 +173,8 @@ fn Node? parse_module(Parser* p, Workspace* ws)
 	p.mod = mod;
 	sec.start_node_idx = node_idx;
 
-	uint generics = parse_generics(p)!;
-	uint attributes = parse_attributes(p)!;
+	Node generics = parse_generic_decl(p)!;
+	Node attributes = parse_attributes(p)!;
 
 	expect(p, EOS)!;
 
@@ -183,45 +183,13 @@ fn Node? parse_module(Parser* p, Workspace* ws)
 	// last is to reserve for contract (if any)
 	uint[*] data = views::@data{ModuleViewFields}
 	(
-	 PATH, path, 
-	 GENERICS, generics, 
-	 ATTRIBUTES, attributes, 
-	 CONTRACT, 0 
+		PATH, path, 
+		GENERICS, generics, 
+		ATTRIBUTES, attributes, 
+		CONTRACT, 0
 	);
 	uint ex = ast::push_extra_block(p.ast, &data);
 	return ast::add_node(p.ast, MODULE_DECL, start, p.current_pos(), ex);
-}
-
-fn OverloadKind get_overload_from_token(TokenKind kind)
-{
-	switch (kind)
-	{
-		case PLUS: return OverloadKind.PLUS;
-		case PLUS_ASSIGN: return OverloadKind.PLUS_ASSIGN;
-		case MINUS: return OverloadKind.MINUS;
-		case MINUS_ASSIGN: return OverloadKind.MINUS_ASSIGN;
-		case ASTERISK: return OverloadKind.MULTIPLY;
-		case MULT_ASSIGN: return OverloadKind.MULTIPLY_ASSIGN;
-		case DIV: return OverloadKind.DIVIDE;
-		case DIV_ASSIGN: return OverloadKind.DIVIDE_ASSIGN;
-		case MOD: return OverloadKind.REMINDER;
-		case MOD_ASSIGN: return OverloadKind.REMINDER_ASSIGN;
-		case AMP: return OverloadKind.AND;
-		case BIT_AND_ASSIGN: return OverloadKind.AND_ASSIGN;
-		case BIT_OR: return OverloadKind.OR;
-		case BIT_OR_ASSIGN: return OverloadKind.OR_ASSIGN;
-		case BIT_XOR: return OverloadKind.XOR;
-		case BIT_XOR_ASSIGN: return OverloadKind.XOR_ASSIGN;
-		case LSHIFT: return OverloadKind.SHL;
-		case LSHIFT_ASSIGN: return OverloadKind.SHL_ASSIGN;
-		case RSHIFT: return OverloadKind.SHR;
-		case RSHIFT_ASSIGN: return OverloadKind.SHR_ASSIGN;
-		case BIT_NOT: return OverloadKind.NEGATE;
-		case EQEQ: return OverloadKind.EQUAL;
-		case NOT_EQUAL: return OverloadKind.NOT_EQUAL;
-		default:
-			unreachable();
-	}
 }
 
 fn Node? parse_enum(Parser* p, ParseFlags flags)
@@ -258,8 +226,8 @@ fn Node? parse_enum(Parser* p, ParseFlags flags)
 		base_type = parse_type(p) ?? p.push_invalid_node(p.current_pos());
 	}
 
-	uint params = p.is(LPAREN) ? parse_parameter_list(p)! : 0;
-	uint attrs = parse_attributes(p)!;
+	Node params = p.is(LPAREN) ? parse_parameter_list(p)! : {};
+	Node attrs = parse_attributes(p)!;
 
 	uint elements_ex = 0;
 	if (consume(p, LBRACE)!) 
@@ -306,21 +274,63 @@ fn Node? parse_enum(Parser* p, ParseFlags flags)
 		elements_ex = ast::push_extra_list(p.ast, {});
 	}
 
+	// TODO: bitstruct
 	uint packed_flags = 0;
 	if (flags.is_constdef) packed_flags |= (1 << 0);
 	if (is_inline_type)	packed_flags |= (1 << 1);
 
 	uint[*] decl_data = views::@data{EnumViewFields}
 	( 
-	 NAME, name, 
-	 BASE_TYPE, base_type, 
-	 PARAMS, params, 
-	 ATTRIBUTES, attrs, 
-	 MEMBERS, elements_ex, 
-	 FLAGS, packed_flags 
+		NAME, name, 
+		BASE_TYPE, base_type, 
+		PARAMS, params, 
+		ATTRIBUTES, attrs,
+		CONTRACT, 0,
+		MEMBERS, elements_ex, 
+		FLAGS, packed_flags 
 	);
 	uint ex = ast::push_extra_block(p.ast, &decl_data);
 	return ast::add_node(p.ast, ENUM_DECL, start_tok, p.current_pos(), ex);
+}
+
+<*
+	FAULTDEF_DECL ::= FAULTDEF CONST_IDENT (',' CONST_IDENT)* ','? ';'
+*>
+fn Node? parse_faultdef_decl(Parser* p)
+{
+    uint start_tok = p.current_pos();
+    expect(p, FAULTDEF)!;
+
+    uint fault_list_idx = 0;
+
+    @with_scratch(; watermark)
+    {
+        while (!p.is(EOS) && !p.eof())
+        {
+            Token name_tok = p.current();
+            expect(p, CONST_IDENT)!;
+            uint name_sh = p.pool.intern(p.token_text(name_tok));
+            scratch.push(name_sh);
+
+            if (!consume(p, COMMA)!) break;
+        }
+        
+        uint count = (uint)scratch.len() - watermark;
+        if (count > 0)
+        {
+            fault_list_idx = ast::push_extra_list(p.ast, scratch_view(watermark, count));
+        }
+    };
+
+    expect(p, EOS)!;
+
+    uint[*] data = views::@data{FaultdefDeclViewFields}
+    (
+        FAULTS, fault_list_idx
+    );
+    
+    uint ex = ast::push_extra_block(p.ast, &data);
+    return ast::add_node(p.ast, FAULTDEF_DECL, start_tok, p.current_pos(), ex);
 }
 
 fn Node? parse_fn_decl(Parser* p, ParseFlags flags) => @scratch()
@@ -365,13 +375,13 @@ fn Node? parse_fn_decl(Parser* p, ParseFlags flags) => @scratch()
 
 	log::debug("parse_fn_decl - %s", p.pool.get((StringHandle)name));
 
-	uint params = parse_parameter_list(p)!;
+	Node params = parse_parameter_list(p)!;
 
 	log::debug("parse_fn_decl - parse_generics");
-	uint type_params = parse_generics(p)!;
+	Node type_params = parse_generic_decl(p)!;
 
 	log::debug("parse_fn_decl - parse_attributes");
-	uint attr = parse_attributes(p)!;
+	Node attr = parse_attributes(p)!;
 
 	Node body;
 	if (p.is(LBRACE))
@@ -404,13 +414,14 @@ fn Node? parse_fn_decl(Parser* p, ParseFlags flags) => @scratch()
 
 	uint[*] final_block = views::@data{FnViewFields}
 	(
-	 NAME, name,
-	 ASSOCIATED, method_type,
-	 RETURN_TYPE, ret_type,
-	 ATTRIBUTES, attr,
-	 PARAMS, params,
-	 GENERICS, type_params,
-	 BODY, body,
+		NAME, name,
+		ASSOCIATED, method_type,
+		RETURN_TYPE, ret_type,
+		ATTRIBUTES, attr,
+		PARAMS, params,
+		GENERICS, type_params,
+		CONTRACT, 0,
+		BODY, body,
 	);
 
 	log::debug("parse_fn_decl - finished.. adding to ast");
@@ -425,12 +436,12 @@ fn Node? parse_function_type(Parser* p)
 
 	Node return_type = parse_type(p)!;
 
-	uint params = parse_parameter_list(p)!;
+	Node params = parse_parameter_list(p)!;
 
 	uint[*] data = views::@data{FnTypeViewFields}
 	( 
-	 RETURN_TYPE, return_type, 
-	 PARAMS, params 
+		RETURN_TYPE, return_type, 
+		PARAMS, (uint)params 
 	);
 	uint ex = ast::push_extra_list(p.ast, &data);
 	return ast::add_node(p.ast, TYPE_FUNCTION, pos, p.current_pos(), ex);
@@ -445,7 +456,7 @@ fn Node? parse_macro_decl(Parser* p)
 	Node method_type;
 	uint name;
 
-	if ((p.is(IDENT) || p.is(AT_IDENT)) && p.peek(1).kind != DOT)
+	if IF: ((p.is(IDENT) || p.is(AT_IDENT)) && p.peek(1).kind != DOT)
 	{
 		name = p.pool.intern(p.token_text(p.current()));
 		advance(p)!;
@@ -473,16 +484,17 @@ fn Node? parse_macro_decl(Parser* p)
 			p.error("Expected macro name");
 			p.push_invalid_node(p.current_pos());
 			p.skip_until({ LPAREN, LBRACE, EOS })!;
+			break IF;
 		}
 
 		name = p.pool.intern(p.token_text(p.current()));
 		advance(p)!;
 	}
 
-	uint type_params = parse_generics(p)!;
+	Node type_params = parse_generic_decl(p)!;
 
-	uint params = p.is(LPAREN) ? parse_parameter_list(p)! : 0;
-	uint attr = parse_attributes(p)!;
+	Node params = p.is(LPAREN) ? parse_macro_params(p)! : {};
+	Node attr = parse_attributes(p)!;
 
 	Node body;
 	if (consume(p, IMPLIES)!)
@@ -507,11 +519,66 @@ fn Node? parse_macro_decl(Parser* p)
 		ATTRIBUTES, attr, 
 		PARAMS, params, 
 		GENERICS, type_params,
+		CONTRACT, 0,
 		BODY, body,
 	);
 
 	uint ex = ast::push_extra_block(p.ast, &data);
 	return ast::add_node(p.ast, MACRO_DECL, start_tok, p.current_pos(), ex);
+}
+
+fn Node? parse_macro_params(Parser* p)
+{
+	uint start_pos = p.current_pos();
+	expect(p, LPAREN)!;
+
+    // Parse the "regular" parameters (before eos)
+    Node params = parse_parameter_list(p, { .is_macro = true, .skip_eos = true })!;
+    Node body_param;
+    
+    if (consume(p, EOS)!)
+    {
+        uint start = p.current_pos();
+        
+        // This MUST be the @body part
+        if (!p.is(AT_IDENT)) 
+		{
+            p.error("Expected @body after ';'");
+            body_param = p.push_invalid_node(p.current_pos());
+			p.skip_until({ RPAREN, EOS })!;
+        }
+        
+        uint body_name = p.pool.intern(p.token_text(p.current()));
+        advance(p)!; // Consume @ident
+
+        Node inner_params;
+        if (consume(p, LPAREN)!)
+        {
+            // Parse the parameters INSIDE the @ident(...)
+            inner_params = parse_parameter_list(p, { .is_call = false })!;
+            expect(p, RPAREN)!;
+        }
+
+		uint[*] data = views::@data{BodyParamViewFields}
+		(
+			NAME, body_name,
+			INNER_PARAMS, inner_params,
+		);
+        
+		uint ex = ast::push_extra_block(p.ast, &data);
+        body_param = ast::add_node(p.ast, BODY_PARAM_DECL, start, p.current_pos(), ex);
+    }
+
+    expect(p, RPAREN)!;
+
+	uint[*] data = views::@data{MacroParamsViewFields}
+	(
+		PARAMS, params,
+		BODY_PARAMS, body_param,
+	);
+    
+    uint ex = ast::push_extra_block(p.ast, &data);
+    return ast::add_node(p.ast, MACRO_PARAMS, start_pos, p.current_pos(), ex);
 }
 
 fn Node? parse_param_decl(Parser* p)
@@ -522,13 +589,30 @@ fn Node? parse_param_decl(Parser* p)
 	Node init;
 	uint flags;
 
+	if (p.is(AT_IDENT))
+    {
+        name = p.pool.intern(p.current_text());
+        advance(p)!;
+
+        Node inner_params;
+        if (consume(p, LPAREN)!)
+        {
+            inner_params = parse_parameter_list(p, { .is_macro = true })!;
+            expect(p, RPAREN)!;
+        }
+
+        // Return a specific BODY_PARAM_DECL node
+        uint[*] data = views::@data{BodyParamViewFields}
+        (
+            NAME, name,
+            INNER_PARAMS, inner_params
+        );
+        uint ex = ast::push_extra_block(p.ast, &data);
+        return ast::add_node(p.ast, BODY_PARAM_DECL, start, p.current_pos(), ex);
+    }
+
 	if (consume(p, AMP)!) flags |= 2;
 	bool ellipsis_prefix = consume(p, ELLIPSIS)!;
-
-	if (p.is(AT_IDENT)) 
-	{
-
-	}
 
 	if (is_type(p.current().kind) || p.is(CT_TYPE_IDENT))
 	{
@@ -547,7 +631,7 @@ fn Node? parse_param_decl(Parser* p)
 		if (consume(p, ELLIPSIS)!) flags |= 1;
 	}
 
-	uint attributes;
+	Node attributes;
 	if (p.is(AT_IDENT))
 	{
 		attributes = parse_attributes(p)!;
@@ -558,7 +642,7 @@ fn Node? parse_param_decl(Parser* p)
 		init = parse_expr(p)!;
 	}
 
-	if (!type.is_valid() && name == 0 && attributes == 0 && !ellipsis_prefix)
+	if (!type.is_valid() && name == 0 && !attributes.is_valid() && !ellipsis_prefix)
 	{
 		p.error("Expected parameter declaration");
 		p.push_invalid_node(start);
@@ -596,7 +680,7 @@ fn Node? parse_type_alias(Parser* p)
 	expect(p, TYPE_IDENT)!;
 	uint name_sh = p.pool.intern(p.token_text(name_tok));
 
-	uint attr = parse_attributes(p)!;
+	Node attr = parse_attributes(p)!;
 
 	expect(p, EQ)!;
 
@@ -625,7 +709,7 @@ fn Node? parse_type_alias(Parser* p)
 }
 
 <*
- PATH_ALIAS_DECL ::= 'alias' (IDENT | CONST_IDENT | AT_IDENT) attributes? '=' (('module' path) | identifier_alias generic_params?)
+ 	PATH_ALIAS_DECL ::= 'alias' (IDENT | CONST_IDENT | AT_IDENT) attributes? '=' (('module' path) | identifier_alias generic_params?)
     ALIAS_DECL ::= path? (IDENT | CONST_IDENT | AT_IDENT)
 *>
 fn Node? parse_ident_alias(Parser* p)
@@ -644,7 +728,7 @@ fn Node? parse_ident_alias(Parser* p)
 
 	advance(p)!;
 
-	uint attr = parse_attributes(p)!;
+	Node attr = parse_attributes(p)!;
 
 	expect(p, EQ)!;
 
@@ -688,6 +772,65 @@ fn Node? parse_alias(Parser* p)
 	}
 }
 
+<*
+	GENERIC_DECL ::= <...>
+*>
+fn Node? parse_generic_decl(Parser* p)
+{
+	uint start_tok = p.current_pos();
+	if (!consume(p, LESS)!) return {};
+	if (consume(p, GREATER)!)
+	{
+		p.error("Generic paramter list cannot be empty");
+	}
+
+	uint list;
+	@with_scratch(; watermark)
+	{
+		while (true)
+		{
+			switch (p.current().kind)
+			{
+				case TYPE_IDENT:
+				case CONST_IDENT:
+					break;
+				case COMMA:
+					p.error("Unexpected ','");
+					return {};
+				case IDENT:
+				case CT_IDENT:
+				case CT_TYPE_IDENT:
+					p.error("The generic parameter cannot be a $-prefixed name.");
+					return {};
+				default:
+					p.error("Only generic parameters are allowed here.");
+					return {};
+			}
+
+			uint name = p.pool.intern(p.current_text());
+			scratch.push(name);
+			advance(p)!;
+			if (!consume(p, COMMA)!)
+			{
+				expect(p, GREATER)!;
+				break;
+			}
+		}
+
+		list = ast::push_extra_list(p.ast, scratch_view(watermark, (uint)scratch.len() - watermark));
+	};
+
+	uint[*] data = views::@data{GenericDeclViewFields}
+	(
+		PARAMETERS, list 
+	);
+	uint ex = ast::push_extra_block(p.ast, &data);
+	return ast::add_node(p.ast, GENERIC_DECL, start_tok, p.current_pos(), ex);
+}
+
+<*
+	TYPEDEF_DECL ::= 'typedef' TYPE_IDENT opt_interfaces attributes? '=' 'inline'? type ';'
+*>
 fn Node? parse_typedef(Parser* p)
 {
 	uint start_tok = p.current_pos();
@@ -698,7 +841,7 @@ fn Node? parse_typedef(Parser* p)
 	uint name_sh = p.pool.intern(p.token_text(name_tok));
 
 	Node inter = parse_interface_impl(p)!;
-
+	Node generics = parse_generic_decl(p)!;
 	expect(p, EQ)!;
 
 	if (consume(p, INLINE)!)
@@ -715,6 +858,7 @@ fn Node? parse_typedef(Parser* p)
 		NAME, name_sh, 
 		BASE_TYPE, base_type, 
 		INTERFACES, inter,
+		GENERICS, generics,
 	);
 	uint ex = ast::push_extra_block(p.ast, &data);
 
@@ -757,7 +901,7 @@ fn Node? parse_interface(Parser* p)
 		}
 	}
 
-	uint attrs = parse_attributes(p)!;
+	Node attrs = parse_attributes(p)!;
 
 	expect(p, LBRACE)!;
 
@@ -811,11 +955,13 @@ fn Node? parse_struct(Parser* p)
 
 	Node interf_impl = parse_interface_impl(p)!;
 
-	uint generic_params;
+	Node generic_params;
 	if (p.is(LESS))
 	{
-		generic_params = parse_generics(p)!;
+		generic_params = parse_generic_decl(p)!;
 	}
+
+	Node attributes = parse_attributes(p)!;
 
 	expect(p, LBRACE)!;
 
@@ -856,8 +1002,10 @@ fn Node? parse_struct(Parser* p)
 	(
 		NAME, name, 
 		INTERFACES, interf_impl, 
-		GENERICS, generic_params, 
-		FIELDS, fields_list_ex 
+		GENERICS, generic_params,
+		ATTRIBUTES, attributes,
+		FIELDS, fields_list_ex,
+		CONTRACT, 0,
 	);
 
 	NodeKind kind = is_struct ? STRUCT_DECL : UNION_DECL;
@@ -885,10 +1033,13 @@ fn Node? parse_field_decl(Parser* p)
 
 	advance(p)!;
 
+	Node attr = parse_attributes(p)!;
+
 	uint[*] data = views::@data{FieldViewFields}
 	(
 		NAME, name, 
 		TYPE, type_node,
+		ATTRIBUTES, attr,
 	);
 	uint ex = ast::push_extra_block(p.ast, &data);
 	return ast::add_node(p.ast, FIELD_DECL, start_tok, p.current_pos(), ex);

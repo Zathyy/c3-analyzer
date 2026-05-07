@@ -55,7 +55,7 @@ fn int main(String[] args) => @pool()
 	}
 	else if (args.len >= 3 && args[1] == "-f")
 	{
-			log::set_priority_all(LogPriority.VERBOSE);
+		log::set_priority_all(LogPriority.VERBOSE);
 
 		String path = args[2];
 		parser::parse_file(&ws, path)!!;

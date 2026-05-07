@@ -154,14 +154,10 @@ enum TokenKind : ushort
 	// STRING
 	CHAR_LITERAL,
 	// 'a' 'FO' 'BARS' '\u1232'
-	BYTES,
-	// Base64 or Hex
-	INTEGER,
-	// 123 0x23 0b10010 0o327
-	REAL,
-	// 0x23.2p-2a 43.23e23
-	IDENT,
-	// foo
+	BYTES, // Base64 or Hex
+	INTEGER, // 123 0x23 0b10010 0o327
+	REAL, // 0x23.2p-2a 43.23e23
+	IDENT, // foo
 	TYPE_IDENT,
 	// Foo,
 	CONST_IDENT,
