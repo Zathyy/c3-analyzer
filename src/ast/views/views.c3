@@ -22,6 +22,11 @@ struct View
 	Node handle;
 }
 
+fn bool View.is_valid(self) @inline
+{
+	return self.ast != null && self.handle.is_valid();
+}
+
 <*
 	Creates a safe data array based on a view field const def
 	@require $vaarg.len % 2 == 0
