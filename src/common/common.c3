@@ -175,6 +175,7 @@ bitstruct VarDeclFlags : uint
 	bool is_extern;
 	bool is_thread_local;
 	bool is_inline;
+	bool is_static;
 }
 
 bitstruct ContractFlags : uint

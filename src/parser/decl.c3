@@ -405,7 +405,11 @@ fn Node? parse_fn_decl(Parser* p, ParseFlags flags) => @scratch()
 
 		log::debug("parse_fn_decl - parse_short_body");
 		body = parse_expr(p)!;
-		expect(p, EOS)!;
+
+		if (!node_ends_with_block(p, body))
+		{
+			expect(p, EOS)!;
+		}
 	}
 	else
 	{

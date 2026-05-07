@@ -190,6 +190,10 @@ fn Node? parse_prefix_expr(Parser* p)
 			advance(p)!;
 			return ast::add_node(p.ast, NULL_LITERAL, t.pos, t.pos, 0);
 		}
+		case FN: // lambda
+		{
+			return parse_lambda(p)!;
+		}
 		case AT_IDENT:
 		case AT_CONST_IDENT:
 		case AT_TYPE_IDENT:
@@ -221,21 +225,16 @@ fn Node? parse_prefix_expr(Parser* p)
 			uint sh = p.pool.intern(text);
 			advance(p)!;
 			return ast::add_node(p.ast, STRING_LITERAL, t.pos, p.current_pos(), sh);
-		
-		case CHAR_LITERAL:
-			String text = p.token_text(t);
-			uint sh = p.pool.intern(text);
-			advance(p)!;
-			return ast::add_node(p.ast, CHAR_LITERAL, t.pos, p.current_pos(), sh);
-
 		case TRUE:
-			advance(p)!;
-			return ast::add_node(p.ast, BOOL_LITERAL, t.pos, p.current_pos(), 1);
-
+			{
+				advance(p)!;
+				return ast::add_node(p.ast, BOOL_LITERAL, t.pos, p.current_pos(), 1);
+			}
 		case FALSE:
-			advance(p)!;
-			return ast::add_node(p.ast, BOOL_LITERAL, t.pos, p.current_pos(), 0);
-
+			{
+				advance(p)!;
+				return ast::add_node(p.ast, BOOL_LITERAL, t.pos, p.current_pos(), 0);
+			}
 		case REAL:
 			String text = p.token_text(t);
 			uint sh = p.pool.intern(text);
@@ -323,7 +322,7 @@ fn Node? parse_prefix_expr(Parser* p)
 			}
 		default:
 			log::error(
-				"parse_prefix_expr - Expected expression for token: ((%s) %s - %s)",
+				"parse_prefix_expr - Expected expression for token: (%s - %s)",
 				p.token_text(p.current()),
 				p.current().kind
 			);
@@ -373,6 +372,7 @@ fn Node? parse_infix(Parser* p, Node left, Precedence rbp)
 		case QUESTQUEST:
 		case ELVIS:
 		case CT_CONCAT_OP:
+		case CT_AND_OP: 
 			{
 				advance(p)!;
 				Node right = parse_expr(p, rbp)!;
@@ -456,10 +456,10 @@ fn Node? parse_infix(Parser* p, Node left, Precedence rbp)
 }
 
 <*
- parse expressions recursively with Pratt parsing
+	parse expressions recursively with Pratt parsing
 	using Binding power.
- @param [&inout] p
- @param min_bp : "Starting binding power, always call with 0, it will call itself recursively with other values"
+	@param [&inout] p
+	@param min_bp : "Starting binding power, always call with 0, it will call itself recursively with other values"
 *>
 fn Node? parse_expr(Parser* p, Precedence min_bp = LOWEST)
 {
@@ -479,12 +479,10 @@ fn Node? parse_expr(Parser* p, Precedence min_bp = LOWEST)
 		left = parse_infix(p, left, (Precedence)rbp)!;
 	}
 
-	// Check for Postfix Attributes
-	// only if min_bp is 0
 	if (min_bp == 0 && p.is(AT_IDENT))
 	{
-		uint attr = parse_attributes(p)!;
-		uint[2] data = { (uint)left, attr };
+		Node attr = parse_attributes(p)!;
+		uint[2] data = { (uint)left, (uint)attr };
 		uint ex = ast::push_extra_block(p.ast, &data);
 		left = ast::add_node(p.ast, ATTRIBUTED_EXPR, p.current().pos, p.current_pos(), ex);
 	}
@@ -612,6 +610,8 @@ fn Node? parse_call(Parser* p, Token t, Node callee)
         expect(p, RPAREN)!;
         args_list_ex = ast::push_extra_list(p.ast, scratch_view(watermark, (uint)scratch.len() - watermark));
     };
+
+	Node attr = parse_attributes(p)!;
 
 	if (p.is(LBRACE))
     {
@@ -883,4 +883,47 @@ fn Node? parse_decl_or_expr(Parser* p)
     }
     
     return parse_expr(p)!;
+}
+
+fn Node? parse_lambda(Parser* p)
+{
+	uint start_tok = p.current_pos();
+	expect(p, FN)!;
+
+	Node return_type;
+	if (!p.is(LPAREN))
+	{
+		return_type = parse_type(p)!;
+	}
+
+	Node params = parse_parameter_list(p)!;
+	Node attr = parse_attributes(p)!;
+
+	Node body;
+	if (p.is(IMPLIES))
+	{
+		advance(p)!;
+		log::debug("parse_fn_decl - parse_short_body");
+		body = parse_expr(p)!;
+		expect(p, EOS)!;
+	}
+	else if (p.is(LBRACE))
+	{
+		body = parse_compound(p)!;
+	}
+	else
+	{
+		p.error("Expected the beginning of a block or a short statement.");
+		body = p.push_invalid_node(p.current_pos());
+	}
+
+	uint[*] data = views::@data{LambdaViewFields}
+	(
+		RETURN_TYPE, return_type,
+		ATTRIBUTES, attr,
+		BODY, body,
+	);
+
+	uint ex = ast::push_extra_block(p.ast, &data);
+	return ast::add_node(p.ast, LAMBDA_EXPR, start_tok, p.current_pos(), ex);
 }

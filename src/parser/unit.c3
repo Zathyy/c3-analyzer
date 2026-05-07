@@ -524,7 +524,8 @@ fn Node? parse_var_decl(Parser* p, ParseFlags flags)
 		.is_const = flags.is_const,
 		.is_inline = flags.is_inline,
 		.is_local = flags.is_local,
-		.is_thread_local = flags.is_thread_local
+		.is_thread_local = flags.is_thread_local,
+		.is_static = flags.is_static,
 	};
 
 	uint[*] data = { name, (uint)type_node, (uint)init_expr, attr, (uint)packed_flags };
