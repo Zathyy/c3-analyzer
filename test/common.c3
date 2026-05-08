@@ -37,7 +37,7 @@ fn uint count_kind(ModuleSection* s, NodeKind kind) @private
 	foreach (h : s.source_file.ast.top_level_nodes)
 	{
 		if (h < s.start_node_idx || h >= s.end_node_idx) continue;
-		if (ast::get_kind(&s.source_file.ast, (Node)h) == kind) n++;
+		if (s.source_file.ast.get_kind((Node)h) == kind) n++;
 	}
 	return n;
 }

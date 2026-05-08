@@ -118,7 +118,7 @@ fn void? Parser.skip_until(Parser* p, TokenKind[] targets)
 fn Node Parser.push_invalid_node(Parser* p, uint start_pos)
 {
     uint end_pos = p.current_pos();
-    return ast::add_node(p.ast, INVALID, start_pos, end_pos, 0);
+    return p.ast.add_node(INVALID, start_pos, end_pos, 0);
 }
 
 <*
@@ -469,11 +469,16 @@ fn void? parse_top_level(Parser* p, Workspace* ws)
 				return err~;
 			}
 
-			uint attr = parse_attributes(p)!;
+			Node attr = parse_attributes(p)!;
 
-			uint[*] data = { (uint)path_node, attr };
-			uint ex = ast::push_extra_block(p.ast, &data);
-			Node imp_node = ast::add_node(p.ast, IMPORT_DECL, start, p.current_pos(), ex);
+			uint[*] data = views::@data{ImportViewFields}
+			(
+				PATH, path_node,
+				ATTRIBUTES, attr,
+			);
+
+			uint ex = p.ast.push_extra_block(&data);
+			Node imp_node = p.ast.add_node(IMPORT_DECL, start, p.current_pos(), ex);
 			p.ast.top_level_nodes.push((uint)imp_node);
 			if (!consume(p, COMMA)!) break;
 		}
@@ -490,6 +495,8 @@ fn void? parse_top_level(Parser* p, Workspace* ws)
 			node = parse_interface(p)!;
 		case MODULE:
 			node = parse_module(p, ws)!;
+		case FAULTDEF:
+			node = parse_faultdef_decl(p)!;
 		case FN:
 			node = parse_fn_decl(p, flags)!;
 		case MACRO:

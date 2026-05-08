@@ -49,7 +49,7 @@ fn void? ModuleExport.serialize(&self, ser::Serializer serializer)
 
 fn JsonNode build_json_node(Cursor c, Allocator allocator)
 { 
-  NodeView v = ast::get_node(&c.section.source_file.ast, c.node);
+  NodeView v = c.section.source_file.ast.get_node(c.node);
 
   JsonNode dto;
   dto.id = (uint)c.node;
@@ -128,7 +128,7 @@ fn ChildVisitResult printer_callback(Cursor c, Cursor p, void* data, bool is_las
 
   print_prefix(ctx.prefix, is_last);
 
-  NodeView v = ast::get_node(&c.section.source_file.ast, c.node);
+  NodeView v = c.section.source_file.ast.get_node(c.node);
   String name = c.spelling() ?? "";
   io::printfn("%s: %s : Idx = %s", v.kind.description, name, c.node);
 

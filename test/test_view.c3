@@ -16,7 +16,7 @@ fn Node first_node_of_kind(ModuleSection* s, NodeKind kind) @private
 	foreach (h : s.source_file.ast.top_level_nodes)
 	{
 		if (h < s.start_node_idx || h >= s.end_node_idx) continue;
-		if (ast::get_kind(ast, (Node)h) == kind) return (Node)h;
+		if (ast.get_kind((Node)h) == kind) return (Node)h;
 	}
 	return (Node){};
 }
@@ -122,7 +122,7 @@ fn void has_body() { int x = 0; }
 	FnView fv = { ast, c.node };
 	Node body = fv.body();
 	assert(body.is_valid(), "body is valid");
-	assert(ast::get_kind(ast, body) == NodeKind.COMPOUND_STMT, "body is COMPOUND_STMT");
+	assert(ast.get_kind(body) == NodeKind.COMPOUND_STMT, "body is COMPOUND_STMT");
 }
 
 fn void test_fn_view_no_body() @test => @pool()
@@ -259,7 +259,7 @@ const int ANSWER = 42;
 	VarDeclView vv = { ast, c.node };
 	Node init = vv.init_expr();
 	assert(init.is_valid(), "init_expr must be valid");
-	assert(ast::get_kind(ast, init) == NodeKind.INT_LITERAL, "init is INT_LITERAL");
+	assert(ast.get_kind(init) == NodeKind.INT_LITERAL, "init is INT_LITERAL");
 }
 
 // ============================================================
@@ -370,7 +370,7 @@ enum Dir { NORTH, SOUTH, EAST, WEST }
 	assert(ev.member_count() == 4, "Dir has 4 members");
 	Node m0 = ev.get_member(0);
 	assert(m0.is_valid(), "first member is valid");
-	assert(ast::get_kind(ast, m0) == NodeKind.ENUM_MEMBER, "member is ENUM_MEMBER");
+	assert(ast.get_kind(m0) == NodeKind.ENUM_MEMBER, "member is ENUM_MEMBER");
 }
 
 fn void test_enum_view_is_constdef() @test => @pool()
@@ -615,8 +615,8 @@ fn void two() { int x = 1; int y = 2; }
 	Node s0 = cv.get(0);
 	Node s1 = cv.get(1);
 	assert(s0.is_valid() && s1.is_valid(), "both stmts valid");
-	assert(ast::get_kind(ast, s0) == NodeKind.LOCAL_DECL, "stmt 0 is LOCAL_DECL");
-	assert(ast::get_kind(ast, s1) == NodeKind.LOCAL_DECL, "stmt 1 is LOCAL_DECL");
+	assert(ast.get_kind(s0) == NodeKind.LOCAL_DECL, "stmt 0 is LOCAL_DECL");
+	assert(ast.get_kind(s1) == NodeKind.LOCAL_DECL, "stmt 1 is LOCAL_DECL");
 }
 
 fn void test_compound_view_empty() @test => @pool()
@@ -649,7 +649,7 @@ fn int get() { return 7; }
 	FnView fv = { ast, c.node };
 	CompoundView cv = { ast, fv.body() };
 	Node ret = cv.get(0);
-	assert(ast::get_kind(ast, ret) == NodeKind.RETURN_STMT, "is RETURN_STMT");
+	assert(ast.get_kind(ret) == NodeKind.RETURN_STMT, "is RETURN_STMT");
 	ReturnView rv = { ast, ret };
 	assert(rv.expr().is_valid(), "return expr is valid");
 }
@@ -666,7 +666,7 @@ fn int lit_ret() { return 99; }
 	FnView fv = { ast, c.node };
 	CompoundView cv = { ast, fv.body() };
 	ReturnView rv = { ast, cv.get(0) };
-	assert(ast::get_kind(ast, rv.expr()) == NodeKind.INT_LITERAL, "return expr is INT_LITERAL");
+	assert(ast.get_kind(rv.expr()) == NodeKind.INT_LITERAL, "return expr is INT_LITERAL");
 }
 
 // ============================================================
@@ -702,7 +702,7 @@ fn float pi_approx() { return 3.14; }
 	CompoundView cv = { ast, fv.body() };
 	ReturnView rv = { ast, cv.get(0) };
 	Node expr = rv.expr();
-	assert(ast::get_kind(ast, expr) == NodeKind.FLOAT_LITERAL, "is FLOAT_LITERAL");
+	assert(ast.get_kind(expr) == NodeKind.FLOAT_LITERAL, "is FLOAT_LITERAL");
 	LiteralView lv = { ast, expr };
 	assert(lv.value(&ws.strings) == "3.14", "float literal value");
 }
@@ -724,7 +724,7 @@ fn int passthrough(int val) { return val; }
 	CompoundView cv = { ast, fv.body() };
 	ReturnView rv = { ast, cv.get(0) };
 	Node expr = rv.expr();
-	assert(ast::get_kind(ast, expr) == NodeKind.IDENT_EXPR, "is IDENT_EXPR");
+	assert(ast.get_kind(expr) == NodeKind.IDENT_EXPR, "is IDENT_EXPR");
 	IdentView iv = { ast, expr };
 	assert(iv.name(&ws.strings) == "val", "ident name is 'val'");
 }
@@ -746,7 +746,7 @@ fn int sum(int a, int b) { return a + b; }
 	CompoundView cv = { ast, fv.body() };
 	ReturnView rv = { ast, cv.get(0) };
 	Node expr = rv.expr();
-	assert(ast::get_kind(ast, expr) == NodeKind.BINARY_EXPR, "is BINARY_EXPR");
+	assert(ast.get_kind(expr) == NodeKind.BINARY_EXPR, "is BINARY_EXPR");
 	BinaryView bv = { ast, expr };
 	assert(bv.op() == TokenKind.PLUS, "op is PLUS");
 	assert(bv.left().is_valid(), "left operand valid");
@@ -782,8 +782,8 @@ fn int inc(int n) { return n + 1; }
 	CompoundView cv = { ast, fv.body() };
 	ReturnView rv = { ast, cv.get(0) };
 	BinaryView bv = { ast, rv.expr() };
-	assert(ast::get_kind(ast, bv.left()) == NodeKind.IDENT_EXPR, "left is IDENT_EXPR");
-	assert(ast::get_kind(ast, bv.right()) == NodeKind.INT_LITERAL, "right is INT_LITERAL");
+	assert(ast.get_kind(bv.left()) == NodeKind.IDENT_EXPR, "left is IDENT_EXPR");
+	assert(ast.get_kind(bv.right()) == NodeKind.INT_LITERAL, "right is INT_LITERAL");
 }
 
 // ============================================================
@@ -803,11 +803,11 @@ fn int neg(int x) { return -x; }
 	CompoundView cv = { ast, fv.body() };
 	ReturnView rv = { ast, cv.get(0) };
 	Node expr = rv.expr();
-	assert(ast::get_kind(ast, expr) == NodeKind.UNARY_EXPR, "is UNARY_EXPR");
+	assert(ast.get_kind(expr) == NodeKind.UNARY_EXPR, "is UNARY_EXPR");
 	UnaryView uv = { ast, expr };
 	assert(uv.op() == TokenKind.MINUS, "unary op is MINUS");
 	assert(uv.rhs().is_valid(), "rhs is valid");
-	assert(ast::get_kind(ast, uv.rhs()) == NodeKind.IDENT_EXPR, "rhs is IDENT_EXPR");
+	assert(ast.get_kind(uv.rhs()) == NodeKind.IDENT_EXPR, "rhs is IDENT_EXPR");
 }
 
 fn void test_unary_view_not() @test => @pool()
@@ -844,7 +844,7 @@ fn void branch(bool b) {
 	FnView fv = { ast, c.node };
 	CompoundView cv = { ast, fv.body() };
 	Node if_stmt = cv.get(0);
-	assert(ast::get_kind(ast, if_stmt) == NodeKind.IF_STMT, "is IF_STMT");
+	assert(ast.get_kind(if_stmt) == NodeKind.IF_STMT, "is IF_STMT");
 	IfView iv = { ast, if_stmt };
 	assert(iv.condition().is_valid(), "condition valid");
 	assert(iv.then_block().is_valid(), "then_block valid");
@@ -882,8 +882,8 @@ fn void test(bool flag) {
 	FnView fv = { ast, c.node };
 	CompoundView cv = { ast, fv.body() };
 	IfView iv = { ast, cv.get(0) };
-	io::printn(ast::get_kind(ast, iv.condition()));
-	assert(ast::get_kind(ast, iv.condition()) == NodeKind.COND_EXPR, "condition is COND_EXPR");
+	io::printn(ast.get_kind(iv.condition()));
+	assert(ast.get_kind(iv.condition()) == NodeKind.COND_EXPR, "condition is COND_EXPR");
 }
 
 // ============================================================
@@ -904,7 +904,7 @@ fn void loop() {
 	FnView fv = { ast, c.node };
 	CompoundView cv = { ast, fv.body() };
 	Node for_stmt = cv.get(0);
-	assert(ast::get_kind(ast, for_stmt) == NodeKind.FOR_STMT, "is FOR_STMT");
+	assert(ast.get_kind(for_stmt) == NodeKind.FOR_STMT, "is FOR_STMT");
 	ForView fov = { ast, for_stmt };
 	assert(fov.init().is_valid(), "for init valid");
 	assert(fov.cond().is_valid(), "for cond valid");
@@ -926,7 +926,7 @@ fn void loop2() {
 	FnView fv = { ast, c.node };
 	CompoundView cv = { ast, fv.body() };
 	ForView fov = { ast, cv.get(0) };
-	assert(ast::get_kind(ast, fov.body()) == NodeKind.COMPOUND_STMT, "for body is COMPOUND_STMT");
+	assert(ast.get_kind(fov.body()) == NodeKind.COMPOUND_STMT, "for body is COMPOUND_STMT");
 }
 
 // ============================================================
@@ -946,7 +946,7 @@ fn int pick(bool cond) { return cond ? 1 : 2; }
 	CompoundView cv = { ast, fv.body() };
 	ReturnView rv = { ast, cv.get(0) };
 	Node expr = rv.expr();
-	assert(ast::get_kind(ast, expr) == NodeKind.TERNARY_EXPR, "is TERNARY_EXPR");
+	assert(ast.get_kind(expr) == NodeKind.TERNARY_EXPR, "is TERNARY_EXPR");
 	TernaryView tv = { ast, expr };
 	assert(tv.condition().is_valid(), "ternary condition valid");
 	assert(tv.then_expr().is_valid(), "ternary then_expr valid");
@@ -966,9 +966,9 @@ fn int choose(bool b) { return b ? 10 : 20; }
 	CompoundView cv = { ast, fv.body() };
 	ReturnView rv = { ast, cv.get(0) };
 	TernaryView tv = { ast, rv.expr() };
-	assert(ast::get_kind(ast, tv.condition()) == NodeKind.IDENT_EXPR, "condition is IDENT_EXPR");
-	assert(ast::get_kind(ast, tv.then_expr()) == NodeKind.INT_LITERAL, "then_expr is INT_LITERAL");
-	assert(ast::get_kind(ast, tv.else_expr()) == NodeKind.INT_LITERAL, "else_expr is INT_LITERAL");
+	assert(ast.get_kind(tv.condition()) == NodeKind.IDENT_EXPR, "condition is IDENT_EXPR");
+	assert(ast.get_kind(tv.then_expr()) == NodeKind.INT_LITERAL, "then_expr is INT_LITERAL");
+	assert(ast.get_kind(tv.else_expr()) == NodeKind.INT_LITERAL, "else_expr is INT_LITERAL");
 }
 
 // ============================================================
@@ -987,7 +987,7 @@ fn void call_it() { do_work(); }
 	FnView fv = { ast, c.node };
 	CompoundView cv = { ast, fv.body() };
 	Node stmt = cv.get(0);
-	assert(ast::get_kind(ast, stmt) == NodeKind.EXPR_STMT, "is EXPR_STMT");
+	assert(ast.get_kind(stmt) == NodeKind.EXPR_STMT, "is EXPR_STMT");
 	ExprStmtView ev = { ast, stmt };
 	assert(ev.expr().is_valid(), "inner expr is valid");
 }
@@ -1004,7 +1004,7 @@ fn void caller2() { some_fn(); }
 	FnView fv = { ast, c.node };
 	CompoundView cv = { ast, fv.body() };
 	ExprStmtView ev = { ast, cv.get(0) };
-	assert(ast::get_kind(ast, ev.expr()) == NodeKind.CALL_EXPR, "inner expr is CALL_EXPR");
+	assert(ast.get_kind(ev.expr()) == NodeKind.CALL_EXPR, "inner expr is CALL_EXPR");
 }
 
 // ============================================================
@@ -1025,7 +1025,7 @@ fn void with_defer() {
 	FnView fv = { ast, c.node };
 	CompoundView cv = { ast, fv.body() };
 	Node defer_stmt = cv.get(0);
-	assert(ast::get_kind(ast, defer_stmt) == NodeKind.DEFER_STMT, "is DEFER_STMT");
+	assert(ast.get_kind(defer_stmt) == NodeKind.DEFER_STMT, "is DEFER_STMT");
 	DeferView dv = { ast, defer_stmt };
 	assert(dv.kind() == DeferKind.NORMAL, "defer kind is NORMAL");
 	assert(dv.stmt().is_valid(), "deferred stmt is valid");
@@ -1045,5 +1045,5 @@ fn void block_defer() {
 	FnView fv = { ast, c.node };
 	CompoundView cv = { ast, fv.body() };
 	DeferView dv = { ast, cv.get(0) };
-	assert(ast::get_kind(ast, dv.stmt()) == NodeKind.COMPOUND_STMT, "deferred stmt is COMPOUND_STMT");
+	assert(ast.get_kind(dv.stmt()) == NodeKind.COMPOUND_STMT, "deferred stmt is COMPOUND_STMT");
 }
