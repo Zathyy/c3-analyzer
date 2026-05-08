@@ -167,9 +167,18 @@ fn Node? parse_type(Parser* p, ParseFlags parse_flags = { })
 			flags.is_optional = true;
 			continue; 
 		}
-		if (consume(p, LBRACKET)!) {
-			array_size = (p.is(RBRACKET) || p.peek().kind == ASTERISK) ? 0 : parse_expr(p)!;
-			if (p.is(ASTERISK)) advance(p)!;
+		if (consume(p, LBRACKET)!) 
+		{
+			if (p.is(ASTERISK) || p.is(RBRACKET)) 
+			{
+				array_size = (Node)0;
+				if (p.is(ASTERISK)) advance(p)!;
+			} 
+			else 
+			{
+				array_size = parse_expr(p)!;
+			}
+			
 			expect(p, RBRACKET)!;
 			continue;
 		}
@@ -225,7 +234,14 @@ fn Node? parse_parameter_list(Parser* p, ParseFlags flags = {}) => @with_scratch
 		expect(p, RPAREN)!;
 	}
 	uint count = (uint)scratch.len() - watermark;
-	uint ex = ast::push_extra_list(p.ast, scratch_view(watermark, count));
+	log::debug("Adding %s parameters", count);
+	uint param_list = ast::push_extra_list(p.ast, scratch_view(watermark, count));
+
+	uint[*] data = views::@data{ParamsListViewFields}
+	(
+		PARAMS, param_list,
+	);
+	uint ex = ast::push_extra_block(p.ast, &data);
 	return ast::add_node(p.ast, PARAM_LIST, start_pos, p.current_pos(), ex);
 }
 
@@ -264,26 +280,27 @@ fn Node? parse_interface_impl(Parser* p)
 }
 
 <*
-	parse attributes
+	Parses a sequence of attributes and returns an ATTRIBUTE_LIST node.
 	@param [&inout] p
-	@reutrn "extra index"
 *>
-fn uint? parse_attributes(Parser* p)
+fn Node? parse_attributes(Parser* p)
 {
-    if (!p.is(AT_IDENT) && !p.is(AT_TYPE_IDENT)) return 0;
+    if (!p.is(AT_IDENT) && !p.is(AT_TYPE_IDENT)) return {};
 
-    uint final_ex;
+    uint start_pos = p.current_pos();
+    Node attribute_list_node;
 
     @with_scratch(; base_watermark)
     {
         while (p.is(AT_IDENT) || p.is(AT_TYPE_IDENT))
         {
-            uint start_tok = p.current_pos();
+            uint attr_start = p.current_pos();
             String attr_name = p.token_text(p.current());
             advance(p)!;
             
-            uint args_list_ex;
+            uint args_list_ex = 0;
 
+            // Standard argument list @attr(arg1, arg2)
             if (consume(p, LPAREN)!)
             {
                 @with_scratch(; watermark)
@@ -291,36 +308,48 @@ fn uint? parse_attributes(Parser* p)
                     while (!p.eof())
                     {
                         Node expr = parse_attribute_argument(p)!;
-                        if (expr) scratch.push((uint)expr);
+                        if (expr.is_valid()) scratch.push((uint)expr);
                         
                         if (consume(p, RPAREN)!) break;
                         expect(p, COMMA)!;
                     }
-                    args_list_ex = ast::push_extra_list(p.ast, scratch_view(watermark, (uint)scratch.len() - watermark));
+                    uint count = (uint)scratch.len() - watermark;
+                    args_list_ex = ast::push_extra_list(p.ast, scratch_view(watermark, count));
                 };
             }
-			else if (p.is(STRING))
-			{
-				Node msg_expr = parse_expr(p)!; 
-				uint[1] single_arg = { (uint)msg_expr };
-				args_list_ex = ast::push_extra_list(p.ast, &single_arg);
-			}
+            // Short-hand string attribute @deprecated "message"
+            else if (p.is(STRING))
+            {
+                Node msg_expr = parse_expr(p)!; 
+                uint[1] single_arg = { (uint)msg_expr };
+                args_list_ex = ast::push_extra_list(p.ast, &single_arg);
+            }
 
-            uint[2] attr_data = {
-                (uint)common::get_attribute_from_string(attr_name), 
-                args_list_ex, 
-            };
+			uint[*] data = views::@data{AttributeViewFields}
+			(
+				KIND, (uint)common::get_attribute_from_string(attr_name),
+				ARGS, args_list_ex,
+			);
 
-            uint ex = ast::push_extra_block(p.ast, &attr_data);
-            Node attr_node = ast::add_node(p.ast, ATTRIBUTE, start_tok, p.previous_pos(), ex);
+            uint ex = ast::push_extra_block(p.ast, &data);
+            Node attr_node = ast::add_node(p.ast, ATTRIBUTE, attr_start, p.previous_pos(), ex);
             scratch.push((uint)attr_node);
         }
 
+        // Wrap all found ATTRIBUTE nodes into one ATTRIBUTE_LIST
         uint total_attrs = (uint)scratch.len() - base_watermark;
-        final_ex = ast::push_extra_list(p.ast, scratch_view(base_watermark, total_attrs));
+        uint final_ex = ast::push_extra_list(p.ast, scratch_view(base_watermark, total_attrs));
+
+		uint[*] data = views::@data{AttributeListViewFields}
+		(
+			ATTRIBUTES, final_ex,
+		);
+
+		uint node_ex = ast::push_extra_block(p.ast, &data);
+        attribute_list_node = ast::add_node(p.ast, ATTRIBUTE_LIST, start_pos, p.previous_pos(), node_ex);
     };
 
-    return final_ex;
+    return attribute_list_node;
 }
 
 fn Node? parse_attribute_argument(Parser* p) 
@@ -392,56 +421,8 @@ fn Node? parse_attribute_argument(Parser* p)
 }
 
 <*
- 	Parses: <T, V ...>
-    Returns the index into extra data
-*>
-fn uint? parse_generics(Parser* p)
-{
-    if (!consume(p, LESS)!) return 0;
-
-    uint final_ex = 0;
-
-    @with_scratch(; watermark)
-    {
-        while (true)
-        {
-            Token t = p.current();
-            if (!is_some_ident(t.kind))
-            {
-                p.error("Expected identifier in generic list, got %s", p.token_text(t));
-                return { };
-            }
-
-            uint name_id = p.pool.intern(p.token_text(t));
-            advance(p)!;
-
-            // Check for variadic generics: e.g., <T, V...>
-            bool is_variadic = consume(p, ELLIPSIS)!;
-
-            uint flags = is_variadic ? 1 : 0;
-            uint[2] param_data = { name_id, flags };
-            uint ex = ast::push_extra_list(p.ast, &param_data);
-            
-            Node param_node = ast::add_node(p.ast, GENERIC_PARAM, t.pos, p.previous_pos(), ex);
-            
-            scratch.push((uint)param_node);
-
-            if (!consume(p, COMMA)!) break;
-            if (p.is(GREATER)) break;
-        }
-
-        uint count = (uint)scratch.len() - watermark;
-        final_ex = ast::push_extra_list(p.ast, scratch_view(watermark, count));
-    };
-
-    expect(p, GREATER)!;
-    return final_ex;
-}
-
-<*
 	Unified parser for:
 	- Global variables (is_global)
-	- Local variables (is_local)
 	- Constants (is_const) 
 *>
 fn Node? parse_var_decl(Parser* p, ParseFlags flags)
@@ -474,63 +455,149 @@ fn Node? parse_var_decl(Parser* p, ParseFlags flags)
 		type_node = parse_type(p)!;
 	}
 
-	Token t = p.current();
-	if (flags.is_const)
-	{
-		if (t.kind != CONST_IDENT)
+	@with_scratch(; watermark)
+    {
+        while (true)
+        {
+            Token t = p.current();
+            
+            if (flags.is_const && t.kind != CONST_IDENT)
+            {
+                p.error("Constants must use a CONST_IDENT, found '%s'", p.token_text(t));
+                return { };
+            }
+            if (!flags.is_const && t.kind != IDENT && !flags.is_local)
+            {
+                p.error("Global variables must use lower-case IDENT, found '%s'", p.token_text(t));
+                return { };
+            }
+
+            uint name = p.pool.intern(p.token_text(t));
+            advance(p)!;
+
+            Node attr = parse_attributes(p)!;
+            Node init_expr;
+
+            if (consume(p, EQ)!)
+            {
+				if ((uint)scratch.len() > watermark)
+                {
+                    p.error("Initializers are not allowed in multi-declarations");
+                    return UNEXPECTED_TOKEN~;
+                }
+
+                if (flags.is_extern)
+                {
+                    p.error("a extern global cant have a initializer");
+                    return UNEXPECTED_TOKEN~;
+                }
+                init_expr = parse_expr(p)!;
+            }
+            else if (flags.is_const && !flags.is_extern)
+            {
+                p.error("Constants must be initialized");
+            }
+
+            VarDeclFlags packed_flags = {
+                .is_extern = flags.is_extern,
+                .is_const = flags.is_const,
+                .is_inline = flags.is_inline,
+                .is_local = flags.is_local,
+                .is_thread_local = flags.is_thread_local,
+                .is_static = flags.is_static,
+            };
+
+            uint[*] var_data = views::@data{VarDeclViewFields}
+            (
+                NAME, name,
+                TYPE, type_node, // Same type node shared by all in the list
+                INIT, init_expr,
+                ATTRIBUTES, attr,
+                FLAGS, packed_flags,
+            );
+
+            uint var_ex = ast::push_extra_block(p.ast, &var_data);
+            Node var_node = ast::add_node(p.ast, VAR_DECL, t.pos, p.current_pos(), var_ex);
+            scratch.push((uint)var_node);
+
+			if (flags.is_expr) break;
+
+            if (!consume(p, COMMA)!) break;
+        }
+
+        if (!flags.skip_eos)
+        {
+            expect(p, EOS)!;
+        }
+
+		uint count = (uint)scratch.len() - watermark;
+
+		if (count == 1) 
 		{
-			p.error("Constants must use a CONST_IDENT (e.g., MY_VALUE), found '%s'", p.token_text(t));
-			return { };
+			return (Node)scratch.pop();
 		}
-	}
-	else
+
+        uint list_ex = ast::push_extra_list(p.ast, scratch_view(watermark, count));
+        
+        uint[*] list_header = { list_ex };
+        uint final_ex = ast::push_extra_block(p.ast, &list_header);
+        return ast::add_node(p.ast, VAR_DECL_LIST, start_pos, p.current_pos(), final_ex);
+    }; 
+}	
+
+fn Node? parse_local(Parser* p, uint start_pos, Node type_node, ParseFlags flags = {})
+{
+	if (!type_node.is_valid())
 	{
-		if (t.kind != IDENT && !flags.is_local)
+		type_node = parse_type(p)!;
+	}
+
+	@with_scratch(; watermark)
+	{
+		while (true)
 		{
-			p.error("Global variables must use a lower-case IDENT (e.g., my_var), found '%s'", p.token_text(t));
-			return { };
+			Token name_tok = p.current();
+			advance(p)!;
+
+			Node init;
+			if (consume(p, EQ)!) 
+			{
+				init = parse_expr(p)!;
+			}
+
+			Node attr = parse_attributes(p)!;
+
+			// Create the individual LOCAL_DECL
+			uint name_sh = p.pool.intern(p.token_text(name_tok));
+
+			uint[*] data = views::@data{LocalViewFields}
+			(
+				NAME, name_sh,
+				TYPE, type_node,
+				INIT, init,
+				ATTRIBUTES, attr,
+			);
+			
+			uint ex = ast::push_extra_list(p.ast, &data);
+			Node decl = ast::add_node(p.ast, LOCAL_DECL, name_tok.pos, p.current_pos(), ex);
+			
+			scratch.push((uint)decl);
+
+			if (init.is_valid()) break;
+			if (!consume(p, COMMA)!) break;
 		}
-	}
-	uint name = p.pool.intern(p.token_text(p.current()));
-	advance(p)!;
 
-	uint attr = parse_attributes(p)!;
-
-	Node init_expr;
-	if (consume(p, EQ)!)
-	{
-		if (flags.is_extern)
-		{
-			p.error("a extern global cant have a initializer expression");
-			return UNEXPECTED_TOKEN~;
-		}
-
-		init_expr = parse_expr(p)!;
-	}
-	else if (flags.is_const && !flags.is_extern)
-	{
-		p.error("Constants must be initialized at declaration");
-	}
-
-	uint end_tok = p.current_pos();
-
-	if (!flags.skip_eos)
-	{
 		expect(p, EOS)!;
-	}
+ 
+		uint count = (uint)scratch.len() - watermark;
+		
+		// If just one, return the LOCAL_DECL directly (no wrapper)
+		if (count == 1) return (Node)scratch.pop();
 
-	VarDeclFlags packed_flags = {
-		.is_extern = flags.is_extern,
-		.is_const = flags.is_const,
-		.is_inline = flags.is_inline,
-		.is_local = flags.is_local,
-		.is_thread_local = flags.is_thread_local,
-		.is_static = flags.is_static,
+		// If multiple, wrap in a container
+		uint list_ex = ast::push_extra_list(p.ast, scratch_view(watermark, count));
+		return ast::add_node(p.ast, DECL_STMT_LIST, start_pos, p.current_pos(), list_ex);
 	};
-
-	uint[*] data = { name, (uint)type_node, (uint)init_expr, attr, (uint)packed_flags };
-	uint ex = ast::push_extra_block(p.ast, &data);
-	return ast::add_node(p.ast, VAR_DECL, start_pos, end_tok, ex);
 }
 
 fn Node? parse_contract_param(Parser* p)
