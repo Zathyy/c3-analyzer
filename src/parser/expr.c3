@@ -250,6 +250,7 @@ fn Node? parse_prefix_expr(Parser* p)
 		case MINUS:
 		case BIT_NOT:
 		case AMP:
+		case AND: // for the unary temp value pointer
 		case ASTERISK:
 			advance(p)!;
 			Node rhs = parse_expr(p, UNARY)!;
@@ -439,7 +440,7 @@ fn Node? parse_infix(Parser* p, Node left, Precedence rbp)
 		case BIT_NOT:
 			{
 				advance(p)!;
-				if (ast::get_kind(p.ast, left) == TYPE_EXPR)
+				if (p.ast.get_kind(left) == TYPE_EXPR)
 				{
 					p.error("Expected a fault before '~'");
 					return UNEXPECTED_TOKEN~;

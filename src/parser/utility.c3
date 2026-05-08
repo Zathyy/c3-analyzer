@@ -87,7 +87,7 @@ fn bool is_non_type_ident(TokenKind k)
 
 fn bool node_ends_with_block(Parser* p, Node n)
 {
-    NodeKind kind = ast::get_kind(p.ast, n);
+    NodeKind kind = p.ast.get_kind(n);
 
     switch (kind)
     {
@@ -145,7 +145,7 @@ fn void attach_contract(Parser* p, Node decl, Node contract)
 	if (!decl.is_valid()) return;
 	if (!contract.is_valid()) return;
 
-    NodeKind kind = ast::get_kind(p.ast, decl);
+    NodeKind kind = p.ast.get_kind(decl);
     
     uint offset = 0;
     switch (kind)
