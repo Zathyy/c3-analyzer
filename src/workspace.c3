@@ -112,7 +112,7 @@ fn SourceFile* Workspace.reset_source_file(&self, PathString path)
 	sf.sections.tinit(4);
 	sf.strings = &self.strings;
 
-	ast::init(&sf.ast, 100);
+	sf.ast.init(100);
 
 	self.source_files.set(path, sf);
 	return sf;

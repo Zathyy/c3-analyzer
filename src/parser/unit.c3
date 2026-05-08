@@ -770,7 +770,7 @@ fn Node? parse_catch_unwrap(Parser* p) => @with_scratch(; watermark)
         return ast::add_node(p.ast, CATCH_UNWRAP_EXPR, start_pos, p.previous_pos(), ex);
     }
 
-    if (ast::get_kind(p.ast, sub_expr) == TYPE_EXPR) 
+    if (p.ast.get_kind(sub_expr) == TYPE_EXPR) 
     {
         type_node = sub_expr;
         var_node = parse_expr(p)!;

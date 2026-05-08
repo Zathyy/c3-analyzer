@@ -141,7 +141,7 @@ struct Ast
 	List{uint} top_level_nodes; // to track what nodes are "top-level" its really hard without it
 }
 
-fn void init(Ast* ast, Size estimated_size)
+fn void Ast.init(&ast, Size estimated_size)
 {
 	ast.kinds.tinit(estimated_size);
 	ast.start_tokens.tinit(estimated_size);
@@ -156,9 +156,7 @@ fn void init(Ast* ast, Size estimated_size)
 	ast.end_tokens.push(0);
 	ast.extra_indices.push(0);
 }
-
-
-fn void free(Ast* ast)
+fn void Ast.free(&ast)
 {
 	ast.kinds.free();
 	ast.start_tokens.free();
@@ -167,6 +165,33 @@ fn void free(Ast* ast)
 	ast.extra_data.free();
 	ast.top_level_nodes.free();
 }
+
+// fn void init(Ast* ast, Size estimated_size)
+// {
+// 	ast.kinds.tinit(estimated_size);
+// 	ast.start_tokens.tinit(estimated_size);
+// 	ast.end_tokens.tinit(estimated_size);
+// 	ast.extra_indices.tinit(estimated_size);
+// 	ast.extra_data.tinit(estimated_size * 2); // Usually more extra data than nodes
+// 	ast.top_level_nodes.tinit(estimated_size / 4);
+//
+// 	// push null state at index 0
+// 	ast.kinds.push(INVALID);
+// 	ast.start_tokens.push(0);
+// 	ast.end_tokens.push(0);
+// 	ast.extra_indices.push(0);
+// }
+
+
+// fn void free(Ast* ast)
+// {
+// 	ast.kinds.free();
+// 	ast.start_tokens.free();
+// 	ast.end_tokens.free();
+// 	ast.extra_indices.free();
+// 	ast.extra_data.free();
+// 	ast.top_level_nodes.free();
+// }
 
 fn void Ast.clear(&self)
 {
@@ -227,7 +252,7 @@ fn NodeView get_node(Ast* ast, Node handle)
 	assert ((Size)handle < ast.kinds.len());
 
 	return (NodeView) {
-		.kind = get_kind(ast, handle),
+		.kind = ast.get_kind(handle),
 		.start_token_idx = get_start_token(ast, handle),
 		.end_token_idx = get_end_token(ast, handle),
 		.extra_idx = ast.extra_indices[(Size)handle]
@@ -244,10 +269,14 @@ fn uint get_extra(Ast* ast, uint index) @inline
 	return ast.extra_data[(Size)index];
 }
 
-fn NodeKind get_kind(Ast* ast, Node handle) @inline
+fn NodeKind Ast.get_kind(&self, Node handle) @inline
 {
-	return ast.kinds[(Size)handle];
+	return self.kinds[(Size)handle];
 }
+// fn NodeKind get_kind(Ast* ast, Node handle) @inline
+// {
+// 	return ast.kinds[(Size)handle];
+// }
 
 fn uint get_start_token(Ast* ast, Node handle) @inline
 {

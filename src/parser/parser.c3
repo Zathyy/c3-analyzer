@@ -516,7 +516,7 @@ fn void? parse_top_level(Parser* p, Workspace* ws)
 			advance(p)!;
 			return UNEXPECTED_EOS~;
 		default:
-			p.error("Couldn't find any matching top level declaration: %s", p.current());
+			p.error("Couldn't find any matching top level declaration: %s", string::from_struct(tmem, p.current()));
 			return UNEXPECTED_TOKEN~;
 	}
 

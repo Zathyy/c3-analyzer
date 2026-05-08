@@ -167,8 +167,8 @@ fn void dump_workspace(Workspace* ws)
           bool is_last = (i == section.source_file.ast.top_level_nodes.len() - 1);
           Cursor c = { section, (Node)root_node };
 
-          log::debug("Node belongs to: (%s)", cursor::file_path(&c));
-          log::debug("Node belongs to module_decl: (%s)", cursor::module_decl(&c));
+          log::debug("Node belongs to: (%s)", c.file_path());
+          log::debug("Node belongs to module_decl: (%s)", c.module_decl());
 
           printer_callback(c, {null, {}}, &ctx, is_last);
         }
