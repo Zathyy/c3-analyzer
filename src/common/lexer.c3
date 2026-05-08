@@ -596,68 +596,69 @@ fn Token? Lexer.lex_identifier(Lexer* self, uint start_pos)
 
 fn Token? Lexer.lex_number(Lexer* self, uint start_pos)
 {
-	bool is_float = false;
+    bool is_float = false;
 
-	// Hex: 0x
-	if (self.peek() == '0' && (ascii::to_lower(self.peek_next()) == 'x'))
-	{
-		self.advance(2)!;
-		while (!self.eof() && ascii::is_xdigit(self.peek()))
-		{
-			self.advance()!;
-		}
-	} // Binary: 0b
-	else if (self.peek() == '0' && (ascii::to_lower(self.peek_next()) == 'b'))
-	{
-		self.advance(2)!;
-		while (!self.eof() && ascii::is_bdigit(self.peek()))
-		{
-			self.advance()!;
-		}
-	} // Octal: 0o
-	else if (self.peek() == '0' && (ascii::to_lower(self.peek_next()) == 'o'))
-	{
-		self.advance(2)!;
-		while (!self.eof() && ascii::is_odigit(self.peek()))
-		{
-			self.advance()!;
-		}
-	}
-	else
-	{
-		// Standard Decimals
-		while (!self.eof() && ascii::is_digit(self.peek()))
-		{
-			self.advance()!;
-		}
+    // Hex: 0x
+    if (self.peek() == '0' && (ascii::to_lower(self.peek_next()) == 'x'))
+    {
+        self.advance(2)!;
+        // Allow hex digits OR underscores
+        while (!self.eof() && (ascii::is_xdigit(self.peek()) || self.peek() == '_'))
+        {
+            self.advance()!;
+        }
+    } 
+    // Binary: 0b
+    else if (self.peek() == '0' && (ascii::to_lower(self.peek_next()) == 'b'))
+    {
+        self.advance(2)!;
+        while (!self.eof() && (ascii::is_bdigit(self.peek()) || self.peek() == '_'))
+        {
+            self.advance()!;
+        }
+    } 
+    // Octal: 0o
+    else if (self.peek() == '0' && (ascii::to_lower(self.peek_next()) == 'o'))
+    {
+        self.advance(2)!;
+        while (!self.eof() && (ascii::is_odigit(self.peek()) || self.peek() == '_'))
+        {
+            self.advance()!;
+        }
+    }
+    else
+    {
+        // Standard Decimals
+        while (!self.eof() && (ascii::is_digit(self.peek()) || self.peek() == '_'))
+        {
+            self.advance()!;
+        }
 
-		// Real/Float check
-		if (!self.eof() && self.peek() == '.' && ascii::is_digit(self.peek_next()))
-		{
-			is_float = true;
-			self.advance()!;
-			while (!self.eof() && ascii::is_digit(self.peek()))
-			{
-				self.advance()!;
-			}
-		}
-	}
+        // Real/Float check
+        if (!self.eof() && self.peek() == '.' && ascii::is_digit(self.peek_next()))
+        {
+            is_float = true;
+            self.advance()!;
+            while (!self.eof() && (ascii::is_digit(self.peek()) || self.peek() == '_'))
+            {
+                self.advance()!;
+            }
+        }
+    }
 
-	// Handle Suffixes (e.g., 1u, 1.0f, 0xFFu64)
-	// check for 'u', 'i', or 'f' (case insensitive using to_lower)
-	char c = (char)ascii::to_lower(self.peek());
-	if (c == 'u' || c == 'i' || c == 'f')
-	{
-		self.advance()!;
-		// Suffixes can contain digits (u64, i16)
-		while (!self.eof() && ascii::is_alnum(self.peek()))
-		{
-			self.advance()!;
-		}
-	}
+    // Handle Suffixes (e.g., 1u, 1.0f, 0xFFu64)
+    char c = (char)ascii::to_lower(self.peek());
+    if (c == 'u' || c == 'i' || c == 'f')
+    {
+        self.advance()!;
+        while (!self.eof() && ascii::is_alnum(self.peek()))
+        {
+            self.advance()!;
+        }
+    }
 
-	TokenKind kind = is_float ? REAL : INTEGER;
-	return self.emit(kind, start_pos, (uint)self.index - start_pos);
+    TokenKind kind = is_float ? REAL : INTEGER;
+    return self.emit(kind, start_pos, (uint)self.index - start_pos);
 }
 
 fn Token? Lexer.skip_contract(Lexer* self, uint start_pos)
