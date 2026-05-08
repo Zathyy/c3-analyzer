@@ -500,6 +500,8 @@ fn void? parse_top_level(Parser* p, Workspace* ws)
 			node = parse_typedef(p)!;
 		case STRUCT:
 			node = parse_struct(p)!;
+		case BITSTRUCT:
+			node = parse_bitstruct_decl(p)!;
 		case CONSTDEF:
 			flags.is_constdef = true;
 			node = parse_enum(p, flags)!;
