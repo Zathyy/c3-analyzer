@@ -369,6 +369,8 @@ fn Node? parse_infix(Parser* p, Node left, Precedence rbp)
 		case NOT_EQUAL:
 		case RSHIFT:
 		case LSHIFT:
+		case RSHIFT_ASSIGN:
+		case LSHIFT_ASSIGN:
 		case QUESTQUEST:
 		case ELVIS:
 		case CT_CONCAT_OP:
@@ -820,7 +822,7 @@ fn Node? parse_expr_list(Parser* p) => @with_scratch(; watermark)
 {
     uint start_pos = p.current().pos;
 
-	while (!p.eof())
+	while (!p.eof())	
 	{
 		scratch.push((uint)parse_decl_or_expr(p)!);
 		if (p.is(EOS) || !consume(p, COMMA)!) break;
@@ -873,13 +875,13 @@ fn Node? parse_decl_or_expr(Parser* p)
 {
     if (p.is(VAR))
     {
-        return parse_var_decl(p, { .is_local = true, .skip_eos = true, .is_var = true })!;
+        return parse_var_decl(p, { .is_expr = true, .is_local = true, .skip_eos = true, .is_var = true })!;
     }
 
 	// Need to check that its not a type expr
 	if (is_type(p.current().kind) && is_declaration_followup(p))
     {
-        return parse_var_decl(p, { .is_local = true, .skip_eos = true })!;
+        return parse_var_decl(p, { .is_expr = true, .is_local = true, .skip_eos = true })!;
     }
     
     return parse_expr(p)!;
