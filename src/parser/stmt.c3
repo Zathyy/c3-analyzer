@@ -96,25 +96,31 @@ fn Node? parse_statement(Parser* p)
 fn Node? parse_ct_assert(Parser* p)
 {
 	uint start_pos = p.current().pos;
-    advance(p)!;
+	advance(p)!;
 
+	Node cond = parse_constant_expr(p)!;
 	Node message;
 	uint args;
-	@with_scratch(; watermark)
+
+	if (consume(p, COLON)!)
 	{
 		message = parse_constant_expr(p)!;
-		while (consume(p, COMMA)!)
-		{
-			scratch.push((uint)parse_constant_expr(p)!);
-		}
-		expect(p, EOS)!;
 
-		uint count = (uint)scratch.len() - watermark;
-		args = p.ast.push_extra_list(scratch_view(watermark, count));
-	};
+		@with_scratch(; watermark)
+		{
+			while (consume(p, COMMA)!)
+			{
+				scratch.push((uint)parse_constant_expr(p)!);
+			}
+			uint count = (uint)scratch.len() - watermark;
+			args = p.ast.push_extra_list(scratch_view(watermark, count));
+		};
+	}
+	expect(p, EOS)!;
 
 	uint[*] data = views::@data{CtAssertViewFields}
 	(
+		COND, cond,
 		MESSAGE, message,
 		ARGS, args,
 	);
@@ -163,28 +169,28 @@ fn Node? parse_for_stmt(Parser* p)
 // TODO: needs eos refinement
 fn Node? parse_ct_for_stmt(Parser* p)
 {
-    uint start_pos = p.current().pos;
-    advance(p)!;
+	uint start_pos = p.current().pos;
+	advance(p)!;
 
-    Node init;
-    Node cond;
-    Node incr;
+	Node init;
+	Node cond;
+	Node incr;
 
-    if (!p.is(EOS))
-    {
-        init = parse_ct_expr_list(p)!; 
-    }
-
-	consume(p, EOS)!;
-
-    cond = parse_expr(p)!;
+	if (!p.is(EOS))
+	{
+		init = parse_ct_expr_list(p)!; 
+	}
 
 	consume(p, EOS)!;
 
-    if (!p.is(COLON))
-    {
-        incr = parse_ct_expr_list(p)!;
-    }
+	cond = parse_expr(p)!;
+
+	consume(p, EOS)!;
+
+	if (!p.is(COLON))
+	{
+		incr = parse_ct_expr_list(p)!;
+	}
 
 	expect(p, COLON)!;
 
@@ -201,7 +207,7 @@ fn Node? parse_ct_for_stmt(Parser* p)
 		stmts = p.ast.push_extra_list(scratch_view(watermark, count));
 	};
 
-    expect(p, CT_ENDFOR)!;
+	expect(p, CT_ENDFOR)!;
 
 	uint[4] final_data = {
 		(uint)init,
@@ -210,8 +216,8 @@ fn Node? parse_ct_for_stmt(Parser* p)
 		stmts
 	};
 
-    uint ex = p.ast.push_extra_block(&final_data); 
-    return p.ast.add_node(CT_FOR_STMT, start_pos, p.current_pos(), ex);
+	uint ex = p.ast.push_extra_block(&final_data); 
+	return p.ast.add_node(CT_FOR_STMT, start_pos, p.current_pos(), ex);
 }
 
 <*
@@ -694,17 +700,17 @@ fn Node? parse_defer(Parser* p)
 
 fn Node? parse_assert_stmt(Parser* p)
 {
-    Token t = p.current();
-    expect(p, ASSERT)!;
-    expect(p, LPAREN)!;
+	Token t = p.current();
+	expect(p, ASSERT)!;
+	expect(p, LPAREN)!;
 
-    Node cond = parse_expr(p)!;
+	Node cond = parse_expr(p)!;
 
-    Node message;
-    bool has_msg = false;
+	Node message;
+	bool has_msg = false;
 	uint args;
 
-    // optional message: assert(cond, "message", ...)
+	// optional message: assert(cond, "message", ...)
 	@with_scratch(; watermark)
 	{
 		if (consume(p, COMMA)!)
@@ -723,8 +729,8 @@ fn Node? parse_assert_stmt(Parser* p)
 		}
 	};
 
-    expect(p, RPAREN)!;
-    expect(p, EOS)!;
+	expect(p, RPAREN)!;
+	expect(p, EOS)!;
 
 	uint[3] final_data = {
 		(uint)cond,
@@ -732,6 +738,6 @@ fn Node? parse_assert_stmt(Parser* p)
 		args
 	};
 
-    uint ex = p.ast.push_extra_block(&final_data);
-    return p.ast.add_node(ASSERT_STMT, t.pos, p.current_pos(), ex);
+	uint ex = p.ast.push_extra_block(&final_data);
+	return p.ast.add_node(ASSERT_STMT, t.pos, p.current_pos(), ex);
 }
