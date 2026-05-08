@@ -157,7 +157,7 @@ fn void attach_contract(Parser* p, Node decl, Node contract)
         default: return;
     }
     
-	uint base_extra_idx = ast::get_extra(p.ast, (uint)decl);
+	uint base_extra_idx = p.ast.get_extra((uint)decl);
     p.ast.set_extra(base_extra_idx + offset, (uint)contract);
 }
 

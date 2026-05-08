@@ -64,7 +64,7 @@ fn bool visit_children(Cursor parent, CursorVisitor visitor, void* data)
 	Ast* ast = &parent.section.source_file.ast;
 	Node n = parent.node;
 	if (!n.is_valid()) return true;
-	NodeKind kind = ast::get_node(ast, n).kind;
+	NodeKind kind = ast.get_node(n).kind;
 
 	// TODO: more cases
 	switch (kind)
@@ -245,7 +245,7 @@ fn String docs(Cursor self)
 *>
 fn Location location(Cursor* self)
 {
-	Size pos = ast::get_start_token(&self.section.source_file.ast, self.node);
+	Size pos = self.section.source_file.ast.get_start_token(self.node);
 	return self.section.source_file.line_map.resolve(pos);
 }
 
@@ -255,7 +255,7 @@ fn Location location(Cursor* self)
 fn Range range(Cursor* self)
 {
 	Ast* ast = &self.section.source_file.ast;
-	return { .start = (Size)ast::get_start_token(ast, self.node), .end = (Size)ast::get_end_token(ast, self.node), };
+	return { .start = (Size)ast.get_start_token(self.node), .end = (Size)ast.get_end_token(self.node), };
 }
 
 <*
@@ -276,7 +276,7 @@ fn String? Cursor.spelling(&self)
 {
 	if (!self.node.is_valid()) return INVALID_NODE~;
 
-	NodeView n = ast::get_node(&self.section.source_file.ast, self.node);
+	NodeView n = self.section.source_file.ast.get_node(self.node);
 
 	Ast* ast = &self.section.source_file.ast;
 	StringPool* strings = self.section.source_file.strings;
