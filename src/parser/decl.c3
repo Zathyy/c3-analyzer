@@ -223,7 +223,7 @@ fn Node? parse_enum(Parser* p, ParseFlags flags)
 	if (consume(p, COLON)!) 
 	{
 		if (consume(p, INLINE)!) is_inline_type = true;
-		base_type = parse_type(p) ?? p.push_invalid_node(p.current_pos());
+		base_type = parse_type(p, { .no_generics = true }) ?? p.push_invalid_node(p.current_pos());
 	}
 
 	Node params = p.is(LPAREN) ? parse_parameter_list(p)! : {};
@@ -236,6 +236,7 @@ fn Node? parse_enum(Parser* p, ParseFlags flags)
 		{
 			while (!p.is(RBRACE) && !p.eof())
 			{
+				consume(p, CONTRACT)!;
 				if (!p.is(CONST_IDENT)) 
 				{
 					p.error("Expected enum member name");
