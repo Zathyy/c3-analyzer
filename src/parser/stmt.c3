@@ -230,26 +230,50 @@ fn Node? parse_decl_stmt(Parser* p)
 {
 	Node type_node = parse_type(p)!;
 
-	if (p.current().kind == IDENT)
+	TokenKind kind;
+	switch (kind = p.current().kind) 
 	{
-		Token name_tok = p.current();
-		advance(p)!;
-
-		Node init;
-		if (p.current().kind == EQ)
-		{
+		case IDENT:
+			Token name_tok = p.current();
 			advance(p)!;
-			init = parse_expr(p, { })!;
-		}
 
-		uint attr = parse_attributes(p)!;
+			Node init;
+			if (p.current().kind == EQ)
+			{
+				advance(p)!;
+				init = parse_expr(p, { })!;
+			}
 
-		expect(p, EOS)!;
+			uint attr = parse_attributes(p)!;
 
-		uint name_sh = p.pool.intern(p.token_text(name_tok));
-		uint[*] data = { name_sh, (uint)type_node, (uint)init, attr };
-		uint ex = ast::push_extra_list(p.ast, &data);
-		return ast::add_node(p.ast, LOCAL_DECL, name_tok.pos, p.current_pos(), ex);
+			expect(p, EOS)!;
+
+			uint name_sh = p.pool.intern(p.token_text(name_tok));
+			uint[*] data = { name_sh, (uint)type_node, (uint)init, attr };
+			uint ex = ast::push_extra_list(p.ast, &data);
+			return ast::add_node(p.ast, LOCAL_DECL, name_tok.pos, p.current_pos(), ex);
+
+		case CT_IDENT:
+			Token name_tok = p.current();
+			advance(p)!;
+
+			Node init;
+			if (p.current().kind == EQ)
+			{
+				advance(p)!;
+				init = parse_expr(p, { })!;
+			}
+
+			uint attr = parse_attributes(p)!;
+
+			expect(p, EOS)!;
+
+			uint name_sh = p.pool.intern(p.token_text(name_tok));
+			uint[*] data = { name_sh, (uint)type_node, (uint)init, attr };
+			uint ex = ast::push_extra_list(p.ast, &data);
+			return ast::add_node(p.ast, LOCAL_DECL, name_tok.pos, p.current_pos(), ex);
+
+		default:
 	}
 
 	Node expr = parse_expr_resuming_with_left(p, type_node, 0)!;

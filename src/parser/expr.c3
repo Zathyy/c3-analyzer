@@ -221,16 +221,21 @@ fn Node? parse_prefix_expr(Parser* p)
 			uint sh = p.pool.intern(text);
 			advance(p)!;
 			return ast::add_node(p.ast, STRING_LITERAL, t.pos, p.current_pos(), sh);
+		
+		case CHAR_LITERAL:
+			String text = p.token_text(t);
+			uint sh = p.pool.intern(text);
+			advance(p)!;
+			return ast::add_node(p.ast, CHAR_LITERAL, t.pos, p.current_pos(), sh);
+
 		case TRUE:
-			{
-				advance(p)!;
-				return ast::add_node(p.ast, BOOL_LITERAL, t.pos, p.current_pos(), 1);
-			}
+			advance(p)!;
+			return ast::add_node(p.ast, BOOL_LITERAL, t.pos, p.current_pos(), 1);
+
 		case FALSE:
-			{
-				advance(p)!;
-				return ast::add_node(p.ast, BOOL_LITERAL, t.pos, p.current_pos(), 0);
-			}
+			advance(p)!;
+			return ast::add_node(p.ast, BOOL_LITERAL, t.pos, p.current_pos(), 0);
+
 		case REAL:
 			String text = p.token_text(t);
 			uint sh = p.pool.intern(text);
@@ -318,7 +323,7 @@ fn Node? parse_prefix_expr(Parser* p)
 			}
 		default:
 			log::error(
-				"parse_prefix_expr - Expected expression for token: (%s - %s)",
+				"parse_prefix_expr - Expected expression for token: ((%s) %s - %s)",
 				p.token_text(p.current()),
 				p.current().kind
 			);

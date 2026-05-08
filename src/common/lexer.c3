@@ -420,30 +420,56 @@ fn void? Lexer.skip_block_comment(Lexer* self)
 	}
 }
 
+fn Token? Lexer.lex_char(Lexer* self, uint start)
+{
+	self.index++;
+
+	while (self.index < self.buffer.len)
+	{
+		char c = self.buffer[self.index];
+
+		if (c == '\'')
+		{
+			self.index++; 
+			return (Token) { CHAR_LITERAL, start, (uint)self.index - start };
+		}
+
+		if (c == '\\')
+		{
+			self.index += 2;
+			continue;
+		}
+
+		self.index++; 
+	}
+
+	return (Token) { INVALID, start, (uint)self.index - start };
+}
+
 fn Token? Lexer.lex_string(Lexer* self, uint start)
 {
-    self.index++;
+	self.index++;
 
-    while (self.index < self.buffer.len)
-    {
-        char c = self.buffer[self.index];
+	while (self.index < self.buffer.len)
+	{
+		char c = self.buffer[self.index];
 
-        if (c == '"')
-        {
-            self.index++; 
-            return (Token) { STRING, start, (uint)self.index - start };
-        }
+		if (c == '"')
+		{
+			self.index++; 
+			return (Token) { STRING, start, (uint)self.index - start };
+		}
 
-        if (c == '\\') 
-        {
-            self.index += 2;
-            continue;
-        }
+		if (c == '\\') 
+		{
+			self.index += 2;
+			continue;
+		}
 
-        self.index++; 
-    }
+		self.index++; 
+	}
 
-    return (Token) { INVALID, start, (uint)self.index - start };
+	return (Token) { INVALID, start, (uint)self.index - start };
 }
 
 fn Token? Lexer.lex_raw_string(Lexer* self, uint start)
@@ -836,6 +862,8 @@ fn Token? Lexer.next(&self)
 		case ';': self.advance()!; return self.emit(EOS, start, 1);
 		case ',': self.advance()!; return self.emit(COMMA, start, 1);
 		case '/': self.advance()!; return self.emit(DIV, start, 1);
+		case '\'':
+			return self.lex_char(start);
 		case '"':
 			return self.lex_string(start);
 		case '`':
