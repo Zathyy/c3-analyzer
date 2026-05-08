@@ -748,7 +748,14 @@ fn Token? Lexer.next(&self)
 			self.advance()!;
 			switch (self.peek())
 			{
-				case '>': self.advance()!; return self.emit(RSHIFT, start, 2);
+				case '>': 
+					self.advance()!;
+					if (self.peek() == '=')
+					{
+						self.advance()!;
+						return self.emit(RSHIFT_ASSIGN, start, 3);
+					}
+					return self.emit(RSHIFT, start, 2);
 				case '=': self.advance()!; return self.emit(GREATER_EQ, start, 2);
 				case ']': self.advance()!; return self.emit(RVEC, start, 2);
 			}
@@ -757,7 +764,14 @@ fn Token? Lexer.next(&self)
 			self.advance()!;
 			switch (self.peek())
 			{
-				case '<': self.advance()!; return self.emit(LSHIFT, start, 2);
+				case '<':
+					self.advance()!; 
+					if (self.peek() == '=')
+					{
+						self.advance()!;
+						return self.emit(LSHIFT_ASSIGN, start, 3);
+					}
+					return self.emit(LSHIFT, start, 2);
 				case '=': self.advance()!; return self.emit(LESS_EQ, start, 2);
 				case '*': self.advance()!; return self.skip_contract(start);
 			}
