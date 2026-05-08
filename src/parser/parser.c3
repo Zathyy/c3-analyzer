@@ -69,6 +69,8 @@ bitstruct ParseFlags : ulong
 	bool is_const; // Context requires constant expressions
 	bool is_constdef;
 	bool is_call;
+	bool is_expr;
+	bool is_stmt;
 	bool is_lamda;
 	bool is_macro;
 	bool is_comptime;

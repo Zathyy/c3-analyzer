@@ -144,3 +144,12 @@ fn BodyParamView MacroParamsView.body_params(self)
     if (!body_node.is_valid()) return {};
     return { self.ast, body_node };
 }
+
+constdef LocalViewFields : inline uint
+{
+	NAME = 0,
+	TYPE,
+	INIT,
+	ATTRIBUTES,
+}
+typedef LocalView = inline View;
