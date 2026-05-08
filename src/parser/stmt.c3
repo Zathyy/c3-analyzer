@@ -240,10 +240,14 @@ fn Node? parse_decl_stmt(Parser* p)
 	uint token_pos = p.current_pos();
 	Node type_node = parse_type(p)!;
 
-	// TODO: refine/move/make use of parse_var_decl
-	if (p.current().kind == IDENT)
+	TokenKind kind;
+	switch (kind = p.current().kind) 
 	{
-		return parse_local(p, token_pos, type_node);
+		case IDENT:
+		case CT_IDENT:
+			return parse_local(p, token_pos, type_node);
+
+		default:
 	}
 
 	Node expr = parse_expr_resuming_with_left(p, type_node, 0)!;
