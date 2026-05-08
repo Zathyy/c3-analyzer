@@ -264,25 +264,28 @@ fn Node? parse_prefix_expr(Parser* p)
 			return p.ast.add_node(UNARY_EXPR, t.pos, p.current_pos(), ex);
 
 		case LPAREN:
-			// Check if cast: (Type)operand
-			if (is_type(p.peek().kind))
-			{
-				advance(p)!; // consume '('
-				Node type = parse_type(p)!;
-				expect(p, RPAREN)!;
-
-				Node operand = parse_expr(p, UNARY)!;
-
-				uint[2] data = { (uint)type, (uint)operand };
-				uint ex = p.ast.push_extra_block(&data);
-
-				return p.ast.add_node(CAST_EXPR, t.pos, p.current_pos(), ex);
-			}
-			// Grouped expression: (1 + 2)
+			Token start_token = t;
 			advance(p)!; // consume '('
-			Node expr = parse_expr(p)!;
+
+			Node inner = parse_expr(p, Precedence.LOWEST)!;
+			
 			expect(p, RPAREN)!;
-			return expr;
+
+			NodeKind kind = p.ast.get_kind(inner);
+			
+			// IMPORTANT!
+			// Might be missing some kinds in 'can_start_expression'
+			// which makes a Cast expr parsed as a grouped expr
+			if (kind == TYPE_EXPR && can_start_expression(p.current().kind)) 
+			{
+				Node operand = parse_expr(p, Precedence.UNARY)!;
+				uint[2] data = { (uint)inner, (uint)operand };
+				uint ex = p.ast.push_extra_block(&data);
+				return p.ast.add_node(CAST_EXPR, start_token.pos, p.current_pos(), ex);
+			}
+
+			// TODO: Add as grouped expr
+			return inner;
 		case CT_TYPEFROM:
 		case CT_TYPEOF:
 			{
@@ -414,11 +417,29 @@ fn Node? parse_infix(Parser* p, Node left, Precedence rbp)
 				return p.ast.add_node(POST_UNARY_EXPR, t.pos, p.current_pos(), ex);
 			}
 		case LPAREN:
-		case LBRACE:
 			{
 				advance(p)!;
 				return parse_call(p, t, left)!;
 			}
+		case LBRACE:
+		{
+			NodeKind kind = p.ast.get_kind(left);
+
+			if (kind == TYPE_EXPR) 
+			{
+				Node list = parse_initializer_list(p)!; 
+
+				uint[*] data = {
+					(uint)left,
+					(uint)list,
+				};
+				uint ex = p.ast.push_extra_block(&data);
+				return p.ast.add_node(COMPOUND_LITERAL_EXPR, t.pos, p.current_pos(), ex);
+			}
+			
+			p.error("Not implemented");
+			return {};
+		}
 		case QUESTION:
 			{
 				advance(p)!;
@@ -538,7 +559,7 @@ fn Node? parse_ternary(Parser* p, Node condition, Token t, Precedence rbp)
 	Node then_expr = parse_expr(p, Precedence.LOWEST)!;
 	expect(p, COLON)!;
 
-	Node else_expr = parse_expr(p, rbp)!;
+	Node else_expr = parse_expr(p, TERNARY)!;
 
 	uint[3] data = { (uint)condition, (uint)then_expr, (uint)else_expr };
 	uint ex = p.ast.push_extra_block(&data);
