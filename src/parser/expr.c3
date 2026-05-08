@@ -331,6 +331,14 @@ fn Node? parse_prefix_expr(Parser* p)
 				uint ex = p.ast.push_extra_block(&data);
 				return p.ast.add_node(PRE_UNARY_EXPR, t.pos, p.current_pos(), ex);
 			}
+		case CT_FEATURE:
+		{
+			advance(p)!;
+			expect(p, LPAREN)!;
+			Node expr = parse_expr(p)!;
+			expect(p, RPAREN)!;
+			return p.ast.add_node(CT_FEATURE_EXPR, t.pos, p.current_pos(), (uint)expr);
+		}
 		default:
 			log::error(
 				"parse_prefix_expr - Expected expression for token: ((%s) %s - %s)",
