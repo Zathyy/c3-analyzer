@@ -31,7 +31,6 @@ struct ModuleSection
 	Module* parent_module;
 	uint start_node_idx;
 	uint end_node_idx;
-	Node header_node;
 }
 
 struct Module
