@@ -230,3 +230,29 @@ fn bool is_declaration_followup(Parser* p)
     TokenKind final_k = p.peek(i).kind;
     return final_k == IDENT || final_k == CONST_IDENT || final_k == CT_IDENT;
 }
+
+fn uint? parse_type_name(Parser* p, String msg)
+{
+	if (p.is(IDENT)) 
+	{
+		p.error("Name of %s must start with and uppercase letter", msg);
+		return 0;
+	}
+	else if (p.is(CONST_IDENT))
+	{
+		p.error("Name of %s cannot be all uppercase", msg);
+		return 0;
+	}
+	else
+	{
+		if (!p.is(TYPE_IDENT))
+		{
+			p.error("'%s' should be followed by the name of the %s.", msg, msg);
+			return 0;
+		}
+	}
+
+	uint name = p.pool.intern(p.current_text());
+	advance(p)!;
+	return name;
+}

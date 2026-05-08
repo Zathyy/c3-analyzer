@@ -184,6 +184,26 @@ fn uint StructView.generic_params(self) => self.get_uint(StructViewFields.GENERI
 fn uint StructView.field_count(self) => self.get_list_count(StructViewFields.FIELDS);
 fn Node StructView.field(self, uint i) => self.get_list_item(StructViewFields.FIELDS, i);
 
+constdef BitstructViewFields : inline uint
+{
+	NAME = 0,
+	INTERFACES,
+	TYPE,
+	ATTRIBUTES,
+	FIELDS,
+}
+typedef BitstructView = inline View;
+
+constdef BitstructFieldViewFields : inline uint
+{
+	NAME = 0,
+	TYPE,
+	START_BIT,
+	END_BIT,
+	ATTRIBUTES,
+}
+typedef BitstructFieldView = inline View;
+
 constdef FieldViewFields : inline uint
 {
 	NAME = 0,

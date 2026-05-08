@@ -942,6 +942,7 @@ fn Node? parse_interface(Parser* p)
 
 <*
 	struct_or_union TYPE_IDENT opt_interfaces opt_attributes struct_body
+	TODO: wrap all fields in a FIELD_LISt
 *>
 fn Node? parse_struct(Parser* p)
 {
@@ -980,6 +981,10 @@ fn Node? parse_struct(Parser* p)
 			if (p.is(STRUCT) || p.is(UNION))
 			{
 				member = parse_struct(p)!; 
+			}
+			else if (p.is(BITSTRUCT))
+			{
+				member = parse_bitstruct_decl(p, { .is_local = true })!;
 			}
 			else
 			{
@@ -1031,6 +1036,154 @@ fn Node? parse_struct(Parser* p)
 	NodeKind kind = is_struct ? STRUCT_DECL : UNION_DECL;
 	uint ex = ast::push_extra_block(p.ast, &header);
 	return ast::add_node(p.ast, kind, start_tok, end_tok, ex);
+}
+
+<*
+	BITSTRUCT_DECL ::= 'bitstruct' TYPE_IDENT ':' type bitstruct_body
+*>
+fn Node? parse_bitstruct_decl(Parser* p, ParseFlags flags = {})
+{
+	uint start_tok = p.current_pos();
+	expect(p, BITSTRUCT)!;
+
+	uint name;
+	if (flags.is_local)
+	{
+		name = p.pool.intern(p.current_text());
+		expect(p, IDENT)!;
+	}
+	else
+	{
+		name = parse_type_name(p, "bitstruct")!;
+	}
+
+	Node interfaces = parse_interface_impl(p)!;
+
+	if (!consume(p, COLON)!)
+	{
+		p.error("':' followed by bitstruct type (e.g. 'int') was expected here.");
+		p.skip_until({ RBRACE, EOF })!;
+		return {};
+	}
+
+	Node type = parse_type(p, { .no_generics = true })!;
+
+	if (!type.is_valid())
+	{
+		p.error("Failed to parse type");
+		return {};
+	}
+
+	TypeView type_view = { p.ast, type };
+	if (type_view.gen_count() > 0)
+	{
+		p.error("A bitstruct can't have an optional type.");
+		return {};
+	}
+
+	Node attr = parse_attributes(p)!;
+
+	Node fields = parse_bitstruct_body(p)!;
+
+	uint[*] data = views::@data{BitstructViewFields}
+	(
+		NAME, name,
+		INTERFACES, interfaces,
+		TYPE, type,
+		ATTRIBUTES, attr,
+		FIELDS, fields,
+	);
+
+	uint ex = ast::push_extra_block(p.ast, &data);
+	return ast::add_node(p.ast, BITSTRUCT_DECL, start_tok, p.current_pos(), ex);
+}
+
+<*
+	bitstruct_body ::= '{' bitstruct_def* | bitstruct_simple_def* '}'
+	
+	bitstruct_def ::= base_type IDENT ':' constant_expr (DOTDOT constant_expr)? ';'
+	bitstruct_simple_def ::= base_type IDENT ';'
+*>
+fn Node? parse_bitstruct_body(Parser* p)
+{
+    uint start_pos = p.current_pos();
+    expect(p, LBRACE)!;
+
+    bool is_consecutive = false;
+    bool checked_style = false;
+
+    @with_scratch(; watermark)
+    {
+        while (!p.is(RBRACE) && !p.is(EOF))
+        {
+            consume(p, CONTRACT)!;
+            Node type = parse_type(p)!;
+
+            if (p.is(CONST_IDENT) || p.is(TYPE_IDENT)) 
+			{
+                p.error("Expected a field name with an initial lower case.");
+                return UNEXPECTED_TOKEN~;
+            }
+            Token name_tok = p.current();
+			expect(p, IDENT)!;
+            Node start_bit;
+            Node end_bit;
+            bool has_range = false;
+
+            if (p.is(COLON))
+            {
+                if (checked_style && is_consecutive) 
+				{
+                    p.error("Cannot mix bit-range members with consecutive members.");
+                    return UNEXPECTED_TOKEN~;
+                }
+                is_consecutive = false;
+                checked_style = true;
+
+                advance(p)!; // consume ':'
+                start_bit = parse_expr(p)!;
+                if (consume(p, DOTDOT)!) 
+				{
+                    end_bit = parse_expr(p)!;
+                }
+            }
+            else
+            {
+                if (checked_style && !is_consecutive) 
+				{
+                    p.error("Expected bit range (':') for this member to match previous members.");
+                    return UNEXPECTED_TOKEN~;
+                }
+                is_consecutive = true;
+                checked_style = true;
+            }
+
+            Node attr = parse_attributes(p)!;
+            expect(p, EOS)!;
+
+            uint name_sh = p.pool.intern(p.token_text(name_tok));
+
+			uint[*] data = views::@data{BitstructFieldViewFields}
+			(
+				NAME, name_sh,
+				TYPE, type,
+				START_BIT, start_bit,
+				END_BIT, end_bit,
+				ATTRIBUTES, attr,
+			);
+
+            uint m_ex = ast::push_extra_block(p.ast, &data);
+            scratch.push((uint)ast::add_node(p.ast, BITSTRUCT_FIELD, name_tok.pos, p.current_pos(), m_ex));
+        }
+
+        expect(p, RBRACE)!;
+
+        uint count = (uint)scratch.len() - watermark;
+        uint list_ex = ast::push_extra_list(p.ast, scratch_view(watermark, count));
+        
+        Node body = ast::add_node(p.ast, BITSTRUCT_FIELD_LIST, start_pos, p.current_pos(), list_ex);
+        return body;
+    };
 }
 
 fn Node? parse_field_decl(Parser* p, Node shared_type = {})
