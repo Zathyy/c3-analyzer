@@ -644,8 +644,8 @@ fn Token? Lexer.lex_number(Lexer* self, uint start_pos)
 
     // Handle Suffixes (e.g., 1u, 1.0f, 0xFFu64)
     char c = (char)ascii::to_lower(self.peek());
-    if (c == 'u' || c == 'i' || c == 'f')
-    {
+	if (c == 'u' || c == 'i' || c == 'f' || c == 'l')    
+	{
         self.advance()!;
         while (!self.eof() && ascii::is_alnum(self.peek()))
         {
