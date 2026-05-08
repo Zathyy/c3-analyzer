@@ -13,17 +13,17 @@ constdef ModuleViewFields : inline uint
 }
 typedef ModuleView = inline View;
 fn Node ModuleView.path(self) => self.get(ModuleViewFields.PATH);
-fn uint ModuleView.generics_offset(self) => self.get_uint(ModuleViewFields.GENERICS);
-fn uint ModuleView.attributes_offset(self) => self.get_uint(ModuleViewFields.ATTRIBUTES);
+fn AttributeListView ModuleView.attributes(self)
+{
+	return { self.ast, self.get(ModuleViewFields.ATTRIBUTES) };
+}
 fn Node ModuleView.contract_node(self) => self.get(ModuleViewFields.CONTRACT);
 fn bool ModuleView.has_contract(self) => self.contract_node().is_valid();
-fn bool ModuleView.is_generic(self) => self.generics_offset() != 0;
-fn bool ModuleView.is_private(self) => self.has_attribute(self.attributes_offset(), AttributeKind.PRIVATE);
-fn bool ModuleView.is_local(self) => self.has_attribute(self.attributes_offset(), AttributeKind.LOCAL);
-fn GenericParamsView ModuleView.generics(self) 
+fn GenericDeclView ModuleView.generics(self) 
 {
-    return (GenericParamsView){ self.ast, (Node)self.generics_offset() };
+    return { self.ast, self.get(ModuleViewFields.GENERICS) };
 }
+fn bool ModuleView.is_generic(self) => self.generics().parameters_count() != 0;
 
 constdef ImportViewFields : inline uint
 {
@@ -32,8 +32,10 @@ constdef ImportViewFields : inline uint
 }
 typedef ImportView = inline View;
 fn Node ImportView.path(self) => self.get(ImportViewFields.PATH);
-fn uint ImportView.attributes_offset(self) => self.get_uint(ImportViewFields.ATTRIBUTES);
-fn bool ImportView.is_public(self) => self.has_attribute(self.attributes_offset(), AttributeKind.PUBLIC);
+fn AttributeListView ImportView.attributes(self)
+{
+	return { self.ast, self.get(ImportViewFields.ATTRIBUTES) };
+}
 
 constdef InterfaceViewFields : inline uint
 {
@@ -73,36 +75,14 @@ typedef FnView = inline View;
 fn String FnView.name(FnView self, StringPool* pool) => pool.get((StringHandle)self.get_uint(FnViewFields.NAME));
 fn Node FnView.associated(FnView self) => self.get(FnViewFields.ASSOCIATED);
 fn Node FnView.return_type(FnView self) => self.get(FnViewFields.RETURN_TYPE);
-fn uint FnView.attributes_offset(FnView self) => self.get_uint(FnViewFields.ATTRIBUTES);
+fn AttributeListView FnView.attributes(FnView self)
+{
+	return { self.ast, self.get(FnViewFields.ATTRIBUTES) };
+}
 fn Node FnView.body(FnView self) => self.get(FnViewFields.BODY);
-
-fn bool FnView.is_inline(self) => self.has_attribute(FnViewFields.ATTRIBUTES, AttributeKind.INLINE);
-fn bool FnView.is_extern(self) => self.has_attribute(FnViewFields.ATTRIBUTES, AttributeKind.EXTERN);
-
-fn uint FnView.type_param_count(FnView self)
+fn ParamsListView FnView.params(self)
 {
-    uint offset = self.get_uint(FnViewFields.GENERICS); // params index
-    return self.ast.extra_data[(Size)offset];
-}
-
-fn Node FnView.get_type_param(FnView self, uint index)
-{
-    uint offset = self.get_uint(FnViewFields.GENERICS);
-    // [offset] is count, [offset + 1 + index] is the actual param Node
-    return (Node)self.ast.extra_data[(Size)offset + 1 + index];
-}
-
-fn uint FnView.param_count(FnView self)
-{
-    uint offset = self.get_uint(FnViewFields.PARAMS); // params index
-    return self.ast.extra_data[(Size)offset];
-}
-
-fn Node FnView.get_param(FnView self, uint index)
-{
-    uint offset = self.get_uint(FnViewFields.PARAMS);
-    // [offset] is count, [offset + 1 + index] is the actual param Node
-    return (Node)self.ast.extra_data[(Size)offset + 1 + index];
+	return { self.ast, self.get(FnViewFields.PARAMS) };
 }
 
 constdef TypeAliasViewFields : inline uint
@@ -140,6 +120,7 @@ constdef TypedefViewFields : inline uint
 	NAME = 0,
 	BASE_TYPE,
 	INTERFACES,
+	GENERICS,
 }
 typedef TypedefView = inline View;
 fn String TypedefView.name(TypedefView self, StringPool* pool) => pool.get((StringHandle)self.get_uint(TypedefViewFields.NAME));
@@ -157,7 +138,10 @@ typedef VarDeclView = inline View;
 fn String VarDeclView.name(self, StringPool* pool) => pool.get((StringHandle)self.get_uint(VarDeclViewFields.NAME));
 fn Node VarDeclView.type_node(self) => self.get(VarDeclViewFields.TYPE);
 fn Node VarDeclView.init_expr(self) => self.get(VarDeclViewFields.INIT);
-fn uint VarDeclView.attributes_offset(self) => self.get_uint(VarDeclViewFields.ATTRIBUTES);
+fn AttributeListView VarDeclView.attributes(self)
+{
+	return { self.ast, self.get(VarDeclViewFields.ATTRIBUTES) };
+}
 // meta information
 fn VarDeclFlags VarDeclView.flags(self) => (VarDeclFlags)self.get_uint(VarDeclViewFields.FLAGS);
 fn bool VarDeclView.is_extern(self) => self.flags().is_extern;
@@ -174,6 +158,7 @@ constdef StructViewFields : inline uint
 	NAME = 0,
 	INTERFACES,
 	GENERICS,
+	ATTRIBUTES,
 	FIELDS,
 	CONTRACT,
 }
@@ -208,6 +193,7 @@ constdef FieldViewFields : inline uint
 {
 	NAME = 0,
 	TYPE,
+	ATTRIBUTES,
 }
 typedef FieldView = inline View;
 fn String FieldView.name(self, StringPool* pool) => pool.get((StringHandle)self.get_uint(FieldViewFields.NAME));
@@ -227,7 +213,10 @@ typedef EnumView = inline View;
 fn String EnumView.name(self, StringPool* pool) => pool.get((StringHandle)self.get_uint(EnumViewFields.NAME));
 fn Node EnumView.base_type(self) => self.get(EnumViewFields.BASE_TYPE);
 fn uint EnumView.params_offset(self) => self.get_uint(EnumViewFields.PARAMS);
-fn uint EnumView.attributes_offset(self) => self.get_uint(EnumViewFields.ATTRIBUTES);
+fn AttributeListView EnumView.attributes(self)
+{
+	return { self.ast, self.get(EnumViewFields.ATTRIBUTES) };
+}
 
 fn uint EnumView.member_count(self) => self.get_list_count(EnumViewFields.MEMBERS);
 fn Node EnumView.get_member(self, uint index) => self.get_list_item(EnumViewFields.MEMBERS, index);
@@ -292,3 +281,26 @@ typedef ContractEntryView = inline View;
 fn Node ContractEntryView.condition(self) => self.get(ContractEntryViewFields.CONDITION);
 fn Node ContractEntryView.message(self) => self.get(ContractEntryViewFields.MESSAGE);
 fn bool ContractEntryView.has_message(self) => self.message().is_valid();
+
+constdef GenericDeclViewFields : inline uint
+{
+	PARAMETERS = 0,
+}
+typedef GenericDeclView = inline View;
+fn uint GenericDeclView.parameters_count(self)
+{
+	if (!self.handle.is_valid()) return 0;
+	return self.get_list_count(GenericDeclViewFields.PARAMETERS);
+}
+fn String GenericDeclView.get_parameter(self, StringPool* pool, uint index)
+{
+	Node item = self.get_list_item(GenericDeclViewFields.PARAMETERS, index);
+	return pool.get((StringHandle)item);
+}
+
+constdef FaultdefDeclViewFields : inline uint
+{
+	FAULTS = 0,
+	ATTRIBUTES,
+}
+typedef FaultdefDeclView = inline View;

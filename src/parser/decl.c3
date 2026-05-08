@@ -298,39 +298,42 @@ fn Node? parse_enum(Parser* p, ParseFlags flags)
 *>
 fn Node? parse_faultdef_decl(Parser* p)
 {
-    uint start_tok = p.current_pos();
-    expect(p, FAULTDEF)!;
+	uint start_tok = p.current_pos();
+	expect(p, FAULTDEF)!;
 
-    uint fault_list_idx = 0;
+	uint fault_list_idx = 0;
 
-    @with_scratch(; watermark)
-    {
-        while (!p.is(EOS) && !p.eof())
-        {
-            Token name_tok = p.current();
-            expect(p, CONST_IDENT)!;
-            uint name_sh = p.pool.intern(p.token_text(name_tok));
-            scratch.push(name_sh);
+	@with_scratch(; watermark)
+	{
+		while (!p.is(EOS) && !p.eof())
+		{
+			Token name_tok = p.current();
+			expect(p, CONST_IDENT)!;
+			uint name_sh = p.pool.intern(p.token_text(name_tok));
+			scratch.push(name_sh);
 
-            if (!consume(p, COMMA)!) break;
-        }
-        
-        uint count = (uint)scratch.len() - watermark;
-        if (count > 0)
-        {
-            fault_list_idx = p.ast.push_extra_list(scratch_view(watermark, count));
-        }
-    };
+			if (!consume(p, COMMA)!) break;
+		}
 
-    expect(p, EOS)!;
+		uint count = (uint)scratch.len() - watermark;
+		if (count > 0)
+		{
+			fault_list_idx = p.ast.push_extra_list(scratch_view(watermark, count));
+		}
+	};
 
-    uint[*] data = views::@data{FaultdefDeclViewFields}
-    (
-        FAULTS, fault_list_idx
-    );
-    
-    uint ex = p.ast.push_extra_block(&data);
-    return p.ast.add_node(FAULTDEF_DECL, start_tok, p.current_pos(), ex);
+	Node attrs = parse_attributes(p)!;
+
+	expect(p, EOS)!;
+
+	uint[*] data = views::@data{FaultdefDeclViewFields}
+	(
+		FAULTS, fault_list_idx,
+		ATTRIBUTES, attrs
+	);
+
+	uint ex = p.ast.push_extra_block(&data);
+	return p.ast.add_node(FAULTDEF_DECL, start_tok, p.current_pos(), ex);
 }
 
 fn Node? parse_fn_decl(Parser* p, ParseFlags flags) => @scratch()
@@ -495,8 +498,8 @@ fn Node? parse_macro_decl(Parser* p)
 		advance(p)!;
 	}
 
-	Node type_params = parse_generic_decl(p)!;
 	Node params = p.is(LPAREN) ? parse_macro_params(p)! : {};
+	Node type_params = parse_generic_decl(p)!;
 	Node attr = parse_attributes(p)!;
 
 	Node body;

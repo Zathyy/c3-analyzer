@@ -206,20 +206,19 @@ fn Node? parse_prefix_expr(Parser* p)
 		case HASH_IDENT:
 		case HASH_CONST_IDENT:
 		case HASH_TYPE_IDENT:
+			// Handle namespaced paths like MyModule::my_var
+			// and the new type properties ::
+			if (p.peek().kind == SCOPE)
 			{
-				// Handle namespaced paths like MyModule::my_var
-				// and the new type properties ::
-				if (p.peek().kind == SCOPE)
-				{
-					return parse_path_prefix(p)!;
-				}
-
-				advance(p)!;
-				Token current = p.current();
-				uint sh = p.pool.intern(p.token_text(t));
-				return p.ast.add_node(IDENT_EXPR, t.pos, p.current_pos(), sh);
+				return parse_path_prefix(p)!;
 			}
-			// getting the actual literal value is up to the semantic analysis
+
+			advance(p)!;
+			Token current = p.current();
+			uint sh = p.pool.intern(p.token_text(t));
+			return p.ast.add_node(IDENT_EXPR, t.pos, p.current_pos(), sh);
+
+		// getting the actual literal value is up to the semantic analysis
 		case STRING:
 			String text = p.token_text(t);
 			uint sh = p.pool.intern(text);
@@ -296,6 +295,12 @@ fn Node? parse_prefix_expr(Parser* p)
 				return p.ast.add_node(TYPE_EXPR, t.pos, p.current_pos(), (uint)expr_inside);
 			}
 		case CT_VAARG:
+		{
+			advance(p)!;
+			uint sh = p.pool.intern(p.token_text(t));
+			return p.ast.add_node(IDENT_EXPR, t.pos, p.current_pos(), sh);
+		}
+		case CT_STRINGIFY:
 		{
 			advance(p)!;
 			uint sh = p.pool.intern(p.token_text(t));
@@ -771,40 +776,49 @@ fn Node? parse_range(Parser* p, Node left, uint start_pos)
 
 fn Node? parse_ct_expr_list(Parser* p) => @with_scratch(; watermark)
 {
-    uint start_pos = p.current().pos;
+	uint start_pos = p.current().pos;
 
-    while (true)
-    {
-        Node item;
+	while (true)
+	{
+		Node item;
 
-        if (p.is(VAR))
-        {
-            ParseFlags flags = { 
+		if (p.is(VAR))
+		{
+			ParseFlags flags = { 
 				.is_local = true,
 				.is_var = true,
 				.is_comptime = true 
 			};
-            item = parse_var_decl(p, flags)!;
-        }
-        else
-        {
-            item = parse_expr(p)!;
-        }
+			item = parse_var_decl(p, flags)!;
+		}
+		else if (is_type(p.current().kind))
+		{
+			ParseFlags flags = { 
+				.is_local = true,
+				.is_var = true,
+				.is_comptime = true 
+			};
+			item = parse_var_decl(p, flags)!;
+		}
+		else
+		{
+			item = parse_expr(p)!;
+		}
 
-        scratch.push((uint)item);
+		scratch.push((uint)item);
 
-        if (!consume(p, COMMA)!) break;
+		if (!consume(p, COMMA)!) break;
 
 		TokenKind next = p.current().kind;
-        if (next == EOS || next == COLON || next == RPAREN || next == RBRACKET)
-        {
-            break;
-        }
-    }
+		if (next == EOS || next == COLON || next == RPAREN || next == RBRACKET)
+		{
+			break;
+		}
+	}
 
-    uint count = (uint)scratch.len() - watermark;
-    uint ex = p.ast.push_extra_list(scratch_view(watermark, count));
-    return p.ast.add_node(EXPR_LIST, start_pos, p.previous_pos(), ex);
+	uint count = (uint)scratch.len() - watermark;
+	uint ex = p.ast.push_extra_list(scratch_view(watermark, count));
+	return p.ast.add_node(EXPR_LIST, start_pos, p.previous_pos(), ex);
 }
 
 fn Node? parse_contract_expr(Parser* p, bool is_ensure)
