@@ -706,67 +706,67 @@ fn Node? parse_initializer_list(Parser* p)
  */
 fn Node? parse_range(Parser* p, Node left, uint start_pos)
 {
-    Node start;
-    Node end;
-    bool is_slice = false;
+	Node start;
+	Node end;
+	bool is_slice = false;
 
-    if (p.is(COLON) || p.is(DOTDOT))
-    {
-        is_slice = true;
-        advance(p)!;
-    }
-    else
-    {
-        if (consume(p, BIT_XOR)!)
-        {
-            Node inner = parse_expr(p, CALL)!;
-            uint[2] data = { (uint)TokenKind.BIT_XOR, (uint)inner };
-            uint ex = p.ast.push_extra_block(&data);
-            start = p.ast.add_node(PREFIX_EXPR, p.current().pos, p.current_pos(), ex);
-        }
-        else
-        {
-            start = parse_expr(p, LOWEST)!;
-        }
+	if (p.is(COLON) || p.is(DOTDOT))
+	{
+		is_slice = true;
+		advance(p)!;
+	}
+	else
+	{
+		if (consume(p, BIT_XOR)!)
+		{
+			Node inner = parse_expr(p, CALL)!;
+			uint[2] data = { (uint)TokenKind.BIT_XOR, (uint)inner };
+			uint ex = p.ast.push_extra_block(&data);
+			start = p.ast.add_node(PREFIX_EXPR, p.current().pos, p.current_pos(), ex);
+		}
+		else
+		{
+			start = parse_expr(p, LOWEST)!;
+		}
 
-        if (p.is(COLON) || p.is(DOTDOT))
-        {
-            is_slice = true;
-            advance(p)!;
-        }
-    }
+		if (p.is(COLON) || p.is(DOTDOT))
+		{
+			is_slice = true;
+			advance(p)!;
+		}
+	}
 
-    if (is_slice && !p.is(RBRACKET))
-    {
-        if (consume(p, BIT_XOR)!)
-        {
-            Node inner = parse_expr(p, CALL)!;
-            uint[2] data = { (uint)TokenKind.BIT_XOR, (uint)inner };
-            uint ex = p.ast.push_extra_block(&data);
-            end = p.ast.add_node(PREFIX_EXPR, p.current().pos, p.current_pos(), ex);
-        }
-        else
-        {
-            end = parse_expr(p, LOWEST)!;
-        }
-    }
+	if (is_slice && !p.is(RBRACKET))
+	{
+		if (consume(p, BIT_XOR)!)
+		{
+			Node inner = parse_expr(p, CALL)!;
+			uint[2] data = { (uint)TokenKind.BIT_XOR, (uint)inner };
+			uint ex = p.ast.push_extra_block(&data);
+			end = p.ast.add_node(PREFIX_EXPR, p.current().pos, p.current_pos(), ex);
+		}
+		else
+		{
+			end = parse_expr(p, LOWEST)!;
+		}
+	}
 
-    expect(p, RBRACKET)!;
+	expect(p, RBRACKET)!;
 
-    if (is_slice)
-    {
-        uint[2] slice_data = { (uint)start, (uint)end };
-        uint slice_ex = p.ast.push_extra_block(&slice_data);
-        Node slice_node = p.ast.add_node(SLICE_EXPR, start_pos, p.current_pos(), slice_ex);
+	if (is_slice)
+	{
+		uint[2] slice_data = { (uint)start, (uint)end };
+		uint slice_ex = p.ast.push_extra_block(&slice_data);
+		Node slice_node = p.ast.add_node(SLICE_EXPR, start_pos, p.current_pos(), slice_ex);
 
-        uint[2] access_data = { (uint)left, (uint)slice_node };
-        uint access_ex = p.ast.push_extra_block(&access_data);
-        return p.ast.add_node(INDEX_EXPR, start_pos, p.current_pos(), access_ex);
-    }
+		uint[2] access_data = { (uint)left, (uint)slice_node };
+		uint access_ex = p.ast.push_extra_block(&access_data);
+		return p.ast.add_node(INDEX_EXPR, start_pos, p.current_pos(), access_ex);
+	}
 
-    uint[2] data = { (uint)left, (uint)start };
-    uint ex = p.ast.push_extra_block(&data);
-    return p.ast.add_node(INDEX_EXPR, start_pos, p.current_pos(), ex);
+	uint[2] data = { (uint)left, (uint)start };
+	uint ex = p.ast.push_extra_block(&data);
+	return p.ast.add_node(INDEX_EXPR, start_pos, p.current_pos(), ex);
 }
 
 fn Node? parse_ct_expr_list(Parser* p) => @with_scratch(; watermark)

@@ -407,14 +407,9 @@ fn Node Cursor.module_decl(&self)
 	// }
 
 	ModuleSection* s = self.section;
-	if (s.source_file.ast.get_kind(s.header_node) == MODULE_DECL)
-	{
-		return s.header_node;
-	}
-
 	for (uint i = s.start_node_idx; i < s.end_node_idx; i++)
 	{
-		Node n = (Node)(s.start_node_idx + i);
+		Node n = (Node)s.start_node_idx;
 		if (self.section.source_file.ast.get_kind(n) == MODULE_DECL)
 		{
 			return n;
