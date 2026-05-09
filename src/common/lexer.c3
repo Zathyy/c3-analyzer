@@ -420,30 +420,56 @@ fn void? Lexer.skip_block_comment(Lexer* self)
 	}
 }
 
+fn Token? Lexer.lex_char(Lexer* self, uint start)
+{
+	self.index++;
+
+	while (self.index < self.buffer.len)
+	{
+		char c = self.buffer[self.index];
+
+		if (c == '\'')
+		{
+			self.index++; 
+			return (Token) { CHAR_LITERAL, start, (uint)self.index - start };
+		}
+
+		if (c == '\\')
+		{
+			self.index += 2;
+			continue;
+		}
+
+		self.index++; 
+	}
+
+	return (Token) { INVALID, start, (uint)self.index - start };
+}
+
 fn Token? Lexer.lex_string(Lexer* self, uint start)
 {
-    self.index++;
+	self.index++;
 
-    while (self.index < self.buffer.len)
-    {
-        char c = self.buffer[self.index];
+	while (self.index < self.buffer.len)
+	{
+		char c = self.buffer[self.index];
 
-        if (c == '"')
-        {
-            self.index++; 
-            return (Token) { STRING, start, (uint)self.index - start };
-        }
+		if (c == '"')
+		{
+			self.index++; 
+			return (Token) { STRING, start, (uint)self.index - start };
+		}
 
-        if (c == '\\') 
-        {
-            self.index += 2;
-            continue;
-        }
+		if (c == '\\') 
+		{
+			self.index += 2;
+			continue;
+		}
 
-        self.index++; 
-    }
+		self.index++; 
+	}
 
-    return (Token) { INVALID, start, (uint)self.index - start };
+	return (Token) { INVALID, start, (uint)self.index - start };
 }
 
 fn Token? Lexer.lex_raw_string(Lexer* self, uint start)
@@ -566,68 +592,69 @@ fn Token? Lexer.lex_identifier(Lexer* self, uint start_pos)
 
 fn Token? Lexer.lex_number(Lexer* self, uint start_pos)
 {
-	bool is_float = false;
+    bool is_float = false;
 
-	// Hex: 0x
-	if (self.peek() == '0' && (ascii::to_lower(self.peek_next()) == 'x'))
-	{
-		self.advance(2)!;
-		while (!self.eof() && ascii::is_xdigit(self.peek()))
-		{
-			self.advance()!;
-		}
-	} // Binary: 0b
-	else if (self.peek() == '0' && (ascii::to_lower(self.peek_next()) == 'b'))
-	{
-		self.advance(2)!;
-		while (!self.eof() && ascii::is_bdigit(self.peek()))
-		{
-			self.advance()!;
-		}
-	} // Octal: 0o
-	else if (self.peek() == '0' && (ascii::to_lower(self.peek_next()) == 'o'))
-	{
-		self.advance(2)!;
-		while (!self.eof() && ascii::is_odigit(self.peek()))
-		{
-			self.advance()!;
-		}
-	}
-	else
-	{
-		// Standard Decimals
-		while (!self.eof() && ascii::is_digit(self.peek()))
-		{
-			self.advance()!;
-		}
+    // Hex: 0x
+    if (self.peek() == '0' && (ascii::to_lower(self.peek_next()) == 'x'))
+    {
+        self.advance(2)!;
+        // Allow hex digits OR underscores
+        while (!self.eof() && (ascii::is_xdigit(self.peek()) || self.peek() == '_'))
+        {
+            self.advance()!;
+        }
+    } 
+    // Binary: 0b
+    else if (self.peek() == '0' && (ascii::to_lower(self.peek_next()) == 'b'))
+    {
+        self.advance(2)!;
+        while (!self.eof() && (ascii::is_bdigit(self.peek()) || self.peek() == '_'))
+        {
+            self.advance()!;
+        }
+    } 
+    // Octal: 0o
+    else if (self.peek() == '0' && (ascii::to_lower(self.peek_next()) == 'o'))
+    {
+        self.advance(2)!;
+        while (!self.eof() && (ascii::is_odigit(self.peek()) || self.peek() == '_'))
+        {
+            self.advance()!;
+        }
+    }
+    else
+    {
+        // Standard Decimals
+        while (!self.eof() && (ascii::is_digit(self.peek()) || self.peek() == '_'))
+        {
+            self.advance()!;
+        }
 
-		// Real/Float check
-		if (!self.eof() && self.peek() == '.' && ascii::is_digit(self.peek_next()))
-		{
-			is_float = true;
-			self.advance()!;
-			while (!self.eof() && ascii::is_digit(self.peek()))
-			{
-				self.advance()!;
-			}
-		}
-	}
+        // Real/Float check
+        if (!self.eof() && self.peek() == '.' && ascii::is_digit(self.peek_next()))
+        {
+            is_float = true;
+            self.advance()!;
+            while (!self.eof() && (ascii::is_digit(self.peek()) || self.peek() == '_'))
+            {
+                self.advance()!;
+            }
+        }
+    }
 
-	// Handle Suffixes (e.g., 1u, 1.0f, 0xFFu64)
-	// check for 'u', 'i', or 'f' (case insensitive using to_lower)
-	char c = (char)ascii::to_lower(self.peek());
-	if (c == 'u' || c == 'i' || c == 'f')
+    // Handle Suffixes (e.g., 1u, 1.0f, 0xFFu64)
+    char c = (char)ascii::to_lower(self.peek());
+	if (c == 'u' || c == 'i' || c == 'f' || c == 'l')    
 	{
-		self.advance()!;
-		// Suffixes can contain digits (u64, i16)
-		while (!self.eof() && ascii::is_alnum(self.peek()))
-		{
-			self.advance()!;
-		}
-	}
+        self.advance()!;
+        while (!self.eof() && ascii::is_alnum(self.peek()))
+        {
+            self.advance()!;
+        }
+    }
 
-	TokenKind kind = is_float ? REAL : INTEGER;
-	return self.emit(kind, start_pos, (uint)self.index - start_pos);
+    TokenKind kind = is_float ? REAL : INTEGER;
+    return self.emit(kind, start_pos, (uint)self.index - start_pos);
 }
 
 fn Token? Lexer.skip_contract(Lexer* self, uint start_pos)
@@ -718,7 +745,14 @@ fn Token? Lexer.next(&self)
 			self.advance()!;
 			switch (self.peek())
 			{
-				case '>': self.advance()!; return self.emit(RSHIFT, start, 2);
+				case '>': 
+					self.advance()!;
+					if (self.peek() == '=')
+					{
+						self.advance()!;
+						return self.emit(RSHIFT_ASSIGN, start, 3);
+					}
+					return self.emit(RSHIFT, start, 2);
 				case '=': self.advance()!; return self.emit(GREATER_EQ, start, 2);
 				case ']': self.advance()!; return self.emit(RVEC, start, 2);
 			}
@@ -727,7 +761,14 @@ fn Token? Lexer.next(&self)
 			self.advance()!;
 			switch (self.peek())
 			{
-				case '<': self.advance()!; return self.emit(LSHIFT, start, 2);
+				case '<':
+					self.advance()!; 
+					if (self.peek() == '=')
+					{
+						self.advance()!;
+						return self.emit(LSHIFT_ASSIGN, start, 3);
+					}
+					return self.emit(LSHIFT, start, 2);
 				case '=': self.advance()!; return self.emit(LESS_EQ, start, 2);
 				case '*': self.advance()!; return self.skip_contract(start);
 			}
@@ -761,7 +802,14 @@ fn Token? Lexer.next(&self)
 			self.advance()!;
 			switch (self.peek())
 			{
-				case '?': self.advance()!; return self.emit(QUESTQUEST, start, 2);
+				case '?': 
+					self.advance()!; 
+					if (self.peek() == '?')
+					{
+						self.advance()!;
+						return self.emit(CT_TERNARY, start, 3);
+					}
+					return self.emit(QUESTQUEST, start, 2);
 				case ':': self.advance()!; return self.emit(ELVIS, start, 2);
 			}
 			return self.emit(QUESTION, start, 1);
@@ -835,7 +883,16 @@ fn Token? Lexer.next(&self)
 		case '}': self.advance()!; return self.emit(RBRACE, start, 1);
 		case ';': self.advance()!; return self.emit(EOS, start, 1);
 		case ',': self.advance()!; return self.emit(COMMA, start, 1);
-		case '/': self.advance()!; return self.emit(DIV, start, 1);
+		case '/': 
+			self.advance()!; 
+			if (self.peek() == '=')
+			{
+				self.advance()!;
+				return self.emit(DIV_ASSIGN, start, 2);
+			}
+			return self.emit(DIV, start, 1);
+		case '\'':
+			return self.lex_char(start);
 		case '"':
 			return self.lex_string(start);
 		case '`':

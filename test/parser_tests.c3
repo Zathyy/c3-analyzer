@@ -88,7 +88,7 @@ fn int add(int a, int b) {
 	parser::parse_file(&ws, path)!!;
 
 	Cursor fn_cur = ws.lookup_in_module("fn_mod", "add")!!;
-	assert (ast::get_kind(&fn_cur.section.source_file.ast, fn_cur.node) == NodeKind.FN_DECL , "Node is not FN_DECL");
+	assert (fn_cur.section.source_file.ast.get_kind(fn_cur.node) == NodeKind.FN_DECL , "Node is not FN_DECL");
 
 	FnView v = { &fn_cur.section.source_file.ast, fn_cur.node };
 	ParamsListView plv = v.params();
@@ -117,7 +117,7 @@ struct Point {
 	parser::parse_file(&ws, path)!!;
 
 	Cursor sc = ws.lookup_in_module("struct_mod", "Point")!!;
-	assert (ast::get_kind(&sc.section.source_file.ast, sc.node) == NodeKind.STRUCT_DECL , "Node is not STRUCT_DECL");
+	assert (sc.section.source_file.ast.get_kind(sc.node) == NodeKind.STRUCT_DECL , "Node is not STRUCT_DECL");
 
 	StructView sv = { &sc.section.source_file.ast, sc.node };
 	assert (sv.field_count() == 2 , "Expected 2 fields in Point");
@@ -167,7 +167,7 @@ const int MAX_SIZE = 100;
 
 	Cursor cc = ws.lookup_in_module("const_mod", "MAX_SIZE")!!;
 	// CONST_DECL is stored as a GLOBAL_DECL with a const flag
-	NodeKind k = ast::get_kind(&cc.section.source_file.ast, cc.node);
+	NodeKind k = cc.section.source_file.ast.get_kind(cc.node);
 
 	VarDeclView view = { &cc.section.source_file.ast, cc.node };
 	assert(k == NodeKind.VAR_DECL , "Expected VAR_DECL");
@@ -194,12 +194,12 @@ struct Target { int a; }
 
 	// Existing function
 	Cursor fn_cur = ws.lookup_in_module("lu_mod", "target")!!;
-	assert(ast::get_kind(&fn_cur.section.source_file.ast, fn_cur.node) == NodeKind.FN_DECL,
+	assert(fn_cur.section.source_file.ast.get_kind(fn_cur.node) == NodeKind.FN_DECL,
 	"'target' is not FN_DECL");
 
 	// Existing struct
 	Cursor st_cur = ws.lookup_in_module("lu_mod", "Target")!!;
-	assert(ast::get_kind(&st_cur.section.source_file.ast, st_cur.node) == NodeKind.STRUCT_DECL,
+	assert(st_cur.section.source_file.ast.get_kind(st_cur.node) == NodeKind.STRUCT_DECL,
 	"'Target' is not STRUCT_DECL");
 
 	// Non-existent symbol → fault
@@ -894,7 +894,7 @@ int counter = 0;
 
 	Cursor c = ws.lookup("global_mod", "counter")!!;
 	VarDeclView view = { &c.section.source_file.ast, c.node };
-	assert(ast::get_kind(&c.section.source_file.ast, c.node) == NodeKind.VAR_DECL,
+	assert(c.section.source_file.ast.get_kind(c.node) == NodeKind.VAR_DECL,
 	"Expected VAR_DECL for global variable");
 	assert(view.is_global(), "Expected VAR_DECL to be global");
 }
@@ -911,7 +911,7 @@ float pi_value = 3.14159;
 
 	Cursor c = ws.lookup("gspell_mod", "pi_value")!!;
 	VarDeclView view = { &c.section.source_file.ast, c.node };
-	assert(ast::get_kind(&c.section.source_file.ast, c.node) == NodeKind.VAR_DECL,
+	assert(c.section.source_file.ast.get_kind(c.node) == NodeKind.VAR_DECL,
 	"Expected VAR_DECL");
 	assert(view.is_global(), "Expected VAR_DECL to be global");
 }
@@ -928,7 +928,7 @@ tlocal int tl_counter;
 
 	Cursor c = ws.lookup("tlocal_mod", "tl_counter")!!;
 	VarDeclView view = { &c.section.source_file.ast, c.node };
-	assert(ast::get_kind(&c.section.source_file.ast, c.node) == NodeKind.VAR_DECL,
+	assert(c.section.source_file.ast.get_kind(c.node) == NodeKind.VAR_DECL,
 	"tlocal var should produce VAR_DECL");
 	assert(view.is_thread_local(), "expected tlocal variable to have tlocal flag");
 }
@@ -971,7 +971,7 @@ fn int double_it(int x) => x * 2;
 	parser::parse_file(&ws, path)!!;
 
 	Cursor c = ws.lookup_in_module("arrow_mod", "double_it")!!;
-	assert(ast::get_kind(&c.section.source_file.ast, c.node) == NodeKind.FN_DECL,
+	assert(c.section.source_file.ast.get_kind(c.node) == NodeKind.FN_DECL,
 		"Expected FN_DECL for arrow-body function");
 	FnView fv = { &c.section.source_file.ast, c.node };
 	ParamsListView plv = fv.params();
@@ -992,7 +992,7 @@ fn float Vec2.length(&self) { return 0.0; }
 
 	// Method is stored under its simple name, not "Vec2.length"
 	Cursor c = ws.lookup_in_module("method_mod", "length")!!;
-	assert(ast::get_kind(&c.section.source_file.ast, c.node) == NodeKind.FN_DECL,
+	assert(c.section.source_file.ast.get_kind(c.node) == NodeKind.FN_DECL,
 		"Expected FN_DECL for method");
 	FnView fv = { &c.section.source_file.ast, c.node };
 	// associated() holds the StringHandle of the receiver type — non-zero for methods
@@ -1036,7 +1036,7 @@ fn void with_body() { int x = 1; }
 	Ast* ast = &c.section.source_file.ast;
 	FnView fv = { ast, c.node };
 	assert(fv.body().is_valid(), "Expected valid body node");
-	assert(ast::get_kind(ast, fv.body()) == NodeKind.COMPOUND_STMT,
+	assert(ast.get_kind(fv.body()) == NodeKind.COMPOUND_STMT,
 		"Function body must be COMPOUND_STMT");
 }
 
@@ -1123,7 +1123,7 @@ struct Empty {}
 	parser::parse_file(&ws, path)!!;
 
 	Cursor sc = ws.lookup_in_module("empty_struct_mod", "Empty")!!;
-	assert(ast::get_kind(&sc.section.source_file.ast, sc.node) == NodeKind.STRUCT_DECL,
+	assert(sc.section.source_file.ast.get_kind(sc.node) == NodeKind.STRUCT_DECL,
 		"Expected STRUCT_DECL");
 	StructView sv = { &sc.section.source_file.ast, sc.node };
 	assert(sv.field_count() == 0, "Expected 0 fields in Empty");
@@ -1213,7 +1213,7 @@ fn void count_up() {
 	FnView fv = { ast, c.node };
 	CompoundView cv = { ast, fv.body() };
 	assert(cv.len() == 1, "Expected 1 stmt in body");
-	assert(ast::get_kind(ast, cv.get(0)) == NodeKind.FOR_STMT, "Expected FOR_STMT");
+	assert(ast.get_kind(cv.get(0)) == NodeKind.FOR_STMT, "Expected FOR_STMT");
 }
 
 // 46. BREAK_STMT is accessible via ForView.body
@@ -1235,11 +1235,11 @@ fn void stop_early() {
 	FnView fv = { ast, c.node };
 	CompoundView outer_cv = { ast, fv.body() };
 	Node for_node = outer_cv.get(0);
-	assert(ast::get_kind(ast, for_node) == NodeKind.FOR_STMT, "Expected FOR_STMT");
+	assert(ast.get_kind(for_node) == NodeKind.FOR_STMT, "Expected FOR_STMT");
 	ForView forv = { ast, for_node };
 	CompoundView inner = { ast, forv.body() };
 	assert(inner.len() == 1, "Expected 1 stmt in for body");
-	assert(ast::get_kind(ast, inner.get(0)) == NodeKind.BREAK_STMT, "Expected BREAK_STMT");
+	assert(ast.get_kind(inner.get(0)) == NodeKind.BREAK_STMT, "Expected BREAK_STMT");
 }
 
 // 47. while loop produces WHILE_STMT
@@ -1259,7 +1259,7 @@ fn void spin() {
 	FnView fv = { ast, c.node };
 	CompoundView cv = { ast, fv.body() };
 	assert(cv.len() == 1, "Expected 1 stmt");
-	assert(ast::get_kind(ast, cv.get(0)) == NodeKind.WHILE_STMT, "Expected WHILE_STMT");
+	assert(ast.get_kind(cv.get(0)) == NodeKind.WHILE_STMT, "Expected WHILE_STMT");
 }
 
 // 48. do-while produces DO_WHILE_STMT
@@ -1279,7 +1279,7 @@ fn void run_once() {
 	FnView fv = { ast, c.node };
 	CompoundView cv = { ast, fv.body() };
 	assert(cv.len() == 1, "Expected 1 stmt");
-	assert(ast::get_kind(ast, cv.get(0)) == NodeKind.DO_WHILE_STMT, "Expected DO_WHILE_STMT");
+	assert(ast.get_kind(cv.get(0)) == NodeKind.DO_WHILE_STMT, "Expected DO_WHILE_STMT");
 }
 
 // 49. foreach produces FOREACH_STMT
@@ -1299,7 +1299,7 @@ fn void iterate() {
 	FnView fv = { ast, c.node };
 	CompoundView cv = { ast, fv.body() };
 	assert(cv.len() == 1, "Expected 1 stmt");
-	assert(ast::get_kind(ast, cv.get(0)) == NodeKind.FOREACH_STMT, "Expected FOREACH_STMT");
+	assert(ast.get_kind(cv.get(0)) == NodeKind.FOREACH_STMT, "Expected FOREACH_STMT");
 }
 
 // 50. foreach_r produces FOREACH_R_STMT
@@ -1319,7 +1319,7 @@ fn void iter_rev() {
 	FnView fv = { ast, c.node };
 	CompoundView cv = { ast, fv.body() };
 	assert(cv.len() == 1, "Expected 1 stmt");
-	assert(ast::get_kind(ast, cv.get(0)) == NodeKind.FOREACH_R_STMT, "Expected FOREACH_R_STMT");
+	assert(ast.get_kind(cv.get(0)) == NodeKind.FOREACH_R_STMT, "Expected FOREACH_R_STMT");
 }
 
 // 51. if/else: both then and else blocks are valid
@@ -1339,7 +1339,7 @@ fn void branch(bool flag) {
 	FnView fv = { ast, c.node };
 	CompoundView cv_if = { ast, fv.body() };
 	Node stmt = cv_if.get(0);
-	assert(ast::get_kind(ast, stmt) == NodeKind.IF_STMT, "Expected IF_STMT");
+	assert(ast.get_kind(stmt) == NodeKind.IF_STMT, "Expected IF_STMT");
 	IfView iv = { ast, stmt };
 	assert(iv.condition().is_valid(),  "Expected valid condition");
 	assert(iv.then_block().is_valid(), "Expected valid then_block");
@@ -1363,7 +1363,7 @@ fn void maybe(bool flag) {
 	FnView fv = { ast, c.node };
 	CompoundView cv_noelse = { ast, fv.body() };
 	Node stmt = cv_noelse.get(0);
-	assert(ast::get_kind(ast, stmt) == NodeKind.IF_STMT, "Expected IF_STMT");
+	assert(ast.get_kind(stmt) == NodeKind.IF_STMT, "Expected IF_STMT");
 	IfView iv = { ast, stmt };
 	assert(iv.condition().is_valid(),   "Expected valid condition");
 	assert(iv.then_block().is_valid(),  "Expected valid then_block");
@@ -1390,7 +1390,7 @@ fn void dispatch(int x) {
 	FnView fv = { ast, c.node };
 	CompoundView cv = { ast, fv.body() };
 	assert(cv.len() == 1, "Expected 1 stmt");
-	assert(ast::get_kind(ast, cv.get(0)) == NodeKind.SWITCH_STMT, "Expected SWITCH_STMT");
+	assert(ast.get_kind(cv.get(0)) == NodeKind.SWITCH_STMT, "Expected SWITCH_STMT");
 }
 
 // 54. defer produces DEFER_STMT
@@ -1410,7 +1410,7 @@ fn void cleanup() {
 	FnView fv = { ast, c.node };
 	CompoundView cv = { ast, fv.body() };
 	assert(cv.len() == 1, "Expected 1 stmt");
-	assert(ast::get_kind(ast, cv.get(0)) == NodeKind.DEFER_STMT, "Expected DEFER_STMT");
+	assert(ast.get_kind(cv.get(0)) == NodeKind.DEFER_STMT, "Expected DEFER_STMT");
 }
 
 // 55. return produces RETURN_STMT
@@ -1430,7 +1430,7 @@ fn int compute() {
 	FnView fv = { ast, c.node };
 	CompoundView cv = { ast, fv.body() };
 	assert(cv.len() == 1, "Expected 1 stmt");
-	assert(ast::get_kind(ast, cv.get(0)) == NodeKind.RETURN_STMT, "Expected RETURN_STMT");
+	assert(ast.get_kind(cv.get(0)) == NodeKind.RETURN_STMT, "Expected RETURN_STMT");
 }
 
 // 56. CONTINUE_STMT is accessible via IfView.then_block inside a for body
@@ -1455,9 +1455,9 @@ fn void skip(bool flag) {
 	ForView forv = { ast, for_node };
 	CompoundView inner_cont = { ast, forv.body() };
 	Node if_node = inner_cont.get(0);
-	assert(ast::get_kind(ast, if_node) == NodeKind.IF_STMT, "Expected IF_STMT inside for");
+	assert(ast.get_kind(if_node) == NodeKind.IF_STMT, "Expected IF_STMT inside for");
 	IfView iv = { ast, if_node };
-	assert(ast::get_kind(ast, iv.then_block()) == NodeKind.CONTINUE_STMT,
+	assert(ast.get_kind(iv.then_block()) == NodeKind.CONTINUE_STMT,
 		"Expected CONTINUE_STMT as then-branch");
 }
 
@@ -1478,7 +1478,7 @@ fn void check(int x) {
 	FnView fv = { ast, c.node };
 	CompoundView cv = { ast, fv.body() };
 	assert(cv.len() == 1, "Expected 1 stmt");
-	assert(ast::get_kind(ast, cv.get(0)) == NodeKind.ASSERT_STMT, "Expected ASSERT_STMT");
+	assert(ast.get_kind(cv.get(0)) == NodeKind.ASSERT_STMT, "Expected ASSERT_STMT");
 }
 
 // 58. Local variable declarations produce LOCAL_DECL nodes
@@ -1499,8 +1499,8 @@ fn void declare_vars() {
 	FnView fv = { ast, c.node };
 	CompoundView cv = { ast, fv.body() };
 	assert(cv.len() == 2, "Expected 2 local decls");
-	assert(ast::get_kind(ast, cv.get(0)) == NodeKind.LOCAL_DECL, "First stmt should be LOCAL_DECL");
-	assert(ast::get_kind(ast, cv.get(1)) == NodeKind.LOCAL_DECL, "Second stmt should be LOCAL_DECL");
+	assert(ast.get_kind(cv.get(0)) == NodeKind.LOCAL_DECL, "First stmt should be LOCAL_DECL");
+	assert(ast.get_kind(cv.get(1)) == NodeKind.LOCAL_DECL, "Second stmt should be LOCAL_DECL");
 }
 
 // 59. Nested compound statements
@@ -1523,10 +1523,10 @@ fn void nested() {
 	CompoundView outer = { ast, fv.body() };
 	assert(outer.len() == 1, "Expected 1 stmt in outer block");
 	Node mid = outer.get(0);
-	assert(ast::get_kind(ast, mid) == NodeKind.COMPOUND_STMT, "Expected nested COMPOUND_STMT");
+	assert(ast.get_kind(mid) == NodeKind.COMPOUND_STMT, "Expected nested COMPOUND_STMT");
 	CompoundView mid_cv = { ast, mid };
 	assert(mid_cv.len() == 1, "Expected 1 stmt in middle block");
-	assert(ast::get_kind(ast, mid_cv.get(0)) == NodeKind.COMPOUND_STMT,
+	assert(ast.get_kind(mid_cv.get(0)) == NodeKind.COMPOUND_STMT,
 		"Expected innermost COMPOUND_STMT");
 }
 
@@ -1589,12 +1589,12 @@ const int OFFSET = 8;
 	parser::parse_file(&ws, path)!!;
 
 	Cursor c1 = ws.lookup_in_module("const2_mod", "LIMIT")!!;
-	NodeKind k1 = ast::get_kind(&c1.section.source_file.ast, c1.node);
+	NodeKind k1 = c1.section.source_file.ast.get_kind(c1.node);
 	assert(k1 == NodeKind.VAR_DECL,
 		"LIMIT: expected VAR_DECL");
 
 	Cursor c2 = ws.lookup_in_module("const2_mod", "OFFSET")!!;
-	NodeKind k2 = ast::get_kind(&c2.section.source_file.ast, c2.node);
+	NodeKind k2 = c2.section.source_file.ast.get_kind(c2.node);
 	assert(k2 == NodeKind.VAR_DECL,
 		"OFFSET: expected VAR_DECL");
 }
@@ -1668,7 +1668,7 @@ fn void external_fn() @extern("external_fn");
 
 	Cursor c = ws.lookup_in_module("no_body_mod", "external_fn")!!;
 	Ast* ast = &c.section.source_file.ast;
-	assert(ast::get_kind(ast, c.node) == NodeKind.FN_DECL,
+	assert(ast.get_kind(c.node) == NodeKind.FN_DECL,
 		"Expected FN_DECL for extern fn");
 	FnView fv = { ast, c.node };
 	assert(!fv.body().is_valid(), "Extern fn should have no body");

@@ -65,6 +65,11 @@ fn bool is_keyword_ident(TokenKind type)
 	return type >= ALIAS && type <= WHILE;
 }
 
+fn bool is_base_type(TokenKind kind)
+{
+	return kind >= VOID && kind <= UNTYPEDLIST;
+}
+
 fn bool is_some_ident(TokenKind type)
 {
 	switch (type)
@@ -83,6 +88,23 @@ fn bool is_non_type_ident(TokenKind k)
     return k == IDENT || 
            k == HASH_IDENT || 
            k == CT_IDENT;
+}
+
+fn bool node_ends_with_block(Parser* p, Node n)
+{
+    NodeKind kind = p.ast.get_kind(n);
+
+    switch (kind)
+    {
+        case CALL_EXPR:
+        case ATTR_CALL_EXPR:
+            CallView view = { p.ast, n };
+            return view.get_compound().is_valid();
+        case COMPOUND_STMT:
+            return true;
+        default:
+            return false;
+    }
 }
 
 fn bool is_type(TokenKind kind)
@@ -128,7 +150,7 @@ fn void attach_contract(Parser* p, Node decl, Node contract)
 	if (!decl.is_valid()) return;
 	if (!contract.is_valid()) return;
 
-    NodeKind kind = ast::get_kind(p.ast, decl);
+    NodeKind kind = p.ast.get_kind(decl);
     
     uint offset = 0;
     switch (kind)
@@ -140,7 +162,7 @@ fn void attach_contract(Parser* p, Node decl, Node contract)
         default: return;
     }
     
-	uint base_extra_idx = ast::get_extra(p.ast, (uint)decl);
+	uint base_extra_idx = p.ast.get_extra((uint)decl);
     p.ast.set_extra(base_extra_idx + offset, (uint)contract);
 }
 
@@ -212,4 +234,61 @@ fn bool is_declaration_followup(Parser* p)
     // After skipping modifiers, do we see a variable name?
     TokenKind final_k = p.peek(i).kind;
     return final_k == IDENT || final_k == CONST_IDENT || final_k == CT_IDENT;
+}
+
+fn uint? parse_type_name(Parser* p, String msg)
+{
+	if (p.is(IDENT)) 
+	{
+		p.error("Name of %s must start with and uppercase letter", msg);
+		return 0;
+	}
+	else if (p.is(CONST_IDENT))
+	{
+		p.error("Name of %s cannot be all uppercase", msg);
+		return 0;
+	}
+	else
+	{
+		if (!p.is(TYPE_IDENT))
+		{
+			p.error("'%s' should be followed by the name of the %s.", msg, msg);
+			return 0;
+		}
+	}
+
+	uint name = p.pool.intern(p.current_text());
+	advance(p)!;
+	return name;
+}
+
+fn bool can_start_expression(TokenKind kind) 
+{ 
+	if (is_keyword_ident(kind) || is_base_type(kind))
+	{
+		return true;
+	}
+
+    switch (kind) 
+	{
+        case IDENT:
+		case TYPE_IDENT:
+		case CT_TYPE_IDENT:
+		case CT_IDENT:
+		case HASH_IDENT:
+		case HASH_TYPE_IDENT:
+		case BUILTIN:
+		case INTEGER: 
+		case FLOAT:
+		case STRING:
+        case LPAREN:
+		case MINUS:
+		case BANG:
+		case BIT_NOT:
+		case AMP:
+		case ASTERISK:
+            return true;
+        default:
+            return false;
+    }
 }

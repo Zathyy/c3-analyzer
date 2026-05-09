@@ -61,6 +61,7 @@ bitstruct ParseFlags : ulong
 	bool is_local; // Inside a function/block
 	bool is_var; // has a 'var'
 	bool is_inline;
+	bool is_static;
 	bool is_extern; // C-linkage handling
 	bool is_thread_local;
 	bool is_attribute; // Special parsing for @attr(...)
@@ -68,6 +69,8 @@ bitstruct ParseFlags : ulong
 	bool is_const; // Context requires constant expressions
 	bool is_constdef;
 	bool is_call;
+	bool is_expr;
+	bool is_stmt;
 	bool is_lamda;
 	bool is_macro;
 	bool is_comptime;
@@ -115,7 +118,7 @@ fn void? Parser.skip_until(Parser* p, TokenKind[] targets)
 fn Node Parser.push_invalid_node(Parser* p, uint start_pos)
 {
     uint end_pos = p.current_pos();
-    return ast::add_node(p.ast, INVALID, start_pos, end_pos, 0);
+    return p.ast.add_node(INVALID, start_pos, end_pos, 0);
 }
 
 <*
@@ -474,8 +477,8 @@ fn void? parse_top_level(Parser* p, Workspace* ws)
 				ATTRIBUTES, attr,
 			);
 
-			uint ex = ast::push_extra_block(p.ast, &data);
-			Node imp_node = ast::add_node(p.ast, IMPORT_DECL, start, p.current_pos(), ex);
+			uint ex = p.ast.push_extra_block(&data);
+			Node imp_node = p.ast.add_node(IMPORT_DECL, start, p.current_pos(), ex);
 			p.ast.top_level_nodes.push((uint)imp_node);
 			if (!consume(p, COMMA)!) break;
 		}
@@ -503,7 +506,10 @@ fn void? parse_top_level(Parser* p, Workspace* ws)
 		case TYPEDEF:
 			node = parse_typedef(p)!;
 		case STRUCT:
+		case UNION:
 			node = parse_struct(p)!;
+		case BITSTRUCT:
+			node = parse_bitstruct_decl(p)!;
 		case CONSTDEF:
 			flags.is_constdef = true;
 			node = parse_enum(p, flags)!;
@@ -518,7 +524,7 @@ fn void? parse_top_level(Parser* p, Workspace* ws)
 			advance(p)!;
 			return UNEXPECTED_EOS~;
 		default:
-			p.error("Couldn't find any matching top level declaration: %s", p.current());
+			p.error("Couldn't find any matching top level declaration: %s", string::from_struct(tmem, p.current()));
 			return UNEXPECTED_TOKEN~;
 	}
 

@@ -22,6 +22,7 @@ enum NodeKind : char
 	BLOCK,
 	// a collection of statements
 	INITIALIZER_LIST,
+	DESIGNATED_INITIALIZER,
 	DESIGNATED_INITIALIZER_LIST,
 	FOREACH_VAR,
 	INTERFACE_IMPL,
@@ -33,6 +34,9 @@ enum NodeKind : char
 	CONTRACT_PARAM,
 	MACRO_PARAMS,
 	PARAM_LIST,
+	BITSTRUCT_FIELD,
+	BITSTRUCT_FIELD_LIST,
+	DEFAULT_ELLIPSIS,
 
 	TYPE,
 	TYPE_DECL,
@@ -44,12 +48,14 @@ enum NodeKind : char
 	BOOL_LITERAL,
 	NULL_LITERAL,
 
-	FN_DECL,
+	FN_DECL, 
 	ENUM_DECL,
 	PARAM_DECL,
 	VAR_DECL,
+	VAR_DECL_LIST,
 	STRUCT_DECL,
 	UNION_DECL,
+	BITSTRUCT_DECL, 
 	FIELD_DECL,
 	ALIAS_DECL,
 	TYPE_ALIAS_DECL,
@@ -65,6 +71,7 @@ enum NodeKind : char
 	GENERIC_DECL,
 	FAULT_DECL,
 	FAULTDEF_DECL,
+	DECL_STMT_LIST,
 
 	REQUIRE_EXPR,
 	ENSURE_EXPR,
@@ -97,6 +104,15 @@ enum NodeKind : char
 	TRY_UNWRAP_CHAIN_EXPR,
 	TRY_UNWRAP_EXPR,
 	CATCH_UNWRAP_EXPR,
+	LAMBDA_EXPR,
+	ATTR_CALL_EXPR,
+	CT_FEATURE_EXPR,
+	COMPOUND_LITERAL_EXPR,
+	DESIGNATOR_PERIOD_EXPR,
+	DESIGNATOR_INDEX_EXPR,
+	DESIGNATOR_RANGE_EXPR,
+	LENGTHOF_EXPR,
+	GENERIC_IDENT_EXPR,
 
 	FOR_STMT,
 	COMPOUND_STMT,
@@ -118,6 +134,7 @@ enum NodeKind : char
 
 	CT_IF_STMT,
 	CT_SWITCH_STMT,
+	CT_FOREACH_STMT,
 	CT_CASE_STMT,
 	CT_VAR_DECL,
 	CT_FOR_STMT,
@@ -134,7 +151,7 @@ struct Ast
 	List{uint} top_level_nodes; // to track what nodes are "top-level" its really hard without it
 }
 
-fn void init(Ast* ast, Size estimated_size)
+fn void Ast.init(&ast, Size estimated_size)
 {
 	ast.kinds.tinit(estimated_size);
 	ast.start_tokens.tinit(estimated_size);
@@ -149,9 +166,7 @@ fn void init(Ast* ast, Size estimated_size)
 	ast.end_tokens.push(0);
 	ast.extra_indices.push(0);
 }
-
-
-fn void free(Ast* ast)
+fn void Ast.free(&ast)
 {
 	ast.kinds.free();
 	ast.start_tokens.free();
@@ -196,13 +211,13 @@ fn void Ast.set_extra(&self, uint index, uint value) @inline
 <*
 	@require start_tok <= end_tok  : "start needs to be less than end"
 *>
-fn Node add_node(Ast* ast, NodeKind kind, uint start_tok, uint end_tok, uint extra_idx)
+fn Node Ast.add_node(&self, NodeKind kind, uint start_tok, uint end_tok, uint extra_idx)
 {
-	Node handle = (Node)ast.kinds.len();
-	ast.kinds.push(kind);
-	ast.start_tokens.push(start_tok);
-	ast.end_tokens.push(end_tok);
-	ast.extra_indices.push(extra_idx);
+	Node handle = (Node)self.kinds.len();
+	self.kinds.push(kind);
+	self.start_tokens.push(start_tok);
+	self.end_tokens.push(end_tok);
+	self.extra_indices.push(extra_idx);
 	return handle;
 }
 
@@ -215,51 +230,55 @@ fn void Ast.update_node(&self, Node handle, uint start_tok, uint end_tok, uint n
 	self.extra_indices[(Size)handle] = new_extra_idx;
 }
 
-fn NodeView get_node(Ast* ast, Node handle)
+fn NodeView Ast.get_node(&self, Node handle)
 {
-	assert ((Size)handle < ast.kinds.len());
+	assert ((Size)handle < self.kinds.len());
 
 	return (NodeView) {
-		.kind = get_kind(ast, handle),
-		.start_token_idx = get_start_token(ast, handle),
-		.end_token_idx = get_end_token(ast, handle),
-		.extra_idx = ast.extra_indices[(Size)handle]
+		.kind = self.get_kind(handle),
+		.start_token_idx = self.get_start_token(handle),
+		.end_token_idx = self.get_end_token(handle),
+		.extra_idx = self.extra_indices[(Size)handle]
 	};
 }
 
-fn void free_node(Ast* ast, Node handle)
+fn void Ast.free_node(&self, Node handle)
 {
-	ast.kinds[(Size)handle] = INVALID;
+	self.kinds[(Size)handle] = INVALID;
 }
 
-fn uint get_extra(Ast* ast, uint index) @inline
+fn uint Ast.get_extra(&self, uint index) @inline
 {
-	return ast.extra_data[(Size)index];
+	return self.extra_data[(Size)index];
 }
 
-fn NodeKind get_kind(Ast* ast, Node handle) @inline
+fn NodeKind Ast.get_kind(&self, Node handle) @inline
 {
-	return ast.kinds[(Size)handle];
+	return self.kinds[(Size)handle];
+}
+// fn NodeKind get_kind(Ast* ast, Node handle) @inline
+// {
+// 	return ast.kinds[(Size)handle];
+// }
+
+fn uint Ast.get_start_token(&self, Node handle) @inline
+{
+	return self.start_tokens[(Size)handle];
 }
 
-fn uint get_start_token(Ast* ast, Node handle) @inline
+fn uint Ast.get_end_token(&self, Node handle) @inline
 {
-	return ast.start_tokens[(Size)handle];
-}
-
-fn uint get_end_token(Ast* ast, Node handle) @inline
-{
-	return ast.end_tokens[(Size)handle];
+	return self.end_tokens[(Size)handle];
 }
 
 /* * Reserves a contiguous block in the extra_data pool.
  * Returns the starting index. */
-fn uint reserve_extra(Ast* ast, uint size)
+fn uint Ast.reserve_extra(&self, uint size)
 {
-	uint start = (uint)ast.extra_data.len();
+	uint start = (uint)self.extra_data.len();
 	for (uint i = 0; i < size; i++)
 	{
-		ast.extra_data.push(0);
+		self.extra_data.push(0);
 	}
 	return start;
 }
@@ -268,21 +287,21 @@ fn uint reserve_extra(Ast* ast, uint size)
 	Pushes a list of nodes to extra_data, prepending the count.
 	Memory layout: [Count, Node1, Node2, ...]
 *>
-fn uint push_extra_list(Ast* ast, uint[] data)
+fn uint Ast.push_extra_list(&self, uint[] data)
 {
-	uint start = (uint)ast.extra_data.len();
-    ast.extra_data.push((uint)data.len);
-    ast.extra_data.push_all(data);
-    return start;
+	uint start = (uint)self.extra_data.len();
+	self.extra_data.push((uint)data.len);
+	self.extra_data.push_all(data);
+	return start;
 }
 
 <*
 	For fixed-size metadata (Structs/Headers).
 	Layout: [Field0, Field1, Field2...]
 *>
-fn uint push_extra_block(Ast* ast, uint[] data)
+fn uint Ast.push_extra_block(&self, uint[] data)
 {
-    uint start = (uint)ast.extra_data.len();
-    ast.extra_data.push_all(data);
+    uint start = (uint)self.extra_data.len();
+    self.extra_data.push_all(data);
     return start;
 }

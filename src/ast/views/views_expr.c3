@@ -53,6 +53,7 @@ fn Node CallView.get_compound(self) => self.get(CallViewFields.COMPOUND);
 constdef IfViewFields : inline uint
 {
 	CONDITION = 0,
+	LABEL,
 	THEN_BLOCK,
 	ELSE_BLOCK,
 }
@@ -75,3 +76,11 @@ fn String LiteralView.value(LiteralView self, StringPool* pool)
 typedef ExprListView = inline View;
 fn uint ExprListView.count(self) => self.get_list_count(0);
 fn Node ExprListView.get_item(self, uint index) => self.get_list_item(0, index);
+
+constdef LambdaViewFields : inline uint
+{
+	RETURN_TYPE,
+	ATTRIBUTES,
+	BODY,
+}
+typedef LambdaView = inline View;

@@ -44,32 +44,11 @@ fn ParamsListView BodyParamView.inner_params(self)
     return { self.ast, list_handle };
 }
 
-constdef AttributeListViewFields : inline uint
-{
-    ATTRIBUTES = 0,
-}
 typedef AttributeListView = inline View;
 fn uint AttributeListView.count(self) => self.get_list_count(0);
-fn AttributeView AttributeListView.get_attr(self, uint index)
-{
-	return { self.ast, self.get_list_item(AttributeListViewFields.ATTRIBUTES, index) };
-}
-fn AttributeView? AttributeListView.find(self, AttributeKind kind)
-{
-	for (uint i = 0; i < self.count(); i++)
-    {
-        AttributeView attr = self.get_attr(i);
-        if (attr.kind() == kind) return attr;
-    }
-    return ATTRIBUTE_NOT_PRESENT~;
-}
+fn Node AttributeListView.get_attr(self, uint index) => self.get_list_item(0, index);
 
 // The view for a single @attr(args)
-constdef AttributeViewFields : inline uint
-{
-    KIND = 0,
-	ARGS
-}
 typedef AttributeView = inline View;
 fn AttributeKind AttributeView.kind(self) => (AttributeKind)self.get_uint(0);
 fn uint AttributeView.arg_count(self) => self.get_uint(2);
@@ -165,3 +144,12 @@ fn BodyParamView MacroParamsView.body_params(self)
     if (!body_node.is_valid()) return {};
     return { self.ast, body_node };
 }
+
+constdef LocalViewFields : inline uint
+{
+	NAME = 0,
+	TYPE,
+	INIT,
+	ATTRIBUTES,
+}
+typedef LocalView = inline View;
