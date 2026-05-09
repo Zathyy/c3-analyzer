@@ -65,6 +65,11 @@ fn bool is_keyword_ident(TokenKind type)
 	return type >= ALIAS && type <= WHILE;
 }
 
+fn bool is_base_type(TokenKind kind)
+{
+	return kind >= VOID && kind <= UNTYPEDLIST;
+}
+
 fn bool is_some_ident(TokenKind type)
 {
 	switch (type)
@@ -255,4 +260,46 @@ fn uint? parse_type_name(Parser* p, String msg)
 	uint name = p.pool.intern(p.current_text());
 	advance(p)!;
 	return name;
+}
+
+fn bool can_start_expression(TokenKind kind) 
+{ 
+	if (is_keyword_ident(kind) || is_base_type(kind))
+	{
+		return true;
+	}
+
+    switch (kind) 
+	{
+        case IDENT:
+		case TYPE_IDENT:
+		case CT_TYPE_IDENT:
+		case CT_IDENT:
+		case HASH_IDENT:
+		case HASH_TYPE_IDENT:
+		case BUILTIN:
+		case INTEGER: 
+		case FLOAT:
+		case STRING:
+        case LPAREN:
+		case MINUS:
+		case BANG:
+		case BIT_NOT:
+		case AMP:
+		case ASTERISK:
+            return true;
+        default:
+            return false;
+    }
+}
+
+fn int base64_to_sextet(char c)
+{
+	if (c >= 'A' && c <= 'Z') return c - 'A';
+	if (c >= 'a' && c <= 'z') return c - 'a' + 26;
+	if (c >= '0' && c <= '9') return c - '0' + 52;
+	if (c == '+')             return 62;
+	if (c == '/')             return 63;
+	if (c == '=')             return 0;
+	return -1;
 }

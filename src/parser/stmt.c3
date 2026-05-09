@@ -646,7 +646,7 @@ fn Node? parse_while_stmt(Parser* p)
 	uint label = parse_label(p, true)!;
 
 	expect(p, LPAREN)!;
-	Node condition = parse_expr(p, { })!;
+	Node condition = parse_cond(p)!;
 	expect(p, RPAREN)!;
 
 	Node body = parse_statement(p)!;

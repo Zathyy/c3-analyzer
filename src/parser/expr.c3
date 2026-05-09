@@ -8,6 +8,7 @@ module c3_parser::parser;
 
 import c3_parser::ast;
 import lexer;
+import std::core::ascii;
 
 import c3_parser::common;
 
@@ -34,6 +35,7 @@ constdef Precedence : inline int
 	MULTIPLICATIVE = 100, // * / %
 	UNARY          = 110, // ! - + ~ * & prefix ++/--
 	CALL           = 120, // . () [] postfix ++ -- !! ! ~
+    HIGHEST        = 130,
 }
 
 <*
@@ -133,7 +135,7 @@ fn void get_binding_power(TokenKind type, int* lbp, int* rbp)
 		case LBRACE:
 		case LBRACKET:
 			*lbp = Precedence.CALL;
-			*rbp = Precedence.LOWEST; 
+			*rbp = Precedence.CALL; //TODO: CALL or None?
 			break;
 		case BANGBANG:
 		case PLUSPLUS:
@@ -194,6 +196,10 @@ fn Node? parse_prefix_expr(Parser* p)
 		{
 			return parse_lambda(p)!;
 		}
+		case BYTES:
+		{
+			return parse_bytes_expr(p)!;
+		}
 		case AT_IDENT:
 		case AT_CONST_IDENT:
 		case AT_TYPE_IDENT:
@@ -251,38 +257,43 @@ fn Node? parse_prefix_expr(Parser* p)
 			advance(p)!;
 			return p.ast.add_node(INT_LITERAL, t.pos, p.current_pos(), sh);
 		case BANG:
+		case BANGBANG:
 		case MINUS:
 		case BIT_NOT:
 		case AMP:
 		case AND: // for the unary temp value pointer
 		case ASTERISK:
+			bool is_bang_bang = p.is(BANGBANG);
 			advance(p)!;
 			Node rhs = parse_expr(p, UNARY)!;
 
-			uint[2] data = { (uint)t.kind, (uint)rhs };
+			uint[3] data = { (uint)t.kind, (uint)rhs, (uint)is_bang_bang };
 			uint ex = p.ast.push_extra_block(&data);
 			return p.ast.add_node(UNARY_EXPR, t.pos, p.current_pos(), ex);
 
 		case LPAREN:
-			// Check if cast: (Type)operand
-			if (is_type(p.peek().kind))
-			{
-				advance(p)!; // consume '('
-				Node type = parse_type(p)!;
-				expect(p, RPAREN)!;
-
-				Node operand = parse_expr(p, UNARY)!;
-
-				uint[2] data = { (uint)type, (uint)operand };
-				uint ex = p.ast.push_extra_block(&data);
-
-				return p.ast.add_node(CAST_EXPR, t.pos, p.current_pos(), ex);
-			}
-			// Grouped expression: (1 + 2)
+			Token start_token = t;
 			advance(p)!; // consume '('
-			Node expr = parse_expr(p)!;
+
+			Node inner = parse_expr(p, Precedence.LOWEST)!;
+			
 			expect(p, RPAREN)!;
-			return expr;
+
+			NodeKind kind = p.ast.get_kind(inner);
+			
+			// IMPORTANT!
+			// Might be missing some kinds in 'can_start_expression'
+			// which makes a Cast expr parsed as a grouped expr
+			if (kind == TYPE_EXPR && can_start_expression(p.current().kind)) 
+			{
+				Node operand = parse_expr(p, Precedence.UNARY)!;
+				uint[2] data = { (uint)inner, (uint)operand };
+				uint ex = p.ast.push_extra_block(&data);
+				return p.ast.add_node(CAST_EXPR, start_token.pos, p.current_pos(), ex);
+			}
+
+			// TODO: Add as grouped expr
+			return inner;
 		case CT_TYPEFROM:
 		case CT_TYPEOF:
 			{
@@ -332,6 +343,22 @@ fn Node? parse_prefix_expr(Parser* p)
 				uint ex = p.ast.push_extra_block(&data);
 				return p.ast.add_node(PRE_UNARY_EXPR, t.pos, p.current_pos(), ex);
 			}
+		case CT_FEATURE:
+		{
+			advance(p)!;
+			expect(p, LPAREN)!;
+			Node expr = parse_expr(p)!;
+			expect(p, RPAREN)!;
+			return p.ast.add_node(CT_FEATURE_EXPR, t.pos, p.current_pos(), (uint)expr);
+		}
+		case LENGTHOF:
+		{
+			advance(p)!;
+			expect(p, LPAREN)!;
+			Node expr = parse_expr(p)!;
+			expect(p, RPAREN)!;
+			return p.ast.add_node(LENGTHOF_EXPR, t.pos, p.current_pos(), (uint)expr);
+		}
 		default:
 			log::error(
 				"parse_prefix_expr - Expected expression for token: ((%s) %s - %s)",
@@ -408,15 +435,32 @@ fn Node? parse_infix(Parser* p, Node left, Precedence rbp)
 				return p.ast.add_node(POST_UNARY_EXPR, t.pos, p.current_pos(), ex);
 			}
 		case LPAREN:
-		case LBRACE:
 			{
 				advance(p)!;
 				return parse_call(p, t, left)!;
 			}
-		case QUESTION:
+		case LBRACE:
+		{
+			NodeKind kind = p.ast.get_kind(left);
+
+			if (kind == TYPE_EXPR) 
 			{
-				advance(p)!;
-				return parse_ternary(p, left, t, rbp);
+				Node list = parse_initializer_list(p)!; 
+
+				uint[*] data = {
+					(uint)left,
+					(uint)list,
+				};
+				uint ex = p.ast.push_extra_block(&data);
+				return p.ast.add_node(COMPOUND_LITERAL_EXPR, t.pos, p.current_pos(), ex);
+			}
+			
+			return parse_generic_expr(p)!;
+		}
+		case QUESTION:
+		case CT_TERNARY:
+			{
+				return parse_ternary(p, left);
 			}
 		case DOT:
 		case SCOPE:
@@ -488,8 +532,13 @@ fn Node? parse_expr(Parser* p, Precedence min_bp = LOWEST)
 		// debug purposes
 		log::debug("Current Token: %s, LBP: %d, MinBP: %d", p.current().kind, lbp, min_bp);
 
-		// If the next operator doesn't bind strongly enough to the left
-		if (lbp < (int)min_bp) break;
+		// BREAK if:
+        // 1. Token is not an infix operator (lbp is -1)
+        // 2. Token precedence is lower than current min_bp
+        if (lbp == Precedence.NONE || lbp < (int)min_bp) 
+        {
+            break;
+        }
 
 		left = parse_infix(p, left, (Precedence)rbp)!;
 	}
@@ -511,32 +560,36 @@ fn Node? parse_constant_expr(Parser* p)
 }
 
 <*
- "Shortcut" for when a left node has already been parsed (like an identifier) 
+	"Shortcut" for when a left node has already been parsed (like an identifier) 
 	and want to continue building an expression from that specific point without starting over
 *>
-fn Node? parse_expr_resuming_with_left(Parser* p, Node left, uint min_bp)
+fn Node? parse_expr_resuming_with_left(Parser* p, Node left, int min_bp)
 {
 	while (true)
 	{
 		int lbp, rbp;
 		get_binding_power(p.current().kind, &lbp, &rbp);
-		if ((uint) lbp < min_bp) break;
+		if ((int) lbp < min_bp) break;
 
 		left = parse_infix(p, left, (Precedence)rbp)!;
 	}
 	return left;
 }
 
-fn Node? parse_ternary(Parser* p, Node condition, Token t, Precedence rbp)
+fn Node? parse_ternary(Parser* p, Node condition)
 {
+	uint start_tok = p.current_pos();
+	bool is_const = p.is(CT_TERNARY);
+	advance(p)!;
+
 	Node then_expr = parse_expr(p, Precedence.LOWEST)!;
 	expect(p, COLON)!;
 
-	Node else_expr = parse_expr(p, rbp)!;
+	Node else_expr = parse_expr(p, TERNARY)!;
 
-	uint[3] data = { (uint)condition, (uint)then_expr, (uint)else_expr };
+	uint[4] data = { (uint)condition, (uint)then_expr, (uint)else_expr, (uint)is_const };
 	uint ex = p.ast.push_extra_block(&data);
-	return p.ast.add_node(TERNARY_EXPR, t.pos, p.current_pos(), ex);
+	return p.ast.add_node(TERNARY_EXPR, start_tok, p.current_pos(), ex);
 }
 
 <*
@@ -597,7 +650,8 @@ fn Node? parse_call(Parser* p, Token t, Node callee)
             {
                 Node arg_node;
                 // Named argument logic (name: expr)
-                if (p.current().kind == IDENT && p.peek().kind == COLON)
+				TokenKind kind = p.current().kind;
+                if ((kind == IDENT || kind == HASH_IDENT || kind == CT_IDENT) && p.peek().kind == COLON)
                 {
                     Token name_tok = p.current();
                     advance(p, 2)!;
@@ -645,6 +699,61 @@ fn Node? parse_call(Parser* p, Token t, Node callee)
 	return p.ast.add_node(CALL_EXPR, t.pos, p.current_pos(), ex);
 }
 
+fn Node? parse_designator_path(Parser* p)
+{
+    Node path;
+
+	while (true) 
+	{
+        if (p.is(DOT)) 
+		{
+            Token dot_tok = p.peek();
+            advance(p)!;
+            
+            Node field = parse_expr(p, HIGHEST)!;
+            
+            if (!path.is_valid()) 
+			{
+                path = field;
+            } 
+			else 
+			{
+                uint[2] data = { (uint)path, (uint)field };
+                uint ex = p.ast.push_extra_block(&data);
+                path = p.ast.add_node(DESIGNATOR_PERIOD_EXPR, dot_tok.pos, p.current_pos(), ex);
+            }
+            continue;
+        }
+        
+        if (p.is(LBRACKET)) 
+        {
+            Token open_tok = p.peek();
+            advance(p)!;
+            
+            Node start = parse_expr(p)!;
+            Node end = {};
+            bool is_range = false;
+
+            if (p.is(DOTDOT) || p.is(COLON))
+            {
+                is_range = true;
+                advance(p)!;
+                end = parse_expr(p)!;
+            }
+
+            expect(p, RBRACKET)!;
+            
+			NodeKind kind = is_range ? DESIGNATOR_RANGE_EXPR : DESIGNATOR_INDEX_EXPR;
+            uint[3] data = { (uint)path, (uint)start, (uint)end };
+            uint ex = p.ast.push_extra_block(&data);
+            path = p.ast.add_node(kind, open_tok.pos, p.current_pos(), ex);
+            continue;
+        }
+        break;
+    }
+    return path;
+}
+
 fn Node? parse_initializer_list(Parser* p)
 {
     uint start_tok = p.current_pos();
@@ -663,18 +772,24 @@ fn Node? parse_initializer_list(Parser* p)
         {
             Node expr;
 
-            if (consume(p, DOT)!)
-            {
-                Token member = p.current();
-                expect(p, IDENT)!;
-                uint member_name = p.pool.intern(p.token_text(member));
+			if (p.is(DOT) || p.is(LBRACKET))            
+			{
+                uint path_start = p.current_pos();
+                Node path = parse_designator_path(p)!;
 
-                expect(p, EQ)!;
-                Node val = parse_expr(p)!;
+                if (consume(p, EQ)!)
+                {
+                    Node val = parse_expr(p, Precedence.LOWEST)!;
 
-                uint[2] data = { member_name, (uint)val };
-                uint pair_ex = p.ast.push_extra_block(&data);
-                expr = p.ast.add_node(DESIGNATED_INITIALIZER_LIST, member.pos, p.current_pos(), pair_ex);
+                    uint[2] data = { (uint)path, (uint)val };
+                    uint pair_ex = p.ast.push_extra_block(&data);
+                    expr = p.ast.add_node(DESIGNATED_INITIALIZER, path_start, p.current_pos(), pair_ex);
+                }
+                else
+                {
+                    // .member (implies .member = member)
+                    expr = path;
+				}
             }
             // Nested Initializer: { {1, 2}, {3, 4} }
             else if (p.is(LBRACE))
@@ -929,7 +1044,6 @@ fn Node? parse_lambda(Parser* p)
 		advance(p)!;
 		log::debug("parse_fn_decl - parse_short_body");
 		body = parse_expr(p)!;
-		expect(p, EOS)!;
 	}
 	else if (p.is(LBRACE))
 	{
@@ -950,4 +1064,101 @@ fn Node? parse_lambda(Parser* p)
 
 	uint ex = p.ast.push_extra_block(&data);
 	return p.ast.add_node(LAMBDA_EXPR, start_tok, p.current_pos(), ex);
+}
+
+fn Node? parse_generic_expr(Parser* p) => @with_scratch(; watermark)
+{
+	uint start_pos = p.current_pos();
+	expect(p, LBRACE)!;
+
+	do
+	{
+		scratch.push((uint)parse_expr(p)!);
+		if (!consume(p, COMMA)!)
+		{
+			expect(p, RBRACE)!;
+			break;
+		}
+	}
+	while (!consume(p, RBRACE)!);
+
+    uint count = (uint)scratch.len() - watermark;
+	uint ex = p.ast.push_extra_list(scratch_view(watermark, count));
+	return p.ast.add_node(GENERIC_IDENT_EXPR, start_pos, p.current_pos(), ex);
+}
+
+fn Node? parse_bytes_expr(Parser* p)
+{
+    uint start_pos = p.current_pos();
+    
+    @with_scratch(; watermark)
+    {
+        while (p.is(BYTES))
+        {
+            Token tok = p.current();
+            String lexeme = p.token_text(tok);
+            
+            // Determine if it's hex or b64 based on the prefix
+            bool is_hex = lexeme[0] == 'x';
+			// remove x' '
+            String inner = lexeme[2:^3]; 
+
+            if (is_hex)
+			{
+				for (usz i = 0; i < inner.len; i++)
+				{
+					if (lexer::is_whitespace(inner[i])) continue;
+					char high = char.from_hex(inner[i]);
+
+					i++;
+					while (i < inner.len && lexer::is_whitespace(inner[i]))
+					{ 
+						i++;
+					}
+					
+					char low = char.from_hex(inner[i]);
+
+					scratch.push((char)((high << 4) | low));
+				}
+			}
+            else
+            {
+                int buffer = 0;
+				int bits_collected = 0;
+
+				for (usz i = 0; i < inner.len; i++)
+				{
+					char c = inner[i];
+					
+					if (lexer::is_whitespace(c)) continue;
+					if (c == '=') break;
+
+					int sextet = base64_to_sextet(c);
+					if (sextet < 0) continue;
+
+					buffer = (buffer << 6) | sextet;
+					bits_collected += 6;
+
+					if (bits_collected >= 8)
+					{
+						bits_collected -= 8;
+						char byte = (char)((buffer >> bits_collected) & 0xFF);
+						scratch.push(byte);
+					}
+				}
+            }
+            
+            advance(p)!;
+        }
+
+        uint total_len = (uint)scratch.len() - watermark;
+        if (total_len == 0)
+        {
+            log::error("Byte array must contain at least one byte.");
+            return UNEXPECTED_TOKEN~;
+        }
+
+        uint ex = p.ast.push_extra_list(scratch_view(watermark, (uint)total_len));
+        return p.ast.add_node(BYTES_LITERAL, start_pos, p.current_pos(), ex);
+    };
 }

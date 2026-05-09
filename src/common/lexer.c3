@@ -962,9 +962,9 @@ fn Token? Lexer.next(&self)
 			}
 			nextcase;
 		case 'x':
-			self.advance()!;
-			if (self.peek() == '"' || self.peek() == '\'' || self.peek() == '`')
+			if (self.peek(1) == '"' || self.peek(1) == '\'' || self.peek(1) == '`')
 			{
+				self.advance()!;
 				return self.lex_hex_array(start)!;
 			}
 			nextcase;
