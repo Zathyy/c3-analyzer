@@ -70,7 +70,7 @@ macro ArgConfig arg(...) @builtin {
     $switch:
       $case @starts_with($s, "short"):
         var $val = @get_val($s);
-        $if $typeof($val) == bool &&& $val == true:
+        $if $Typeof($val) == bool &&& $val == true:
           $autoshort = true;
         $else
           $if !@starts_with($val, "'"):
@@ -81,7 +81,7 @@ macro ArgConfig arg(...) @builtin {
 
       $case @starts_with($s, "long"):
         var $val = @get_val($s);
-        $if $typeof($val) == bool &&& $val == true:
+        $if $Typeof($val) == bool &&& $val == true:
           $autolong = true;
         $else
           $if !@starts_with($val, "\""):
@@ -92,7 +92,7 @@ macro ArgConfig arg(...) @builtin {
 
       $case @starts_with($s, "default_value"):
         var $val = @get_val($s);
-        $if $typeof($val) == bool &&& $val == true:
+        $if $Typeof($val) == bool &&& $val == true:
           $error "You need to provide a default_value";
         $else
           $if $val == "\"\"":
@@ -107,7 +107,7 @@ macro ArgConfig arg(...) @builtin {
         
       $case @starts_with($s, "help"):
         var $val = @get_val($s);
-        $if $typeof($val) == bool &&& $val == true:
+        $if $Typeof($val) == bool &&& $val == true:
           $error "You need to write a help message";
         $else
           $if !@starts_with($val, "\""):
@@ -118,7 +118,7 @@ macro ArgConfig arg(...) @builtin {
 
       $case @starts_with($s, "subcommand"):
         var $val = @get_val($s);
-        $if $typeof($val) == bool &&& $val == true:
+        $if $Typeof($val) == bool &&& $val == true:
           $is_subcommand = true;
         $else
           $error "`subcommand` doesn't take an argument";
@@ -126,7 +126,7 @@ macro ArgConfig arg(...) @builtin {
 
       $case @starts_with($s, "skip"):
         var $val = @get_val($s);
-        $if $typeof($val) == bool &&& $val == true:
+        $if $Typeof($val) == bool &&& $val == true:
           $skip = true;
         $else
           $error "`skip` doesn't take an argument";

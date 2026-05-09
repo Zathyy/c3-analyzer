@@ -304,9 +304,9 @@ enum TokenKind : ushort
 	CT_SWITCH,
 	// $switch
 	CT_TYPEFROM,
-	// $typefrom
+	// $Typefrom
 	CT_TYPEOF,
-	// $typeof
+	// $Typeof
 	CT_VAARG,
 	// $vaarg,
 
@@ -950,8 +950,8 @@ fn TokenKind Lexer.categorize_identifier(Lexer* self, String text)
 				case "reflect": return CT_REFLECT;
 				case "stringify": return CT_STRINGIFY;
 				case "switch": return CT_SWITCH;
-				case "typefrom": return CT_TYPEFROM;
-				case "typeof": return CT_TYPEOF;
+				case "Typefrom": return CT_TYPEFROM;
+				case "Typeof": return CT_TYPEOF;
 				case "vaarg": return CT_VAARG;
 				default: break;
 			}

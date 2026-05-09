@@ -190,7 +190,7 @@ macro String @rename(CaseConvention $convention, String $name) @local @const {
 macro @str_to_value($Type, #value) {
   $if @is_maybe_type($Type):
     $Type $t;
-    return maybe::value{$typeof($t.value)}(@str_to_value($typeof($t.value), #value));
+    return maybe::value{$Typeof($t.value)}(@str_to_value($Typeof($t.value), #value));
   $endif
 
   $switch:
@@ -261,7 +261,7 @@ macro int @arg_type_size($Type, int max) @local {
 
     $case @is_maybe_type($Type):
 			$Type $t;
-      return @arg_type_size($typeof($t.value), max);
+      return @arg_type_size($Typeof($t.value), max);
 
     $default:
       return 1;
@@ -271,7 +271,7 @@ macro int @arg_type_size($Type, int max) @local {
 macro @arg_to_value($Type, args, i) @local {
   $if @is_maybe_type($Type):
     $Type $t;
-    return maybe::value{$typeof($t.value)}(@arg_to_value($typeof($t.value), args, i));
+    return maybe::value{$Typeof($t.value)}(@arg_to_value($Typeof($t.value), args, i));
   $endif
   
   $switch:
@@ -509,19 +509,19 @@ macro @get_all_names(ArgConfig $config) @private {
 
 macro @is_maybe($value) {
   return ($defined($value.get) &&& $defined($value.get()) &&& 
-          ($defined($value.get()!) ||| $defined($value == maybe::value{$typeof($value.value)}($value.value))));
+          ($defined($value.get()!) ||| $defined($value == maybe::value{$Typeof($value.value)}($value.value))));
 }
 
 macro @is_maybe_type($Type) {
   $Type $value;
   return ($defined($value.get) &&& $defined($value.get()) &&& 
-          ($defined($value.get()!) ||| $defined($value == maybe::value{$typeof($value.value)}($value.value))));
+          ($defined($value.get()!) ||| $defined($value == maybe::value{$Typeof($value.value)}($value.value))));
 }
 
 macro @get_maybe_inner_type($Type) {
   $if @is_maybe_type($Type):
     $Type $t;
-    return @get_maybe_inner_type($typeof($t.value));
+    return @get_maybe_inner_type($Typeof($t.value));
   $endif
   return $Type;
 }
