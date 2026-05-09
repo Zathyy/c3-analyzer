@@ -14,6 +14,7 @@ struct Cli @Command({ .name = "c3_parser", .help_on_empty = true })
 	Maybe{String} std @Seali(arg(long, help = "Test parser against the std lib"));
 	bool verbose @Seali(arg(short, long, default_value = false, help = "Verbose output"));
 	bool json @Seali(arg(short, long, default_value = false, help = "Output as json"));
+	bool no_invalid @Seali(arg(long, default_value = false, help = "Treat invalid node as an error"));
 }
 
 fn int main(String[] args) => @pool()
