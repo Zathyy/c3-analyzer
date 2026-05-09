@@ -641,7 +641,8 @@ fn Node? parse_call(Parser* p, Token t, Node callee)
             {
                 Node arg_node;
                 // Named argument logic (name: expr)
-                if (p.current().kind == IDENT && p.peek().kind == COLON)
+				TokenKind kind = p.current().kind;
+                if ((kind == IDENT || kind == HASH_IDENT) && p.peek().kind == COLON)
                 {
                     Token name_tok = p.current();
                     advance(p, 2)!;
