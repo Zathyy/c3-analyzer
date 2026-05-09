@@ -646,7 +646,16 @@ fn Node? parse_param_decl(Parser* p)
 
 	if (consume(p, EQ)!)
 	{
-		init = parse_expr(p)!;
+		if (p.is(ELLIPSIS))
+		{
+			Token ellipsis_tok = p.peek();
+			advance(p)!;
+			init = p.ast.add_node(DEFAULT_ELLIPSIS, ellipsis_tok.pos, p.current_pos(), 0);
+		}
+		else
+		{
+			init = parse_expr(p)!;
+		}
 	}
 
 	if (!type.is_valid() && name == 0 && !attributes.is_valid() && !ellipsis_prefix)
@@ -849,6 +858,7 @@ fn Node? parse_typedef(Parser* p)
 
 	Node inter = parse_interface_impl(p)!;
 	Node generics = parse_generic_decl(p)!;
+	Node attr = parse_attributes(p)!;
 	expect(p, EQ)!;
 
 	if (consume(p, INLINE)!)
@@ -915,6 +925,12 @@ fn Node? parse_interface(Parser* p)
 	Node methods_head;
 	while (!p.is(RBRACE) && !p.is(EOF))
 	{
+		Node contract;
+		if (p.is(CONTRACT))
+		{
+			contract = parse_contract(p)!;
+		}
+
 		if (!p.is(FN))
 		{
 			p.error("Interfaces can only contain function declarations.");
@@ -923,7 +939,7 @@ fn Node? parse_interface(Parser* p)
 
 		Node method = parse_fn_decl(p, { .is_interface = true })!;
 
-		uint[2] link = { (uint)method, (uint)methods_head };
+		uint[3] link = { (uint)method, (uint)contract, (uint)methods_head };
 		uint ex = p.ast.push_extra_block(&link);
 		methods_head = p.ast.add_node(INTERFACE_METHOD, p.current_pos(), p.current_pos(), ex);
 	}

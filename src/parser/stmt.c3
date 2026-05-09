@@ -292,6 +292,8 @@ fn Node? parse_if(Parser* p)
 	Token t = p.current();
 	advance(p)!; // consume 'if'
 
+	uint label = parse_label(p, true)!;
+
 	expect(p, LPAREN)!;
 	Node cond = parse_cond(p)!;
 	expect(p, RPAREN)!;
@@ -312,6 +314,7 @@ fn Node? parse_if(Parser* p)
 	uint[*] data = views::@data{IfViewFields}
 	(
 		CONDITION, cond,
+		LABEL, label,
 		THEN_BLOCK, then_block,
 		ELSE_BLOCK, else_block,
 	);
@@ -546,6 +549,8 @@ fn Node? parse_do_while(Parser* p)
 	Token t = p.current();
 	advance(p)!; // consume 'do'
 
+	uint label = parse_label(p, true)!;
+
 	Node cond;
 	Node body = parse_statement(p)!;
 
@@ -560,7 +565,7 @@ fn Node? parse_do_while(Parser* p)
 		expect(p, EOS)!;
 	}
 
-	uint[2] data = { (uint)body, (uint)cond };
+	uint[3] data = { (uint)body, (uint)cond, label };
 	uint ex = p.ast.push_extra_list(&data);
 	return p.ast.add_node(DO_WHILE_STMT, t.pos, p.current_pos(), ex);
 }

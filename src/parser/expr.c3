@@ -343,6 +343,14 @@ fn Node? parse_prefix_expr(Parser* p)
 			expect(p, RPAREN)!;
 			return p.ast.add_node(CT_FEATURE_EXPR, t.pos, p.current_pos(), (uint)expr);
 		}
+		case LENGTHOF:
+		{
+			advance(p)!;
+			expect(p, LPAREN)!;
+			Node expr = parse_expr(p)!;
+			expect(p, RPAREN)!;
+			return p.ast.add_node(LENGTHOF_EXPR, t.pos, p.current_pos(), (uint)expr);
+		}
 		default:
 			log::error(
 				"parse_prefix_expr - Expected expression for token: ((%s) %s - %s)",
@@ -1006,7 +1014,6 @@ fn Node? parse_lambda(Parser* p)
 		advance(p)!;
 		log::debug("parse_fn_decl - parse_short_body");
 		body = parse_expr(p)!;
-		expect(p, EOS)!;
 	}
 	else if (p.is(LBRACE))
 	{

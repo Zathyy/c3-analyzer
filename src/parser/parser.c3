@@ -506,6 +506,7 @@ fn void? parse_top_level(Parser* p, Workspace* ws)
 		case TYPEDEF:
 			node = parse_typedef(p)!;
 		case STRUCT:
+		case UNION:
 			node = parse_struct(p)!;
 		case BITSTRUCT:
 			node = parse_bitstruct_decl(p)!;
