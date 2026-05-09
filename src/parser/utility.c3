@@ -275,6 +275,8 @@ fn bool can_start_expression(TokenKind kind)
 		case TYPE_IDENT:
 		case CT_TYPE_IDENT:
 		case CT_IDENT:
+		case HASH_IDENT:
+		case HASH_TYPE_IDENT:
 		case BUILTIN:
 		case INTEGER: 
 		case FLOAT:
