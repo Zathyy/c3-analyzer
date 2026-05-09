@@ -3,7 +3,10 @@ module lexer;
 import std::io;
 
 faultdef
-	INVALID, CONTRACT_NOT_CLOSED, INVALID_CONTRACT
+	INVALID, 
+	UNEVEN_HEXADECIMAL,
+	CONTRACT_NOT_CLOSED,
+	INVALID_CONTRACT
 ;
 
 enum TokenKind : ushort
@@ -337,6 +340,19 @@ fn bool is_digit(char c) @inline => c >= '0' && c <= '9';
 fn bool is_alpha(char c) @inline => (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
 fn bool is_ident(char c) @inline => is_alpha(c) || is_digit(c) || c == '_';
 fn bool is_hex(char c) @inline => ascii::is_xdigit(c);
+fn bool is_whitespace(char c)
+{
+	switch (c)
+	{
+		case ' ':
+		case '\t':
+		case '\n':
+		case '\r':
+			return true;
+		default:
+			return false;
+	}
+}
 
 fn bool is_all_upper(String text)
 {
@@ -661,6 +677,49 @@ fn Token? Lexer.lex_number(Lexer* self, uint start_pos)
     return self.emit(kind, start_pos, (uint)self.index - start_pos);
 }
 
+fn Token? Lexer.lex_hex_array(Lexer* self, uint start_pos)
+{
+    char start_quote = self.peek(); 
+    self.advance()!;
+
+    uint digit_count = 0;
+
+    while (!self.eof())
+    {
+        char c = self.peek();
+
+        if (c == start_quote) 
+        {
+            self.advance()!;
+            break;
+        }
+
+    	if (is_whitespace(c))
+		{
+			self.advance()!;
+			continue;
+		}
+
+        if (is_hex(c))
+        {
+			self.advance()!;
+			digit_count++;
+			continue;
+        }
+
+		log::error("[Lexer]: Unexpected character '%c' in hex string at index %d", c, self.index);
+        return INVALID~;
+    }
+
+    if (digit_count % 2 != 0)
+    {
+		log::error("[Lexer]: The hexadecimal string is not an even length");
+        return UNEVEN_HEXADECIMAL~; 
+    }
+
+    return self.emit(BYTES, start_pos, (uint)self.index - start_pos);
+}
+
 fn Token? Lexer.skip_contract(Lexer* self, uint start_pos)
 {
 	while (!self.eof())
@@ -900,6 +959,13 @@ fn Token? Lexer.next(&self)
 			{
 				self.advance(2)!;
 				return self.emit(BUILTIN, start, 2);
+			}
+			nextcase;
+		case 'x':
+			self.advance()!;
+			if (self.peek() == '"' || self.peek() == '\'' || self.peek() == '`')
+			{
+				return self.lex_hex_array(start)!;
 			}
 			nextcase;
 		case '@':
