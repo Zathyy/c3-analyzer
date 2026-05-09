@@ -34,6 +34,7 @@ constdef Precedence : inline int
 	MULTIPLICATIVE = 100, // * / %
 	UNARY          = 110, // ! - + ~ * & prefix ++/--
 	CALL           = 120, // . () [] postfix ++ -- !! ! ~
+    HIGHEST        = 130,
 }
 
 <*
@@ -672,6 +673,49 @@ fn Node? parse_call(Parser* p, Token t, Node callee)
 	return p.ast.add_node(CALL_EXPR, t.pos, p.current_pos(), ex);
 }
 
+fn Node? parse_designator_path(Parser* p)
+{
+    Node path;
+
+	while (true) 
+	{
+        if (p.is(DOT)) 
+		{
+            Token dot_tok = p.peek();
+            advance(p)!;
+            
+            Node field = parse_expr(p, HIGHEST)!;
+            
+            if (!path.is_valid()) 
+			{
+                path = field;
+            } 
+			else 
+			{
+                uint[2] data = { (uint)path, (uint)field };
+                uint ex = p.ast.push_extra_block(&data);
+                path = p.ast.add_node(DESIGNATOR_PERIOD_EXPR, dot_tok.pos, p.current_pos(), ex);
+            }
+            continue;
+        }
+        
+        if (p.is(LBRACKET)) 
+		{
+            Token open_tok = p.peek();
+            advance(p)!;
+            Node index = parse_expr(p)!;
+            expect(p, RBRACKET)!;
+            
+            uint[2] data = { (uint)path, (uint)index };
+            uint ex = p.ast.push_extra_block(&data);
+            path = p.ast.add_node(DESIGNATOR_INDEX_EXPR, open_tok.pos, p.current_pos(), ex);
+            continue;
+        }
+        break;
+    }
+    return path;
+}
+
 fn Node? parse_initializer_list(Parser* p)
 {
     uint start_tok = p.current_pos();
@@ -690,18 +734,24 @@ fn Node? parse_initializer_list(Parser* p)
         {
             Node expr;
 
-            if (consume(p, DOT)!)
-            {
-                Token member = p.current();
-                expect(p, IDENT)!;
-                uint member_name = p.pool.intern(p.token_text(member));
+			if (p.is(DOT) || p.is(LBRACKET))            
+			{
+                uint path_start = p.current_pos();
+                Node path = parse_designator_path(p)!;
 
-                expect(p, EQ)!;
-                Node val = parse_expr(p)!;
+                if (consume(p, EQ)!)
+                {
+                    Node val = parse_expr(p, Precedence.LOWEST)!;
 
-                uint[2] data = { member_name, (uint)val };
-                uint pair_ex = p.ast.push_extra_block(&data);
-                expr = p.ast.add_node(DESIGNATED_INITIALIZER_LIST, member.pos, p.current_pos(), pair_ex);
+                    uint[2] data = { (uint)path, (uint)val };
+                    uint pair_ex = p.ast.push_extra_block(&data);
+                    expr = p.ast.add_node(DESIGNATED_INITIALIZER, path_start, p.current_pos(), pair_ex);
+                }
+                else
+                {
+                    // .member (implies .member = member)
+                    expr = path;
+				}
             }
             // Nested Initializer: { {1, 2}, {3, 4} }
             else if (p.is(LBRACE))
