@@ -474,7 +474,7 @@ fn Node[] get_attributes(Cursor c, Allocator allocator)
 	Node[] result = alloc::new_array(allocator, Node, (Size)count);
 	for (uint i = 0; i < count; i++)
 	{
-		result[i] = attribute_list_view.get_attr(i).handle;
+		result[i] = attribute_list_view.get_attr(i);
 	}
 
 	return result;

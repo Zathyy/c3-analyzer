@@ -44,17 +44,27 @@ fn ParamsListView BodyParamView.inner_params(self)
     return { self.ast, list_handle };
 }
 
+constdef AttributeListViewFields : inline uint
+{
+	ATTRIBUTES = 0,
+}
+
 typedef AttributeListView = inline View;
 fn uint AttributeListView.count(self) => self.get_list_count(0);
 fn Node AttributeListView.get_attr(self, uint index) => self.get_list_item(0, index);
 
+constdef AttributeViewFields : inline uint
+{
+	KIND = 0,
+	ARGS,
+}
 // The view for a single @attr(args)
 typedef AttributeView = inline View;
-fn AttributeKind AttributeView.kind(self) => (AttributeKind)self.get_uint(0);
-fn uint AttributeView.arg_count(self) => self.get_uint(2);
+fn AttributeKind AttributeView.kind(self) => (AttributeKind)self.get_uint(AttributeViewFields.KIND);
+fn uint AttributeView.arg_count(self) => self.get_uint(AttributeViewFields.ARGS);
 fn Node AttributeView.get_arg(self, uint index)
 {
-    uint base = self.get_uint(1);
+    uint base = self.get_uint(AttributeViewFields.ARGS);
     return (Node)self.ast.extra_data[(Size)base + index];
 }
 

@@ -285,71 +285,71 @@ fn Node? parse_interface_impl(Parser* p)
 *>
 fn Node? parse_attributes(Parser* p)
 {
-    if (!p.is(AT_IDENT) && !p.is(AT_TYPE_IDENT)) return {};
+	if (!p.is(AT_IDENT) && !p.is(AT_TYPE_IDENT)) return {};
 
-    uint start_pos = p.current_pos();
-    Node attribute_list_node;
+	uint start_pos = p.current_pos();
+	Node attribute_list_node;
 
-    @with_scratch(; base_watermark)
-    {
-        while (p.is(AT_IDENT) || p.is(AT_TYPE_IDENT))
-        {
-            uint attr_start = p.current_pos();
-            String attr_name = p.token_text(p.current());
-            advance(p)!;
-            
-            uint args_list_ex = 0;
+	@with_scratch(; base_watermark)
+		{
+			while (p.is(AT_IDENT) || p.is(AT_TYPE_IDENT))
+			{
+				uint attr_start = p.current_pos();
+				String attr_name = p.token_text(p.current());
+				advance(p)!;
 
-            // Standard argument list @attr(arg1, arg2)
-            if (consume(p, LPAREN)!)
-            {
-                @with_scratch(; watermark)
-                {
-                    while (!p.eof())
-                    {
-                        Node expr = parse_attribute_argument(p)!;
-                        if (expr.is_valid()) scratch.push((uint)expr);
-                        
-                        if (consume(p, RPAREN)!) break;
-                        expect(p, COMMA)!;
-                    }
-                    uint count = (uint)scratch.len() - watermark;
-                    args_list_ex = p.ast.push_extra_list(scratch_view(watermark, count));
-                };
-            }
-            // Short-hand string attribute @deprecated "message"
-            else if (p.is(STRING))
-            {
-                Node msg_expr = parse_expr(p)!; 
-                uint[1] single_arg = { (uint)msg_expr };
-                args_list_ex = p.ast.push_extra_list(&single_arg);
-            }
+				uint args_list_ex = 0;
 
-			uint[*] data = views::@data{AttributeViewFields}
+				// Standard argument list @attr(arg1, arg2)
+				if (consume(p, LPAREN)!)
+				{
+					@with_scratch(; watermark)
+						{
+							while (!p.eof())
+							{
+								Node expr = parse_attribute_argument(p)!;
+								if (expr.is_valid()) scratch.push((uint)expr);
+
+								if (consume(p, RPAREN)!) break;
+								expect(p, COMMA)!;
+							}
+							uint count = (uint)scratch.len() - watermark;
+							args_list_ex = p.ast.push_extra_list(scratch_view(watermark, count));
+						};
+				}
+				// Short-hand string attribute @deprecated "message"
+				else if (p.is(STRING))
+				{
+					Node msg_expr = parse_expr(p)!; 
+					uint[1] single_arg = { (uint)msg_expr };
+					args_list_ex = p.ast.push_extra_list(&single_arg);
+				}
+
+				uint[*] data = views::@data{AttributeViewFields}
+				(
+					KIND, (uint)common::get_attribute_from_string(attr_name),
+					ARGS, args_list_ex,
+				);
+
+				uint ex = p.ast.push_extra_block(&data);
+				Node attr_node = p.ast.add_node(ATTRIBUTE, attr_start, p.previous_pos(), ex);
+				scratch.push((uint)attr_node);
+			}
+
+			// Wrap all found ATTRIBUTE nodes into one ATTRIBUTE_LIST
+			uint total_attrs = (uint)scratch.len() - base_watermark;
+			uint final_ex = p.ast.push_extra_list(scratch_view(base_watermark, total_attrs));
+
+			uint[*] data = views::@data{AttributeListViewFields}
 			(
-				KIND, (uint)common::get_attribute_from_string(attr_name),
-				ARGS, args_list_ex,
+				ATTRIBUTES, final_ex,
 			);
 
-            uint ex = p.ast.push_extra_block(&data);
-            Node attr_node = p.ast.add_node(ATTRIBUTE, attr_start, p.previous_pos(), ex);
-            scratch.push((uint)attr_node);
-        }
+			uint node_ex = p.ast.push_extra_block(&data);
+			attribute_list_node = p.ast.add_node(ATTRIBUTE_LIST, start_pos, p.previous_pos(), node_ex);
+		};
 
-        // Wrap all found ATTRIBUTE nodes into one ATTRIBUTE_LIST
-        uint total_attrs = (uint)scratch.len() - base_watermark;
-        uint final_ex = p.ast.push_extra_list(scratch_view(base_watermark, total_attrs));
-
-		uint[*] data = views::@data{AttributeListViewFields}
-		(
-			ATTRIBUTES, final_ex,
-		);
-
-		uint node_ex = p.ast.push_extra_block(&data);
-        attribute_list_node = p.ast.add_node(ATTRIBUTE_LIST, start_pos, p.previous_pos(), node_ex);
-    };
-
-    return attribute_list_node;
+	return attribute_list_node;
 }
 
 fn Node? parse_attribute_argument(Parser* p) 

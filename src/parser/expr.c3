@@ -386,6 +386,7 @@ fn Node? parse_infix(Parser* p, Node left, Precedence rbp)
 		case ELVIS:
 		case CT_CONCAT_OP:
 		case CT_AND_OP: 
+		case CT_OR_OP:
 			{
 				advance(p)!;
 				Node right = parse_expr(p, rbp)!;

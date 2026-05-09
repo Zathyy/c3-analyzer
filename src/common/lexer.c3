@@ -714,7 +714,15 @@ fn Token? Lexer.next(&self)
 			self.advance()!;
 			switch (self.peek())
 			{
-				case '|': self.advance()!; return self.emit(OR, start, 2);
+				case '|': 
+					if (self.peek(1) == '|')
+					{
+						self.advance(2)!;
+						return self.emit(CT_OR_OP, start, 3);
+					}
+
+					self.advance()!; 
+					return self.emit(OR, start, 2);
 				case '=': self.advance()!; return self.emit(BIT_OR_ASSIGN, start, 2);
 			}
 			return self.emit(BIT_OR, start, 1);
