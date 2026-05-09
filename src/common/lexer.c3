@@ -802,7 +802,14 @@ fn Token? Lexer.next(&self)
 			self.advance()!;
 			switch (self.peek())
 			{
-				case '?': self.advance()!; return self.emit(QUESTQUEST, start, 2);
+				case '?': 
+					self.advance()!; 
+					if (self.peek() == '?')
+					{
+						self.advance()!;
+						return self.emit(CT_TERNARY, start, 3);
+					}
+					return self.emit(QUESTQUEST, start, 2);
 				case ':': self.advance()!; return self.emit(ELVIS, start, 2);
 			}
 			return self.emit(QUESTION, start, 1);
