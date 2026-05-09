@@ -10,11 +10,16 @@ import seali;
 
 struct Cli @Command({ .name = "c3_parser", .help_on_empty = true })
 {
+	Maybe{Std} std @Seali(arg(subcommand));
 	Maybe{String} file @Seali(arg(long, short, help = "Parse this file"));
-	Maybe{String} std @Seali(arg(long, help = "Test parser against the std lib"));
 	bool verbose @Seali(arg(short, long, default_value = false, help = "Verbose output"));
 	bool json @Seali(arg(short, long, default_value = false, help = "Output as json"));
 	bool no_invalid @Seali(arg(long, default_value = false, help = "Treat invalid node as an error"));
+}
+
+struct Std @Command({ .name = "std", .about = "Test parser against the std lib" })
+{
+	String path @Seali(arg(help = "The std path"));
 }
 
 fn int main(String[] args) => @pool()
@@ -30,9 +35,9 @@ fn int main(String[] args) => @pool()
 
 	log::debug("args: %s", args);
 
-	if (try std_path = cli.std.get())
+	if (try std = cli.std.get())
 	{
-		test_std_lib(&ws, std_path)!!;
+		test_std_lib(&ws, std.path)!!;
 	}
 	else if (try file_path = cli.file.get())
 	{
@@ -40,6 +45,23 @@ fn int main(String[] args) => @pool()
 	}
 
 	log::info("num modules: %s", ws.modules.len());
+
+	if (cli.no_invalid)
+	{
+		ws.modules.@each(; name, mod)
+		{
+			foreach (section : mod.sections) 
+			{
+				foreach (i, root_node : section.source_file.ast.top_level_nodes)
+				{
+					bool is_last = (i == section.source_file.ast.top_level_nodes.len() - 1);
+					Cursor c = { section, (Node)root_node };
+
+					utils::ast::panic_on_invalid(c, {null, {}}, null, is_last);
+				}
+			}
+		};
+	}
 
 	if (cli.json)
 	{

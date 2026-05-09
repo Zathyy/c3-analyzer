@@ -63,31 +63,31 @@ fn Node? parse_path_prefix(Parser* p)
 		return NOT_A_PATH~;
 	}
 
-    uint start_tok = p.current_pos();
-    uint ex = 0;
+	uint start_tok = p.current_pos();
+	uint ex = 0;
 
-    @with_scratch(; watermark) 
-	{
-        while (true) 
+	@with_scratch(; watermark) 
 		{
-            Token t = p.current();
-            scratch.push((uint)p.pool.intern(p.token_text(t)));
-            advance(p)!;
-
-            if (p.is(SCOPE) && is_some_ident(p.peek().kind)) 
+			while (true) 
 			{
-                advance(p)!; // Consume '::'
-            } 
-			else 
-			{
-                break;
-            }
-        }
+				Token t = p.current();
+				scratch.push((uint)p.pool.intern(p.token_text(t)));
+				advance(p)!;
 
-        ex = p.ast.push_extra_list(scratch_view(watermark, (uint)scratch.len() - watermark));
-    };
+				if (p.is(SCOPE) && is_some_ident(p.peek().kind)) 
+				{
+					advance(p)!; // Consume '::'
+				} 
+				else 
+				{
+					break;
+				}
+			}
 
-    return p.ast.add_node(PATH, start_tok, p.current_pos(), ex);
+			ex = p.ast.push_extra_list(scratch_view(watermark, (uint)scratch.len() - watermark));
+		};
+
+	return p.ast.add_node(PATH, start_tok, p.current_pos(), ex);
 }
 
 <*
@@ -226,6 +226,7 @@ fn Node? parse_parameter_list(Parser* p, ParseFlags flags = {}) => @with_scratch
 		{
 			p.error("Expected ',' or ';' between parameters, found '%s'", p.token_text(p.current()));
 			p.push_invalid_node(p.current_pos());
+			p.skip_until({ RPAREN, EOS })!;
 		}
 	}
 
@@ -456,79 +457,79 @@ fn Node? parse_var_decl(Parser* p, ParseFlags flags)
 	}
 
 	@with_scratch(; watermark)
-    {
-        while (true)
-        {
-            Token t = p.current();
-            
-            if (flags.is_const && t.kind != CONST_IDENT)
-            {
-                p.error("Constants must use a CONST_IDENT, found '%s'", p.token_text(t));
-                return { };
-            }
-            if (!flags.is_const && t.kind != IDENT && !flags.is_local)
-            {
-                p.error("Global variables must use lower-case IDENT, found '%s'", p.token_text(t));
-                return { };
-            }
+	{
+		while (true)
+		{
+			Token t = p.current();
 
-            uint name = p.pool.intern(p.token_text(t));
-            advance(p)!;
+			if (flags.is_const && t.kind != CONST_IDENT)
+			{
+				p.error("Constants must use a CONST_IDENT, found '%s'", p.token_text(t));
+				return { };
+			}
+			if (!flags.is_const && t.kind != IDENT && !flags.is_local)
+			{
+				p.error("Global variables must use lower-case IDENT, found '%s'", p.token_text(t));
+				return { };
+			}
 
-            Node attr = parse_attributes(p)!;
-            Node init_expr;
+			uint name = p.pool.intern(p.token_text(t));
+			advance(p)!;
 
-            if (consume(p, EQ)!)
-            {
+			Node attr = parse_attributes(p)!;
+			Node init_expr;
+
+			if (consume(p, EQ)!)
+			{
 				if ((uint)scratch.len() > watermark)
-                {
-                    p.error("Initializers are not allowed in multi-declarations");
-                    return UNEXPECTED_TOKEN~;
-                }
+				{
+					p.error("Initializers are not allowed in multi-declarations");
+					return UNEXPECTED_TOKEN~;
+				}
 
-                if (flags.is_extern)
-                {
-                    p.error("a extern global cant have a initializer");
-                    return UNEXPECTED_TOKEN~;
-                }
-                init_expr = parse_expr(p)!;
-            }
-            else if (flags.is_const && !flags.is_extern)
-            {
-                p.error("Constants must be initialized");
-            }
+				if (flags.is_extern)
+				{
+					p.error("a extern global cant have a initializer");
+					return UNEXPECTED_TOKEN~;
+				}
+				init_expr = parse_expr(p)!;
+			}
+			else if (flags.is_const && !flags.is_extern)
+			{
+				p.error("Constants must be initialized");
+			}
 
-            VarDeclFlags packed_flags = {
-                .is_extern = flags.is_extern,
-                .is_const = flags.is_const,
-                .is_inline = flags.is_inline,
-                .is_local = flags.is_local,
-                .is_thread_local = flags.is_thread_local,
-                .is_static = flags.is_static,
-            };
+			VarDeclFlags packed_flags = {
+				.is_extern = flags.is_extern,
+				.is_const = flags.is_const,
+				.is_inline = flags.is_inline,
+				.is_local = flags.is_local,
+				.is_thread_local = flags.is_thread_local,
+				.is_static = flags.is_static,
+			};
 
-            uint[*] var_data = views::@data{VarDeclViewFields}
-            (
-                NAME, name,
-                TYPE, type_node, // Same type node shared by all in the list
-                INIT, init_expr,
-                ATTRIBUTES, attr,
-                FLAGS, packed_flags,
-            );
+			uint[*] var_data = views::@data{VarDeclViewFields}
+			(
+				NAME, name,
+				TYPE, type_node, // Same type node shared by all in the list
+				INIT, init_expr,
+				ATTRIBUTES, attr,
+				FLAGS, packed_flags,
+			);
 
-            uint var_ex = p.ast.push_extra_block(&var_data);
-            Node var_node = p.ast.add_node(VAR_DECL, t.pos, p.current_pos(), var_ex);
-            scratch.push((uint)var_node);
+			uint var_ex = p.ast.push_extra_block(&var_data);
+			Node var_node = p.ast.add_node(VAR_DECL, t.pos, p.current_pos(), var_ex);
+			scratch.push((uint)var_node);
 
 			if (flags.is_expr) break;
 
-            if (!consume(p, COMMA)!) break;
-        }
+			if (!consume(p, COMMA)!) break;
+		}
 
-        if (!flags.skip_eos)
-        {
-            expect(p, EOS)!;
-        }
+		if (!flags.skip_eos)
+		{
+			expect(p, EOS)!;
+		}
 
 		uint count = (uint)scratch.len() - watermark;
 
@@ -537,12 +538,12 @@ fn Node? parse_var_decl(Parser* p, ParseFlags flags)
 			return (Node)scratch.pop();
 		}
 
-        uint list_ex = p.ast.push_extra_list(scratch_view(watermark, count));
-        
-        uint[*] list_header = { list_ex };
-        uint final_ex = p.ast.push_extra_block(&list_header);
-        return p.ast.add_node(VAR_DECL_LIST, start_pos, p.current_pos(), final_ex);
-    }; 
+		uint list_ex = p.ast.push_extra_list(scratch_view(watermark, count));
+
+		uint[*] list_header = { list_ex };
+		uint final_ex = p.ast.push_extra_block(&list_header);
+		return p.ast.add_node(VAR_DECL_LIST, start_pos, p.current_pos(), final_ex);
+	}; 
 }	
 
 fn Node? parse_local(Parser* p, uint start_pos, Node type_node, ParseFlags flags = {})

@@ -515,9 +515,6 @@ macro @is_maybe_type($Type) {
           ($defined($value.get()!) ||| $defined($value == maybe::value{$typeof($value.value)}($value.value))));
 }
 
-
-
-
 macro @get_maybe_inner_type($Type) {
   $if @is_maybe_type($Type):
     $Type $t;
@@ -525,25 +522,3 @@ macro @get_maybe_inner_type($Type) {
   $endif
   return $Type;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

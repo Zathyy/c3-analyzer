@@ -1,12 +1,5 @@
 module seali::utils;
 
-fn bool String[].contains(&self, String el) {
-  foreach (s: self) {
-    if (s == el) return true;
-  }
-  return false;
-}
-
 const char[256] TO_UPPER @private = { ['a'..'z'] = 'a' - 'A' };
 
 macro String String.@to_upper($self) {

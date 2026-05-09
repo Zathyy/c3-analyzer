@@ -176,6 +176,20 @@ fn void dump_workspace(Workspace* ws)
     };
 }
 
+fn ChildVisitResult panic_on_invalid(Cursor c, Cursor p, void* data, bool is_last)
+{
+	NodeView v = c.section.source_file.ast.get_node(c.node);
+	switch (v.kind)
+	{
+		case INVALID:
+			abort("INVALID NODE: %s", p.source_text());
+
+		default:
+			cursor::visit_children(c, (CursorVisitor)&panic_on_invalid, data);
+	}
+	return CONTINUE;
+}
+
 fn void? dump_workspace_json(Workspace* ws, String base_path) => @pool()
 {
   ws.modules.@each(; name, mod)
