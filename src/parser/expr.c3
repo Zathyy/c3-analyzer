@@ -717,15 +717,27 @@ fn Node? parse_designator_path(Parser* p)
         }
         
         if (p.is(LBRACKET)) 
-		{
+        {
             Token open_tok = p.peek();
             advance(p)!;
-            Node index = parse_expr(p)!;
+            
+            Node start = parse_expr(p)!;
+            Node end = {};
+            bool is_range = false;
+
+            if (p.is(DOTDOT) || p.is(COLON))
+            {
+                is_range = true;
+                advance(p)!;
+                end = parse_expr(p)!;
+            }
+
             expect(p, RBRACKET)!;
             
-            uint[2] data = { (uint)path, (uint)index };
+			NodeKind kind = is_range ? DESIGNATOR_RANGE_EXPR : DESIGNATOR_INDEX_EXPR;
+            uint[3] data = { (uint)path, (uint)start, (uint)end };
             uint ex = p.ast.push_extra_block(&data);
-            path = p.ast.add_node(DESIGNATOR_INDEX_EXPR, open_tok.pos, p.current_pos(), ex);
+            path = p.ast.add_node(kind, open_tok.pos, p.current_pos(), ex);
             continue;
         }
         break;
