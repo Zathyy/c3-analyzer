@@ -13,7 +13,8 @@ fn bool Node.is_valid(self) @inline
 
 enum NodeKind : char
 {
-	INVALID,
+	INVALID, // represents an invalid node
+	EMPTY, // represents a valid, but empty node
 	PATH,
 	ATTRIBUTE,
 	ATTRIBUTE_LIST,
@@ -207,6 +208,16 @@ fn Node Ast.add_node(&self, NodeKind kind, uint start_tok, uint end_tok, uint ex
 	self.kinds.push(kind);
 	self.start_tokens.push(start_tok);
 	self.end_tokens.push(end_tok);
+	self.extra_indices.push(extra_idx);
+	return handle;
+}
+
+fn Node Ast.add_empty(&self, uint start_tok, uint end_tok = 0, uint extra_idx = 0)
+{
+	Node handle = (Node)self.kinds.len();
+	self.kinds.push(EMPTY);
+	self.start_tokens.push(start_tok);
+	self.end_tokens.push(end_tok ?: start_tok);
 	self.extra_indices.push(extra_idx);
 	return handle;
 }
