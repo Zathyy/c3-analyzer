@@ -446,8 +446,7 @@ fn Node? parse_infix(Parser* p, Node left, Precedence rbp)
 				return p.ast.add_node(COMPOUND_LITERAL_EXPR, t.pos, p.current_pos(), ex);
 			}
 			
-			p.error("Not implemented");
-			return {};
+			return parse_generic_expr(p)!;
 		}
 		case QUESTION:
 			{
@@ -1034,4 +1033,25 @@ fn Node? parse_lambda(Parser* p)
 
 	uint ex = p.ast.push_extra_block(&data);
 	return p.ast.add_node(LAMBDA_EXPR, start_tok, p.current_pos(), ex);
+}
+
+fn Node? parse_generic_expr(Parser* p) => @with_scratch(; watermark)
+{
+	uint start_pos = p.current_pos();
+	expect(p, LBRACE)!;
+
+	do
+	{
+		scratch.push((uint)parse_expr(p)!);
+		if (!consume(p, COMMA)!)
+		{
+			expect(p, RBRACE)!;
+			break;
+		}
+	}
+	while (!consume(p, RBRACE)!);
+
+    uint count = (uint)scratch.len() - watermark;
+	uint ex = p.ast.push_extra_list(scratch_view(watermark, count));
+	return p.ast.add_node(GENERIC_IDENT_EXPR, start_pos, p.current_pos(), ex);
 }

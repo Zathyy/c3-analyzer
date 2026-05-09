@@ -767,6 +767,8 @@ fn Node? parse_ident_alias(Parser* p)
 
 	Node expr = parse_expr(p)!;
 
+	expect(p, EOS)!;
+
 	uint[*] data = views::@data{ExprAliasViewFields}
 	( 
 		NAME, name, 
