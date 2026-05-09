@@ -456,6 +456,12 @@ fn Node? parse_var_decl(Parser* p, ParseFlags flags)
 		type_node = parse_type(p)!;
 	}
 
+	// if it is const, the type node is optional
+	if (flags.is_const && !type_node.is_valid())
+	{
+		type_node = p.ast.add_node(TYPE_EXPR, p.current_pos(), p.current_pos(), 0);
+	}
+
 	@with_scratch(; watermark)
 	{
 		while (true)

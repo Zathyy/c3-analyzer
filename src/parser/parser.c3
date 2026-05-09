@@ -527,15 +527,15 @@ fn void? parse_top_level(Parser* p, Workspace* ws)
 			return UNEXPECTED_TOKEN~;
 	}
 
-	if (node.is_valid())
+	// if (node.is_valid())
+	// {
+	p.ast.top_level_nodes.push((uint)node);
+
+	if (p.contract.is_valid())
 	{
-		p.ast.top_level_nodes.push((uint)node);
-
-		if (p.contract.is_valid())
-		{
-			attach_contract(p, node, p.contract);
-		}
-
-		p.contract = {};
+		attach_contract(p, node, p.contract);
 	}
+
+	p.contract = {};
+	// }
 }
