@@ -301,6 +301,7 @@ fn Node? parse_prefix_expr(Parser* p)
 			return p.ast.add_node(IDENT_EXPR, t.pos, p.current_pos(), sh);
 		}
 		case CT_STRINGIFY:
+		case CT_REFLECT:
 		{
 			advance(p)!;
 			uint sh = p.pool.intern(p.token_text(t));
