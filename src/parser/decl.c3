@@ -992,22 +992,22 @@ fn Node? parse_struct(Parser* p)
 			else
 			{
 				Node first_field = parse_field_decl(p)!;
-                if (first_field.is_valid())
-                {
-                    scratch.push((uint)first_field);
+				if (first_field.is_valid())
+				{
+					scratch.push((uint)first_field);
 
 					FieldView view = { p.ast, first_field };
-                    Node shared_type = view.type_node();
+					Node shared_type = view.type_node();
 
-                    while (consume(p, COMMA)!)
-                    {
+					while (consume(p, COMMA)!)
+					{
 						Node next_field = parse_field_decl(p, shared_type)!;
-            			if (next_field.is_valid()) 
+						if (next_field.is_valid()) 
 						{
 							scratch.push((uint)next_field);
 						}
-                    }
-                }
+					}
+				}
 
 				expect(p, EOS)!;
 			}

@@ -5,41 +5,22 @@ import std::io;
 import c3_parser::workspace;
 import c3_parser::parser;
 import c3_parser::cursor;
+import std::collections::maybe;
+import seali;
 
-fn void print_usage()
+struct Cli @Command({ .name = "c3_parser", .help_on_empty = true })
 {
-	io::printn("Commands: ");
-	io::printn("<file>        Test parser against std lib");
-	io::printn("std <path-to-std>        Test parser against std lib");
-
-	io::printn("Options:");
-	io::printn("  -v -verbose          - Verbose output");
+	Maybe{String} file @Seali(arg(long, short, help = "Parse this file"));
+	Maybe{String} std @Seali(arg(long, help = "Test parser against the std lib"));
+	bool verbose @Seali(arg(short, long, default_value = false, help = "Verbose output"));
+	bool json @Seali(arg(short, long, default_value = false, help = "Output as json"));
 }
 
 fn int main(String[] args) => @pool()
 {
-	if (args.len == 0)
-	{
-		print_usage();
-		return -1;
-	}
+	Cli cli = seali::parse(Cli, args)!!;
 
-	bool is_verbose = false;
-	bool use_json = false;
-
-	foreach (param : args)
-	{
-		if (param == "-v" || param == "-verbose")
-		{
-			is_verbose = true;
-			log::set_priority_all(LogPriority.VERBOSE);
-		}
-
-		if (param == "-json" || param == "-j")
-		{
-			use_json = true;
-		}
-	}
+	if (cli.verbose) log::set_priority_all(LogPriority.VERBOSE);
 
 	log::debug("Init...");
 
@@ -48,30 +29,18 @@ fn int main(String[] args) => @pool()
 
 	log::debug("args: %s", args);
 
-	if (args.len >= 3 && args[1] == "std")
+	if (try std_path = cli.std.get())
 	{
-		String path = args[2];
-		test_std_lib(&ws, path)!!;
+		test_std_lib(&ws, std_path)!!;
 	}
-	else if (args.len >= 3 && args[1] == "-f")
+	else if (try file_path = cli.file.get())
 	{
-			log::set_priority_all(LogPriority.VERBOSE);
-
-		String path = args[2];
-		parser::parse_file(&ws, path)!!;
-	}
-	else
-	{
-		String test_path = "test/test_file.c3";
-		String test_path2 = "test/test_file2.c3";
-
-		parser::parse_file(&ws, test_path)!!;
-		parser::parse_file(&ws, test_path2)!!;
+		parser::parse_file(&ws, file_path)!!;
 	}
 
 	log::info("num modules: %s", ws.modules.len());
 
-	if (use_json)
+	if (cli.json)
 	{
 		ast::dump_workspace_json(&ws, "ast-debug/")!!;
 	}

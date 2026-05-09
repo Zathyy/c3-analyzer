@@ -6,13 +6,13 @@
   // Directories where C3 library files may be found.
   "dependency-search-paths": [ "lib" ],
   // Libraries to use for all targets.
-  "dependencies": [ "dessert", "seali" ],
+  "dependencies": [ ],
   // Authors, optionally with email.
   "authors": [ "John Doe <john.doe@example.com>" ],
   // Version using semantic versioning.
   "version": "0.1.0",
   // Sources compiled for all targets.
-  "sources": [ "src/**", "bench/benchmark.c3" ],
+  "sources": [ "src/**" ],
   // Test sources compiled for all targets.
   "test-sources": [ "test/**" ],
   // C sources if the project also compiles C sources
@@ -29,18 +29,17 @@
   // "target": "windows-x64",
   // Targets.
   "targets": {
-    "c3_parser": {
+    "seali": {
+      // Executable or library.
       "type": "executable",
+      // Additional libraries, sources
+      // and overrides of global settings here.
     },
-    "c3_parser_lib": {
-      "type": "static-lib",
-    }
   },
   // Global settings.
   // CPU name, used for optimizations in the LLVM backend.
   "cpu": "generic",
   // Optimization: "O0", "O1", "O2", "O3", "O4", "O5", "Os", "Oz".
-  "opt": "O0",
-  "debug-info": "full"
+  "opt": "O0"
   // See resources/examples/project_all_settings.json and 'c3c --list-project-properties' to see more properties.
 }
