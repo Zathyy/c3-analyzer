@@ -42,6 +42,8 @@ fn Node? parse_statement(Parser* p)
 			return parse_ct_if(p)!;
 		case CT_SWITCH:
 			return parse_ct_switch(p)!;
+		case CT_FOREACH:
+			return parse_ct_foreach(p)!; 
 		case LBRACE:
 			return parse_compound(p)!;
 		case VAR:
@@ -490,7 +492,7 @@ fn Node? parse_ct_switch(Parser* p)
     Node condition;
     if (!p.is(COLON))
     {
-        condition = parse_expr(p, { })!;
+        condition = parse_expr(p)!;
     }
     expect(p, COLON)!;
 
@@ -593,6 +595,49 @@ fn Node? parse_foreach_var(Parser* p)
 	uint ex = p.ast.push_extra_list(&data);
 
 	return p.ast.add_node(FOREACH_VAR, t.pos, p.current_pos(), ex);
+}
+
+<*
+	ct_foreach_stmt ::= CT_FOREACH CT_IDENT (',' CT_IDENT)? ':' expr ':' statement* CT_ENDFOREACH
+*>
+fn Node? parse_ct_foreach(Parser* p)
+{
+    uint start_pos = p.current_pos();
+    expect(p, CT_FOREACH)!;
+
+    Token val_tok = p.current();
+    expect(p, CT_IDENT)!;
+    uint val_sh = p.pool.intern(p.token_text(val_tok));
+
+    uint index_sh = 0;
+    if (consume(p, COMMA)!)
+    {
+        Token index_tok = p.current();
+        expect(p, CT_IDENT)!;
+        index_sh = p.pool.intern(p.token_text(index_tok));
+    }
+
+    expect(p, COLON)!;
+    Node iterable = parse_expr(p)!;
+    expect(p, COLON)!;
+
+    uint body_ex = 0;
+    @with_scratch(; watermark)
+    {
+        while (!p.is(CT_ENDFOREACH) && !p.eof())
+        {
+            Node stmt = parse_statement(p)!;
+            if (stmt.is_valid()) scratch.push((uint)stmt);
+        }
+        body_ex = p.ast.push_extra_list(scratch_view(watermark, (uint)scratch.len() - watermark));
+    };
+
+    expect(p, CT_ENDFOREACH)!;
+
+    uint[4] data = { val_sh, index_sh, (uint)iterable, body_ex };
+    uint ex = p.ast.push_extra_block(&data); 
+
+    return p.ast.add_node(CT_FOREACH_STMT, start_pos, p.current_pos(), ex);
 }
 
 fn Node? parse_foreach(Parser* p)
