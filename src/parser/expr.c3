@@ -134,7 +134,7 @@ fn void get_binding_power(TokenKind type, int* lbp, int* rbp)
 		case LBRACE:
 		case LBRACKET:
 			*lbp = Precedence.CALL;
-			*rbp = Precedence.LOWEST; 
+			*rbp = Precedence.CALL; //TODO: CALL or None?
 			break;
 		case BANGBANG:
 		case PLUSPLUS:
@@ -449,9 +449,9 @@ fn Node? parse_infix(Parser* p, Node left, Precedence rbp)
 			return parse_generic_expr(p)!;
 		}
 		case QUESTION:
+		case CT_TERNARY:
 			{
-				advance(p)!;
-				return parse_ternary(p, left, t, rbp);
+				return parse_ternary(p, left);
 			}
 		case DOT:
 		case SCOPE:
@@ -523,8 +523,13 @@ fn Node? parse_expr(Parser* p, Precedence min_bp = LOWEST)
 		// debug purposes
 		log::debug("Current Token: %s, LBP: %d, MinBP: %d", p.current().kind, lbp, min_bp);
 
-		// If the next operator doesn't bind strongly enough to the left
-		if (lbp < (int)min_bp) break;
+		// BREAK if:
+        // 1. Token is not an infix operator (lbp is -1)
+        // 2. Token precedence is lower than current min_bp
+        if (lbp == Precedence.NONE || lbp < (int)min_bp) 
+        {
+            break;
+        }
 
 		left = parse_infix(p, left, (Precedence)rbp)!;
 	}
@@ -546,32 +551,36 @@ fn Node? parse_constant_expr(Parser* p)
 }
 
 <*
- "Shortcut" for when a left node has already been parsed (like an identifier) 
+	"Shortcut" for when a left node has already been parsed (like an identifier) 
 	and want to continue building an expression from that specific point without starting over
 *>
-fn Node? parse_expr_resuming_with_left(Parser* p, Node left, uint min_bp)
+fn Node? parse_expr_resuming_with_left(Parser* p, Node left, int min_bp)
 {
 	while (true)
 	{
 		int lbp, rbp;
 		get_binding_power(p.current().kind, &lbp, &rbp);
-		if ((uint) lbp < min_bp) break;
+		if ((int) lbp < min_bp) break;
 
 		left = parse_infix(p, left, (Precedence)rbp)!;
 	}
 	return left;
 }
 
-fn Node? parse_ternary(Parser* p, Node condition, Token t, Precedence rbp)
+fn Node? parse_ternary(Parser* p, Node condition)
 {
+	uint start_tok = p.current_pos();
+	bool is_const = p.is(CT_TERNARY);
+	advance(p)!;
+
 	Node then_expr = parse_expr(p, Precedence.LOWEST)!;
 	expect(p, COLON)!;
 
 	Node else_expr = parse_expr(p, TERNARY)!;
 
-	uint[3] data = { (uint)condition, (uint)then_expr, (uint)else_expr };
+	uint[4] data = { (uint)condition, (uint)then_expr, (uint)else_expr, (uint)is_const };
 	uint ex = p.ast.push_extra_block(&data);
-	return p.ast.add_node(TERNARY_EXPR, t.pos, p.current_pos(), ex);
+	return p.ast.add_node(TERNARY_EXPR, start_tok, p.current_pos(), ex);
 }
 
 <*
