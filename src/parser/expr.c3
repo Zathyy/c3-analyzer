@@ -1101,11 +1101,11 @@ fn Node? parse_bytes_expr(Parser* p)
             // Determine if it's hex or b64 based on the prefix
             bool is_hex = lexeme[0] == 'x';
 			// remove x' '
-            String inner = lexeme[2:^3]; 
+            String inner = lexeme[2:^3];
 
             if (is_hex)
 			{
-				for (usz i = 0; i < inner.len; i++)
+				for (Size i = 0; i < inner.len; i++)
 				{
 					if (lexer::is_whitespace(inner[i])) continue;
 					char high = char.from_hex(inner[i]);
@@ -1126,7 +1126,7 @@ fn Node? parse_bytes_expr(Parser* p)
                 int buffer = 0;
 				int bits_collected = 0;
 
-				for (usz i = 0; i < inner.len; i++)
+				for (Size i = 0; i < inner.len; i++)
 				{
 					char c = inner[i];
 					
