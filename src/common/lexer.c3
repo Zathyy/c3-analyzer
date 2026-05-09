@@ -876,7 +876,14 @@ fn Token? Lexer.next(&self)
 		case '}': self.advance()!; return self.emit(RBRACE, start, 1);
 		case ';': self.advance()!; return self.emit(EOS, start, 1);
 		case ',': self.advance()!; return self.emit(COMMA, start, 1);
-		case '/': self.advance()!; return self.emit(DIV, start, 1);
+		case '/': 
+			self.advance()!; 
+			if (self.peek() == '=')
+			{
+				self.advance()!;
+				return self.emit(DIV_ASSIGN, start, 2);
+			}
+			return self.emit(DIV, start, 1);
 		case '\'':
 			return self.lex_char(start);
 		case '"':
