@@ -697,7 +697,7 @@ fn Node? parse_type_alias(Parser* p)
 	}
 	else
 	{
-		target_type = parse_type(p)!;
+		target_type = parse_expr(p)!;
 	}
 
 	uint end_tok = p.current_pos();
