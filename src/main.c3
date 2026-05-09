@@ -17,7 +17,7 @@ struct Cli @Command({ .name = "c3_parser", .help_on_empty = true })
 	bool no_invalid @Seali(arg(long, default_value = false, help = "Treat invalid node as an error"));
 }
 
-struct Std @Command({ .name = "std", .about = "Test parser against the std lib" })
+struct Std @Command({ .name = "std", .about = "Test parser against the std lib", .help_on_empty = true })
 {
 	String path @Seali(arg(help = "The std path"));
 }
