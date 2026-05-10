@@ -227,8 +227,13 @@ fn Node? parse_prefix_expr(Parser* p)
 		// getting the actual literal value is up to the semantic analysis
 		case STRING:
 			String text = p.token_text(t);
-			uint sh = p.pool.intern(text);
 			advance(p)!;
+			while (p.is(STRING))
+			{
+				text = string::tformat("%s%s", text[..^2], p.token_text(p.current())[1..]);
+				advance(p)!;
+			}
+			uint sh = p.pool.intern(text);
 			return p.ast.add_node(STRING_LITERAL, t.pos, p.current_pos(), sh);
 		
 		case CHAR_LITERAL:
