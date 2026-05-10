@@ -305,18 +305,18 @@ fn Node? parse_attributes(Parser* p)
 				if (consume(p, LPAREN)!)
 				{
 					@with_scratch(; watermark)
+					{
+						while (!p.eof())
 						{
-							while (!p.eof())
-							{
-								Node expr = parse_attribute_argument(p)!;
-								if (expr.is_valid()) scratch.push((uint)expr);
+							Node expr = parse_attribute_argument(p)!;
+							if (expr.is_valid()) scratch.push((uint)expr);
 
-								if (consume(p, RPAREN)!) break;
-								expect(p, COMMA)!;
-							}
-							uint count = (uint)scratch.len() - watermark;
-							args_list_ex = p.ast.push_extra_list(scratch_view(watermark, count));
-						};
+							if (consume(p, RPAREN)!) break;
+							expect(p, COMMA)!;
+						}
+						uint count = (uint)scratch.len() - watermark;
+						args_list_ex = p.ast.push_extra_list(scratch_view(watermark, count));
+					};
 				}
 				// Short-hand string attribute @deprecated "message"
 				else if (p.is(STRING))

@@ -32,6 +32,7 @@ fn int main(String[] args) => @pool()
 
 	Workspace ws;
 	ws.init();
+	defer ws.free();
 
 	log::debug("args: %s", args);
 

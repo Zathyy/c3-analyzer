@@ -972,6 +972,7 @@ fn Node? parse_struct(Parser* p)
 
 	expect(p, LBRACE)!;
 
+	bool is_first_field = true;
 	uint fields_list_ex;
 	@with_scratch(; watermark)
 	{
@@ -991,7 +992,15 @@ fn Node? parse_struct(Parser* p)
 			}
 			else
 			{
-				Node first_field = parse_field_decl(p)!;
+				bool is_inline;
+				if (is_first_field)
+				{
+					if (consume(p, INLINE)!)
+					{
+						is_inline = true;
+					}
+				}
+				Node first_field = parse_field_decl(p, flags: is_inline ? 0 : 1)!;
 				if (first_field.is_valid())
 				{
 					scratch.push((uint)first_field);
@@ -1018,6 +1027,7 @@ fn Node? parse_struct(Parser* p)
 			}
 
 			consume(p, CONTRACT)!; 
+			is_first_field = false;
 		}
 
 		fields_list_ex = p.ast.push_extra_list(scratch_view(watermark, (uint)scratch.len() - watermark));
@@ -1192,7 +1202,7 @@ fn Node? parse_bitstruct_body(Parser* p)
     };
 }
 
-fn Node? parse_field_decl(Parser* p, Node shared_type = {})
+fn Node? parse_field_decl(Parser* p, Node shared_type = {}, uint flags = 0)
 {
 	uint start_tok = p.current_pos();
 	Node type_node;
@@ -1222,6 +1232,7 @@ fn Node? parse_field_decl(Parser* p, Node shared_type = {})
 		NAME, name, 
 		TYPE, type_node,
 		ATTRIBUTES, attr,
+		FLAGS, flags
 	);
 	uint ex = p.ast.push_extra_block(&data);
 	return p.ast.add_node(FIELD_DECL, start_tok, p.current_pos(), ex);

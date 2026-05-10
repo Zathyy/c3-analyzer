@@ -635,11 +635,11 @@ fn Token? Lexer.lex_number(Lexer* self, uint start_pos)
 		if (!self.eof() && (self.peek() == 'p' || self.peek() == 'P'))
 		{ 
 			char next = self.peek_next();
-			if (ascii::is_digit(next) || next == '-')
+			if (ascii::is_xdigit(next) || next == '-' || next == '+')
 			{
 				is_float = true;
 				self.advance()!;
-				if (next == '-') self.advance()!;
+				if (next == '-' || next == '+') self.advance()!;
 				while (!self.eof() && (ascii::is_xdigit(self.peek()) || self.peek() == '_'))
 				{
 					self.advance()!;
@@ -687,11 +687,11 @@ fn Token? Lexer.lex_number(Lexer* self, uint start_pos)
 		if (!self.eof() && (self.peek() == 'e' || self.peek() == 'E'))
 		{ 
 			char next = self.peek_next();
-			if (ascii::is_digit(next) || next == '-')
+			if (ascii::is_digit(next) || next == '-' || next == '+')
 			{
 				is_float = true;
 				self.advance()!;
-				if (next == '-') self.advance()!;
+				if (next == '-' || next == '+') self.advance()!;
 				while (!self.eof() && (ascii::is_digit(self.peek()) || self.peek() == '_'))
 				{
 					self.advance()!;

@@ -194,10 +194,13 @@ constdef FieldViewFields : inline uint
 	NAME = 0,
 	TYPE,
 	ATTRIBUTES,
+	FLAGS,
 }
 typedef FieldView = inline View;
 fn String FieldView.name(self, StringPool* pool) => pool.get((StringHandle)self.get_uint(FieldViewFields.NAME));
 fn Node FieldView.type_node(self) => self.get(FieldViewFields.TYPE);
+fn uint FieldView.flags(self) => self.get_uint(FieldViewFields.FLAGS);
+fn bool FieldView.is_inline(self) => (self.flags() & (1 << 0)) != 0;
 
 constdef EnumViewFields : inline uint
 {
