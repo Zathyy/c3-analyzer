@@ -146,7 +146,7 @@ fn Node? parse_for_stmt(Parser* p)
 	uint for_token = p.current_pos();
 	expect(p, FOR)!;
 
-	uint label = parse_label(p)!;
+	uint label = parse_label(p, true)!;
 
 	expect(p, LPAREN)!;
 

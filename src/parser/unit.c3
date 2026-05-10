@@ -293,63 +293,88 @@ fn Node? parse_attributes(Parser* p)
 	Node attribute_list_node;
 
 	@with_scratch(; base_watermark)
+	{
+		while (p.is(AT_IDENT) || p.is(AT_TYPE_IDENT))
 		{
-			while (p.is(AT_IDENT) || p.is(AT_TYPE_IDENT))
+			uint attr_start = p.current_pos();
+			String attr_name = p.token_text(p.current());
+			advance(p)!;
+
+			uint args_list_ex = 0;
+
+			AttributeKind attr_kind = common::get_attribute_from_string(attr_name);
+
+			if (attr_kind == OPERATOR || attr_kind == OPERATOR_R || attr_kind == OPERATOR_S)
 			{
-				uint attr_start = p.current_pos();
-				String attr_name = p.token_text(p.current());
-				advance(p)!;
+				expect(p, LPAREN)!;
 
-				uint args_list_ex = 0;
-
-				// Standard argument list @attr(arg1, arg2)
-				if (consume(p, LPAREN)!)
+				if (consume(p, AMP)!)
 				{
-					@with_scratch(; watermark)
+					if (consume(p, LBRACKET)!) expect(p, RBRACKET)!;
+				}
+				else if (consume(p, LBRACKET)!)
+				{
+					expect(p, RBRACKET)!;
+					consume(p, EQ)!;
+				}
+				else
+				{
+					p.advance()!;
+				}
+
+				// TODO: Actually save the good op
+				uint[1] single_arg = { 1 };
+				args_list_ex = p.ast.push_extra_list(&single_arg);
+				expect(p, RPAREN)!;
+			}
+			// Standard argument list @attr(arg1, arg2)
+			else if (consume(p, LPAREN)!)
+			{
+				@with_scratch(; watermark)
+				{
+					while (!p.eof())
 					{
-						while (!p.eof())
-						{
-							Node expr = parse_attribute_argument(p)!;
-							if (expr.is_valid()) scratch.push((uint)expr);
+						Node expr = parse_attribute_argument(p)!;
+						if (expr.is_valid()) scratch.push((uint)expr);
 
-							if (consume(p, RPAREN)!) break;
-							expect(p, COMMA)!;
-						}
-						uint count = (uint)scratch.len() - watermark;
-						args_list_ex = p.ast.push_extra_list(scratch_view(watermark, count));
-					};
-				}
-				// Short-hand string attribute @deprecated "message"
-				else if (p.is(STRING))
-				{
-					Node msg_expr = parse_expr(p)!; 
-					uint[1] single_arg = { (uint)msg_expr };
-					args_list_ex = p.ast.push_extra_list(&single_arg);
-				}
-
-				uint[*] data = views::@data{AttributeViewFields}
-				(
-					KIND, (uint)common::get_attribute_from_string(attr_name),
-					ARGS, args_list_ex,
-				);
-
-				uint ex = p.ast.push_extra_block(&data);
-				Node attr_node = p.ast.add_node(ATTRIBUTE, attr_start, p.previous_pos(), ex);
-				scratch.push((uint)attr_node);
+						if (consume(p, RPAREN)!) break;
+						expect(p, COMMA)!;
+					}
+					uint count = (uint)scratch.len() - watermark;
+					args_list_ex = p.ast.push_extra_list(scratch_view(watermark, count));
+				};
+			}
+			// Short-hand string attribute @deprecated "message"
+			else if (p.is(STRING))
+			{
+				Node msg_expr = parse_expr(p)!; 
+				uint[1] single_arg = { (uint)msg_expr };
+				args_list_ex = p.ast.push_extra_list(&single_arg);
 			}
 
-			// Wrap all found ATTRIBUTE nodes into one ATTRIBUTE_LIST
-			uint total_attrs = (uint)scratch.len() - base_watermark;
-			uint final_ex = p.ast.push_extra_list(scratch_view(base_watermark, total_attrs));
-
-			uint[*] data = views::@data{AttributeListViewFields}
+			uint[*] data = views::@data{AttributeViewFields}
 			(
-				ATTRIBUTES, final_ex,
+				KIND, attr_kind,
+				ARGS, args_list_ex,
 			);
 
-			uint node_ex = p.ast.push_extra_block(&data);
-			attribute_list_node = p.ast.add_node(ATTRIBUTE_LIST, start_pos, p.previous_pos(), node_ex);
-		};
+			uint ex = p.ast.push_extra_block(&data);
+			Node attr_node = p.ast.add_node(ATTRIBUTE, attr_start, p.previous_pos(), ex);
+			scratch.push((uint)attr_node);
+		}
+
+		// Wrap all found ATTRIBUTE nodes into one ATTRIBUTE_LIST
+		uint total_attrs = (uint)scratch.len() - base_watermark;
+		uint final_ex = p.ast.push_extra_list(scratch_view(base_watermark, total_attrs));
+
+		uint[*] data = views::@data{AttributeListViewFields}
+		(
+			ATTRIBUTES, final_ex,
+		);
+
+		uint node_ex = p.ast.push_extra_block(&data);
+		attribute_list_node = p.ast.add_node(ATTRIBUTE_LIST, start_pos, p.previous_pos(), node_ex);
+	};
 
 	return attribute_list_node;
 }
@@ -612,7 +637,7 @@ fn Node? parse_local(Parser* p, uint start_pos, Node type_node, ParseFlags flags
 
 fn Node? parse_contract_param(Parser* p)
 {
-    uint start = p.current_pos();
+	uint start = p.current_pos();
 
 	ContractParamFlags flags;
 	InOutModifier mod;
@@ -646,16 +671,16 @@ fn Node? parse_contract_param(Parser* p)
 			p.push_invalid_node(p.current_pos());
 		}
 	}
-    
+
 	Node param_name;
-    if (!p.is(IDENT) && 
-		!p.is(CT_IDENT) && 
-		!p.is(TYPE_IDENT) &&
-		!p.is(CT_TYPE_IDENT)) 
-    {
-        p.error("Expected parameter name after @param");
-        p.push_invalid_node(p.current_pos());
-    }
+	if (!p.is(IDENT) && 
+		 !p.is(CT_IDENT) && 
+		 !p.is(TYPE_IDENT) &&
+		 !p.is(CT_TYPE_IDENT)) 
+	{
+		p.error("Expected parameter name after @param");
+		p.push_invalid_node(p.current_pos());
+	}
 	else
 	{
 		// ident_expr
@@ -663,20 +688,20 @@ fn Node? parse_contract_param(Parser* p)
 	}
 
 	uint description;
-    if (p.is(COLON))
+	if (p.is(COLON))
 	{
 		description = p.pool.intern(p.current_text());
 		advance(p)!;
 	}
-	else
+	else if (p.is(STRING))
 	{
 		p.error("Forgot colon after");
 		p.push_invalid_node(p.current_pos());
 	}
 
-    uint[4] data = { (uint)param_name, description, (uint)flags, (uint)mod };
-    uint ex = p.ast.push_extra_block(&data);
-    return p.ast.add_node(CONTRACT_PARAM, start, p.current_pos(), ex);
+	uint[4] data = { (uint)param_name, description, (uint)flags, (uint)mod };
+	uint ex = p.ast.push_extra_block(&data);
+	return p.ast.add_node(CONTRACT_PARAM, start, p.current_pos(), ex);
 }
 
 fn Node? parse_cond(Parser* p) => @with_scratch(; watermark)

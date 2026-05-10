@@ -1013,6 +1013,13 @@ fn Token? Lexer.next(&self)
 				return self.emit(BUILTIN, start, 2);
 			}
 			nextcase;
+		case 'b':
+			if (self.peek(1) == '6' && self.peek(2) == '4' && self.peek(3) == '`')
+			{
+				self.advance(3)!;
+				return self.lex_raw_string(start)!;
+			}
+			nextcase;
 		case 'x':
 			if (self.peek(1) == '"' || self.peek(1) == '\'' || self.peek(1) == '`')
 			{
