@@ -214,6 +214,11 @@ fn void? reverse(Parser* parser, uint position)
 	advance(parser, 0)!;
 }
 
+fn void? Parser.advance(Parser* parser, uint len = 1)
+{
+	return advance(parser, len)!;
+}
+
 <*
  @param [&inout] parser
 *>
