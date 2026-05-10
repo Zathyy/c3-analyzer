@@ -60,6 +60,7 @@ bitstruct ParseFlags : ulong
 	bool is_global; // Top-level declarations
 	bool is_local; // Inside a function/block
 	bool is_var; // has a 'var'
+	bool is_tlocal; // has a 'tlocal'
 	bool is_inline;
 	bool is_static;
 	bool is_extern; // C-linkage handling

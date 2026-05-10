@@ -947,17 +947,23 @@ fn Node? parse_interface(Parser* p)
 	struct_or_union TYPE_IDENT opt_interfaces opt_attributes struct_body
 	TODO: wrap all fields in a FIELD_LISt
 *>
-fn Node? parse_struct(Parser* p)
+fn Node? parse_struct(Parser* p, ParseFlags flags = { })
 {
 	uint start_tok = p.current_pos();
 	bool is_struct = consume(p, STRUCT)!;
 	if (!is_struct) consume(p, UNION)!;
 
 	uint name;
-	if (p.is(TYPE_IDENT))
+	if (flags.is_local) // struct as a field
 	{
-		name = p.pool.intern(p.token_text(p.current()));
-		advance(p)!;
+		if (consume(p, IDENT)!)
+		{
+			name = p.pool.intern(p.current_text());
+		}
+	}
+	else
+	{
+		name = parse_type_name(p, "struct")!;
 	}
 
 	Node interf_impl = parse_interface_impl(p)!;
@@ -984,7 +990,7 @@ fn Node? parse_struct(Parser* p)
 			// Check if the next thing is a nested struct/union
 			if (p.is(STRUCT) || p.is(UNION))
 			{
-				member = parse_struct(p)!; 
+				member = parse_struct(p, { .is_local = true })!; 
 			}
 			else if (p.is(BITSTRUCT))
 			{
@@ -1065,7 +1071,6 @@ fn Node? parse_bitstruct_decl(Parser* p, ParseFlags flags = {})
 		if (consume(p, IDENT)!)
 		{
 			name = p.pool.intern(p.current_text());
-			expect(p, IDENT)!;
 		}
 	}
 	else

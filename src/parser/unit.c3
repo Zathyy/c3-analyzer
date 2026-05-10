@@ -93,7 +93,7 @@ fn Node? parse_path_prefix(Parser* p)
 <*
 	TYPE_EXPR - unresolved type, parser only cares about the syntax
 *>
-fn Node? parse_type(Parser* p, ParseFlags parse_flags = {})
+fn Node? parse_type(Parser* p, ParseFlags parse_flags = { })
 {
 	uint start_tok = p.current_pos();
 	uint name_or_path;
@@ -139,7 +139,14 @@ fn Node? parse_type(Parser* p, ParseFlags parse_flags = {})
 			{
 				while (!p.is(RBRACE))
 				{
-					scratch.push((uint)parse_expr(p)!);
+					if (is_type(p.current().kind))
+					{
+						scratch.push((uint)parse_type(p)!);
+					}
+					else
+					{
+						scratch.push((uint)parse_constant_expr(p)!);
+					}
 					if (!consume(p, COMMA)!) break;
 				}
 				gen_args_list_ex = p.ast.push_extra_list(scratch_view(watermark, (uint)scratch.len() - watermark));
@@ -562,51 +569,51 @@ fn Node? parse_local(Parser* p, uint start_pos, Node type_node, ParseFlags flags
 	}
 
 	@with_scratch(; watermark)
+	{
+		while (true)
 		{
-			while (true)
+			Token name_tok = p.current();
+			advance(p)!;
+
+			Node init;
+			if (consume(p, EQ)!) 
 			{
-				Token name_tok = p.current();
-				advance(p)!;
-
-				Node init;
-				if (consume(p, EQ)!) 
-				{
-					init = parse_expr(p)!;
-				}
-
-				Node attr = parse_attributes(p)!;
-
-				// Create the individual LOCAL_DECL
-				uint name_sh = p.pool.intern(p.token_text(name_tok));
-
-				uint[*] data = views::@data{LocalViewFields}
-				(
-					NAME, name_sh,
-					TYPE, type_node,
-					INIT, init,
-					ATTRIBUTES, attr,
-				);
-
-				uint ex = p.ast.push_extra_list(&data);
-				Node decl = p.ast.add_node(LOCAL_DECL, name_tok.pos, p.current_pos(), ex);
-
-				scratch.push((uint)decl);
-
-				if (init.is_valid()) break;
-				if (!consume(p, COMMA)!) break;
+				init = parse_expr(p)!;
 			}
 
-			expect(p, EOS)!;
+			Node attr = parse_attributes(p)!;
 
-			uint count = (uint)scratch.len() - watermark;
+			// Create the individual LOCAL_DECL
+			uint name_sh = p.pool.intern(p.token_text(name_tok));
 
-			// If just one, return the LOCAL_DECL directly (no wrapper)
-			if (count == 1) return (Node)scratch.pop();
+			uint[*] data = views::@data{LocalViewFields}
+			(
+				NAME, name_sh,
+				TYPE, type_node,
+				INIT, init,
+				ATTRIBUTES, attr,
+			);
 
-			// If multiple, wrap in a container
-			uint list_ex = p.ast.push_extra_list(scratch_view(watermark, count));
-			return p.ast.add_node(DECL_STMT_LIST, start_pos, p.current_pos(), list_ex);
-		};
+			uint ex = p.ast.push_extra_list(&data);
+			Node decl = p.ast.add_node(LOCAL_DECL, name_tok.pos, p.current_pos(), ex);
+
+			scratch.push((uint)decl);
+
+			if (init.is_valid()) break;
+			if (!consume(p, COMMA)!) break;
+		}
+
+		expect(p, EOS)!;
+
+		uint count = (uint)scratch.len() - watermark;
+
+		// If just one, return the LOCAL_DECL directly (no wrapper)
+		if (count == 1) return (Node)scratch.pop();
+
+		// If multiple, wrap in a container
+		uint list_ex = p.ast.push_extra_list(scratch_view(watermark, count));
+		return p.ast.add_node(DECL_STMT_LIST, start_pos, p.current_pos(), list_ex);
+	};
 }
 
 fn Node? parse_contract_param(Parser* p)
