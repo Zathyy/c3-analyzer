@@ -188,6 +188,12 @@ bitstruct ContractParamFlags : uint
 	bool is_ref;
 } 
 
+bitstruct AsmFlags : uint
+{
+	bool is_volatile;
+	bool is_string_style;
+}
+
 enum DeferKind : uint
 {
 	NORMAL,
