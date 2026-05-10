@@ -89,6 +89,7 @@ constdef TypeAliasViewFields : inline uint
 {
 	NAME = 0,
 	TARGET_TYPE,
+	GENERICS,
 	ATTRIBUTES,
 	TYPE_ATTRIBUTES,
 }

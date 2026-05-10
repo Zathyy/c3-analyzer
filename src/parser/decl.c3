@@ -697,6 +697,7 @@ fn Node? parse_type_alias(Parser* p)
 	expect(p, TYPE_IDENT)!;
 	uint name_sh = p.pool.intern(p.token_text(name_tok));
 
+	Node generics = parse_generic_decl(p)!;
 	Node attr = parse_attributes(p)!;
 
 	expect(p, EQ)!;
@@ -720,6 +721,7 @@ fn Node? parse_type_alias(Parser* p)
 	( 
 		NAME, name_sh, 
 		TARGET_TYPE, target_type, 
+		GENERICS, generics,
 		ATTRIBUTES, attr,
 		TYPE_ATTRIBUTES, type_attr,
 	);
