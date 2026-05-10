@@ -82,6 +82,15 @@ fn Node? parse_statement(Parser* p)
 		case CT_ASSERT:
 		case CT_ERROR:
 			return parse_ct_assert(p);
+		case CT_ECHO:
+			uint token_pos = p.current_pos();
+			advance(p)!;
+			Node expr = parse_constant_expr(p)!;
+			return p.ast.add_node(CT_ECHO_STMT, token_pos, p.current_pos(), (uint)expr);
+		case EOS:
+			uint token_pos = p.current_pos();
+			advance(p)!;
+			return p.ast.add_node(NOP_STMT, token_pos, token_pos, 0);
 		default:
 			{
 				// if it's not a keyword or type, treat it as a expression statement
