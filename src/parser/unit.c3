@@ -115,23 +115,23 @@ fn Node? parse_type(Parser* p, ParseFlags parse_flags = { })
 	else 
 	{
 		if (parse_flags.type_as_expression && p.peek().kind == SCOPE)
-        {
-            name_or_path = p.pool.intern(p.token_text(p.current()));
-            advance(p)!;
-        }
-        else 
-        {
-            uint? path = (uint)parse_path_prefix(p);
-            if (try path)
-            {
-                name_or_path = path;
-            }
-            else
-            {
-                name_or_path = p.pool.intern(p.token_text(p.current()));
-                advance(p)!;
-            }
-        }
+		{
+			name_or_path = p.pool.intern(p.token_text(p.current()));
+			advance(p)!;
+		}
+		else 
+		{
+			uint? path = (uint)parse_path_prefix(p);
+			if (try path)
+			{
+				name_or_path = path;
+			}
+			else
+			{
+				name_or_path = p.pool.intern(p.token_text(p.current()));
+				advance(p)!;
+			}
+		}
 
 		if (!parse_flags.no_generics && consume(p, LBRACE)!) 
 		{
@@ -139,14 +139,7 @@ fn Node? parse_type(Parser* p, ParseFlags parse_flags = { })
 			{
 				while (!p.is(RBRACE))
 				{
-					if (is_type(p.current().kind))
-					{
-						scratch.push((uint)parse_type(p)!);
-					}
-					else
-					{
-						scratch.push((uint)parse_constant_expr(p)!);
-					}
+					scratch.push((uint)parse_constant_expr(p)!);
 					if (!consume(p, COMMA)!) break;
 				}
 				gen_args_list_ex = p.ast.push_extra_list(scratch_view(watermark, (uint)scratch.len() - watermark));
@@ -158,18 +151,18 @@ fn Node? parse_type(Parser* p, ParseFlags parse_flags = { })
 	while (true) 
 	{
 		// Vector <*4>
-        if (consume(p, LVEC)!)
+		if (consume(p, LVEC)!)
 		{ 
-            flags.is_vector = true;
-            array_size = consume(p, ASTERISK)! ? 0 : parse_expr(p)!;
-            expect(p, RVEC)!;
-            break; 
-        }
-        if (consume(p, ASTERISK)!) 
+			flags.is_vector = true;
+			array_size = consume(p, ASTERISK)! ? 0 : parse_expr(p)!;
+			expect(p, RVEC)!;
+			break; 
+		}
+		if (consume(p, ASTERISK)!) 
 		{ 
 			ptr_count++; continue; 
 		}
-        if (consume(p, QUESTION)!) 
+		if (consume(p, QUESTION)!) 
 		{
 			flags.is_optional = true;
 			continue; 
@@ -185,21 +178,22 @@ fn Node? parse_type(Parser* p, ParseFlags parse_flags = { })
 			{
 				array_size = parse_expr(p)!;
 			}
-			
+
 			expect(p, RBRACKET)!;
 			continue;
 		}
 		break;
 	}
 
-	uint[6] header = { 
-		name_or_path, 
-		ptr_count, 
-		(uint)array_size, 
-		gen_args_list_ex, 
-		(uint)base_expr, 
-		(uint)flags 
-	};
+	uint[*] header = views::@data{TypeViewFields}
+	(
+		NAME, name_or_path, 
+		PTR_COUNT, ptr_count, 
+		ARRAY_SIZE, array_size, 
+		GENERICS, gen_args_list_ex, 
+		BASE_EXPR, base_expr, 
+		FLAGS, flags,
+	);
 
 	uint ex = p.ast.push_extra_block(&header);
 	return p.ast.add_node(TYPE_EXPR, start_tok, p.current_pos(), ex);

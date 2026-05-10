@@ -622,7 +622,7 @@ fn Token? Lexer.lex_number(Lexer* self, uint start_pos)
 			self.advance()!;
 		}
 
-		if (!self.eof() && self.peek() == '.' && ascii::is_digit(self.peek_next()))
+		if (!self.eof() && self.peek() == '.') //&& ascii::is_xdigit(self.peek_next()))
 		{
 			is_float = true;
 			self.advance()!;
@@ -674,7 +674,7 @@ fn Token? Lexer.lex_number(Lexer* self, uint start_pos)
 		}
 
 		// Real/Float check
-		if (!self.eof() && self.peek() == '.' && ascii::is_digit(self.peek_next()))
+		if (!self.eof() && self.peek() == '.')// && ascii::is_digit(self.peek_next()))
 		{
 			is_float = true;
 			self.advance()!;

@@ -90,6 +90,7 @@ constdef TypeAliasViewFields : inline uint
 	NAME = 0,
 	TARGET_TYPE,
 	ATTRIBUTES,
+	TYPE_ATTRIBUTES,
 }
 typedef TypeAliasView = inline View;
 fn String TypeAliasView.name(self, StringPool* pool) => pool.get((StringHandle)self.get_uint(TypeAliasViewFields.NAME));

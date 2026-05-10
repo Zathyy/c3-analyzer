@@ -596,26 +596,26 @@ fn Node? parse_param_decl(Parser* p)
 	uint flags;
 
 	if (p.is(AT_IDENT))
-    {
-        name = p.pool.intern(p.current_text());
-        advance(p)!;
+	{
+		name = p.pool.intern(p.current_text());
+		advance(p)!;
 
-        Node inner_params;
-        if (consume(p, LPAREN)!)
-        {
-            inner_params = parse_parameter_list(p, { .is_macro = true })!;
-            expect(p, RPAREN)!;
-        }
+		Node inner_params;
+		if (consume(p, LPAREN)!)
+		{
+			inner_params = parse_parameter_list(p, { .is_macro = true })!;
+			expect(p, RPAREN)!;
+		}
 
-        // Return a specific BODY_PARAM_DECL node
-        uint[*] data = views::@data{BodyParamViewFields}
-        (
-            NAME, name,
-            INNER_PARAMS, inner_params
-        );
-        uint ex = p.ast.push_extra_block(&data);
-        return p.ast.add_node(BODY_PARAM_DECL, start, p.current_pos(), ex);
-    }
+		// Return a specific BODY_PARAM_DECL node
+		uint[*] data = views::@data{BodyParamViewFields}
+		(
+			NAME, name,
+			INNER_PARAMS, inner_params
+		);
+		uint ex = p.ast.push_extra_block(&data);
+		return p.ast.add_node(BODY_PARAM_DECL, start, p.current_pos(), ex);
+	}
 
 	if (consume(p, AMP)!) flags |= 2;
 	bool ellipsis_prefix = consume(p, ELLIPSIS)!;
@@ -703,11 +703,14 @@ fn Node? parse_type_alias(Parser* p)
 	uint end_tok = p.current_pos();
 	expect(p, EOS)!;
 
+	Node type_attr = parse_attributes(p)!;
+
 	uint[*] data = views::@data{TypeAliasViewFields}
 	( 
 		NAME, name_sh, 
 		TARGET_TYPE, target_type, 
 		ATTRIBUTES, attr,
+		TYPE_ATTRIBUTES, type_attr,
 	);
 	uint ex = p.ast.push_extra_list(&data);
 
