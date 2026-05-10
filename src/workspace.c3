@@ -6,9 +6,11 @@ import line_map;
 
 import std::collections::map;
 import std::collections::list;
+import std::collections::pair;
 
 import c3_parser::ast @norecurse;
 import c3_parser::cursor;
+import std::io;
 
 faultdef
 	SYMBOL_NOT_FOUND, 
@@ -47,7 +49,7 @@ struct Workspace
 	HashMap{PathString, SourceFile*} source_files;
 	HashMap{String, Module*} modules;
 	StringPool strings;
-	Allocator alloc;
+	Allocator allocator;
 }
 
 fn List{uint} ModuleSection.top_level_nodes(&self)
@@ -65,31 +67,35 @@ fn List{uint} ModuleSection.top_level_nodes(&self)
 	return top_level_nodes;
 }
 
-fn void Workspace.init(&self, Allocator alloc = tmem)
+fn void Workspace.init(&self, Allocator allocator = mem)
 {
-	self.alloc = alloc;
-	self.strings.init(alloc);
-	self.modules.init(alloc, 16);
-	self.source_files.init(alloc, 16);
+	self.allocator = allocator;
+	self.strings.init(allocator);
+	self.modules.init(allocator, 16);
+	self.source_files.init(allocator, 16);
 }
 
-// fn SourceFile* Workspace.get_or_create_source_file(&self, PathString path)
-// {
-// if (try existing = self.source_files.get(path))
-// {
-// return existing;
-// }
-// 
-// SourceFile* sf = mem::tnew(SourceFile);
-// sf.file_path = path;
-// sf.sections.tinit(4);
-// sf.strings = &self.strings;
-// 
-// ast::init(&sf.ast, 100);
-// 
-// self.source_files.set(path, sf);
-// return sf;
-// }
+fn void Workspace.free(&self)
+{
+	self.source_files.@each(;path, sf)
+	{
+		sf.ast.free();
+		foreach (section : sf.sections)
+		{
+			alloc::free(self.allocator, section);
+		}
+		sf.sections.free();
+		alloc::free(self.allocator, sf);
+	};
+	self.source_files.free();
+	self.modules.@each(;name, mod)
+	{
+		mod.sections.free();
+		alloc::free(self.allocator, mod);
+	};
+	self.modules.free();
+	self.strings.free();
+}
 
 fn SourceFile* Workspace.reset_source_file(&self, PathString path)
 {
@@ -98,20 +104,28 @@ fn SourceFile* Workspace.reset_source_file(&self, PathString path)
 		foreach (section : existing.sections)
 		{
 			section.parent_module.sections.remove_using_test(
-				fn (s, ctx) => (*s).source_file.file_path == *((String*)ctx),
-				&path
+				fn (s, ctx) {
+					Pair{String, Allocator} *args = (Pair{String, Allocator}*) ctx;
+					if ((*s).source_file.file_path == args.first)
+					{
+						alloc::free(args.second, *s);
+						return true;
+					}
+					return false;
+				},
+				&&(Pair{String, Allocator}) {path, self.allocator}
 			);
 		}
 		existing.sections.clear();
 		return existing;
 	}
 
-	SourceFile* sf = mem::tnew(SourceFile);
+	SourceFile* sf = alloc::new(self.allocator, SourceFile);
 	sf.file_path = path;
-	sf.sections.tinit(4);
+	sf.sections.init(self.allocator, 4);
 	sf.strings = &self.strings;
 
-	sf.ast.init(100);
+	sf.ast.init(self.allocator, 100);
 
 	self.source_files.set(path, sf);
 	return sf;
@@ -124,12 +138,10 @@ fn Module* Workspace.get_or_create_module(&self, String name)
 		return existing;
 	}
 
-	Module* mod = mem::tnew(Module);
+	Module* mod = alloc::new(self.allocator, Module);
 	mod.name = name;
-	mod.sections.tinit(4);
+	mod.sections.init(self.allocator, 4);
 	mod.strings = &self.strings;
-
-	// ast::init(&mod.ast, 100);
 
 	self.modules.set(name, mod);
 	return mod;
@@ -146,7 +158,7 @@ fn ModuleSection* Workspace.get_or_create_section(&self, Module* mod, SourceFile
 		}
 	}
 
-	ModuleSection* next_section = mem::tnew(ModuleSection);
+	ModuleSection* next_section = alloc::new(self.allocator, ModuleSection);
 	next_section.source_file = sf;
 	next_section.parent_module = mod;
 	mod.sections.push(next_section);

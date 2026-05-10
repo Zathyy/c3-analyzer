@@ -18,14 +18,15 @@ import std::io::path;
  A file with an explicit module header produces exactly one module
   with the declared name and one section.
 *>
-fn void test_basic_module() @test => @pool()
+fn void test_basic_module() @test // => @pool()
 {
 	String path = write_fixture("basic", `module hello;
 fn void greet() {}
 `);
 
 	Workspace ws;
-	ws.init();
+	ws.init(); defer ws.free();
+	defer ws.free();
 	parser::parse_file(&ws, path)!!;
 
 	assert (ws.modules.len() == 1 , "Expected exactly one module");
@@ -51,7 +52,7 @@ fn void greet() {}
  When there is no module declaration the module name is derived
   from the basename (strip ".c3").
 *>
-fn void test_module_name_inferred_from_path() @test => @pool()
+fn void test_module_name_inferred_from_path() @test // => @pool()
 {
 	// write_fixture always produces /tmp/c3_test_<name>.c3
 	// so the inferred module name will be "c3_test_infer_me"
@@ -59,7 +60,8 @@ fn void test_module_name_inferred_from_path() @test => @pool()
 `);
 
 	Workspace ws;
-	ws.init();
+	ws.init(); defer ws.free();
+	defer ws.free();
 	parser::parse_file(&ws, path)!!;
 
 	assert (ws.modules.len() == 1 , "Expected one inferred module");
@@ -75,7 +77,7 @@ fn void test_module_name_inferred_from_path() @test => @pool()
  A function declaration is accessible via workspace.lookup and
   exposes its parameter count through FnView.
 *>
-fn void test_fn_decl_with_params() @test => @pool()
+fn void test_fn_decl_with_params() @test // => @pool()
 {
 	String path = write_fixture("fn_params", `module fn_mod;
 fn int add(int a, int b) {
@@ -84,7 +86,7 @@ fn int add(int a, int b) {
 `);
 
 	Workspace ws;
-	ws.init();
+	ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 
 	Cursor fn_cur = ws.lookup_in_module("fn_mod", "add")!!;
@@ -103,7 +105,7 @@ fn int add(int a, int b) {
  A struct declaration is accessible by name and reports the
   correct field count.
 *>
-fn void test_struct_decl() @test => @pool()
+fn void test_struct_decl() @test // => @pool()
 {
 	String path = write_fixture("struct", `module struct_mod;
 struct Point {
@@ -113,7 +115,7 @@ struct Point {
 `);
 
 	Workspace ws;
-	ws.init();
+	ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 
 	Cursor sc = ws.lookup_in_module("struct_mod", "Point")!!;
@@ -129,7 +131,7 @@ struct Point {
 <*
  Every import statement produces an IMPORT_DECL top-level node.
 *>
-fn void test_import_decl() @test => @pool()
+fn void test_import_decl() @test // => @pool()
 {
 	String path = write_fixture("imports", `module imp_mod;
 import std::io;
@@ -138,7 +140,7 @@ fn void use_them() {}
 `);
 
 	Workspace ws;
-	ws.init();
+	ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 
 	Module* mod = ws.modules.get("imp_mod")!!;
@@ -155,14 +157,14 @@ fn void use_them() {}
 <*
  A const declaration is accessible by name.
 *>
-fn void test_const_decl() @test => @pool()
+fn void test_const_decl() @test // => @pool()
 {
 	String path = write_fixture("const", `module const_mod;
 const int MAX_SIZE = 100;
 `);
 
 	Workspace ws;
-	ws.init();
+	ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 
 	Cursor cc = ws.lookup_in_module("const_mod", "MAX_SIZE")!!;
@@ -181,7 +183,7 @@ const int MAX_SIZE = 100;
 lookup returns a valid Cursor for known symbols, and a fault for
 missing symbols or missing modules.
 *>
-fn void test_workspace_lookup() @test => @pool()
+fn void test_workspace_lookup() @test // => @pool()
 {
 	String path = write_fixture("lookup", `module lu_mod;
 fn void target() {}
@@ -189,7 +191,7 @@ struct Target { int a; }
 `);
 
 	Workspace ws;
-	ws.init();
+	ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 
 	// Existing function
@@ -224,7 +226,7 @@ struct Target { int a; }
 cursor::spelling returns the declared name for FN_DECL and
 STRUCT_DECL nodes.
 *>
-fn void test_cursor_spelling() @test => @pool()
+fn void test_cursor_spelling() @test // => @pool()
 {
 	String path = write_fixture("spell", `module spell_mod;
 fn void spelled_func() {}
@@ -234,7 +236,7 @@ int a;
 `);
 
 	Workspace ws;
-	ws.init();
+	ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 
 	Cursor fc = ws.lookup_in_module("spell_mod", "spelled_func")!!;
@@ -253,14 +255,14 @@ int a;
 cursor::source_text returns a slice of the original source that
 contains at least the declared name.
 *>
-fn void test_cursor_source_text() @test => @pool()
+fn void test_cursor_source_text() @test // => @pool()
 {
 	String path = write_fixture("srctext", `module srctext_mod;
 fn void my_unique_function() {}
 `);
 
 	Workspace ws;
-	ws.init();
+	ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 
 	Cursor fc = ws.lookup_in_module("srctext_mod", "my_unique_function")!!;
@@ -276,14 +278,14 @@ fn void my_unique_function() {}
 find_section_by_path locates the ModuleSection for a known path
 and returns null for an unknown path.
 *>
-fn void test_find_section_by_path() @test => @pool()
+fn void test_find_section_by_path() @test // => @pool()
 {
 	String path = write_fixture("pathfind", `module pf_mod;
 fn void located() {}
 `);
 
 	Workspace ws;
-	ws.init();
+	ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 
 	List{ModuleSection*} s = ws.find_section_by_path(path);
@@ -301,7 +303,7 @@ fn void located() {}
 find_at_location returns a valid cursor when the location falls
 inside a known declaration, and an invalid cursor otherwise.
 *>
-fn void test_find_at_location() @test => @pool()
+fn void test_find_at_location() @test // => @pool()
 {
 	// "fn void findme() {}" begins at line 2, column 1
 	String path = write_fixture("location", `module loc_mod;
@@ -309,7 +311,7 @@ fn void findme() {}
 `);
 
 	Workspace ws;
-	ws.init();
+	ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 
 	Location fn_loc = { .line = 2, .column = 1 };
@@ -330,14 +332,14 @@ After parsing, the ModuleSection's source_file pointer points back
 to the SourceFile, and the SourceFile's sections list contains that
 same section.
 *>
-fn void test_source_file_back_references() @test => @pool()
+fn void test_source_file_back_references() @test // => @pool()
 {
 	String path = write_fixture("backref", `module br_mod;
 fn void ref_func() {}
 `);
 
 	Workspace ws;
-	ws.init();
+	ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 
 	Module* mod = ws.modules.get("br_mod")!!;
@@ -357,7 +359,7 @@ When two source files both declare the same module, their content
 is merged into one Module with two sections, and symbols from both
 files are reachable via workspace::lookup.
 *>
-fn void test_multi_file_same_module() @test => @pool()
+fn void test_multi_file_same_module() @test // => @pool()
 {
 	String path1 = write_fixture("mf_a", `module shared_mod;
 fn void foo() {}
@@ -367,7 +369,7 @@ fn void bar() {}
 `);
 
 	Workspace ws;
-	ws.init();
+	ws.init(); defer ws.free();
 	parser::parse_file(&ws, path1)!!;
 	parser::parse_file(&ws, path2)!!;
 
@@ -402,14 +404,14 @@ parsing continues to append nodes into it — so the top-level node
 list grows.  This test documents that behaviour; a fully-implemented
 incremental parser would keep node count stable.
 *>
-fn void test_reparse_same_file() @test => @pool()
+fn void test_reparse_same_file() @test // => @pool()
 {
 	String path = write_fixture("reparse", `module rp_mod;
 fn void only_once() {}
 `);
 
 	Workspace ws;
-	ws.init();
+	ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 
 	Module* mod = ws.modules.get("rp_mod")!!;
@@ -440,7 +442,7 @@ When the parser hits a declaration it cannot parse, synchronize()
 skips ahead to the next top-level keyword.  Valid declarations
 before and after the error must still be recorded.
 *>
-fn void test_error_recovery() @test => @pool()
+fn void test_error_recovery() @test // => @pool()
 {
 	// "return;" is valid C3 but illegal at the top level — the parser will fail
 	// on it, call synchronize(), then resume at the next top-level keyword.
@@ -451,7 +453,7 @@ fn void good_after() {}
 `);
 
 	Workspace ws;
-	ws.init();
+	ws.init(); defer ws.free();
 	// parse_file should NOT propagate a fatal error — recovery handles it
 	parser::parse_file(&ws, path)!!;
 
@@ -479,7 +481,7 @@ ws.modules — the first one.  The second module name is not
 visible to workspace::lookup until the parser properly switches
 sections mid-file.
 *>
-fn void test_multi_module_in_workspace() @test => @pool()
+fn void test_multi_module_in_workspace() @test // => @pool()
 {
 	String path = write_fixture("mm_first", `module alpha;
 fn void fn_alpha() {}
@@ -488,7 +490,7 @@ fn void fn_beta() {}
 `);
 
 	Workspace ws;
-	ws.init();
+	ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 
 	assert(ws.modules.len() == 2,
@@ -509,7 +511,7 @@ fn void fn_beta() {}
 Because parse_module() does switch sections, each declaration should
 only be in its corresponding module and not others.
 *>
-fn void test_multi_module_each_decls_in_its_section() @test => @pool()
+fn void test_multi_module_each_decls_in_its_section() @test // => @pool()
 {
 	String path = write_fixture("mm_decls", `module alpha2;
 fn void fn_a() {}
@@ -518,7 +520,7 @@ fn void fn_b() {}
 `);
 
 	Workspace ws;
-	ws.init();
+	ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 
 	Module* alpha = ws.modules.get("alpha2")!!;
@@ -546,7 +548,7 @@ fn void fn_b() {}
 The second header creates a new workspace module, so only one
 MODULE_DECL is found node inside each.
 *>
-fn void test_multi_module_decl_nodes_recorded() @test => @pool()
+fn void test_multi_module_decl_nodes_recorded() @test // => @pool()
 {
 	String path = write_fixture("mm_nodes", `module mod_x;
 fn void fx() {}
@@ -555,7 +557,7 @@ fn void fy() {}
 `);
 
 	Workspace ws;
-	ws.init();
+	ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 
 	Module* modx = ws.modules.get("mod_x")!!;
@@ -584,7 +586,7 @@ fn void fy() {}
 A more extreme case: three headers.  Three workspace
 entries and three sections; all three have only one MODULE_DECL node.
 *>
-fn void test_multi_module_three_headers() @test => @pool()
+fn void test_multi_module_three_headers() @test // => @pool()
 {
 	String path = write_fixture("mm_three", `module first;
 fn void f1() {}
@@ -595,7 +597,7 @@ fn void f3() {}
 `);
 
 	Workspace ws;
-	ws.init();
+	ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 
 	assert(ws.modules.len() == 3,
@@ -660,7 +662,7 @@ fn void f3() {}
 // ------------------------------------------------------------
 // 20. peek_module_name scans the whole file, not just the start
 // ------------------------------------------------------------
-fn void test_multi_module_peek_scans_first_token() @test => @pool()
+fn void test_multi_module_peek_scans_first_token() @test // => @pool()
 {
 	// The file has NO leading module header; only one in the middle.
 	// peek_module_name will find "explicit_mod" and use that.
@@ -672,7 +674,7 @@ fn void after_header() {}
 	String inferred_module_name = path.tsplit("/")[^1].strip_suffix(".c3");
 
 	Workspace ws;
-	ws.init();
+	ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 
 	assert(ws.modules.len() == 2,
@@ -714,7 +716,7 @@ When a multi-module file shares its first module name with a
 separate single-module file, the workspace merges them correctly:
 one Module with two sections (one per source file).
 *>
-fn void test_multi_module_merges_with_external_file() @test => @pool()
+fn void test_multi_module_merges_with_external_file() @test // => @pool()
 {
 	// File 1: two-module file whose first header is "shared_mm"
 	String path1 = write_fixture("mm_shared_a", `module shared_mm;
@@ -728,7 +730,7 @@ fn void from_file2() {}
 `);
 
 	Workspace ws;
-	ws.init();
+	ws.init(); defer ws.free();
 	parser::parse_file(&ws, path1)!!;
 	parser::parse_file(&ws, path2)!!;
 
@@ -753,13 +755,13 @@ fn void from_file2() {}
 // ============================================================
 
 // 22. Basic enum declaration
-fn void test_enum_decl() @test => @pool()
+fn void test_enum_decl() @test // => @pool()
 {
 	String path = write_fixture("enum_basic", `module enum_mod;
 enum Color { RED, GREEN, BLUE }
 `);
 	Workspace ws;
-	ws.init();
+	ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 
 	Module* mod = ws.modules.get("enum_mod")!!;
@@ -769,13 +771,13 @@ enum Color { RED, GREEN, BLUE }
 
 // 23. constdef with explicit member values (no base type — base type + brace conflicts with
 //     the parser's generic-argument heuristic, so we test values without it)
-fn void test_constdef_with_explicit_values() @test => @pool()
+fn void test_constdef_with_explicit_values() @test // => @pool()
 {
 	String path = write_fixture("enum_vals", `module enum_vals_mod;
 constdef Status { OK = 0, FAIL = 1, PENDING = 2 }
 `);
 	Workspace ws;
-	ws.init();
+	ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 
 	Module* mod = ws.modules.get("enum_vals_mod")!!;
@@ -784,14 +786,14 @@ constdef Status { OK = 0, FAIL = 1, PENDING = 2 }
 }
 
 // 24. Multiple enums in one file
-fn void test_multiple_enums() @test => @pool()
+fn void test_multiple_enums() @test // => @pool()
 {
 	String path = write_fixture("enum_multi", `module multi_enum_mod;
 enum Direction { NORTH, SOUTH, EAST, WEST }
 enum Priority { LOW, MEDIUM, HIGH }
 `);
 	Workspace ws;
-	ws.init();
+	ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 
 	Module* mod = ws.modules.get("multi_enum_mod")!!;
@@ -800,7 +802,7 @@ enum Priority { LOW, MEDIUM, HIGH }
 }
 
 // 25. Basic interface declaration
-fn void test_interface_decl() @test => @pool()
+fn void test_interface_decl() @test // => @pool()
 {
 	String path = write_fixture("iface_basic", `module iface_mod;
 interface Drawable {
@@ -808,7 +810,7 @@ interface Drawable {
 }
 `);
 	Workspace ws;
-	ws.init();
+	ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 
 	Module* mod = ws.modules.get("iface_mod")!!;
@@ -817,7 +819,7 @@ interface Drawable {
 }
 
 // 26. Interface extending another interface
-fn void test_interface_inheritance() @test => @pool()
+fn void test_interface_inheritance() @test // => @pool()
 {
 	String path = write_fixture("iface_inherit", `module iface_inherit_mod;
 interface Base {
@@ -828,7 +830,7 @@ interface Extended : Base {
 }
 `);
 	Workspace ws;
-	ws.init();
+	ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 
 	Module* mod = ws.modules.get("iface_inherit_mod")!!;
@@ -837,14 +839,14 @@ interface Extended : Base {
 }
 
 // 27. Type alias declarations
-fn void test_type_alias_decl() @test => @pool()
+fn void test_type_alias_decl() @test // => @pool()
 {
 	String path = write_fixture("alias_type", `module alias_mod;
 alias MyInt = int;
 alias MyFloat = float;
 `);
 	Workspace ws;
-	ws.init();
+	ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 
 	Module* mod = ws.modules.get("alias_mod")!!;
@@ -853,13 +855,13 @@ alias MyFloat = float;
 }
 
 // 28. Typedef declaration
-fn void test_typedef_decl() @test => @pool()
+fn void test_typedef_decl() @test // => @pool()
 {
 	String path = write_fixture("typedef_basic", `module typedef_mod;
 typedef MyAlias = int;
 `);
 	Workspace ws;
-	ws.init();
+	ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 
 	Module* mod = ws.modules.get("typedef_mod")!!;
@@ -868,13 +870,13 @@ typedef MyAlias = int;
 }
 
 // 29. Macro declaration
-fn void test_macro_decl() @test => @pool()
+fn void test_macro_decl() @test // => @pool()
 {
 	String path = write_fixture("macro_basic", `module macro_mod;
 macro my_macro() {}
 `);
 	Workspace ws;
-	ws.init();
+	ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 
 	Module* mod = ws.modules.get("macro_mod")!!;
@@ -883,13 +885,13 @@ macro my_macro() {}
 }
 
 // 30. Global variable declaration
-fn void test_global_var_decl() @test => @pool()
+fn void test_global_var_decl() @test // => @pool()
 {
 	String path = write_fixture("global_var", `module global_mod;
 int counter = 0;
 `);
 	Workspace ws;
-	ws.init();
+	ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 
 	Cursor c = ws.lookup("global_mod", "counter")!!;
@@ -900,13 +902,13 @@ int counter = 0;
 }
 
 // 31. Global variable spelling via workspace lookup
-fn void test_global_decl_spelling() @test => @pool()
+fn void test_global_decl_spelling() @test // => @pool()
 {
 	String path = write_fixture("global_spell", `module gspell_mod;
 float pi_value = 3.14159;
 `);
 	Workspace ws;
-	ws.init();
+	ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 
 	Cursor c = ws.lookup("gspell_mod", "pi_value")!!;
@@ -917,13 +919,13 @@ float pi_value = 3.14159;
 }
 
 // 32. Thread-local variable declaration
-fn void test_tlocal_var_decl() @test => @pool()
+fn void test_tlocal_var_decl() @test // => @pool()
 {
 	String path = write_fixture("tlocal", `module tlocal_mod;
 tlocal int tl_counter;
 `);
 	Workspace ws;
-	ws.init();
+	ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 
 	Cursor c = ws.lookup("tlocal_mod", "tl_counter")!!;
@@ -934,7 +936,7 @@ tlocal int tl_counter;
 }
 
 // 33. Mixed declaration kinds in one module
-fn void test_mixed_declarations() @test => @pool()
+fn void test_mixed_declarations() @test // => @pool()
 {
 	String path = write_fixture("mixed_decls", `module mixed_mod;
 struct Point { float x; float y; }
@@ -944,7 +946,7 @@ int counter = 0;
 alias Scalar = float;
 `);
 	Workspace ws;
-	ws.init();
+	ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 
 	Module* mod = ws.modules.get("mixed_mod")!!;
@@ -961,13 +963,13 @@ alias Scalar = float;
 // ============================================================
 
 // 34. Function with arrow body
-fn void test_fn_arrow_body() @test => @pool()
+fn void test_fn_arrow_body() @test // => @pool()
 {
 	String path = write_fixture("fn_arrow", `module arrow_mod;
 fn int double_it(int x) => x * 2;
 `);
 	Workspace ws;
-	ws.init();
+	ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 
 	Cursor c = ws.lookup_in_module("arrow_mod", "double_it")!!;
@@ -980,14 +982,14 @@ fn int double_it(int x) => x * 2;
 }
 
 // 35. Function with method syntax (Struct.method)
-fn void test_fn_method_syntax() @test => @pool()
+fn void test_fn_method_syntax() @test // => @pool()
 {
 	String path = write_fixture("fn_method", `module method_mod;
 struct Vec2 { float x; float y; }
 fn float Vec2.length(&self) { return 0.0; }
 `);
 	Workspace ws;
-	ws.init();
+	ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 
 	// Method is stored under its simple name, not "Vec2.length"
@@ -1000,14 +1002,14 @@ fn float Vec2.length(&self) { return 0.0; }
 }
 
 // 36. Function return type node is present
-fn void test_fn_return_type() @test => @pool()
+fn void test_fn_return_type() @test // => @pool()
 {
 	String path = write_fixture("fn_rettype", `module rettype_mod;
 fn int get_value() { return 42; }
 fn void do_nothing() {}
 `);
 	Workspace ws;
-	ws.init();
+	ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 
 	{
@@ -1023,13 +1025,13 @@ fn void do_nothing() {}
 }
 
 // 37. Function body is a COMPOUND_STMT
-fn void test_fn_body_node() @test => @pool()
+fn void test_fn_body_node() @test // => @pool()
 {
 	String path = write_fixture("fn_body", `module body_mod;
 fn void with_body() { int x = 1; }
 `);
 	Workspace ws;
-	ws.init();
+	ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 
 	Cursor c = ws.lookup_in_module("body_mod", "with_body")!!;
@@ -1041,14 +1043,14 @@ fn void with_body() { int x = 1; }
 }
 
 // 38. Reference parameter (&self) is flagged correctly
-fn void test_fn_ref_param() @test => @pool()
+fn void test_fn_ref_param() @test // => @pool()
 {
 	String path = write_fixture("fn_ref_param", `module refparam_mod;
 struct Thing { int value; }
 fn int Thing.get(&self) { return 0; }
 `);
 	Workspace ws;
-	ws.init();
+	ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 
 	Cursor c = ws.lookup_in_module("refparam_mod", "get")!!;
@@ -1061,7 +1063,7 @@ fn int Thing.get(&self) { return 0; }
 }
 
 // 39. param_count for 0, 1, and 5 params
-fn void test_fn_param_counts() @test => @pool()
+fn void test_fn_param_counts() @test // => @pool()
 {
 	String path = write_fixture("fn_pcounts", `module pcount_mod;
 fn void zero_params() {}
@@ -1069,7 +1071,7 @@ fn void one_param(int a) {}
 fn void five_params(int a, int b, int c, int d, int e) {}
 `);
 	Workspace ws;
-	ws.init();
+	ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 
 	{
@@ -1093,13 +1095,13 @@ fn void five_params(int a, int b, int c, int d, int e) {}
 }
 
 // 40. FnView.name() round-trips through the string pool
-fn void test_fn_view_name() @test => @pool()
+fn void test_fn_view_name() @test // => @pool()
 {
 	String path = write_fixture("fn_name", `module fn_name_mod;
 fn void uniquely_named_function() {}
 `);
 	Workspace ws;
-	ws.init();
+	ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 
 	Cursor c = ws.lookup_in_module("fn_name_mod", "uniquely_named_function")!!;
@@ -1113,13 +1115,13 @@ fn void uniquely_named_function() {}
 // ============================================================
 
 // 41. Struct with zero fields should be an error
-fn void test_struct_empty() @test => @pool()
+fn void test_struct_empty() @test // => @pool()
 {
 	String path = write_fixture("struct_empty", `module empty_struct_mod;
 struct Empty {}
 `);
 	Workspace ws;
-	ws.init();
+	ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 
 	Cursor sc = ws.lookup_in_module("empty_struct_mod", "Empty")!!;
@@ -1130,7 +1132,7 @@ struct Empty {}
 }
 
 // 42. Struct with four fields
-fn void test_struct_many_fields() @test => @pool()
+fn void test_struct_many_fields() @test // => @pool()
 {
 	String path = write_fixture("struct_many", `module many_mod;
 struct Color {
@@ -1141,7 +1143,7 @@ struct Color {
 }
 `);
 	Workspace ws;
-	ws.init();
+	ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 
 	Cursor sc = ws.lookup_in_module("many_mod", "Color")!!;
@@ -1150,13 +1152,13 @@ struct Color {
 }
 
 // 43. StructView.name() round-trips through string pool
-fn void test_struct_view_name() @test => @pool()
+fn void test_struct_view_name() @test // => @pool()
 {
 	String path = write_fixture("struct_name", `module struct_name_mod;
 struct NamedStruct { int x; int y; }
 `);
 	Workspace ws;
-	ws.init();
+	ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 
 	Cursor sc = ws.lookup_in_module("struct_name_mod", "NamedStruct")!!;
@@ -1167,7 +1169,7 @@ struct NamedStruct { int x; int y; }
 }
 
 // 44. Struct that implements an interface
-fn void test_struct_with_interface() @test => @pool()
+fn void test_struct_with_interface() @test // => @pool()
 {
 	String path = write_fixture("struct_iface", `module struct_iface_mod;
 interface Shape {
@@ -1179,7 +1181,7 @@ struct Circle (Shape) {
 fn float Circle.area(&self) { return 0.0; }
 `);
 	Workspace ws;
-	ws.init();
+	ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 
 	Module* mod = ws.modules.get("struct_iface_mod")!!;
@@ -1197,7 +1199,7 @@ fn float Circle.area(&self) { return 0.0; }
 // ============================================================
 
 // 45. for loop produces FOR_STMT
-fn void test_stmt_for_loop() @test => @pool()
+fn void test_stmt_for_loop() @test // => @pool()
 {
 	String path = write_fixture("stmt_for", `module for_mod;
 fn void count_up() {
@@ -1205,7 +1207,7 @@ fn void count_up() {
 }
 `);
 	Workspace ws;
-	ws.init();
+	ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 
 	Cursor c = ws.lookup_in_module("for_mod", "count_up")!!;
@@ -1217,7 +1219,7 @@ fn void count_up() {
 }
 
 // 46. BREAK_STMT is accessible via ForView.body
-fn void test_stmt_break() @test => @pool()
+fn void test_stmt_break() @test // => @pool()
 {
 	String path = write_fixture("stmt_break", `module break_mod;
 fn void stop_early() {
@@ -1227,7 +1229,7 @@ fn void stop_early() {
 }
 `);
 	Workspace ws;
-	ws.init();
+	ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 
 	Cursor c = ws.lookup_in_module("break_mod", "stop_early")!!;
@@ -1243,7 +1245,7 @@ fn void stop_early() {
 }
 
 // 47. while loop produces WHILE_STMT
-fn void test_stmt_while_loop() @test => @pool()
+fn void test_stmt_while_loop() @test // => @pool()
 {
 	String path = write_fixture("stmt_while", `module while_mod;
 fn void spin() {
@@ -1251,7 +1253,7 @@ fn void spin() {
 }
 `);
 	Workspace ws;
-	ws.init();
+	ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 
 	Cursor c = ws.lookup_in_module("while_mod", "spin")!!;
@@ -1263,7 +1265,7 @@ fn void spin() {
 }
 
 // 48. do-while produces DO_WHILE_STMT
-fn void test_stmt_do_while() @test => @pool()
+fn void test_stmt_do_while() @test // => @pool()
 {
 	String path = write_fixture("stmt_dowhile", `module dowhile_mod;
 fn void run_once() {
@@ -1271,7 +1273,7 @@ fn void run_once() {
 }
 `);
 	Workspace ws;
-	ws.init();
+	ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 
 	Cursor c = ws.lookup_in_module("dowhile_mod", "run_once")!!;
@@ -1283,7 +1285,7 @@ fn void run_once() {
 }
 
 // 49. foreach produces FOREACH_STMT
-fn void test_stmt_foreach() @test => @pool()
+fn void test_stmt_foreach() @test // => @pool()
 {
 	String path = write_fixture("stmt_foreach", `module foreach_mod;
 fn void iterate() {
@@ -1291,7 +1293,7 @@ fn void iterate() {
 }
 `);
 	Workspace ws;
-	ws.init();
+	ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 
 	Cursor c = ws.lookup_in_module("foreach_mod", "iterate")!!;
@@ -1303,7 +1305,7 @@ fn void iterate() {
 }
 
 // 50. foreach_r produces FOREACH_R_STMT
-fn void test_stmt_foreach_r() @test => @pool()
+fn void test_stmt_foreach_r() @test // => @pool()
 {
 	String path = write_fixture("stmt_foreach_r", `module foreach_r_mod;
 fn void iter_rev() {
@@ -1311,7 +1313,7 @@ fn void iter_rev() {
 }
 `);
 	Workspace ws;
-	ws.init();
+	ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 
 	Cursor c = ws.lookup_in_module("foreach_r_mod", "iter_rev")!!;
@@ -1323,7 +1325,7 @@ fn void iter_rev() {
 }
 
 // 51. if/else: both then and else blocks are valid
-fn void test_stmt_if_else() @test => @pool()
+fn void test_stmt_if_else() @test // => @pool()
 {
 	String path = write_fixture("stmt_if", `module if_mod;
 fn void branch(bool flag) {
@@ -1331,7 +1333,7 @@ fn void branch(bool flag) {
 }
 `);
 	Workspace ws;
-	ws.init();
+	ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 
 	Cursor c = ws.lookup_in_module("if_mod", "branch")!!;
@@ -1347,7 +1349,7 @@ fn void branch(bool flag) {
 }
 
 // 52. if without else: else_block is invalid
-fn void test_stmt_if_no_else() @test => @pool()
+fn void test_stmt_if_no_else() @test // => @pool()
 {
 	String path = write_fixture("stmt_if_no_else", `module if_no_else_mod;
 fn void maybe(bool flag) {
@@ -1355,7 +1357,7 @@ fn void maybe(bool flag) {
 }
 `);
 	Workspace ws;
-	ws.init();
+	ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 
 	Cursor c = ws.lookup_in_module("if_no_else_mod", "maybe")!!;
@@ -1371,7 +1373,7 @@ fn void maybe(bool flag) {
 }
 
 // 53. switch/case produces SWITCH_STMT
-fn void test_stmt_switch() @test => @pool()
+fn void test_stmt_switch() @test // => @pool()
 {
 	String path = write_fixture("stmt_switch", `module switch_mod;
 fn void dispatch(int x) {
@@ -1382,7 +1384,7 @@ fn void dispatch(int x) {
 }
 `);
 	Workspace ws;
-	ws.init();
+	ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 
 	Cursor c = ws.lookup_in_module("switch_mod", "dispatch")!!;
@@ -1394,7 +1396,7 @@ fn void dispatch(int x) {
 }
 
 // 54. defer produces DEFER_STMT
-fn void test_stmt_defer() @test => @pool()
+fn void test_stmt_defer() @test // => @pool()
 {
 	String path = write_fixture("stmt_defer", `module defer_mod;
 fn void cleanup() {
@@ -1402,7 +1404,7 @@ fn void cleanup() {
 }
 `);
 	Workspace ws;
-	ws.init();
+	ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 
 	Cursor c = ws.lookup_in_module("defer_mod", "cleanup")!!;
@@ -1414,7 +1416,7 @@ fn void cleanup() {
 }
 
 // 55. return produces RETURN_STMT
-fn void test_stmt_return() @test => @pool()
+fn void test_stmt_return() @test // => @pool()
 {
 	String path = write_fixture("stmt_return", `module return_mod;
 fn int compute() {
@@ -1422,7 +1424,7 @@ fn int compute() {
 }
 `);
 	Workspace ws;
-	ws.init();
+	ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 
 	Cursor c = ws.lookup_in_module("return_mod", "compute")!!;
@@ -1434,7 +1436,7 @@ fn int compute() {
 }
 
 // 56. CONTINUE_STMT is accessible via IfView.then_block inside a for body
-fn void test_stmt_continue() @test => @pool()
+fn void test_stmt_continue() @test // => @pool()
 {
 	String path = write_fixture("stmt_continue", `module cont_mod;
 fn void skip(bool flag) {
@@ -1444,7 +1446,7 @@ fn void skip(bool flag) {
 }
 `);
 	Workspace ws;
-	ws.init();
+	ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 
 	Cursor c = ws.lookup_in_module("cont_mod", "skip")!!;
@@ -1462,7 +1464,7 @@ fn void skip(bool flag) {
 }
 
 // 57. assert produces ASSERT_STMT
-fn void test_stmt_assert() @test => @pool()
+fn void test_stmt_assert() @test // => @pool()
 {
 	String path = write_fixture("stmt_assert", `module assert_mod;
 fn void check(int x) {
@@ -1470,7 +1472,7 @@ fn void check(int x) {
 }
 `);
 	Workspace ws;
-	ws.init();
+	ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 
 	Cursor c = ws.lookup_in_module("assert_mod", "check")!!;
@@ -1482,7 +1484,7 @@ fn void check(int x) {
 }
 
 // 58. Local variable declarations produce LOCAL_DECL nodes
-fn void test_stmt_local_var() @test => @pool()
+fn void test_stmt_local_var() @test // => @pool()
 {
 	String path = write_fixture("stmt_localvar", `module localvar_mod;
 fn void declare_vars() {
@@ -1491,7 +1493,7 @@ fn void declare_vars() {
 }
 `);
 	Workspace ws;
-	ws.init();
+	ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 
 	Cursor c = ws.lookup_in_module("localvar_mod", "declare_vars")!!;
@@ -1504,7 +1506,7 @@ fn void declare_vars() {
 }
 
 // 59. Nested compound statements
-fn void test_stmt_nested_blocks() @test => @pool()
+fn void test_stmt_nested_blocks() @test // => @pool()
 {
 	String path = write_fixture("stmt_nested", `module nested_mod;
 fn void nested() {
@@ -1514,7 +1516,7 @@ fn void nested() {
 }
 `);
 	Workspace ws;
-	ws.init();
+	ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 
 	Cursor c = ws.lookup_in_module("nested_mod", "nested")!!;
@@ -1535,13 +1537,13 @@ fn void nested() {
 // ============================================================
 
 // 60. Module with deeply nested path (foo::bar::baz)
-fn void test_module_nested_path() @test => @pool()
+fn void test_module_nested_path() @test // => @pool()
 {
 	String path = write_fixture("nested_path", `module foo::bar::baz;
 fn void deep_fn() {}
 `);
 	Workspace ws;
-	ws.init();
+	ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 
 	Module* mod = ws.modules.get("foo::bar::baz")!!;
@@ -1555,7 +1557,7 @@ fn void deep_fn() {}
 }
 
 // 61. Two successive top-level errors do not drop surrounding valid declarations
-fn void test_multiple_errors_recovery() @test => @pool()
+fn void test_multiple_errors_recovery() @test // => @pool()
 {
 	String path = write_fixture("multi_err", `module multi_err_mod;
 fn void good_a() {}
@@ -1564,7 +1566,7 @@ return;
 fn void good_b() {}
 `);
 	Workspace ws;
-	ws.init();
+	ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 
 	if (catch e = ws.lookup_in_module("multi_err_mod", "good_a"))
@@ -1578,14 +1580,14 @@ fn void good_b() {}
 }
 
 // 62. Two const declarations are both discoverable
-fn void test_const_decl_two() @test => @pool()
+fn void test_const_decl_two() @test // => @pool()
 {
 	String path = write_fixture("const_two", `module const2_mod;
 const int LIMIT = 256;
 const int OFFSET = 8;
 `);
 	Workspace ws;
-	ws.init();
+	ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 
 	Cursor c1 = ws.lookup_in_module("const2_mod", "LIMIT")!!;
@@ -1600,13 +1602,13 @@ const int OFFSET = 8;
 }
 
 // 63. source_text of struct spans its declared name
-fn void test_struct_source_text() @test => @pool()
+fn void test_struct_source_text() @test // => @pool()
 {
 	String path = write_fixture("struct_srctext", `module struct_src_mod;
 struct SpecialStruct { int x; }
 `);
 	Workspace ws;
-	ws.init();
+	ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 
 	Cursor sc = ws.lookup_in_module("struct_src_mod", "SpecialStruct")!!;
@@ -1616,13 +1618,13 @@ struct SpecialStruct { int x; }
 }
 
 // 64. find_at_location hits a struct declaration at its start column
-fn void test_find_at_struct() @test => @pool()
+fn void test_find_at_struct() @test // => @pool()
 {
 	String path = write_fixture("location_struct", `module loc_struct_mod;
 struct Located { int a; }
 `);
 	Workspace ws;
-	ws.init();
+	ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 
 	Location loc = { .line = 2, .column = 1 };
@@ -1631,7 +1633,7 @@ struct Located { int a; }
 }
 
 // 65. Three global variables in one module are all individually reachable
-fn void test_three_globals() @test => @pool()
+fn void test_three_globals() @test // => @pool()
 {
 	String path = write_fixture("three_globals", `module three_glob_mod;
 int alpha = 1;
@@ -1639,7 +1641,7 @@ int beta = 2;
 int gamma = 3;
 `);
 	Workspace ws;
-	ws.init();
+	ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 
 	if (catch e = ws.lookup_in_module("three_glob_mod", "alpha"))
@@ -1657,13 +1659,13 @@ int gamma = 3;
 }
 
 // 66. Extern function declaration has no body
-fn void test_fn_no_body() @test => @pool()
+fn void test_fn_no_body() @test // => @pool()
 {
 	String path = write_fixture("fn_no_body", `module no_body_mod;
 fn void external_fn() @extern("external_fn");
 `);
 	Workspace ws;
-	ws.init();
+	ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 
 	Cursor c = ws.lookup_in_module("no_body_mod", "external_fn")!!;
@@ -1675,7 +1677,7 @@ fn void external_fn() @extern("external_fn");
 }
 
 // 67. find_section_by_path locates each file in a multi-file module
-fn void test_find_section_multi_file() @test => @pool()
+fn void test_find_section_multi_file() @test // => @pool()
 {
 	String path1 = write_fixture("secfind_a", `module secfind_mod;
 fn void from_a() {}
@@ -1684,7 +1686,7 @@ fn void from_a() {}
 fn void from_b() {}
 `);
 	Workspace ws;
-	ws.init();
+	ws.init(); defer ws.free();
 	parser::parse_file(&ws, path1)!!;
 	parser::parse_file(&ws, path2)!!;
 
@@ -1698,7 +1700,7 @@ fn void from_b() {}
 }
 
 // 68. Sub-module handling
-fn void test_nested_sub_modules() @test => @pool()
+fn void test_nested_sub_modules() @test // => @pool()
 {
 	String path = write_fixture("sub_modules", `module foo;
 fn void my_foo() {}
@@ -1707,7 +1709,7 @@ module foo::bar;
 fn void my_bar() {}
 `);
 	Workspace ws;
-	ws.init();
+	ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 
 	Module* mod = ws.modules.get("foo")!!;

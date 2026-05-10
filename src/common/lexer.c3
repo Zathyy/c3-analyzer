@@ -357,11 +357,13 @@ fn bool is_whitespace(char c)
 fn bool is_all_upper(String text)
 {
 	bool has_alpha = false;
+	if (text == "_") return false;
+
 	for (usz i = 0; i < text.len; i++)
 	{
 		char c = text[i];
 		if (c >= 'a' && c <= 'z') return false;
-		if (c >= 'A' && c <= 'Z') has_alpha = true;
+		if ((c >= 'A' && c <= 'Z') || c == '_') has_alpha = true;
 	}
 	return has_alpha; // Ensure "123_" isn't counted as CONST_IDENT
 }

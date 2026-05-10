@@ -147,16 +147,18 @@ struct Ast
 	List{uint} extra_indices;
 	List{uint} extra_data;
 	List{uint} top_level_nodes; // to track what nodes are "top-level" its really hard without it
+	Allocator allocator;
 }
 
-fn void Ast.init(&ast, Size estimated_size)
+fn void Ast.init(&ast, Allocator allocator, Size estimated_size)
 {
-	ast.kinds.tinit(estimated_size);
-	ast.start_tokens.tinit(estimated_size);
-	ast.end_tokens.tinit(estimated_size);
-	ast.extra_indices.tinit(estimated_size);
-	ast.extra_data.tinit(estimated_size * 2); // Usually more extra data than nodes
-	ast.top_level_nodes.tinit(estimated_size / 4);
+	ast.allocator = allocator;
+	ast.kinds.init(ast.allocator, estimated_size);
+	ast.start_tokens.init(ast.allocator, estimated_size);
+	ast.end_tokens.init(ast.allocator, estimated_size);
+	ast.extra_indices.init(ast.allocator, estimated_size);
+	ast.extra_data.init(ast.allocator, estimated_size * 2); // Usually more extra data than nodes
+	ast.top_level_nodes.init(ast.allocator, estimated_size / 4);
 
 	// push null state at index 0
 	ast.kinds.push(INVALID);

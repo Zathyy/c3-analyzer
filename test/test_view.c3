@@ -25,12 +25,12 @@ fn Node first_node_of_kind(ModuleSection* s, NodeKind kind) @private
 // FnView
 // ============================================================
 
-fn void test_fn_view_name_accessor() @test => @pool()
+fn void test_fn_view_name_accessor() @test //=> @pool()
 {
 	String path = write_fixture("fv_name", `module fv;
 fn void hello() {}
 `);
-	Workspace ws; ws.init();
+	Workspace ws; ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 	Cursor c = ws.lookup("fv", "hello")!!;
 	Ast* ast = &c.section.source_file.ast;
@@ -38,12 +38,12 @@ fn void hello() {}
 	assert(fv.name(&ws.strings) == "hello", "FnView.name()");
 }
 
-fn void test_fn_view_return_type_name() @test => @pool()
+fn void test_fn_view_return_type_name() @test //=> @pool()
 {
 	String path = write_fixture("fv_ret", `module fv;
 fn int compute() { return 1; }
 `);
-	Workspace ws; ws.init();
+	Workspace ws; ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 	Cursor c = ws.lookup("fv", "compute")!!;
 	Ast* ast = &c.section.source_file.ast;
@@ -54,12 +54,12 @@ fn int compute() { return 1; }
 	assert(tv.name(&ws.strings) == "int", "return type name");
 }
 
-fn void test_fn_view_void_return() @test => @pool()
+fn void test_fn_view_void_return() @test //=> @pool()
 {
 	String path = write_fixture("fv_void", `module fv;
 fn void noop() {}
 `);
-	Workspace ws; ws.init();
+	Workspace ws; ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 	Cursor c = ws.lookup("fv", "noop")!!;
 	Ast* ast = &c.section.source_file.ast;
@@ -68,12 +68,12 @@ fn void noop() {}
 	assert(tv.name(&ws.strings) == "void", "void return type");
 }
 
-fn void test_fn_view_param_count_zero() @test => @pool()
+fn void test_fn_view_param_count_zero() @test //=> @pool()
 {
 	String path = write_fixture("fv_p0", `module fv;
 fn void empty_params() {}
 `);
-	Workspace ws; ws.init();
+	Workspace ws; ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 	Cursor c = ws.lookup("fv", "empty_params")!!;
 	Ast* ast = &c.section.source_file.ast;
@@ -81,12 +81,12 @@ fn void empty_params() {}
 	assert(fv.params().count() == 0, "zero params");
 }
 
-fn void test_fn_view_param_count_two() @test => @pool()
+fn void test_fn_view_param_count_two() @test //=> @pool()
 {
 	String path = write_fixture("fv_p2", `module fv;
 fn void add(int x, int y) {}
 `);
-	Workspace ws; ws.init();
+	Workspace ws; ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 	Cursor c = ws.lookup("fv", "add")!!;
 	Ast* ast = &c.section.source_file.ast;
@@ -94,12 +94,12 @@ fn void add(int x, int y) {}
 	assert(fv.params().count() == 2, "two params");
 }
 
-fn void test_fn_view_param_names() @test => @pool()
+fn void test_fn_view_param_names() @test //=> @pool()
 {
 	String path = write_fixture("fv_pnames", `module fv;
 fn int sub(int a, int b) { return a; }
 `);
-	Workspace ws; ws.init();
+	Workspace ws; ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 	Cursor c = ws.lookup("fv", "sub")!!;
 	Ast* ast = &c.section.source_file.ast;
@@ -110,12 +110,12 @@ fn int sub(int a, int b) { return a; }
 	assert(p1.name(&ws.strings) == "b", "second param 'b'");
 }
 
-fn void test_fn_view_body_valid() @test => @pool()
+fn void test_fn_view_body_valid() @test //=> @pool()
 {
 	String path = write_fixture("fv_body", `module fv;
 fn void has_body() { int x = 0; }
 `);
-	Workspace ws; ws.init();
+	Workspace ws; ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 	Cursor c = ws.lookup("fv", "has_body")!!;
 	Ast* ast = &c.section.source_file.ast;
@@ -125,12 +125,12 @@ fn void has_body() { int x = 0; }
 	assert(ast.get_kind(body) == NodeKind.COMPOUND_STMT, "body is COMPOUND_STMT");
 }
 
-fn void test_fn_view_no_body() @test => @pool()
+fn void test_fn_view_no_body() @test //=> @pool()
 {
 	String path = write_fixture("fv_nobody", `module fv;
 extern fn void c_fn();
 `);
-	Workspace ws; ws.init();
+	Workspace ws; ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 	Cursor c = ws.lookup("fv", "c_fn")!!;
 	Ast* ast = &c.section.source_file.ast;
@@ -142,12 +142,12 @@ extern fn void c_fn();
 // ParamView
 // ============================================================
 
-fn void test_param_view_type_name() @test => @pool()
+fn void test_param_view_type_name() @test //=> @pool()
 {
 	String path = write_fixture("pv_type", `module pv;
 fn void scale(float f) {}
 `);
-	Workspace ws; ws.init();
+	Workspace ws; ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 	Cursor c = ws.lookup("pv", "scale")!!;
 	Ast* ast = &c.section.source_file.ast;
@@ -157,12 +157,12 @@ fn void scale(float f) {}
 	assert(tv.name(&ws.strings) == "float", "param type is float");
 }
 
-fn void test_param_view_ptr_type() @test => @pool()
+fn void test_param_view_ptr_type() @test //=> @pool()
 {
 	String path = write_fixture("pv_ptr", `module pv;
 fn void ptr_param(int* p) {}
 `);
-	Workspace ws; ws.init();
+	Workspace ws; ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 	Cursor c = ws.lookup("pv", "ptr_param")!!;
 	Ast* ast = &c.section.source_file.ast;
@@ -177,12 +177,12 @@ fn void ptr_param(int* p) {}
 // VarDeclView
 // ============================================================
 
-fn void test_var_decl_view_name() @test => @pool()
+fn void test_var_decl_view_name() @test //=> @pool()
 {
 	String path = write_fixture("vd_name", `module vd;
 const int LIMIT = 10;
 `);
-	Workspace ws; ws.init();
+	Workspace ws; ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 	Cursor c = ws.lookup("vd", "LIMIT")!!;
 	Ast* ast = &c.section.source_file.ast;
@@ -190,12 +190,12 @@ const int LIMIT = 10;
 	assert(vv.name(&ws.strings) == "LIMIT", "VarDeclView.name");
 }
 
-fn void test_var_decl_view_is_const() @test => @pool()
+fn void test_var_decl_view_is_const() @test //=> @pool()
 {
 	String path = write_fixture("vd_const", `module vd;
 const int X = 99;
 `);
-	Workspace ws; ws.init();
+	Workspace ws; ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 	Cursor c = ws.lookup("vd", "X")!!;
 	Ast* ast = &c.section.source_file.ast;
@@ -205,12 +205,12 @@ const int X = 99;
 	assert(!vv.is_thread_local(), "should not be thread_local");
 }
 
-fn void test_var_decl_view_is_global() @test => @pool()
+fn void test_var_decl_view_is_global() @test //=> @pool()
 {
 	String path = write_fixture("vd_global", `module vd;
 int counter;
 `);
-	Workspace ws; ws.init();
+	Workspace ws; ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 	Cursor c = ws.lookup("vd", "counter")!!;
 	Ast* ast = &c.section.source_file.ast;
@@ -220,12 +220,12 @@ int counter;
 	assert(!vv.is_local(), "should not be local");
 }
 
-fn void test_var_decl_view_is_thread_local() @test => @pool()
+fn void test_var_decl_view_is_thread_local() @test //=> @pool()
 {
 	String path = write_fixture("vd_tlocal", `module vd;
 tlocal int tid;
 `);
-	Workspace ws; ws.init();
+	Workspace ws; ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 	Cursor c = ws.lookup("vd", "tid")!!;
 	Ast* ast = &c.section.source_file.ast;
@@ -233,12 +233,12 @@ tlocal int tid;
 	assert(vv.is_thread_local(), "should be thread_local");
 }
 
-fn void test_var_decl_view_type_node() @test => @pool()
+fn void test_var_decl_view_type_node() @test //=> @pool()
 {
 	String path = write_fixture("vd_type", `module vd;
 const long BIG = 9999;
 `);
-	Workspace ws; ws.init();
+	Workspace ws; ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 	Cursor c = ws.lookup("vd", "BIG")!!;
 	Ast* ast = &c.section.source_file.ast;
@@ -247,12 +247,12 @@ const long BIG = 9999;
 	assert(tv.name(&ws.strings) == "long", "const type is long");
 }
 
-fn void test_var_decl_view_init_expr() @test => @pool()
+fn void test_var_decl_view_init_expr() @test //=> @pool()
 {
 	String path = write_fixture("vd_init", `module vd;
 const int ANSWER = 42;
 `);
-	Workspace ws; ws.init();
+	Workspace ws; ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 	Cursor c = ws.lookup("vd", "ANSWER")!!;
 	Ast* ast = &c.section.source_file.ast;
@@ -266,12 +266,12 @@ const int ANSWER = 42;
 // StructView / FieldView
 // ============================================================
 
-fn void test_struct_view_name_accessor() @test => @pool()
+fn void test_struct_view_name_accessor() @test //=> @pool()
 {
 	String path = write_fixture("sv_name", `module sv;
 struct Rect { int x; int y; int w; int h; }
 `);
-	Workspace ws; ws.init();
+	Workspace ws; ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 	Cursor c = ws.lookup("sv", "Rect")!!;
 	Ast* ast = &c.section.source_file.ast;
@@ -279,12 +279,12 @@ struct Rect { int x; int y; int w; int h; }
 	assert(sv.name(&ws.strings) == "Rect", "StructView.name");
 }
 
-fn void test_struct_view_field_count() @test => @pool()
+fn void test_struct_view_field_count() @test //=> @pool()
 {
 	String path = write_fixture("sv_fcount", `module sv;
 struct Vec3 { float x; float y; float z; }
 `);
-	Workspace ws; ws.init();
+	Workspace ws; ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 	Cursor c = ws.lookup("sv", "Vec3")!!;
 	Ast* ast = &c.section.source_file.ast;
@@ -292,12 +292,12 @@ struct Vec3 { float x; float y; float z; }
 	assert(sv.field_count() == 3, "Vec3 has 3 fields");
 }
 
-fn void test_field_view_name() @test => @pool()
+fn void test_field_view_name() @test //=> @pool()
 {
 	String path = write_fixture("fv_fname", `module sv;
 struct Pair { int first; int second; }
 `);
-	Workspace ws; ws.init();
+	Workspace ws; ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 	Cursor c = ws.lookup("sv", "Pair")!!;
 	Ast* ast = &c.section.source_file.ast;
@@ -308,12 +308,12 @@ struct Pair { int first; int second; }
 	assert(f1.name(&ws.strings) == "second", "field 1 name");
 }
 
-fn void test_field_view_type() @test => @pool()
+fn void test_field_view_type() @test //=> @pool()
 {
 	String path = write_fixture("fv_ftype", `module sv;
 struct Coord { double lat; double lon; }
 `);
-	Workspace ws; ws.init();
+	Workspace ws; ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 	Cursor c = ws.lookup("sv", "Coord")!!;
 	Ast* ast = &c.section.source_file.ast;
@@ -323,12 +323,12 @@ struct Coord { double lat; double lon; }
 	assert(tv.name(&ws.strings) == "double", "field type is double");
 }
 
-fn void test_struct_view_empty() @test => @pool()
+fn void test_struct_view_empty() @test //=> @pool()
 {
 	String path = write_fixture("sv_empty", `module sv;
 struct Empty {}
 `);
-	Workspace ws; ws.init();
+	Workspace ws; ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 	Cursor c = ws.lookup("sv", "Empty")!!;
 	Ast* ast = &c.section.source_file.ast;
@@ -340,12 +340,12 @@ struct Empty {}
 // EnumView
 // ============================================================
 
-fn void test_enum_view_member_count() @test => @pool()
+fn void test_enum_view_member_count() @test //=> @pool()
 {
 	String path = write_fixture("ev_count", `module ev;
 enum Color { RED, GREEN, BLUE }
 `);
-	Workspace ws; ws.init();
+	Workspace ws; ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 	Module* mod = ws.modules.get("ev")!!;
 	ModuleSection* sec = mod.sections[0];
@@ -355,12 +355,12 @@ enum Color { RED, GREEN, BLUE }
 	assert(ev.member_count() == 3, "Color has 3 members");
 }
 
-fn void test_enum_view_member_kind() @test => @pool()
+fn void test_enum_view_member_kind() @test //=> @pool()
 {
 	String path = write_fixture("ev_mtype", `module ev;
 enum Dir { NORTH, SOUTH, EAST, WEST }
 `);
-	Workspace ws; ws.init();
+	Workspace ws; ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 	Module* mod = ws.modules.get("ev")!!;
 	ModuleSection* sec = mod.sections[0];
@@ -373,12 +373,12 @@ enum Dir { NORTH, SOUTH, EAST, WEST }
 	assert(ast.get_kind(m0) == NodeKind.ENUM_MEMBER, "member is ENUM_MEMBER");
 }
 
-fn void test_enum_view_is_constdef() @test => @pool()
+fn void test_enum_view_is_constdef() @test //=> @pool()
 {
 	String path = write_fixture("ev_constdef", `module ev;
 constdef Flags { A, B, C }
 `);
-	Workspace ws; ws.init();
+	Workspace ws; ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 	Module* mod = ws.modules.get("ev")!!;
 	ModuleSection* sec = mod.sections[0];
@@ -387,12 +387,12 @@ constdef Flags { A, B, C }
 	assert(ev.is_const_def(), "constdef sets is_const_def");
 }
 
-fn void test_enum_view_is_not_constdef() @test => @pool()
+fn void test_enum_view_is_not_constdef() @test //=> @pool()
 {
 	String path = write_fixture("ev_nonconstdef", `module ev;
 enum Normal { X, Y }
 `);
-	Workspace ws; ws.init();
+	Workspace ws; ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 	Module* mod = ws.modules.get("ev")!!;
 	ModuleSection* sec = mod.sections[0];
@@ -405,12 +405,12 @@ enum Normal { X, Y }
 // TypedefView
 // ============================================================
 
-fn void test_typedef_view_name() @test => @pool()
+fn void test_typedef_view_name() @test //=> @pool()
 {
 	String path = write_fixture("td_name", `module td;
 typedef MyInt = int;
 `);
-	Workspace ws; ws.init();
+	Workspace ws; ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 	Module* mod = ws.modules.get("td")!!;
 	ModuleSection* sec = mod.sections[0];
@@ -420,12 +420,12 @@ typedef MyInt = int;
 	assert(tv.name(&ws.strings) == "MyInt", "typedef name");
 }
 
-fn void test_typedef_view_base_type() @test => @pool()
+fn void test_typedef_view_base_type() @test //=> @pool()
 {
 	String path = write_fixture("td_base", `module td;
 typedef Sz = ulong;
 `);
-	Workspace ws; ws.init();
+	Workspace ws; ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 	Module* mod = ws.modules.get("td")!!;
 	ModuleSection* sec = mod.sections[0];
@@ -442,12 +442,12 @@ typedef Sz = ulong;
 // TypeView
 // ============================================================
 
-fn void test_type_view_ptr_count_one() @test => @pool()
+fn void test_type_view_ptr_count_one() @test //=> @pool()
 {
 	String path = write_fixture("tv_ptr1", `module tv;
 fn void f(int* p) {}
 `);
-	Workspace ws; ws.init();
+	Workspace ws; ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 	Cursor c = ws.lookup("tv", "f")!!;
 	Ast* ast = &c.section.source_file.ast;
@@ -457,12 +457,12 @@ fn void f(int* p) {}
 	assert(tv.ptr_count() == 1, "one pointer level");
 }
 
-fn void test_type_view_ptr_count_two() @test => @pool()
+fn void test_type_view_ptr_count_two() @test //=> @pool()
 {
 	String path = write_fixture("tv_ptr2", `module tv;
 fn void f(char** pp) {}
 `);
-	Workspace ws; ws.init();
+	Workspace ws; ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 	Cursor c = ws.lookup("tv", "f")!!;
 	Ast* ast = &c.section.source_file.ast;
@@ -472,12 +472,12 @@ fn void f(char** pp) {}
 	assert(tv.ptr_count() == 2, "two pointer levels");
 }
 
-fn void test_type_view_no_generics() @test => @pool()
+fn void test_type_view_no_generics() @test //=> @pool()
 {
 	String path = write_fixture("tv_nogen", `module tv;
 fn void f(int x) {}
 `);
-	Workspace ws; ws.init();
+	Workspace ws; ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 	Cursor c = ws.lookup("tv", "f")!!;
 	Ast* ast = &c.section.source_file.ast;
@@ -491,12 +491,12 @@ fn void f(int x) {}
 // PathView
 // ============================================================
 
-fn void test_path_view_single_segment() @test => @pool()
+fn void test_path_view_single_segment() @test //=> @pool()
 {
 	String path = write_fixture("pv_single", `module pv;
 import foo;
 `);
-	Workspace ws; ws.init();
+	Workspace ws; ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 	Module* mod = ws.modules.get("pv")!!;
 	ModuleSection* sec = mod.sections[0];
@@ -509,12 +509,12 @@ import foo;
 	assert(pv.get_full(&ws.strings) == "foo", "path text is 'foo'");
 }
 
-fn void test_path_view_three_segments() @test => @pool()
+fn void test_path_view_three_segments() @test //=> @pool()
 {
 	String path = write_fixture("pv_three", `module pv;
 import a::b::c;
 `);
-	Workspace ws; ws.init();
+	Workspace ws; ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 	Module* mod = ws.modules.get("pv")!!;
 	ModuleSection* sec = mod.sections[0];
@@ -533,11 +533,11 @@ import a::b::c;
 // ModuleView
 // ============================================================
 
-fn void test_module_view_path() @test => @pool()
+fn void test_module_view_path() @test //=> @pool()
 {
 	String path = write_fixture("mv_path", `module app::core;
 `);
-	Workspace ws; ws.init();
+	Workspace ws; ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 	Module* mod = ws.modules.get("app::core")!!;
 	ModuleSection* sec = mod.sections[0];
@@ -549,11 +549,11 @@ fn void test_module_view_path() @test => @pool()
 	assert(pv.get_full(&ws.strings) == "app::core", "module path");
 }
 
-fn void test_module_view_not_generic() @test => @pool()
+fn void test_module_view_not_generic() @test //=> @pool()
 {
 	String path = write_fixture("mv_nogen", `module simple;
 `);
-	Workspace ws; ws.init();
+	Workspace ws; ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 	Module* mod = ws.modules.get("simple")!!;
 	ModuleSection* sec = mod.sections[0];
@@ -567,12 +567,12 @@ fn void test_module_view_not_generic() @test => @pool()
 // ImportView
 // ============================================================
 
-fn void test_import_view_path() @test => @pool()
+fn void test_import_view_path() @test //=> @pool()
 {
 	String path = write_fixture("iv_path", `module iv;
 import std::io;
 `);
-	Workspace ws; ws.init();
+	Workspace ws; ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 	Module* mod = ws.modules.get("iv")!!;
 	ModuleSection* sec = mod.sections[0];
@@ -587,12 +587,12 @@ import std::io;
 // CompoundView
 // ============================================================
 
-fn void test_compound_view_len() @test => @pool()
+fn void test_compound_view_len() @test //=> @pool()
 {
 	String path = write_fixture("cv_len", `module cv;
 fn void three() { int a = 1; int b = 2; int c = 3; }
 `);
-	Workspace ws; ws.init();
+	Workspace ws; ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 	Cursor c = ws.lookup("cv", "three")!!;
 	Ast* ast = &c.section.source_file.ast;
@@ -601,12 +601,12 @@ fn void three() { int a = 1; int b = 2; int c = 3; }
 	assert(cv.len() == 3, "compound has 3 stmts");
 }
 
-fn void test_compound_view_get_kind() @test => @pool()
+fn void test_compound_view_get_kind() @test //=> @pool()
 {
 	String path = write_fixture("cv_get", `module cv;
 fn void two() { int x = 1; int y = 2; }
 `);
-	Workspace ws; ws.init();
+	Workspace ws; ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 	Cursor c = ws.lookup("cv", "two")!!;
 	Ast* ast = &c.section.source_file.ast;
@@ -619,12 +619,12 @@ fn void two() { int x = 1; int y = 2; }
 	assert(ast.get_kind(s1) == NodeKind.LOCAL_DECL, "stmt 1 is LOCAL_DECL");
 }
 
-fn void test_compound_view_empty() @test => @pool()
+fn void test_compound_view_empty() @test //=> @pool()
 {
 	String path = write_fixture("cv_empty", `module cv;
 fn void empty_body() {}
 `);
-	Workspace ws; ws.init();
+	Workspace ws; ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 	Cursor c = ws.lookup("cv", "empty_body")!!;
 	Ast* ast = &c.section.source_file.ast;
@@ -637,12 +637,12 @@ fn void empty_body() {}
 // ReturnView
 // ============================================================
 
-fn void test_return_view_expr_valid() @test => @pool()
+fn void test_return_view_expr_valid() @test //=> @pool()
 {
 	String path = write_fixture("rv_expr", `module rv;
 fn int get() { return 7; }
 `);
-	Workspace ws; ws.init();
+	Workspace ws; ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 	Cursor c = ws.lookup("rv", "get")!!;
 	Ast* ast = &c.section.source_file.ast;
@@ -654,12 +654,12 @@ fn int get() { return 7; }
 	assert(rv.expr().is_valid(), "return expr is valid");
 }
 
-fn void test_return_view_expr_kind() @test => @pool()
+fn void test_return_view_expr_kind() @test //=> @pool()
 {
 	String path = write_fixture("rv_kind", `module rv;
 fn int lit_ret() { return 99; }
 `);
-	Workspace ws; ws.init();
+	Workspace ws; ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 	Cursor c = ws.lookup("rv", "lit_ret")!!;
 	Ast* ast = &c.section.source_file.ast;
@@ -673,12 +673,12 @@ fn int lit_ret() { return 99; }
 // LiteralView
 // ============================================================
 
-fn void test_literal_view_int_value() @test => @pool()
+fn void test_literal_view_int_value() @test //=> @pool()
 {
 	String path = write_fixture("lv_int", `module lv;
 fn int answer() { return 42; }
 `);
-	Workspace ws; ws.init();
+	Workspace ws; ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 	Cursor c = ws.lookup("lv", "answer")!!;
 	Ast* ast = &c.section.source_file.ast;
@@ -689,12 +689,12 @@ fn int answer() { return 42; }
 	assert(lv.value(&ws.strings) == "42", "literal value is '42'");
 }
 
-fn void test_literal_view_float_value() @test => @pool()
+fn void test_literal_view_float_value() @test //=> @pool()
 {
 	String path = write_fixture("lv_float", `module lv;
 fn float pi_approx() { return 3.14; }
 `);
-	Workspace ws; ws.init();
+	Workspace ws; ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 	Cursor c = ws.lookup("lv", "pi_approx")!!;
 	Ast* ast = &c.section.source_file.ast;
@@ -711,12 +711,12 @@ fn float pi_approx() { return 3.14; }
 // IdentView
 // ============================================================
 
-fn void test_ident_view_name() @test => @pool()
+fn void test_ident_view_name() @test //=> @pool()
 {
 	String path = write_fixture("iv_ident", `module iv;
 fn int passthrough(int val) { return val; }
 `);
-	Workspace ws; ws.init();
+	Workspace ws; ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 	Cursor c = ws.lookup("iv", "passthrough")!!;
 	Ast* ast = &c.section.source_file.ast;
@@ -733,12 +733,15 @@ fn int passthrough(int val) { return val; }
 // BinaryView
 // ============================================================
 
-fn void test_binary_view_add_op() @test => @pool()
+fn void test_binary_view_add_op() @test //=> @pool()
 {
 	String path = write_fixture("bv_add", `module bv;
 fn int sum(int a, int b) { return a + b; }
 `);
-	Workspace ws; ws.init();
+	Workspace ws; 
+	ws.init();
+	defer ws.free();
+
 	parser::parse_file(&ws, path)!!;
 	Cursor c = ws.lookup("bv", "sum")!!;
 	Ast* ast = &c.section.source_file.ast;
@@ -753,12 +756,15 @@ fn int sum(int a, int b) { return a + b; }
 	assert(bv.right().is_valid(), "right operand valid");
 }
 
-fn void test_binary_view_mul_op() @test => @pool()
+fn void test_binary_view_mul_op() @test //=> @pool()
 {
 	String path = write_fixture("bv_mul", `module bv;
 fn int product(int a, int b) { return a * b; }
 `);
-	Workspace ws; ws.init();
+	Workspace ws; 
+	ws.init();
+	defer ws.free();
+
 	parser::parse_file(&ws, path)!!;
 	Cursor c = ws.lookup("bv", "product")!!;
 	Ast* ast = &c.section.source_file.ast;
@@ -769,12 +775,12 @@ fn int product(int a, int b) { return a * b; }
 	assert(bv.op() == TokenKind.ASTERISK, "op is ASTERISK (multiply)");
 }
 
-fn void test_binary_view_operand_kinds() @test => @pool()
+fn void test_binary_view_operand_kinds() @test //=> @pool()
 {
 	String path = write_fixture("bv_ops", `module bv;
 fn int inc(int n) { return n + 1; }
 `);
-	Workspace ws; ws.init();
+	Workspace ws; ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 	Cursor c = ws.lookup("bv", "inc")!!;
 	Ast* ast = &c.section.source_file.ast;
@@ -790,12 +796,12 @@ fn int inc(int n) { return n + 1; }
 // UnaryView
 // ============================================================
 
-fn void test_unary_view_negate() @test => @pool()
+fn void test_unary_view_negate() @test //=> @pool()
 {
 	String path = write_fixture("uv_neg", `module uv;
 fn int neg(int x) { return -x; }
 `);
-	Workspace ws; ws.init();
+	Workspace ws; ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 	Cursor c = ws.lookup("uv", "neg")!!;
 	Ast* ast = &c.section.source_file.ast;
@@ -810,12 +816,12 @@ fn int neg(int x) { return -x; }
 	assert(ast.get_kind(uv.rhs()) == NodeKind.IDENT_EXPR, "rhs is IDENT_EXPR");
 }
 
-fn void test_unary_view_not() @test => @pool()
+fn void test_unary_view_not() @test //=> @pool()
 {
 	String path = write_fixture("uv_not", `module uv;
 fn bool flip(bool b) { return !b; }
 `);
-	Workspace ws; ws.init();
+	Workspace ws; ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 	Cursor c = ws.lookup("uv", "flip")!!;
 	Ast* ast = &c.section.source_file.ast;
@@ -830,14 +836,14 @@ fn bool flip(bool b) { return !b; }
 // IfView
 // ============================================================
 
-fn void test_if_view_all_branches() @test => @pool()
+fn void test_if_view_all_branches() @test //=> @pool()
 {
 	String path = write_fixture("ifv_full", `module ifv;
 fn void branch(bool b) {
 	if (b) { int x = 1; } else { int y = 2; }
 }
 `);
-	Workspace ws; ws.init();
+	Workspace ws; ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 	Cursor c = ws.lookup("ifv", "branch")!!;
 	Ast* ast = &c.section.source_file.ast;
@@ -851,14 +857,14 @@ fn void branch(bool b) {
 	assert(iv.else_block().is_valid(), "else_block valid");
 }
 
-fn void test_if_view_no_else() @test => @pool()
+fn void test_if_view_no_else() @test //=> @pool()
 {
 	String path = write_fixture("ifv_noelse", `module ifv;
 fn void maybe(bool b) {
 	if (b) { int z = 0; }
 }
 `);
-	Workspace ws; ws.init();
+	Workspace ws; ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 	Cursor c = ws.lookup("ifv", "maybe")!!;
 	Ast* ast = &c.section.source_file.ast;
@@ -868,14 +874,14 @@ fn void maybe(bool b) {
 	assert(!iv.else_block().is_valid(), "no else block");
 }
 
-fn void test_if_view_condition_kind() @test => @pool()
+fn void test_if_view_condition_kind() @test //=> @pool()
 {
 	String path = write_fixture("ifv_cond", `module ifv;
 fn void test(bool flag) {
 	if (flag) {}
 }
 `);
-	Workspace ws; ws.init();
+	Workspace ws; ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 	Cursor c = ws.lookup("ifv", "test")!!;
 	Ast* ast = &c.section.source_file.ast;
@@ -890,14 +896,14 @@ fn void test(bool flag) {
 // ForView
 // ============================================================
 
-fn void test_for_view_all_parts() @test => @pool()
+fn void test_for_view_all_parts() @test //=> @pool()
 {
 	String path = write_fixture("forv_all", `module forv;
 fn void loop() {
 	for (int i = 0; i < 10; i++) {}
 }
 `);
-	Workspace ws; ws.init();
+	Workspace ws; ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 	Cursor c = ws.lookup("forv", "loop")!!;
 	Ast* ast = &c.section.source_file.ast;
@@ -912,14 +918,14 @@ fn void loop() {
 	assert(fov.body().is_valid(), "for body valid");
 }
 
-fn void test_for_view_body_kind() @test => @pool()
+fn void test_for_view_body_kind() @test //=> @pool()
 {
 	String path = write_fixture("forv_body", `module forv;
 fn void loop2() {
 	for (int j = 0; j < 5; j++) { int k = j; }
 }
 `);
-	Workspace ws; ws.init();
+	Workspace ws; ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 	Cursor c = ws.lookup("forv", "loop2")!!;
 	Ast* ast = &c.section.source_file.ast;
@@ -933,12 +939,12 @@ fn void loop2() {
 // TernaryView
 // ============================================================
 
-fn void test_ternary_view_parts() @test => @pool()
+fn void test_ternary_view_parts() @test //=> @pool()
 {
 	String path = write_fixture("tv_tern", `module tv;
 fn int pick(bool cond) { return cond ? 1 : 2; }
 `);
-	Workspace ws; ws.init();
+	Workspace ws; ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 	Cursor c = ws.lookup("tv", "pick")!!;
 	Ast* ast = &c.section.source_file.ast;
@@ -953,12 +959,12 @@ fn int pick(bool cond) { return cond ? 1 : 2; }
 	assert(tv.else_expr().is_valid(), "ternary else_expr valid");
 }
 
-fn void test_ternary_view_operand_kinds() @test => @pool()
+fn void test_ternary_view_operand_kinds() @test //=> @pool()
 {
 	String path = write_fixture("tv_tern2", `module tv;
 fn int choose(bool b) { return b ? 10 : 20; }
 `);
-	Workspace ws; ws.init();
+	Workspace ws; ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 	Cursor c = ws.lookup("tv", "choose")!!;
 	Ast* ast = &c.section.source_file.ast;
@@ -975,12 +981,12 @@ fn int choose(bool b) { return b ? 10 : 20; }
 // ExprStmtView
 // ============================================================
 
-fn void test_expr_stmt_view_expr() @test => @pool()
+fn void test_expr_stmt_view_expr() @test //=> @pool()
 {
 	String path = write_fixture("esv_expr", `module esv;
 fn void call_it() { do_work(); }
 `);
-	Workspace ws; ws.init();
+	Workspace ws; ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 	Cursor c = ws.lookup("esv", "call_it")!!;
 	Ast* ast = &c.section.source_file.ast;
@@ -992,12 +998,12 @@ fn void call_it() { do_work(); }
 	assert(ev.expr().is_valid(), "inner expr is valid");
 }
 
-fn void test_expr_stmt_view_inner_kind() @test => @pool()
+fn void test_expr_stmt_view_inner_kind() @test //=> @pool()
 {
 	String path = write_fixture("esv_kind", `module esv;
 fn void caller2() { some_fn(); }
 `);
-	Workspace ws; ws.init();
+	Workspace ws; ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 	Cursor c = ws.lookup("esv", "caller2")!!;
 	Ast* ast = &c.section.source_file.ast;
@@ -1011,14 +1017,14 @@ fn void caller2() { some_fn(); }
 // DeferView
 // ============================================================
 
-fn void test_defer_view_normal_kind() @test => @pool()
+fn void test_defer_view_normal_kind() @test //=> @pool()
 {
 	String path = write_fixture("dv_normal", `module dv;
 fn void with_defer() {
 	defer { int x = 0; }
 }
 `);
-	Workspace ws; ws.init();
+	Workspace ws; ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 	Cursor c = ws.lookup("dv", "with_defer")!!;
 	Ast* ast = &c.section.source_file.ast;
@@ -1031,14 +1037,14 @@ fn void with_defer() {
 	assert(dv.stmt().is_valid(), "deferred stmt is valid");
 }
 
-fn void test_defer_view_stmt_is_compound() @test => @pool()
+fn void test_defer_view_stmt_is_compound() @test //=> @pool()
 {
 	String path = write_fixture("dv_compound", `module dv;
 fn void block_defer() {
 	defer { int y = 1; int z = 2; }
 }
 `);
-	Workspace ws; ws.init();
+	Workspace ws; ws.init(); defer ws.free();
 	parser::parse_file(&ws, path)!!;
 	Cursor c = ws.lookup("dv", "block_defer")!!;
 	Ast* ast = &c.section.source_file.ast;

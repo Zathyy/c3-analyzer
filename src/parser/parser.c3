@@ -89,6 +89,7 @@ struct Parser
 	Token[] tokens;
 	String file_path; // current file being parsed
 	String src;
+	Allocator allocator;
 
 	uint pos;
 	Node contract;
@@ -329,8 +330,7 @@ fn String peek_module_name(Parser* p)
 *>
 fn void? parse_file(Workspace* ws, String path)
 {
-	Parser parser = { .mod = null, .pool = &ws.strings, .file_path = path, // .allow_submodules = true,
-	};
+	Parser parser = { .mod = null, .pool = &ws.strings, .file_path = path, .allocator = ws.allocator };
 
 	if (!scratch.is_initialized())
 	{
@@ -345,7 +345,7 @@ fn void? parse_file(Workspace* ws, String path)
 	parser.src = src;
 
 	List{Token} tokens;
-	tokens.tinit(1000);
+	tokens.init(parser.allocator, 1000);
 	defer tokens.free();
 	while (try token = lexer.next())
 	{
@@ -355,7 +355,6 @@ fn void? parse_file(Workspace* ws, String path)
 
 	tokens.push({ .kind = EOF, .pos = (tokens.last().pos + tokens.last().len) ?? 0, .len = 0 });
 	parser.tokens = tokens.array_view();
-
 
 	SourceFile* sf = ws.reset_source_file(path);
 	sf.source = src;
