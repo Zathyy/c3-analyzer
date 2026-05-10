@@ -235,6 +235,7 @@ fn bool EnumView.is_inline(self)    => (self.flags() & (1 << 1)) != 0;
 constdef EnumMemberViewFields : inline uint
 {
 	NAME = 0,
+	ATTRIBUTES,
 	EXPLICIT_VALUE,
 	ASSOCIATED,
 }

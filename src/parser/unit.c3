@@ -681,79 +681,79 @@ fn Node? parse_contract_param(Parser* p)
 
 fn Node? parse_cond(Parser* p) => @with_scratch(; watermark)
 {
-    uint start_pos = p.current().pos;
+	uint start_pos = p.current().pos;
 
-    while (true)
-    {
-        if (p.is(TRY))
-        {
-            Node try_node = parse_try_unwrap_chain(p)!;
-            scratch.push((uint)try_node);
-            
-            if (p.is(COMMA)) 
+	while (true)
+	{
+		if (p.is(TRY))
+		{
+			Node try_node = parse_try_unwrap_chain(p)!;
+			scratch.push((uint)try_node);
+
+			if (p.is(COMMA)) 
 			{
-                p.error("The 'try' must be placed last in the condition list.");
-            }
-            break; 
-        }
+				p.error("The 'try' must be placed last in the condition list.");
+			}
+			break; 
+		}
 
-        if (p.is(CATCH))
-        {
-            Node catch_node = parse_catch_unwrap(p)!;
-            scratch.push((uint)catch_node);
-            
-            if (p.is(COMMA)) 
+		if (p.is(CATCH))
+		{
+			Node catch_node = parse_catch_unwrap(p)!;
+			scratch.push((uint)catch_node);
+
+			if (p.is(COMMA)) 
 			{
-                p.error("The 'catch' must be placed last in the condition list.");
-            }
-            break;
-        }
+				p.error("The 'catch' must be placed last in the condition list.");
+			}
+			break;
+		}
 
-        Node item = parse_decl_or_expr(p)!;
-        scratch.push((uint)item);
+		Node item = parse_decl_or_expr(p)!;
+		scratch.push((uint)item);
 
-        if (!consume(p, COMMA)!) break;
-        if (p.eof()) break;
-    }
+		if (!consume(p, COMMA)!) break;
+		if (p.eof()) break;
+	}
 
-    uint count = (uint)scratch.len() - watermark;
-    uint ex = p.ast.push_extra_list(scratch_view(watermark, count));
-    return p.ast.add_node(COND_EXPR, start_pos, p.previous_pos(), ex);
+	uint count = (uint)scratch.len() - watermark;
+	uint ex = p.ast.push_extra_list(scratch_view(watermark, count));
+	return p.ast.add_node(COND_EXPR, start_pos, p.previous_pos(), ex);
 }
 
 fn Node? parse_try_unwrap_chain(Parser* p) => @with_scratch(; watermark)
 {
-    uint start_pos = p.current_pos();
+	uint start_pos = p.current_pos();
 
-    Node first = parse_try_unwrap(p)!;
-    scratch.push((uint)first);
+	Node first = parse_try_unwrap(p)!;
+	scratch.push((uint)first);
 
-    // Look for '&&' chains 
-    while (consume(p, AND)!)
-    {
-        if (p.is(TRY))
-        {
-            // Another explicit 'try' (e.g., && try foo())
-            scratch.push((uint)parse_try_unwrap(p)!);
-        }
-        else
-        {
-            // A regular expression in the chain (e.g., && bar == 2)
-            scratch.push((uint)parse_expr(p)!);
-        }
-    }
+	// Look for '&&' chains 
+	while (consume(p, AND)!)
+	{
+		if (p.is(TRY))
+		{
+			// Another explicit 'try' (e.g., && try foo())
+			scratch.push((uint)parse_try_unwrap(p)!);
+		}
+		else
+		{
+			// A regular expression in the chain (e.g., && bar == 2)
+			scratch.push((uint)parse_expr(p)!);
+		}
+	}
 
-    uint count = (uint)scratch.len() - watermark;
-    uint ex = p.ast.push_extra_list(scratch_view(watermark, count));
-    return p.ast.add_node(TRY_UNWRAP_CHAIN_EXPR, start_pos, p.previous_pos(), ex);
+	uint count = (uint)scratch.len() - watermark;
+	uint ex = p.ast.push_extra_list(scratch_view(watermark, count));
+	return p.ast.add_node(TRY_UNWRAP_CHAIN_EXPR, start_pos, p.previous_pos(), ex);
 }
 
 fn Node? parse_try_unwrap(Parser* p)
 {
-    uint pos = p.current_pos();
-    expect(p, TRY)!;
-    Node expr = parse_expr(p)!;
-    return p.ast.add_node(TRY_UNWRAP_EXPR, pos, p.previous_pos(), (uint)expr);
+	uint pos = p.current_pos();
+	expect(p, TRY)!;
+	Node expr = parse_decl_or_expr(p)!;
+	return p.ast.add_node(TRY_UNWRAP_EXPR, pos, p.previous_pos(), (uint)expr);
 }
 
 fn Node? parse_catch_unwrap(Parser* p) => @with_scratch(; watermark)

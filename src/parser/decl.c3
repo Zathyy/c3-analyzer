@@ -256,6 +256,7 @@ fn Node? parse_enum(Parser* p, ParseFlags flags)
 				Token elem_tok = p.current();
 				uint elem_name = p.pool.intern(p.token_text(elem_tok));
 				advance(p)!;
+				Node el_attrs = parse_attributes(p)!;
 
 				Node explicit_val = consume(p, EQ)! ? (parse_expr(p)!) : 0;
 				Node assoc_init = p.is(LBRACE) ? (parse_initializer_list(p)!) : 0;
@@ -263,8 +264,9 @@ fn Node? parse_enum(Parser* p, ParseFlags flags)
 				uint[*] member_data = views::@data{EnumMemberViewFields}
 				(
 				 NAME, elem_name, 
+				 ATTRIBUTES, el_attrs,
 				 EXPLICIT_VALUE, explicit_val, 
-				 ASSOCIATED, assoc_init 
+				 ASSOCIATED, assoc_init,
 				);
 				uint m_ex = p.ast.push_extra_block(&member_data);
 

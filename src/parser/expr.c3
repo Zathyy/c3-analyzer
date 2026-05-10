@@ -844,7 +844,7 @@ fn Node? parse_range(Parser* p, Node left, uint start_pos)
 	{
 		if (consume(p, BIT_XOR)!)
 		{
-			Node inner = parse_expr(p, CALL)!;
+			Node inner = parse_expr(p, LOWEST)!;
 			uint[2] data = { (uint)TokenKind.BIT_XOR, (uint)inner };
 			uint ex = p.ast.push_extra_block(&data);
 			start = p.ast.add_node(PREFIX_EXPR, p.current().pos, p.current_pos(), ex);
@@ -865,7 +865,7 @@ fn Node? parse_range(Parser* p, Node left, uint start_pos)
 	{
 		if (consume(p, BIT_XOR)!)
 		{
-			Node inner = parse_expr(p, CALL)!;
+			Node inner = parse_expr(p, LOWEST)!;
 			uint[2] data = { (uint)TokenKind.BIT_XOR, (uint)inner };
 			uint ex = p.ast.push_extra_block(&data);
 			end = p.ast.add_node(PREFIX_EXPR, p.current().pos, p.current_pos(), ex);
