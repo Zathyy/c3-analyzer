@@ -649,31 +649,28 @@ fn Node? parse_call(Parser* p, Token t, Node callee)
 	uint args_list_ex;
 	@with_scratch(; watermark)
 	{
-		if (p.current().kind != RPAREN && p.current().kind != EOS && !p.eof())
+		while (p.current().kind != RPAREN && p.current().kind != EOS && !p.eof())
 		{
-			while (true)
+			Node arg_node;
+			// Named argument logic (name: expr)
+			TokenKind kind = p.current().kind;
+			if ((kind == IDENT || kind == HASH_IDENT || kind == CT_IDENT) && p.peek().kind == COLON)
 			{
-				Node arg_node;
-				// Named argument logic (name: expr)
-				TokenKind kind = p.current().kind;
-				if ((kind == IDENT || kind == HASH_IDENT || kind == CT_IDENT) && p.peek().kind == COLON)
-				{
-					Token name_tok = p.current();
-					advance(p, 2)!;
-					uint name_sh = p.pool.intern(p.token_text(name_tok));
-					Node value = parse_expr(p)!;
-					uint[2] data = { name_sh, (uint)value };
-					uint arg_ex = p.ast.push_extra_block(&data);
-					arg_node = p.ast.add_node(NAMED_ARG_EXPR, name_tok.pos, p.current_pos(), arg_ex);
-				}
-				else
-				{
-					arg_node = parse_expr(p)!;
-				}
-
-				scratch.push((uint)arg_node);
-				if (!consume(p, COMMA)!) break;
+				Token name_tok = p.current();
+				advance(p, 2)!;
+				uint name_sh = p.pool.intern(p.token_text(name_tok));
+				Node value = parse_expr(p)!;
+				uint[2] data = { name_sh, (uint)value };
+				uint arg_ex = p.ast.push_extra_block(&data);
+				arg_node = p.ast.add_node(NAMED_ARG_EXPR, name_tok.pos, p.current_pos(), arg_ex);
 			}
+			else
+			{
+				arg_node = parse_expr(p)!;
+			}
+
+			scratch.push((uint)arg_node);
+			if (!consume(p, COMMA)!) break;
 		}
 
 		if (consume(p, EOS)!)
@@ -761,68 +758,68 @@ fn Node? parse_designator_path(Parser* p)
 
 fn Node? parse_initializer_list(Parser* p)
 {
-    uint start_tok = p.current_pos();
-    expect(p, LBRACE)!;
+	uint start_tok = p.current_pos();
+	expect(p, LBRACE)!;
 
-    // Handle empty initializer {}
-    if (consume(p, RBRACE)!)
-    {
-        return p.ast.add_node(INITIALIZER_LIST, start_tok, p.current_pos(), 0);
-    }
+	// Handle empty initializer {}
+	if (consume(p, RBRACE)!)
+	{
+		return p.ast.add_node(INITIALIZER_LIST, start_tok, p.current_pos(), 0);
+	}
 
-    uint ex = 0;
-    @with_scratch(; watermark)
-    {
-        while (true)
-        {
-            Node expr;
+	uint ex = 0;
+	@with_scratch(; watermark)
+	{
+		while (true)
+		{
+			Node expr;
 
 			if (p.is(DOT) || p.is(LBRACKET))            
 			{
-                uint path_start = p.current_pos();
-                Node path = parse_designator_path(p)!;
+				uint path_start = p.current_pos();
+				Node path = parse_designator_path(p)!;
 
-                if (consume(p, EQ)!)
-                {
-                    Node val = parse_expr(p, Precedence.LOWEST)!;
+				if (consume(p, EQ)!)
+				{
+					Node val = parse_expr(p, Precedence.LOWEST)!;
 
-                    uint[2] data = { (uint)path, (uint)val };
-                    uint pair_ex = p.ast.push_extra_block(&data);
-                    expr = p.ast.add_node(DESIGNATED_INITIALIZER, path_start, p.current_pos(), pair_ex);
-                }
-                else
-                {
-                    // .member (implies .member = member)
-                    expr = path;
+					uint[2] data = { (uint)path, (uint)val };
+					uint pair_ex = p.ast.push_extra_block(&data);
+					expr = p.ast.add_node(DESIGNATED_INITIALIZER, path_start, p.current_pos(), pair_ex);
 				}
-            }
-            // Nested Initializer: { {1, 2}, {3, 4} }
-            else if (p.is(LBRACE))
-            {
-                expr = parse_initializer_list(p)!;
-            }
-            else
-            {
-                expr = parse_expr(p)!;
-            }
+				else
+				{
+					// .member (implies .member = member)
+					expr = path;
+				}
+			}
+			// Nested Initializer: { {1, 2}, {3, 4} }
+			else if (p.is(LBRACE))
+			{
+				expr = parse_initializer_list(p)!;
+			}
+			else
+			{
+				expr = parse_expr(p)!;
+			}
 
-            scratch.push((uint)expr);
+			scratch.push((uint)expr);
 
-            if (consume(p, RBRACE)!) break;
-            expect(p, COMMA)!;
+			if (consume(p, RBRACE)!) break;
+			expect(p, COMMA)!;
 
 			// Handle trailing comma
-            if (p.is(RBRACE)) 
+			if (p.is(RBRACE)) 
 			{ 
 				advance(p)!; 
 				break; 
 			} 
-        }
-        
-        ex = p.ast.push_extra_list(scratch_view(watermark, (uint)scratch.len() - watermark));
-    };
+		}
 
-    return p.ast.add_node(INITIALIZER_LIST, start_tok, p.current_pos(), ex);
+		ex = p.ast.push_extra_list(scratch_view(watermark, (uint)scratch.len() - watermark));
+	};
+
+	return p.ast.add_node(INITIALIZER_LIST, start_tok, p.current_pos(), ex);
 }
 
 /**

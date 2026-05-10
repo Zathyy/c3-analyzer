@@ -156,7 +156,7 @@ fn Node? parse_type(Parser* p, ParseFlags parse_flags = { })
 			flags.is_vector = true;
 			array_size = consume(p, ASTERISK)! ? 0 : parse_expr(p)!;
 			expect(p, RVEC)!;
-			break; 
+			continue; 
 		}
 		if (consume(p, ASTERISK)!) 
 		{ 

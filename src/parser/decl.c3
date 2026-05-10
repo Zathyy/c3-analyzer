@@ -223,7 +223,14 @@ fn Node? parse_enum(Parser* p, ParseFlags flags)
 	if (consume(p, COLON)!) 
 	{
 		if (consume(p, INLINE)!) is_inline_type = true;
-		base_type = parse_type(p) ?? p.push_invalid_node(p.current_pos());
+		if (p.is(LPAREN)) // if it is LPAREN, then there are no base types
+		{
+			base_type = p.ast.add_empty(p.current_pos());
+		}
+		else
+		{
+			base_type = parse_type(p, { .no_generics = true }) ?? p.ast.add_empty(p.current_pos());
+		}
 	}
 
 	Node params = p.is(LPAREN) ? parse_parameter_list(p)! : {};
@@ -236,6 +243,7 @@ fn Node? parse_enum(Parser* p, ParseFlags flags)
 		{
 			while (!p.is(RBRACE) && !p.eof())
 			{
+				consume(p, CONTRACT)!;
 				if (!p.is(CONST_IDENT)) 
 				{
 					p.error("Expected enum member name");
@@ -344,16 +352,10 @@ fn Node? parse_fn_decl(Parser* p, ParseFlags flags) => @scratch()
 	Node ret_type = parse_type(p)!;
 
 	uint name; // name of fn
-	uint method_type; // if a method, the struct it belongs to, dont know what else to call it? class maybe? xD
-	if (p.peek(1).kind == DOT)
+	Node method_type; // if a method, the struct it belongs to, dont know what else to call it? class maybe? xD
+	if (is_type(p.current().kind))
 	{
-		if (!is_type(p.current().kind))
-		{
-			p.error("Expected method Type name");
-			return UNEXPECTED_TOKEN~;
-		}
-		method_type = p.pool.intern(p.token_text(p.current()));
-		advance(p)!;
+		method_type = parse_type(p)!;
 		expect(p, DOT)!;
 		if (!p.is(IDENT))
 		{
@@ -645,7 +647,16 @@ fn Node? parse_param_decl(Parser* p)
 
 	if (consume(p, EQ)!)
 	{
-		init = parse_expr(p)!;
+		if (p.is(ELLIPSIS))
+		{
+			Token ellipsis_tok = p.peek();
+			advance(p)!;
+			init = p.ast.add_node(DEFAULT_ELLIPSIS, ellipsis_tok.pos, p.current_pos(), 0);
+		}
+		else
+		{
+			init = parse_expr(p)!;
+		}
 	}
 
 	if (!type.is_valid() && name == 0 && !attributes.is_valid() && !ellipsis_prefix)
@@ -760,6 +771,8 @@ fn Node? parse_ident_alias(Parser* p)
 
 	Node expr = parse_expr(p)!;
 
+	expect(p, EOS)!;
+
 	uint[*] data = views::@data{ExprAliasViewFields}
 	( 
 		NAME, name, 
@@ -851,6 +864,7 @@ fn Node? parse_typedef(Parser* p)
 
 	Node inter = parse_interface_impl(p)!;
 	Node generics = parse_generic_decl(p)!;
+	Node attr = parse_attributes(p)!;
 	expect(p, EQ)!;
 
 	if (consume(p, INLINE)!)
@@ -917,6 +931,12 @@ fn Node? parse_interface(Parser* p)
 	Node methods_head;
 	while (!p.is(RBRACE) && !p.is(EOF))
 	{
+		Node contract;
+		if (p.is(CONTRACT))
+		{
+			contract = parse_contract(p)!;
+		}
+
 		if (!p.is(FN))
 		{
 			p.error("Interfaces can only contain function declarations.");
@@ -925,7 +945,7 @@ fn Node? parse_interface(Parser* p)
 
 		Node method = parse_fn_decl(p, { .is_interface = true })!;
 
-		uint[2] link = { (uint)method, (uint)methods_head };
+		uint[3] link = { (uint)method, (uint)contract, (uint)methods_head };
 		uint ex = p.ast.push_extra_block(&link);
 		methods_head = p.ast.add_node(INTERFACE_METHOD, p.current_pos(), p.current_pos(), ex);
 	}
