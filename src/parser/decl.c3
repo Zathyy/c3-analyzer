@@ -510,7 +510,11 @@ fn Node? parse_macro_decl(Parser* p)
 	if (consume(p, IMPLIES)!)
 	{
 		body = parse_expr(p)!;
-		expect(p, EOS)!;
+
+		if (!node_ends_with_block(p, body))
+		{
+			expect(p, EOS)!;
+		}
 	}
 	else if (p.is(LBRACE))
 	{

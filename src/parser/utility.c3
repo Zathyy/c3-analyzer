@@ -92,19 +92,20 @@ fn bool is_non_type_ident(TokenKind k)
 
 fn bool node_ends_with_block(Parser* p, Node n)
 {
-    NodeKind kind = p.ast.get_kind(n);
+	NodeKind kind = p.ast.get_kind(n);
 
-    switch (kind)
-    {
-        case CALL_EXPR:
-        case ATTR_CALL_EXPR:
-            CallView view = { p.ast, n };
-            return view.get_compound().is_valid();
-        case COMPOUND_STMT:
-            return true;
-        default:
-            return false;
-    }
+	log::debug("%s", kind);
+	switch (kind)
+	{
+		case CALL_EXPR:
+		case ATTR_CALL_EXPR:
+			CallView view = { p.ast, n };
+			return view.get_compound().is_valid();
+		case COMPOUND_STMT:
+			return true;
+		default:
+			return false;
+	}
 }
 
 fn bool is_type(TokenKind kind)

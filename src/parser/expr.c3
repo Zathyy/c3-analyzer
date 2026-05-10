@@ -686,16 +686,16 @@ fn Node? parse_call(Parser* p, Token t, Node callee)
 	Node attr = parse_attributes(p)!;
 
 	if (p.is(LBRACE))
-    {
-        trailing_block = parse_compound(p)!;
-    }
+	{
+		trailing_block = parse_compound(p)!;
+	}
 
 	uint[*] final_data = views::@data{CallViewFields}
 	(	
-		CALLEE, (uint)callee,
+		CALLEE, callee,
 		TYPE_ARG, type_args_list_ex,
 		ARG, args_list_ex,
-		COMPOUND, (uint)trailing_block,
+		COMPOUND, trailing_block,
 	);
 
 	uint ex = p.ast.push_extra_block(&final_data);
@@ -1085,7 +1085,7 @@ fn Node? parse_generic_expr(Parser* p) => @with_scratch(; watermark)
 	}
 	while (!consume(p, RBRACE)!);
 
-    uint count = (uint)scratch.len() - watermark;
+	uint count = (uint)scratch.len() - watermark;
 	uint ex = p.ast.push_extra_list(scratch_view(watermark, count));
 	return p.ast.add_node(GENERIC_IDENT_EXPR, start_pos, p.current_pos(), ex);
 }

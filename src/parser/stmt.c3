@@ -482,7 +482,15 @@ fn Node? parse_switch_case(Parser* p)
 	else if (consume(p, DEFAULT)!)
 	{
 		expect(p, COLON)!;
-		Node body = parse_statement(p)!;
+		Node body;
+		if (p.is(RBRACE)) 
+		{
+			body = p.ast.add_empty(p.current_pos());
+		} 
+		else 
+		{
+			body = parse_statement(p)!;
+		}
 		return p.ast.add_node(DEFAULT_STMT, t.pos, p.current_pos(), (uint)body);
 	}
 
