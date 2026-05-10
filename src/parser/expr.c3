@@ -35,7 +35,7 @@ constdef Precedence : inline int
 	MULTIPLICATIVE = 100, // * / %
 	UNARY          = 110, // ! - + ~ * & prefix ++/--
 	CALL           = 120, // . () [] postfix ++ -- !! ! ~
-    HIGHEST        = 130,
+  HIGHEST        = 130,
 }
 
 <*
