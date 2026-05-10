@@ -483,6 +483,7 @@ fn Node? parse_infix(Parser* p, Node left, Precedence rbp)
 				if ((!is_type(member_token.kind)) 
 					&& member_token.kind != IDENT
 					&& member_token.kind != CONST_IDENT
+					&& member_token.kind != CT_IDENT
 					&& member_token.kind != TYPE_IDENT
 					&& member_token.kind != AT_IDENT)
 				{

@@ -958,13 +958,13 @@ fn Token? Lexer.next(&self)
 			{
 				case '+':
 					{
-						if (self.peek(2) == '=')
-						{
-							self.advance(3)!;
-							return self.emit(CT_CONCAT_ASSIGN, start, 4);
-						}
 						if (self.peek(1) == '+')
 						{
+							if (self.peek(2) == '=')
+							{
+								self.advance(3)!;
+								return self.emit(CT_CONCAT_ASSIGN, start, 4);
+							}
 							self.advance(2)!;
 							return self.emit(CT_CONCAT_OP, start, 3);
 						}

@@ -121,8 +121,10 @@ constdef TypedefViewFields : inline uint
 {
 	NAME = 0,
 	BASE_TYPE,
+	ATTRIBUTES,
 	INTERFACES,
 	GENERICS,
+	TYPE_ATTRIBUTES,
 }
 typedef TypedefView = inline View;
 fn String TypedefView.name(TypedefView self, StringPool* pool) => pool.get((StringHandle)self.get_uint(TypedefViewFields.NAME));

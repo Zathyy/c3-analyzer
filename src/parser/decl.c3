@@ -875,6 +875,7 @@ fn Node? parse_typedef(Parser* p)
 	}
 
 	Node base_type = parse_type(p)!;
+	Node type_attr = parse_attributes(p)!;
 	uint end_tok = p.current_pos();
 	expect(p, EOS)!;
 
@@ -882,8 +883,10 @@ fn Node? parse_typedef(Parser* p)
 	(
 		NAME, name_sh, 
 		BASE_TYPE, base_type, 
+		ATTRIBUTES, attr,
 		INTERFACES, inter,
 		GENERICS, generics,
+		TYPE_ATTRIBUTES, type_attr,
 	);
 	uint ex = p.ast.push_extra_block(&data);
 
