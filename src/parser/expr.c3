@@ -643,42 +643,42 @@ fn Node? parse_call(Parser* p, Token t, Node callee)
 
 	uint args_list_ex;
 	@with_scratch(; watermark)
-    {
-        if (p.current().kind != RPAREN && p.current().kind != EOS && !p.eof())
-        {
-            while (true)
-            {
-                Node arg_node;
-                // Named argument logic (name: expr)
+	{
+		if (p.current().kind != RPAREN && p.current().kind != EOS && !p.eof())
+		{
+			while (true)
+			{
+				Node arg_node;
+				// Named argument logic (name: expr)
 				TokenKind kind = p.current().kind;
-                if ((kind == IDENT || kind == HASH_IDENT || kind == CT_IDENT) && p.peek().kind == COLON)
-                {
-                    Token name_tok = p.current();
-                    advance(p, 2)!;
-                    uint name_sh = p.pool.intern(p.token_text(name_tok));
-                    Node value = parse_expr(p)!;
-                    uint[2] data = { name_sh, (uint)value };
-                    uint arg_ex = p.ast.push_extra_block(&data);
-                    arg_node = p.ast.add_node(NAMED_ARG_EXPR, name_tok.pos, p.current_pos(), arg_ex);
-                }
-                else
-                {
-                    arg_node = parse_expr(p)!;
-                }
+				if ((kind == IDENT || kind == HASH_IDENT || kind == CT_IDENT) && p.peek().kind == COLON)
+				{
+					Token name_tok = p.current();
+					advance(p, 2)!;
+					uint name_sh = p.pool.intern(p.token_text(name_tok));
+					Node value = parse_expr(p)!;
+					uint[2] data = { name_sh, (uint)value };
+					uint arg_ex = p.ast.push_extra_block(&data);
+					arg_node = p.ast.add_node(NAMED_ARG_EXPR, name_tok.pos, p.current_pos(), arg_ex);
+				}
+				else
+				{
+					arg_node = parse_expr(p)!;
+				}
 
-                scratch.push((uint)arg_node);
-                if (!consume(p, COMMA)!) break;
-            }
-        }
+				scratch.push((uint)arg_node);
+				if (!consume(p, COMMA)!) break;
+			}
+		}
 
-        if (consume(p, EOS)!)
-        {
-            macro_body_args = (Node)parse_parameter_list(p, { .is_call = true })!;
-        }
+		if (consume(p, EOS)!)
+		{
+			macro_body_args = (Node)parse_parameter_list(p, { .is_call = true })!;
+		}
 
-        expect(p, RPAREN)!;
-        args_list_ex = p.ast.push_extra_list(scratch_view(watermark, (uint)scratch.len() - watermark));
-    };
+		expect(p, RPAREN)!;
+		args_list_ex = p.ast.push_extra_list(scratch_view(watermark, (uint)scratch.len() - watermark));
+	};
 
 	Node attr = parse_attributes(p)!;
 
@@ -701,57 +701,57 @@ fn Node? parse_call(Parser* p, Token t, Node callee)
 
 fn Node? parse_designator_path(Parser* p)
 {
-    Node path;
+	Node path;
 
 	while (true) 
 	{
-        if (p.is(DOT)) 
+		if (p.is(DOT)) 
 		{
-            Token dot_tok = p.peek();
-            advance(p)!;
-            
-            Node field = parse_expr(p, HIGHEST)!;
-            
-            if (!path.is_valid()) 
+			Token dot_tok = p.peek();
+			advance(p)!;
+
+			Node field = parse_expr(p, HIGHEST)!;
+
+			if (!path.is_valid()) 
 			{
-                path = field;
-            } 
+				path = field;
+			} 
 			else 
 			{
-                uint[2] data = { (uint)path, (uint)field };
-                uint ex = p.ast.push_extra_block(&data);
-                path = p.ast.add_node(DESIGNATOR_PERIOD_EXPR, dot_tok.pos, p.current_pos(), ex);
-            }
-            continue;
-        }
-        
-        if (p.is(LBRACKET)) 
-        {
-            Token open_tok = p.peek();
-            advance(p)!;
-            
-            Node start = parse_expr(p)!;
-            Node end = {};
-            bool is_range = false;
+				uint[2] data = { (uint)path, (uint)field };
+				uint ex = p.ast.push_extra_block(&data);
+				path = p.ast.add_node(DESIGNATOR_PERIOD_EXPR, dot_tok.pos, p.current_pos(), ex);
+			}
+			continue;
+		}
 
-            if (p.is(DOTDOT) || p.is(COLON))
-            {
-                is_range = true;
-                advance(p)!;
-                end = parse_expr(p)!;
-            }
+		if (p.is(LBRACKET)) 
+		{
+			Token open_tok = p.peek();
+			advance(p)!;
 
-            expect(p, RBRACKET)!;
-            
+			Node start = parse_expr(p)!;
+			Node end = {};
+			bool is_range = false;
+
+			if (p.is(DOTDOT) || p.is(COLON))
+			{
+				is_range = true;
+				advance(p)!;
+				end = parse_expr(p)!;
+			}
+
+			expect(p, RBRACKET)!;
+
 			NodeKind kind = is_range ? DESIGNATOR_RANGE_EXPR : DESIGNATOR_INDEX_EXPR;
-            uint[3] data = { (uint)path, (uint)start, (uint)end };
-            uint ex = p.ast.push_extra_block(&data);
-            path = p.ast.add_node(kind, open_tok.pos, p.current_pos(), ex);
-            continue;
-        }
-        break;
-    }
-    return path;
+			uint[3] data = { (uint)path, (uint)start, (uint)end };
+			uint ex = p.ast.push_extra_block(&data);
+			path = p.ast.add_node(kind, open_tok.pos, p.current_pos(), ex);
+			continue;
+		}
+		break;
+	}
+	return path;
 }
 
 fn Node? parse_initializer_list(Parser* p)

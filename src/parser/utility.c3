@@ -269,9 +269,10 @@ fn bool can_start_expression(TokenKind kind)
 		return true;
 	}
 
-    switch (kind) 
+	switch (kind) 
 	{
-        case IDENT:
+		case IDENT:
+		case AT_IDENT:
 		case TYPE_IDENT:
 		case CT_TYPE_IDENT:
 		case CT_IDENT:
@@ -281,16 +282,16 @@ fn bool can_start_expression(TokenKind kind)
 		case INTEGER: 
 		case FLOAT:
 		case STRING:
-        case LPAREN:
+		case LPAREN:
 		case MINUS:
 		case BANG:
 		case BIT_NOT:
 		case AMP:
 		case ASTERISK:
-            return true;
-        default:
-            return false;
-    }
+			return true;
+		default:
+			return false;
+	}
 }
 
 fn int base64_to_sextet(char c)
