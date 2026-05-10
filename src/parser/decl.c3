@@ -1052,8 +1052,11 @@ fn Node? parse_bitstruct_decl(Parser* p, ParseFlags flags = {})
 	uint name;
 	if (flags.is_local)
 	{
-		name = p.pool.intern(p.current_text());
-		expect(p, IDENT)!;
+		if (consume(p, IDENT)!)
+		{
+			name = p.pool.intern(p.current_text());
+			expect(p, IDENT)!;
+		}
 	}
 	else
 	{

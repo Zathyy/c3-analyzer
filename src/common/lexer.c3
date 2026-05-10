@@ -1032,6 +1032,8 @@ fn TokenKind Lexer.categorize_identifier(Lexer* self, String text)
 		if (kind != IDENT) return kind;
 	}
 
+	while (base[0] == '_') base = base[1..];
+
 	bool is_type = false;
 	bool is_const = false;
 

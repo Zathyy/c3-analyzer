@@ -445,12 +445,14 @@ fn Node? parse_var_decl(Parser* p, ParseFlags flags)
 		}
 	}
 
+	Node type_node;
+
 	if (flags.is_var)
 	{
 		advance(p)!;
+		type_node = p.ast.add_empty(p.current_pos());
 	}
 
-	Node type_node;
 	if (is_type(p.current().kind) && is_declaration_followup(p))
 	{
 		type_node = parse_type(p)!;
