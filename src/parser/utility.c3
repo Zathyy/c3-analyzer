@@ -200,40 +200,52 @@ fn OverloadKind get_overload_from_token(TokenKind kind)
 
 fn bool is_declaration_followup(Parser* p)
 {
-    uint i = 1;
-    
-    while (true)
-    {
-        TokenKind k = p.peek(i).kind;
-        
-        // Skip over common type modifiers
-        if (k == ASTERISK || k == QUESTION) 
-        {
-            i++;
-        } 
-        else if (k == LBRACKET) 
-        {
-            // Skip the entire [ ... ] block
-            i++;
-            while (p.peek(i).kind != RBRACKET && p.peek(i).kind != EOF) i++;
-            i++; 
-        } 
-        else if (k == LVEC)
-        {
-            // Skip the entire <* ... > block
-            i++;
-            while (p.peek(i).kind != RVEC && p.peek(i).kind != EOF) i++;
-            i++;
-        }
-        else 
-        {
-            break;
-        }
-    }
+	uint i = 1;
 
-    // After skipping modifiers, do we see a variable name?
-    TokenKind final_k = p.peek(i).kind;
-    return final_k == IDENT || final_k == CONST_IDENT || final_k == CT_IDENT;
+	if (p.is(CT_TYPEFROM) || p.is(CT_TYPEOF))
+	{
+		i++;
+		uint depth = 1;
+		do {
+			if (p.peek(i).kind == LPAREN) depth++;
+			if (p.peek(i).kind == RPAREN) depth--;
+
+			i++;
+		} while (depth != 0 && p.peek(i).kind != EOF);
+	}
+
+	while (true)
+	{
+		TokenKind k = p.peek(i).kind;
+
+		// Skip over common type modifiers
+		if (k == ASTERISK || k == QUESTION) 
+		{
+			i++;
+		} 
+		else if (k == LBRACKET) 
+		{
+			// Skip the entire [ ... ] block
+			i++;
+			while (p.peek(i).kind != RBRACKET && p.peek(i).kind != EOF) i++;
+			i++; 
+		} 
+		else if (k == LVEC)
+		{
+			// Skip the entire <* ... > block
+			i++;
+			while (p.peek(i).kind != RVEC && p.peek(i).kind != EOF) i++;
+			i++;
+		}
+		else 
+		{
+			break;
+		}
+	}
+
+	// After skipping modifiers, do we see a variable name?
+	TokenKind final_k = p.peek(i).kind;
+	return final_k == IDENT || final_k == CONST_IDENT || final_k == CT_IDENT;
 }
 
 fn uint? parse_type_name(Parser* p, String msg)
