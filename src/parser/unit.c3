@@ -139,7 +139,7 @@ fn Node? parse_type(Parser* p, ParseFlags parse_flags = { })
 			{
 				while (!p.is(RBRACE))
 				{
-					scratch.push((uint)parse_type(p)!);
+					scratch.push((uint)parse_expr(p)!);
 					if (!consume(p, COMMA)!) break;
 				}
 				gen_args_list_ex = p.ast.push_extra_list(scratch_view(watermark, (uint)scratch.len() - watermark));
