@@ -212,6 +212,11 @@ fn Node? parse_parameter_list(Parser* p, ParseFlags flags = {}) => @with_scratch
 	{
 		expect(p, LPAREN)!;
 	}
+	
+	if (p.is(EOS))
+	{
+		return p.ast.add_empty(start_pos);
+	}
 
 	while (!p.is(RPAREN) && !p.eof())
 	{

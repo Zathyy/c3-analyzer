@@ -569,7 +569,7 @@ fn Node? parse_macro_params(Parser* p)
         if (consume(p, LPAREN)!)
         {
             // Parse the parameters INSIDE the @ident(...)
-            inner_params = parse_parameter_list(p, { .is_call = false })!;
+            inner_params = parse_parameter_list(p, { .is_call = false, .is_macro = true })!;
             expect(p, RPAREN)!;
         }
 
@@ -615,7 +615,6 @@ fn Node? parse_param_decl(Parser* p)
 			expect(p, RPAREN)!;
 		}
 
-		// Return a specific BODY_PARAM_DECL node
 		uint[*] data = views::@data{BodyParamViewFields}
 		(
 			NAME, name,
