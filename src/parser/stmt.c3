@@ -90,6 +90,8 @@ fn Node? parse_statement(Parser* p)
 			advance(p)!;
 			Node expr = parse_constant_expr(p)!;
 			return p.ast.add_node(CT_ECHO_STMT, token_pos, p.current_pos(), (uint)expr);
+		case ASM:
+			return parse_asm_block_stmt(p)!;
 		case EOS:
 			uint token_pos = p.current_pos();
 			advance(p)!;
@@ -395,15 +397,18 @@ fn Node? parse_nextcase(Parser* p)
 	advance(p)!;
 
 	Node expr;
-
-	if (!p.is(EOS)) expr = parse_expr(p)!;
+	if (!p.is(EOS))
+	{
+		expr = parse_expr(p)!;
+	}
+	else
+	{
+		expr = p.ast.add_empty(t.pos);
+	}
 
 	expect(p, EOS)!;
 
-	uint[1] data = { (uint)expr };
-	uint ex = p.ast.push_extra_list(&data);
-
-	return p.ast.add_node(NEXTCASE_STMT, t.pos, p.current_pos(), ex);
+	return p.ast.add_node(NEXTCASE_STMT, t.pos, p.current_pos(), 0);
 }
 
 fn Node? parse_continue_stmt(Parser* p)
@@ -470,28 +475,37 @@ fn Node? parse_switch_case(Parser* p)
 
 		expect(p, COLON)!;
 
-		Node body;
-		if (!p.is(CASE) && !p.is(DEFAULT) && !p.is(RBRACE))
-		{
-			body = parse_statement(p)!;
-		}
+		uint stmts;
+        @with_scratch(; watermark)
+        {
+            while (!p.is(CASE) && !p.is(DEFAULT) && !p.is(RBRACE) && !p.eof())
+            {
+                Node stmt = parse_statement(p)!;
+                scratch.push((uint)stmt);
+            }
+            uint count = (uint)scratch.len() - watermark;
+            stmts = p.ast.push_extra_list(scratch_view(watermark, count));
+        };
 
-		uint[*] data = { (uint)label, (uint)range_end, (uint)body };
-		return p.ast.add_node(CASE_STMT, t.pos, p.current_pos(), (uint)body);
+		uint[*] data = { (uint)label, (uint)range_end, stmts };
+		uint ex = p.ast.push_extra_block(&data);
+		return p.ast.add_node(CASE_STMT, t.pos, p.current_pos(), ex);
 	}
 	else if (consume(p, DEFAULT)!)
 	{
 		expect(p, COLON)!;
-		Node body;
-		if (p.is(RBRACE)) 
-		{
-			body = p.ast.add_empty(p.current_pos());
-		} 
-		else 
-		{
-			body = parse_statement(p)!;
-		}
-		return p.ast.add_node(DEFAULT_STMT, t.pos, p.current_pos(), (uint)body);
+		uint stmts;
+        @with_scratch(; watermark)
+        {
+            while (!p.is(CASE) && !p.is(DEFAULT) && !p.is(RBRACE) && !p.eof())
+            {
+                Node stmt = parse_statement(p)!;
+                scratch.push((uint)stmt);
+            }
+            uint count = (uint)scratch.len() - watermark;
+            stmts = p.ast.push_extra_list(scratch_view(watermark, count));
+        };
+		return p.ast.add_node(DEFAULT_STMT, t.pos, p.current_pos(), stmts);
 	}
 
 	return parse_statement(p)!;
@@ -816,158 +830,3 @@ fn Node? parse_assert_stmt(Parser* p)
 	uint ex = p.ast.push_extra_block(&final_data);
 	return p.ast.add_node(ASSERT_STMT, t.pos, p.current_pos(), ex);
 }
-
-
-<*
-	asm_label | asm_stmt
-	asm_label     ::= CONST_IDENT ':'
-	asm_stmt      ::= IDENT | int ('.' IDENT) )? asm_expr_list? ';'
-	asm_expr_list ::= asm_expr (',' asm_expr)* ','?
-*>
-fn Node? parse_asm_stmt(Parser* p)
-{
-	/*
-    uint start_pos = p.current_pos();
-
-    // 1. Handle ASM_LABEL: CONST_IDENT ':'
-    if (p.is(CONST_IDENT))
-    {
-        uint label_name = p.pool.intern(p.current_text());
-        p.advance()!; // consume CONST_IDENT
-        expect(p, COLON)!;
-        
-        return p.ast.add_node(ASM_LABEL, start_pos, p.current_pos(), label_name);
-    }
-
-    if (!p.is(IDENT) && !p.is(INT))
-    {
-        p.error("Expected an asm instruction (mnemonic) or a label.");
-        return p.push_invalid_node(start_pos);
-    }
-
-    uint instruction = p.pool.intern(p.current_text());
-    p.advance()!;
-
-    uint variant = 0;
-    if (consume(p, DOT)!)
-    {
-        if (!p.is(IDENT))
-        {
-            p.error("Expected asm instruction variant (e.g., width suffix) after '.'.");
-            return p.push_invalid_node(start_pos);
-        }
-        variant = p.pool.intern(p.current_text());
-        p.advance()!;
-    }
-
-    uint args_list_ex = 0;
-    @with_scratch(; watermark)
-    {
-        while (!consume(p, EOS)!)
-        {
-            Node arg = parse_asm_expr(p)!;
-            scratch.push((uint)arg);
-            
-            if (p.consume(COMMA)!) 
-            {
-                continue; 
-            }
-            
-            if (!p.is(EOS))
-            {
-                p.error("Expected ';' or ',' in assembly operand list.");
-                break;
-            }
-        }
-        uint count = (uint)scratch.len() - watermark;
-        args_list_ex = p.ast.push_extra_list(scratch_view(watermark, count));
-    };
-
-    uint[3] data = { instruction, variant, args_list_ex };
-    uint ex = p.ast.push_extra_block(&data);
-    
-    return p.ast.add_node(ASM_INST, start_pos, p.current_pos(), ex);
-	*/
-	return {};
-}
-
-
-<*
-	asm ::= 'asm' @pure? '{' asm_stmt* '}' | 'asm' '(' string ')'
-*>
-fn Node? parse_asm_block_stmt(Parser* p)
-{
-	uint start_pos = p.current_pos();
-	expect(p, ASM)!;
-	AsmFlags flags;
-	Node block;
-	Node asm_string_expr;
-	
-	if (p.is(AT_IDENT))
-	{
-		String lexeme = p.current_text();
-		if (lexeme == constants::KW_AT_PURE)
-		{
-			flags.is_volatile = false;
-		}
-		else
-		{
-			p.error("Only the '@pure' attribute is allowed");
-			p.skip_until({ EOF, EOS, RBRACE })!;
-			return p.push_invalid_node(start_pos);
-		}
-		expect(p, AT_IDENT)!;
-	}
-	if (consume(p, LBRACE)!)
-	{
-		@with_scratch(; watermark)
-		{
-			uint block_start_pos = p.current_pos();
-			while (!p.is(RBRACE) && !p.eof())
-			{
-				Node stmt = parse_asm_stmt(p)!;
-				scratch.push((uint)stmt);
-			}
-			expect(p, RBRACE)!;
-			uint count = (uint)scratch.len() - watermark;
-			uint ex = p.ast.push_extra_list(scratch_view(watermark, count));
-			block = p.ast.add_node(ASM_STMT_LIST, block_start_pos, p.current_pos(), ex);
-		};
-	}
-	else if (consume(p, LPAREN)!)
-	{
-		flags.is_string_style = true;
-		asm_string_expr = parse_expr(p)!;
-		expect(p, RPAREN)!;
-
-		if (p.is(AT_IDENT))
-		{
-			String lexeme = p.current_text();
-			if (lexeme == constants::KW_AT_PURE)
-			{
-				flags.is_volatile = false;
-			}
-			else
-			{
-				p.error("Only the '@pure' attribute is allowed.");
-			}
-			expect(p, AT_IDENT)!;
-		}
-		expect(p, EOS)!;
-	}
-	else
-	{
-		p.error("Expected '{' or '(' after 'asm'");
-		return p.push_invalid_node(start_pos);
-	}
-
-	uint[*] data = views::@data{AsmViewFields}
-	(
-		FLAGS, flags,
-		STRING_EXPR, asm_string_expr,
-		BLOCK, block,
-	);
-    
-	uint ex = p.ast.push_extra_block(&data);
-    return p.ast.add_node(ASM_BLOCK_STMT, start_pos, p.current_pos(), ex);
-} 

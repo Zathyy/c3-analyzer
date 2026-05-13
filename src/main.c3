@@ -83,7 +83,6 @@ fn void? test_std_lib(Workspace* ws, String std_path)
 	Path path = path::tnew(std_path)!!;
 	PathWalker walker = fn bool? (Path p, bool is_dir, void* data)
 	{
-		io::printfn("Walking: %s", p);
 		if (is_dir) return false;
 		if (catch err = parser::parse_file((Workspace*)data, p))
 		{
