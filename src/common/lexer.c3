@@ -426,16 +426,29 @@ fn void? Lexer.skip_line_comment(Lexer* self)
 
 fn void? Lexer.skip_block_comment(Lexer* self)
 {
-	self.index += 2;
-	while (self.index < self.buffer.len)
-	{
-		if (self.buffer[self.index] == '*' && self.peek_next() == '/')
-		{
-			self.index += 2;
-			return;
-		}
-		self.advance()!;
-	}
+    self.index += 2; // Skip the initial '/*'
+    uint depth = 1;
+
+    while (self.index < self.buffer.len && depth > 0)
+    {
+        // Look for nested start: '/*'
+        if (self.buffer[self.index] == '/' && self.peek_next() == '*')
+        {
+            depth++;
+            self.index += 2;
+            continue;
+        }
+
+        // Look for end: '*/'
+        if (self.buffer[self.index] == '*' && self.peek_next() == '/')
+        {
+            depth--;
+            self.index += 2;
+            continue;
+        }
+
+        self.advance()!;
+    }
 }
 
 fn Token? Lexer.lex_char(Lexer* self, uint start)
