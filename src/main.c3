@@ -15,6 +15,7 @@ struct Cli @Command({ .name = "c3_parser", .help_on_empty = true })
 	bool verbose @Seali(arg(short, long, default_value = false, help = "Verbose output"));
 	bool json @Seali(arg(short, long, default_value = false, help = "Output as json"));
 	bool no_invalid @Seali(arg(long, default_value = false, help = "Treat invalid node as an error"));
+	bool no_dump @Seali(arg(long, default_value = false, help = "Don't dump the workspace"));
 }
 
 struct Std @Command({ .name = "std", .about = "Test parser against the std lib", .help_on_empty = true })
@@ -64,13 +65,16 @@ fn int main(String[] args) => @pool()
 		};
 	}
 
-	if (cli.json)
+	if (!cli.no_dump)
 	{
-		ast::dump_workspace_json(&ws, "ast-debug/")!!;
-	}
-	else
-	{
-		ast::dump_workspace(&ws);
+		if (cli.json)
+		{
+			ast::dump_workspace_json(&ws, "ast-debug/")!!;
+		}
+		else
+		{
+			ast::dump_workspace(&ws);
+		}
 	}
 
 	return 0;
