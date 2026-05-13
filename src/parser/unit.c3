@@ -93,7 +93,7 @@ fn Node? parse_path_prefix(Parser* p)
 <*
 	TYPE_EXPR - unresolved type, parser only cares about the syntax
 *>
-fn Node? parse_type(Parser* p, ParseFlags parse_flags = { })
+fn Node? parse_type(Parser* p, ParseFlags parse_flags = {})
 {
 	uint start_tok = p.current_pos();
 	uint name_or_path;
