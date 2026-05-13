@@ -899,6 +899,46 @@ fn Node? parse_typedef(Parser* p)
 }
 
 <*
+	TYPEDEF_DECL ::= 'typedef' TYPE_IDENT opt_interfaces attributes? '=' 'inline'? type ';'
+*>
+fn Node? parse_attrdef(Parser* p)
+{
+	uint start_tok = p.current_pos();
+	expect(p, ATTRDEF)!;
+
+	Token name_tok = p.current();
+	expect(p, AT_TYPE_IDENT)!;
+	uint name_sh = p.pool.intern(p.token_text(name_tok));
+
+	Node params;
+	if (p.is(LPAREN))
+	{
+		params = parse_parameter_list(p)!;
+	}
+	else
+	{
+		params = p.ast.add_empty(p.current_pos());
+	}
+	Node attr = parse_attributes(p)!;
+	expect(p, EQ)!;
+
+	Node val_attrs = parse_attributes(p, comma_seperated: true)!;
+	uint end_tok = p.current_pos();
+	expect(p, EOS)!;
+
+	uint[*] data = views::@data{AttrdefViewFields}
+	(
+		NAME, name_sh, 
+		PARAMS, params,
+		ATTRIBUTES, attr,
+		VAL_ATTRIBUTES, val_attrs,
+	);
+	uint ex = p.ast.push_extra_block(&data);
+
+	return p.ast.add_node(TYPEDEF_DECL, start_tok, end_tok, ex);
+}
+
+<*
 	interface_declaration ::= 'interface' TYPE_IDENT (':' type (',' type)*)? attributes? interface_body
 	interface_body        ::= '{' (fn_declaration)* '}'
 *>

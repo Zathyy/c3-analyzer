@@ -130,6 +130,15 @@ typedef TypedefView = inline View;
 fn String TypedefView.name(TypedefView self, StringPool* pool) => pool.get((StringHandle)self.get_uint(TypedefViewFields.NAME));
 fn Node TypedefView.base_type(TypedefView self) => self.get(TypedefViewFields.BASE_TYPE);
 
+constdef AttrdefViewFields : inline uint
+{
+	NAME = 0,
+	PARAMS,
+	ATTRIBUTES,
+	VAL_ATTRIBUTES,
+}
+typedef AttrdefView = inline View;
+
 constdef VarDeclViewFields : inline uint
 {
 	NAME = 0,

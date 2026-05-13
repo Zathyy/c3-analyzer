@@ -496,51 +496,39 @@ fn void? parse_top_level(Parser* p, Workspace* ws)
 		case CONTRACT:
 			node = parse_contract(p)!;
 			p.contract = node;
-			break;
 		case INTERFACE:
 			node = parse_interface(p)!;
-			break;
 		case MODULE:
 			node = parse_module(p, ws)!;
-			break;
 		case FAULTDEF:
 			node = parse_faultdef_decl(p)!;
-			break;
 		case FN:
 			node = parse_fn_decl(p, flags)!;
-			break;
 		case MACRO:
 			node = parse_macro_decl(p)!;
-			break;
 		case ALIAS:
 			node = parse_alias(p)!;
-			break;
 		case TYPEDEF:
 			node = parse_typedef(p)!;
-			break;
+		case ATTRDEF:
+			node = parse_attrdef(p)!;
 		case STRUCT:
 			node = parse_struct(p)!;
-			break;
 		case BITSTRUCT:
 			node = parse_bitstruct_decl(p)!;
-			break;
 		case CONSTDEF:
 			flags.is_constdef = true;
 			node = parse_enum(p, flags)!;
-			break;
 		case ENUM:
 			node = parse_enum(p, flags)!;
-			break;
 		case CONST:
 			flags.is_const = true;
 			advance(p)!;
 			node = parse_var_decl(p, flags)!;
-			break;
 		case CT_ASSERT:
 			uint start_pos = p.current_pos();
 			Node stmt = parse_ct_assert(p)!;
 			node = p.ast.add_node(CT_ASSERT_DECL, start_pos, p.current_pos(), (uint)stmt);
-			break;
 		case EOS:
 			p.error("<EOS> appeared in parse_top_level");
 			advance(p)!;

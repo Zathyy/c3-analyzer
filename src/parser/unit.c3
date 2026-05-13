@@ -290,7 +290,7 @@ fn Node? parse_interface_impl(Parser* p)
 	Parses a sequence of attributes and returns an ATTRIBUTE_LIST node.
 	@param [&inout] p
 *>
-fn Node? parse_attributes(Parser* p)
+fn Node? parse_attributes(Parser* p, bool comma_seperated = false)
 {
 	if (!p.is(AT_IDENT) && !p.is(AT_TYPE_IDENT)) return {};
 
@@ -366,6 +366,9 @@ fn Node? parse_attributes(Parser* p)
 			uint ex = p.ast.push_extra_block(&data);
 			Node attr_node = p.ast.add_node(ATTRIBUTE, attr_start, p.previous_pos(), ex);
 			scratch.push((uint)attr_node);
+
+			// if comma_seperated, we need a comma to continue
+			if (comma_seperated && !consume(p, COMMA)!) break;
 		}
 
 		// Wrap all found ATTRIBUTE nodes into one ATTRIBUTE_LIST
