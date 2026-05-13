@@ -83,28 +83,3 @@ constdef LambdaViewFields : inline uint
 	BODY,
 }
 typedef LambdaView = inline View;
-
-constdef AsmRegFields : inline uint
-{
-    NAME,         // Interned string (e.g., "rax")
-    FLAGS,        // early_clobber, is_input, etc.
-}
-typedef AsmRegView = inline View;
-
-constdef AsmImmFields : inline uint
-{
-    VALUE_LO,     // Low 32 bits
-    VALUE_HI,     // High 32 bits
-    WIDTH_BITS,   // 8, 16, 32, 64
-}
-typedef AsmImmView = inline View;
-
-constdef AsmMemFields : inline uint
-{
-    BASE_EXPR,    // Node for base (e.g., rax)
-    INDEX_EXPR,   // Node for index (e.g., rcx)
-    OFFSET_LO,    // Low 32 bits of displacement
-    OFFSET_HI,    // High 32 bits of displacement
-    MEM_FLAGS,    // offset_type, neg_offset, scale
-}
-typedef AsmMemView = inline View;

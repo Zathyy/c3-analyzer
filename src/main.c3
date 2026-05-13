@@ -81,15 +81,13 @@ fn void? test_std_lib(Workspace* ws, String std_path)
 	log::info("Walking std lib at: %s", std_path);
 
 	Path path = path::tnew(std_path)!!;
-	PathWalker walker = fn (Path p, bool is_dir, void* data)
+	PathWalker walker = fn bool? (Path p, bool is_dir, void* data)
 	{
-		if (!path::is_file(p)) return false;
-
-		log::debug("Found std file: %s", p);
-
+		io::printfn("Walking: %s", p);
+		if (is_dir) return false;
 		if (catch err = parser::parse_file((Workspace*)data, p))
 		{
-			log::error("Failed to parse %s: %s", p, err);
+			io::printfn("Failed to parse %s: %s", p, err);
 			return true;
 		}
 

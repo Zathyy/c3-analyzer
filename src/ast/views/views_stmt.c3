@@ -37,11 +37,3 @@ fn Node CtAssertView.cond(self) => self.get(CtAssertViewFields.COND);
 fn Node CtAssertView.message(self) => self.get(CtAssertViewFields.MESSAGE);
 fn uint CtAssertView.get_args_count(self) => self.get_list_count(CtAssertViewFields.ARGS);
 fn Node CtAssertView.get_arg(self, uint index) => self.get_list_item(CtAssertViewFields.ARGS, index);
-
-constdef AsmViewFields : inline uint
-{
-	FLAGS,
-	STRING_EXPR,
-	BLOCK, 
-}
-typedef AsmView = inline View;
