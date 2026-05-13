@@ -13,6 +13,7 @@ import c3_parser::cursor;
 import std::io;
 
 faultdef
+	NODE_NOT_FOUND,
 	SYMBOL_NOT_FOUND, 
 	MODULE_NOT_FOUND
 ;
@@ -266,11 +267,27 @@ fn Cursor[]? Workspace.lookup_symbol(&self, String symbol_name)
 
 	self.modules.@each(; mod_name, mod)
 	{
-			if (try c = self.lookup_in_module(mod_name, symbol_name))
-			{
-				candidates.push(c);
-			}
+		if (try c = self.lookup_in_module(mod_name, symbol_name))
+		{
+			candidates.push(c);
+		}
 	};
 
 	return candidates.to_tarray();
+}
+
+fn Cursor? Workspace.cursor_from_file(&self, SourceFile* sf, Node node)
+{
+    if (!node.is_valid()) return { null, (Node)0 };
+
+    // Find which section of this file the node belongs to
+    foreach (section : sf.sections)
+    {
+        if ((uint)node >= section.start_node_idx && (uint)node < section.end_node_idx)
+        {
+            return { section, node };
+        }
+    }
+
+    return NODE_NOT_FOUND~;
 }
