@@ -162,7 +162,7 @@ fn Node? parse_prefix_expr(Parser* p)
 {
 	Token t = p.current();
 
-	if (is_type(t.kind))
+	if (is_type(p))
 	{
 		return parse_type(p, { .type_as_expression = true })!;
 	}
@@ -480,7 +480,7 @@ fn Node? parse_infix(Parser* p, Node left, Precedence rbp)
 					return parse_range(p, deref_node, t.pos);
 				}
 
-				if ((!is_type(member_token.kind)) 
+				if ((!is_type(p)) 
 					&& member_token.kind != IDENT
 					&& member_token.kind != CONST_IDENT
 					&& member_token.kind != CT_IDENT
@@ -911,7 +911,7 @@ fn Node? parse_ct_expr_list(Parser* p) => @with_scratch(; watermark)
 			};
 			item = parse_var_decl(p, flags)!;
 		}
-		else if (is_type(p.current().kind))
+		else if (is_type(p))
 		{
 			ParseFlags flags = { 
 				.is_local = true,
@@ -1019,7 +1019,7 @@ fn Node? parse_decl_or_expr(Parser* p)
 	}
 
 	// Need to check that its not a type expr
-	if (is_type(p.current().kind) && is_declaration_followup(p))
+	if (is_type(p) && is_declaration_followup(p))
 	{
 		return parse_var_decl(p, { .is_expr = true, .is_local = true, .skip_eos = true })!;
 	}

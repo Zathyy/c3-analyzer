@@ -108,7 +108,22 @@ fn bool node_ends_with_block(Parser* p, Node n)
 	}
 }
 
-fn bool is_type(TokenKind kind)
+fn bool is_type(Parser* p)
+{
+	TokenKind kind = p.current().kind;
+
+	if (is_type_primitive(kind)) return true;
+	if (kind == TYPE_IDENT) return true;
+
+	if (kind == IDENT && p.peek(1).kind == SCOPE)
+    {
+        return true;
+    }
+
+	return false;
+}
+
+fn bool is_type_primitive(TokenKind kind)
 {
 	switch (kind)
 	{
@@ -136,7 +151,6 @@ fn bool is_type(TokenKind kind)
 		case FAULT:
 		case ANY:
 		case VOID:
-		case TYPE_IDENT:
 		case CT_TYPE_IDENT:
 		case CT_TYPEOF:
 		case CT_TYPEFROM:
@@ -201,7 +215,14 @@ fn OverloadKind get_overload_from_token(TokenKind kind)
 
 fn bool is_declaration_followup(Parser* p)
 {
-	uint i = 1;
+	uint i;
+
+	while (p.peek(i).kind == IDENT && p.peek(i + 1).kind == SCOPE)
+    {
+        i += 2;
+    }
+
+	i++;
 
 	if (p.is(CT_TYPEFROM) || p.is(CT_TYPEOF))
 	{

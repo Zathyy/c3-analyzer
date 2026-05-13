@@ -355,7 +355,7 @@ fn Node? parse_fn_decl(Parser* p, ParseFlags flags) => @scratch()
 
 	uint name; // name of fn
 	Node method_type; // if a method, the struct it belongs to, dont know what else to call it? class maybe? xD
-	if (is_type(p.current().kind))
+	if (is_type(p))
 	{
 		method_type = parse_type(p)!;
 		expect(p, DOT)!;
@@ -627,7 +627,7 @@ fn Node? parse_param_decl(Parser* p)
 	if (consume(p, AMP)!) flags |= 2;
 	bool ellipsis_prefix = consume(p, ELLIPSIS)!;
 
-	if (is_type(p.current().kind) || p.is(CT_TYPE_IDENT))
+	if (is_type(p) || p.is(CT_TYPE_IDENT))
 	{
 		type = parse_type(p)!;
 		// Check for "Type..."

@@ -32,7 +32,9 @@ fn Node? parse_statement(Parser* p)
 
 	log::debug("parse_statement : %s - %s", p.current_text(), kind);
 
-	if (is_type(kind))
+	if (is_type(p)
+		|| kind == TLOCAL 
+		|| kind == STATIC)
 	{
 		return parse_decl_stmt(p);
 	}
@@ -258,6 +260,17 @@ fn Node? parse_compound(Parser* p) => @with_scratch(; watermark)
 fn Node? parse_decl_stmt(Parser* p)
 {
 	uint token_pos = p.current_pos();
+
+	ParseFlags flags;
+	if (consume(p, STATIC)!)
+	{
+		flags.is_static = true;
+	}
+	if (consume(p, TLOCAL)!)
+	{
+		flags.is_tlocal = true;
+	}
+
 	Node type_node = parse_type(p)!;
 
 	TokenKind kind;
@@ -265,7 +278,7 @@ fn Node? parse_decl_stmt(Parser* p)
 	{
 		case IDENT:
 		case CT_IDENT:
-			return parse_local(p, token_pos, type_node);
+			return parse_local(p, token_pos, type_node, flags);
 
 		default:
 	}
@@ -617,7 +630,7 @@ fn Node? parse_foreach_var(Parser* p)
 	Node var_type;
 	bool is_ref = false;
 
-	if (is_type(p.current().kind)
+	if (is_type(p)
 		&& (p.peek(1).kind == IDENT || p.peek(1).kind == AMP
 			|| p.peek(1).kind == ASTERISK))
 	{

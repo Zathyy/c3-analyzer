@@ -450,7 +450,7 @@ fn void? parse_top_level(Parser* p, Workspace* ws)
 		advance(p)!;
 	}
 
-	if (is_type(p.current().kind))
+	if (is_type(p))
 	{
 		node = parse_var_decl(p, flags)!;
 		if (node.is_valid())

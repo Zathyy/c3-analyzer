@@ -67,25 +67,25 @@ fn Node? parse_path_prefix(Parser* p)
 	uint ex = 0;
 
 	@with_scratch(; watermark) 
+	{
+		while (true) 
 		{
-			while (true) 
+			Token t = p.current();
+			scratch.push((uint)p.pool.intern(p.token_text(t)));
+			advance(p)!;
+
+			if (p.is(SCOPE) && is_some_ident(p.peek().kind)) 
 			{
-				Token t = p.current();
-				scratch.push((uint)p.pool.intern(p.token_text(t)));
-				advance(p)!;
-
-				if (p.is(SCOPE) && is_some_ident(p.peek().kind)) 
-				{
-					advance(p)!; // Consume '::'
-				} 
-				else 
-				{
-					break;
-				}
+				advance(p)!; // Consume '::'
+			} 
+			else 
+			{
+				break;
 			}
+		}
 
-			ex = p.ast.push_extra_list(scratch_view(watermark, (uint)scratch.len() - watermark));
-		};
+		ex = p.ast.push_extra_list(scratch_view(watermark, (uint)scratch.len() - watermark));
+	};
 
 	return p.ast.add_node(PATH, start_tok, p.current_pos(), ex);
 }
@@ -484,7 +484,7 @@ fn Node? parse_var_decl(Parser* p, ParseFlags flags)
 		type_node = p.ast.add_empty(p.current_pos());
 	}
 
-	if (is_type(p.current().kind) && is_declaration_followup(p))
+	if (is_type(p) && is_declaration_followup(p))
 	{
 		type_node = parse_type(p)!;
 	}
@@ -500,7 +500,6 @@ fn Node? parse_var_decl(Parser* p, ParseFlags flags)
 		while (true)
 		{
 			Token t = p.current();
-
 			if (flags.is_const && t.kind != CONST_IDENT)
 			{
 				p.error("Constants must use a CONST_IDENT, found '%s'", p.token_text(t));
