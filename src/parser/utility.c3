@@ -316,6 +316,7 @@ fn bool can_start_expression(TokenKind kind)
 		case BUILTIN:
 		case INTEGER: 
 		case FLOAT:
+		case REAL:
 		case STRING:
 		case CHAR_LITERAL:
 		case LPAREN:
