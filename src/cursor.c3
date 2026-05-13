@@ -294,6 +294,12 @@ fn String? Cursor.spelling(&self)
 			Cursor path_cursor = { self.section, v.path() };
 			return path_cursor.spelling();
 		}
+		case IMPORT_DECL:
+		{
+			ImportView v = (ImportView)view;
+			Cursor path_cursor = { self.section, v.path() };
+			return path_cursor.spelling();
+		}
 		case INT_LITERAL:
 		case FLOAT_LITERAL:
 		case STRING_LITERAL:
