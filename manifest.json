@@ -1,6 +1,6 @@
 {
 	"provides": "c3_parser",
-	"sources": "src/**",
+	"sources": ["src/**"],
 	  "targets" : {
 		"android-aarch64" : {
 			"link-args" : [],
