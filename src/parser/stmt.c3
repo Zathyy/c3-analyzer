@@ -3,6 +3,7 @@ module c3_parser::parser;
 import c3_parser::ast;
 import lexer;
 import c3_parser::common;
+import c3_parser::constants;
 
 import std::collections::list;
 
@@ -31,7 +32,9 @@ fn Node? parse_statement(Parser* p)
 
 	log::debug("parse_statement : %s - %s", p.current_text(), kind);
 
-	if (is_type(kind))
+	if (is_type(p)
+		|| kind == TLOCAL 
+		|| kind == STATIC)
 	{
 		return parse_decl_stmt(p);
 	}
@@ -84,6 +87,17 @@ fn Node? parse_statement(Parser* p)
 		case CT_ASSERT:
 		case CT_ERROR:
 			return parse_ct_assert(p);
+		case CT_ECHO:
+			uint token_pos = p.current_pos();
+			advance(p)!;
+			Node expr = parse_constant_expr(p)!;
+			return p.ast.add_node(CT_ECHO_STMT, token_pos, p.current_pos(), (uint)expr);
+		case ASM:
+			return parse_asm_block_stmt(p)!;
+		case EOS:
+			uint token_pos = p.current_pos();
+			advance(p)!;
+			return p.ast.add_node(NOP_STMT, token_pos, token_pos, 0);
 		default:
 			{
 				// if it's not a keyword or type, treat it as a expression statement
@@ -136,7 +150,7 @@ fn Node? parse_for_stmt(Parser* p)
 	uint for_token = p.current_pos();
 	expect(p, FOR)!;
 
-	uint label = parse_label(p)!;
+	uint label = parse_label(p, true)!;
 
 	expect(p, LPAREN)!;
 
@@ -246,6 +260,17 @@ fn Node? parse_compound(Parser* p) => @with_scratch(; watermark)
 fn Node? parse_decl_stmt(Parser* p)
 {
 	uint token_pos = p.current_pos();
+
+	ParseFlags flags;
+	if (consume(p, STATIC)!)
+	{
+		flags.is_static = true;
+	}
+	if (consume(p, TLOCAL)!)
+	{
+		flags.is_tlocal = true;
+	}
+
 	Node type_node = parse_type(p)!;
 
 	TokenKind kind;
@@ -253,7 +278,7 @@ fn Node? parse_decl_stmt(Parser* p)
 	{
 		case IDENT:
 		case CT_IDENT:
-			return parse_local(p, token_pos, type_node);
+			return parse_local(p, token_pos, type_node, flags);
 
 		default:
 	}
@@ -384,6 +409,16 @@ fn Node? parse_nextcase(Parser* p)
 	Token t = p.current();
 	advance(p)!;
 
+	Node expr;
+	if (!p.is(EOS))
+	{
+		expr = parse_expr(p)!;
+	}
+	else
+	{
+		expr = p.ast.add_empty(t.pos);
+	}
+
 	expect(p, EOS)!;
 
 	return p.ast.add_node(NEXTCASE_STMT, t.pos, p.current_pos(), 0);
@@ -453,20 +488,37 @@ fn Node? parse_switch_case(Parser* p)
 
 		expect(p, COLON)!;
 
-		Node body;
-		if (!p.is(CASE) && !p.is(DEFAULT) && !p.is(RBRACE))
-		{
-			body = parse_statement(p)!;
-		}
+		uint stmts;
+        @with_scratch(; watermark)
+        {
+            while (!p.is(CASE) && !p.is(DEFAULT) && !p.is(RBRACE) && !p.eof())
+            {
+                Node stmt = parse_statement(p)!;
+                scratch.push((uint)stmt);
+            }
+            uint count = (uint)scratch.len() - watermark;
+            stmts = p.ast.push_extra_list(scratch_view(watermark, count));
+        };
 
-		uint[*] data = { (uint)label, (uint)range_end, (uint)body };
-		return p.ast.add_node(CASE_STMT, t.pos, p.current_pos(), (uint)body);
+		uint[*] data = { (uint)label, (uint)range_end, stmts };
+		uint ex = p.ast.push_extra_block(&data);
+		return p.ast.add_node(CASE_STMT, t.pos, p.current_pos(), ex);
 	}
 	else if (consume(p, DEFAULT)!)
 	{
 		expect(p, COLON)!;
-		Node body = parse_statement(p)!;
-		return p.ast.add_node(DEFAULT_STMT, t.pos, p.current_pos(), (uint)body);
+		uint stmts;
+        @with_scratch(; watermark)
+        {
+            while (!p.is(CASE) && !p.is(DEFAULT) && !p.is(RBRACE) && !p.eof())
+            {
+                Node stmt = parse_statement(p)!;
+                scratch.push((uint)stmt);
+            }
+            uint count = (uint)scratch.len() - watermark;
+            stmts = p.ast.push_extra_list(scratch_view(watermark, count));
+        };
+		return p.ast.add_node(DEFAULT_STMT, t.pos, p.current_pos(), stmts);
 	}
 
 	return parse_statement(p)!;
@@ -578,7 +630,7 @@ fn Node? parse_foreach_var(Parser* p)
 	Node var_type;
 	bool is_ref = false;
 
-	if (is_type(p.current().kind)
+	if (is_type(p)
 		&& (p.peek(1).kind == IDENT || p.peek(1).kind == AMP
 			|| p.peek(1).kind == ASTERISK))
 	{
@@ -696,7 +748,7 @@ fn Node? parse_while_stmt(Parser* p)
 	uint label = parse_label(p, true)!;
 
 	expect(p, LPAREN)!;
-	Node condition = parse_expr(p, { })!;
+	Node condition = parse_cond(p)!;
 	expect(p, RPAREN)!;
 
 	Node body = parse_statement(p)!;

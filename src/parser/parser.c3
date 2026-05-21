@@ -60,6 +60,7 @@ bitstruct ParseFlags : ulong
 	bool is_global; // Top-level declarations
 	bool is_local; // Inside a function/block
 	bool is_var; // has a 'var'
+	bool is_tlocal; // has a 'tlocal'
 	bool is_inline;
 	bool is_static;
 	bool is_extern; // C-linkage handling
@@ -89,6 +90,7 @@ struct Parser
 	Token[] tokens;
 	String file_path; // current file being parsed
 	String src;
+	Allocator allocator;
 
 	uint pos;
 	Node contract;
@@ -214,6 +216,11 @@ fn void? reverse(Parser* parser, uint position)
 	advance(parser, 0)!;
 }
 
+fn void? Parser.advance(Parser* parser, uint len = 1)
+{
+	return advance(parser, len)!;
+}
+
 <*
  @param [&inout] parser
 *>
@@ -324,8 +331,7 @@ fn String peek_module_name(Parser* p)
 *>
 fn void? parse_file(Workspace* ws, String path)
 {
-	Parser parser = { .mod = null, .pool = &ws.strings, .file_path = path, // .allow_submodules = true,
-	};
+	Parser parser = { .mod = null, .pool = &ws.strings, .file_path = path, .allocator = ws.allocator };
 
 	if (!scratch.is_initialized())
 	{
@@ -340,7 +346,7 @@ fn void? parse_file(Workspace* ws, String path)
 	parser.src = src;
 
 	List{Token} tokens;
-	tokens.tinit(1000);
+	tokens.init(parser.allocator, 1000);
 	defer tokens.free();
 	while (try token = lexer.next())
 	{
@@ -350,7 +356,6 @@ fn void? parse_file(Workspace* ws, String path)
 
 	tokens.push({ .kind = EOF, .pos = (tokens.last().pos + tokens.last().len) ?? 0, .len = 0 });
 	parser.tokens = tokens.array_view();
-
 
 	SourceFile* sf = ws.reset_source_file(path);
 	sf.source = src;
@@ -445,7 +450,7 @@ fn void? parse_top_level(Parser* p, Workspace* ws)
 		advance(p)!;
 	}
 
-	if (is_type(p.current().kind))
+	if (is_type(p))
 	{
 		node = parse_var_decl(p, flags)!;
 		if (node.is_valid())
@@ -505,8 +510,9 @@ fn void? parse_top_level(Parser* p, Workspace* ws)
 			node = parse_alias(p)!;
 		case TYPEDEF:
 			node = parse_typedef(p)!;
+		case ATTRDEF:
+			node = parse_attrdef(p)!;
 		case STRUCT:
-		case UNION:
 			node = parse_struct(p)!;
 		case BITSTRUCT:
 			node = parse_bitstruct_decl(p)!;
@@ -518,7 +524,11 @@ fn void? parse_top_level(Parser* p, Workspace* ws)
 		case CONST:
 			flags.is_const = true;
 			advance(p)!;
-			node = parse_var_decl(p, flags)!;			
+			node = parse_var_decl(p, flags)!;
+		case CT_ASSERT:
+			uint start_pos = p.current_pos();
+			Node stmt = parse_ct_assert(p)!;
+			node = p.ast.add_node(CT_ASSERT_DECL, start_pos, p.current_pos(), (uint)stmt);
 		case EOS:
 			p.error("<EOS> appeared in parse_top_level");
 			advance(p)!;
@@ -528,15 +538,15 @@ fn void? parse_top_level(Parser* p, Workspace* ws)
 			return UNEXPECTED_TOKEN~;
 	}
 
-	if (node.is_valid())
+	// if (node.is_valid())
+	// {
+	p.ast.top_level_nodes.push((uint)node);
+
+	if (p.contract.is_valid())
 	{
-		p.ast.top_level_nodes.push((uint)node);
-
-		if (p.contract.is_valid())
-		{
-			attach_contract(p, node, p.contract);
-		}
-
-		p.contract = {};
+		attach_contract(p, node, p.contract);
 	}
+
+	p.contract = {};
+	// }
 }

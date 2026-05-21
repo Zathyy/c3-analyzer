@@ -5,79 +5,79 @@ import std::io;
 import c3_parser::workspace;
 import c3_parser::parser;
 import c3_parser::cursor;
+import std::collections::maybe;
+import seali;
 
-fn void print_usage()
+struct Cli @Command({ .name = "c3_parser", .help_on_empty = true })
 {
-	io::printn("Commands: ");
-	io::printn("<file>        Test parser against std lib");
-	io::printn("std <path-to-std>        Test parser against std lib");
+	Maybe{Std} std @Seali(arg(subcommand));
+	Maybe{String} file @Seali(arg(long, short, help = "Parse this file"));
+	bool verbose @Seali(arg(short, long, default_value = false, help = "Verbose output"));
+	bool json @Seali(arg(short, long, default_value = false, help = "Output as json"));
+	bool no_invalid @Seali(arg(long, default_value = false, help = "Treat invalid node as an error"));
+	bool no_dump @Seali(arg(long, default_value = false, help = "Don't dump the workspace"));
+	bool quiet @Seali(arg(short, long, default_value = false, help = "Don't output anything"));
+}
 
-	io::printn("Options:");
-	io::printn("  -v -verbose          - Verbose output");
+struct Std @Command({ .name = "std", .about = "Test parser against the std lib", .help_on_empty = true })
+{
+	String path @Seali(arg(help = "The std path"));
 }
 
 fn int main(String[] args) => @pool()
 {
-	if (args.len == 0)
-	{
-		print_usage();
-		return -1;
-	}
+	Cli cli = seali::parse(Cli, args)!!;
 
-	bool is_verbose = false;
-	bool use_json = false;
+	if (cli.verbose) log::set_priority_all(LogPriority.VERBOSE);
 
-	foreach (param : args)
-	{
-		if (param == "-v" || param == "-verbose")
-		{
-			is_verbose = true;
-			log::set_priority_all(LogPriority.VERBOSE);
-		}
-
-		if (param == "-json" || param == "-j")
-		{
-			use_json = true;
-		}
-	}
+	if (cli.quiet) log::set_logger(&&(NullLogger) {});
 
 	log::debug("Init...");
 
 	Workspace ws;
 	ws.init();
+	defer ws.free();
 
 	log::debug("args: %s", args);
 
-	if (args.len >= 3 && args[1] == "std")
+	if (try std = cli.std.get())
 	{
-		String path = args[2];
-		test_std_lib(&ws, path)!!;
+		test_std_lib(&ws, std.path)!!;
 	}
-	else if (args.len >= 3 && args[1] == "-f")
+	else if (try file_path = cli.file.get())
 	{
-			log::set_priority_all(LogPriority.VERBOSE);
-
-		String path = args[2];
-		parser::parse_file(&ws, path)!!;
-	}
-	else
-	{
-		String test_path = "test/test_file.c3";
-		String test_path2 = "test/test_file2.c3";
-
-		parser::parse_file(&ws, test_path)!!;
-		parser::parse_file(&ws, test_path2)!!;
+		parser::parse_file(&ws, file_path)!!;
 	}
 
 	log::info("num modules: %s", ws.modules.len());
 
-	if (use_json)
+	if (cli.no_invalid)
 	{
-		ast::dump_workspace_json(&ws, "ast-debug/")!!;
+		ws.modules.@each(; name, mod)
+		{
+			foreach (section : mod.sections) 
+			{
+				foreach (i, root_node : section.source_file.ast.top_level_nodes)
+				{
+					bool is_last = (i == section.source_file.ast.top_level_nodes.len() - 1);
+					Cursor c = { section, (Node)root_node };
+
+					utils::ast::panic_on_invalid(c, {null, {}}, null, is_last);
+				}
+			}
+		};
 	}
-	else
+
+	if (!cli.no_dump)
 	{
-		ast::dump_workspace(&ws);
+		if (cli.json)
+		{
+			ast::dump_workspace_json(&ws, "ast-debug/")!!;
+		}
+		else
+		{
+			ast::dump_workspace(&ws);
+		}
 	}
 
 	return 0;
@@ -87,16 +87,13 @@ fn void? test_std_lib(Workspace* ws, String std_path)
 {
 	log::info("Walking std lib at: %s", std_path);
 
-	Path path = path::temp(std_path)!!;
-	PathWalker walker = fn (Path p, bool is_dir, void* data)
+	Path path = path::tnew(std_path)!!;
+	PathWalker walker = fn bool? (Path p, bool is_dir, void* data)
 	{
-		if (!path::is_file(p)) return false;
-
-		log::debug("Found std file: %s", p.path_string);
-
-		if (catch err = parser::parse_file((Workspace*)data, p.path_string))
+		if (is_dir) return false;
+		if (catch err = parser::parse_file((Workspace*)data, p))
 		{
-			log::error("Failed to parse %s: %s", p.path_string, err);
+			io::printfn("Failed to parse %s: %s", p, err);
 			return true;
 		}
 

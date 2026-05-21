@@ -3,7 +3,10 @@ module lexer;
 import std::io;
 
 faultdef
-	INVALID, CONTRACT_NOT_CLOSED, INVALID_CONTRACT
+	INVALID, 
+	UNEVEN_HEXADECIMAL,
+	CONTRACT_NOT_CLOSED,
+	INVALID_CONTRACT
 ;
 
 enum TokenKind : ushort
@@ -300,9 +303,9 @@ enum TokenKind : ushort
 	CT_SWITCH,
 	// $switch
 	CT_TYPEFROM,
-	// $typefrom
+	// $Typefrom
 	CT_TYPEOF,
-	// $typeof
+	// $Typeof
 	CT_VAARG,
 	// $vaarg,
 
@@ -333,15 +336,30 @@ fn bool is_digit(char c) @inline => c >= '0' && c <= '9';
 fn bool is_alpha(char c) @inline => (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
 fn bool is_ident(char c) @inline => is_alpha(c) || is_digit(c) || c == '_';
 fn bool is_hex(char c) @inline => ascii::is_xdigit(c);
+fn bool is_whitespace(char c)
+{
+	switch (c)
+	{
+		case ' ':
+		case '\t':
+		case '\n':
+		case '\r':
+			return true;
+		default:
+			return false;
+	}
+}
 
 fn bool is_all_upper(String text)
 {
 	bool has_alpha = false;
+	if (text == "_") return false;
+
 	for (usz i = 0; i < text.len; i++)
 	{
 		char c = text[i];
 		if (c >= 'a' && c <= 'z') return false;
-		if (c >= 'A' && c <= 'Z') has_alpha = true;
+		if ((c >= 'A' && c <= 'Z') || c == '_') has_alpha = true;
 	}
 	return has_alpha; // Ensure "123_" isn't counted as CONST_IDENT
 }
@@ -408,16 +426,29 @@ fn void? Lexer.skip_line_comment(Lexer* self)
 
 fn void? Lexer.skip_block_comment(Lexer* self)
 {
-	self.index += 2;
-	while (self.index < self.buffer.len)
-	{
-		if (self.buffer[self.index] == '*' && self.peek_next() == '/')
-		{
-			self.index += 2;
-			return;
-		}
-		self.advance()!;
-	}
+    self.index += 2; // Skip the initial '/*'
+    uint depth = 1;
+
+    while (self.index < self.buffer.len && depth > 0)
+    {
+        // Look for nested start: '/*'
+        if (self.buffer[self.index] == '/' && self.peek_next() == '*')
+        {
+            depth++;
+            self.index += 2;
+            continue;
+        }
+
+        // Look for end: '*/'
+        if (self.buffer[self.index] == '*' && self.peek_next() == '/')
+        {
+            depth--;
+            self.index += 2;
+            continue;
+        }
+
+        self.advance()!;
+    }
 }
 
 fn Token? Lexer.lex_char(Lexer* self, uint start)
@@ -592,69 +623,152 @@ fn Token? Lexer.lex_identifier(Lexer* self, uint start_pos)
 
 fn Token? Lexer.lex_number(Lexer* self, uint start_pos)
 {
-    bool is_float = false;
+	bool is_float = false;
 
-    // Hex: 0x
-    if (self.peek() == '0' && (ascii::to_lower(self.peek_next()) == 'x'))
-    {
-        self.advance(2)!;
-        // Allow hex digits OR underscores
-        while (!self.eof() && (ascii::is_xdigit(self.peek()) || self.peek() == '_'))
-        {
-            self.advance()!;
-        }
-    } 
-    // Binary: 0b
-    else if (self.peek() == '0' && (ascii::to_lower(self.peek_next()) == 'b'))
-    {
-        self.advance(2)!;
-        while (!self.eof() && (ascii::is_bdigit(self.peek()) || self.peek() == '_'))
-        {
-            self.advance()!;
-        }
-    } 
-    // Octal: 0o
-    else if (self.peek() == '0' && (ascii::to_lower(self.peek_next()) == 'o'))
-    {
-        self.advance(2)!;
-        while (!self.eof() && (ascii::is_odigit(self.peek()) || self.peek() == '_'))
-        {
-            self.advance()!;
-        }
-    }
-    else
-    {
-        // Standard Decimals
-        while (!self.eof() && (ascii::is_digit(self.peek()) || self.peek() == '_'))
-        {
-            self.advance()!;
-        }
+	// Hex: 0x
+	if (self.peek() == '0' && (ascii::to_lower(self.peek_next()) == 'x'))
+	{
+		self.advance(2)!;
+		// Allow hex digits OR underscores
+		while (!self.eof() && (ascii::is_xdigit(self.peek()) || self.peek() == '_'))
+		{
+			self.advance()!;
+		}
 
-        // Real/Float check
-        if (!self.eof() && self.peek() == '.' && ascii::is_digit(self.peek_next()))
-        {
-            is_float = true;
-            self.advance()!;
-            while (!self.eof() && (ascii::is_digit(self.peek()) || self.peek() == '_'))
-            {
-                self.advance()!;
-            }
-        }
-    }
+		if (!self.eof() && self.peek() == '.' && self.peek_next() != '.') //&& ascii::is_xdigit(self.peek_next()))
+		{
+			is_float = true;
+			self.advance()!;
+			while (!self.eof() && (ascii::is_xdigit(self.peek()) || self.peek() == '_'))
+			{
+				self.advance()!;
+			}
+		}
 
-    // Handle Suffixes (e.g., 1u, 1.0f, 0xFFu64)
-    char c = (char)ascii::to_lower(self.peek());
+		if (!self.eof() && (self.peek() == 'p' || self.peek() == 'P'))
+		{ 
+			char next = self.peek_next();
+			if (ascii::is_xdigit(next) || next == '-' || next == '+')
+			{
+				is_float = true;
+				self.advance()!;
+				if (next == '-' || next == '+') self.advance()!;
+				while (!self.eof() && (ascii::is_xdigit(self.peek()) || self.peek() == '_'))
+				{
+					self.advance()!;
+				}
+			}
+		}
+	} 
+	// Binary: 0b
+	else if (self.peek() == '0' && (ascii::to_lower(self.peek_next()) == 'b'))
+	{
+		self.advance(2)!;
+		while (!self.eof() && (ascii::is_bdigit(self.peek()) || self.peek() == '_'))
+		{
+			self.advance()!;
+		}
+	} 
+	// Octal: 0o
+	else if (self.peek() == '0' && (ascii::to_lower(self.peek_next()) == 'o'))
+	{
+		self.advance(2)!;
+		while (!self.eof() && (ascii::is_odigit(self.peek()) || self.peek() == '_'))
+		{
+			self.advance()!;
+		}
+	}
+	else
+	{
+		// Standard Decimals
+		while (!self.eof() && (ascii::is_digit(self.peek()) || self.peek() == '_'))
+		{
+			self.advance()!;
+		}
+
+		// Real/Float check
+		if (!self.eof() && self.peek() == '.' && self.peek_next() != '.')// && ascii::is_digit(self.peek_next()))
+		{
+			is_float = true;
+			self.advance()!;
+			while (!self.eof() && (ascii::is_digit(self.peek()) || self.peek() == '_'))
+			{
+				self.advance()!;
+			}
+		}
+
+		if (!self.eof() && (self.peek() == 'e' || self.peek() == 'E'))
+		{ 
+			char next = self.peek_next();
+			if (ascii::is_digit(next) || next == '-' || next == '+')
+			{
+				is_float = true;
+				self.advance()!;
+				if (next == '-' || next == '+') self.advance()!;
+				while (!self.eof() && (ascii::is_digit(self.peek()) || self.peek() == '_'))
+				{
+					self.advance()!;
+				}
+			}
+		}
+	}
+
+	// Handle Suffixes (e.g., 1u, 1.0f, 0xFFu64)
+	char c = (char)ascii::to_lower(self.peek());
 	if (c == 'u' || c == 'i' || c == 'f' || c == 'l')    
 	{
-        self.advance()!;
-        while (!self.eof() && ascii::is_alnum(self.peek()))
+		self.advance()!;
+		while (!self.eof() && ascii::is_alnum(self.peek()))
+		{
+			self.advance()!;
+		}
+	}
+
+	TokenKind kind = is_float ? REAL : INTEGER;
+	return self.emit(kind, start_pos, (uint)self.index - start_pos);
+}
+
+fn Token? Lexer.lex_hex_array(Lexer* self, uint start_pos)
+{
+    char start_quote = self.peek(); 
+    self.advance()!;
+
+    uint digit_count = 0;
+
+    while (!self.eof())
+    {
+        char c = self.peek();
+
+        if (c == start_quote) 
         {
             self.advance()!;
+            break;
         }
+
+    	if (is_whitespace(c))
+		{
+			self.advance()!;
+			continue;
+		}
+
+        if (is_hex(c))
+        {
+			self.advance()!;
+			digit_count++;
+			continue;
+        }
+
+		log::error("[Lexer]: Unexpected character '%c' in hex string at index %d", c, self.index);
+        return INVALID~;
     }
 
-    TokenKind kind = is_float ? REAL : INTEGER;
-    return self.emit(kind, start_pos, (uint)self.index - start_pos);
+    if (digit_count % 2 != 0)
+    {
+		log::error("[Lexer]: The hexadecimal string is not an even length");
+        return UNEVEN_HEXADECIMAL~; 
+    }
+
+    return self.emit(BYTES, start_pos, (uint)self.index - start_pos);
 }
 
 fn Token? Lexer.skip_contract(Lexer* self, uint start_pos)
@@ -710,7 +824,15 @@ fn Token? Lexer.next(&self)
 			self.advance()!;
 			switch (self.peek())
 			{
-				case '|': self.advance()!; return self.emit(OR, start, 2);
+				case '|': 
+					if (self.peek(1) == '|')
+					{
+						self.advance(2)!;
+						return self.emit(CT_OR_OP, start, 3);
+					}
+
+					self.advance()!; 
+					return self.emit(OR, start, 2);
 				case '=': self.advance()!; return self.emit(BIT_OR_ASSIGN, start, 2);
 			}
 			return self.emit(BIT_OR, start, 1);
@@ -849,13 +971,13 @@ fn Token? Lexer.next(&self)
 			{
 				case '+':
 					{
-						if (self.peek(2) == '=')
-						{
-							self.advance(3)!;
-							return self.emit(CT_CONCAT_ASSIGN, start, 4);
-						}
 						if (self.peek(1) == '+')
 						{
+							if (self.peek(2) == '=')
+							{
+								self.advance(3)!;
+								return self.emit(CT_CONCAT_ASSIGN, start, 4);
+							}
 							self.advance(2)!;
 							return self.emit(CT_CONCAT_OP, start, 3);
 						}
@@ -902,6 +1024,20 @@ fn Token? Lexer.next(&self)
 			{
 				self.advance(2)!;
 				return self.emit(BUILTIN, start, 2);
+			}
+			nextcase;
+		case 'b':
+			if (self.peek(1) == '6' && self.peek(2) == '4' && self.peek(3) == '`')
+			{
+				self.advance(3)!;
+				return self.lex_raw_string(start)!;
+			}
+			nextcase;
+		case 'x':
+			if (self.peek(1) == '"' || self.peek(1) == '\'' || self.peek(1) == '`')
+			{
+				self.advance()!;
+				return self.lex_hex_array(start)!;
 			}
 			nextcase;
 		case '@':
@@ -952,8 +1088,8 @@ fn TokenKind Lexer.categorize_identifier(Lexer* self, String text)
 				case "reflect": return CT_REFLECT;
 				case "stringify": return CT_STRINGIFY;
 				case "switch": return CT_SWITCH;
-				case "typefrom": return CT_TYPEFROM;
-				case "typeof": return CT_TYPEOF;
+				case "Typefrom": return CT_TYPEFROM;
+				case "Typeof": return CT_TYPEOF;
 				case "vaarg": return CT_VAARG;
 				default: break;
 			}
@@ -965,6 +1101,8 @@ fn TokenKind Lexer.categorize_identifier(Lexer* self, String text)
 		TokenKind kind = lookup_keyword(base);
 		if (kind != IDENT) return kind;
 	}
+
+	while (base[0] == '_') base = base[1..];
 
 	bool is_type = false;
 	bool is_const = false;

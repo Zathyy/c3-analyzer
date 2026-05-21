@@ -92,22 +92,38 @@ fn bool is_non_type_ident(TokenKind k)
 
 fn bool node_ends_with_block(Parser* p, Node n)
 {
-    NodeKind kind = p.ast.get_kind(n);
+	NodeKind kind = p.ast.get_kind(n);
 
-    switch (kind)
-    {
-        case CALL_EXPR:
-        case ATTR_CALL_EXPR:
-            CallView view = { p.ast, n };
-            return view.get_compound().is_valid();
-        case COMPOUND_STMT:
-            return true;
-        default:
-            return false;
-    }
+	log::debug("%s", kind);
+	switch (kind)
+	{
+		case CALL_EXPR:
+		case ATTR_CALL_EXPR:
+			CallView view = { p.ast, n };
+			return view.get_compound().is_valid();
+		case COMPOUND_STMT:
+			return true;
+		default:
+			return false;
+	}
 }
 
-fn bool is_type(TokenKind kind)
+fn bool is_type(Parser* p)
+{
+	TokenKind kind = p.current().kind;
+
+	if (is_type_primitive(kind)) return true;
+	if (kind == TYPE_IDENT) return true;
+
+	if (kind == IDENT && p.peek(1).kind == SCOPE)
+    {
+        return true;
+    }
+
+	return false;
+}
+
+fn bool is_type_primitive(TokenKind kind)
 {
 	switch (kind)
 	{
@@ -135,7 +151,6 @@ fn bool is_type(TokenKind kind)
 		case FAULT:
 		case ANY:
 		case VOID:
-		case TYPE_IDENT:
 		case CT_TYPE_IDENT:
 		case CT_TYPEOF:
 		case CT_TYPEFROM:
@@ -200,40 +215,59 @@ fn OverloadKind get_overload_from_token(TokenKind kind)
 
 fn bool is_declaration_followup(Parser* p)
 {
-    uint i = 1;
-    
-    while (true)
+	uint i;
+
+	while (p.peek(i).kind == IDENT && p.peek(i + 1).kind == SCOPE)
     {
-        TokenKind k = p.peek(i).kind;
-        
-        // Skip over common type modifiers
-        if (k == ASTERISK || k == QUESTION) 
-        {
-            i++;
-        } 
-        else if (k == LBRACKET) 
-        {
-            // Skip the entire [ ... ] block
-            i++;
-            while (p.peek(i).kind != RBRACKET && p.peek(i).kind != EOF) i++;
-            i++; 
-        } 
-        else if (k == LVEC)
-        {
-            // Skip the entire <* ... > block
-            i++;
-            while (p.peek(i).kind != RVEC && p.peek(i).kind != EOF) i++;
-            i++;
-        }
-        else 
-        {
-            break;
-        }
+        i += 2;
     }
 
-    // After skipping modifiers, do we see a variable name?
-    TokenKind final_k = p.peek(i).kind;
-    return final_k == IDENT || final_k == CONST_IDENT || final_k == CT_IDENT;
+	i++;
+
+	if (p.is(CT_TYPEFROM) || p.is(CT_TYPEOF))
+	{
+		i++;
+		uint depth = 1;
+		do {
+			if (p.peek(i).kind == LPAREN) depth++;
+			if (p.peek(i).kind == RPAREN) depth--;
+
+			i++;
+		} while (depth != 0 && p.peek(i).kind != EOF);
+	}
+
+	while (true)
+	{
+		TokenKind k = p.peek(i).kind;
+
+		// Skip over common type modifiers
+		if (k == ASTERISK || k == QUESTION) 
+		{
+			i++;
+		} 
+		else if (k == LBRACKET) 
+		{
+			// Skip the entire [ ... ] block
+			i++;
+			while (p.peek(i).kind != RBRACKET && p.peek(i).kind != EOF) i++;
+			i++; 
+		} 
+		else if (k == LVEC)
+		{
+			// Skip the entire <* ... > block
+			i++;
+			while (p.peek(i).kind != RVEC && p.peek(i).kind != EOF) i++;
+			i++;
+		}
+		else 
+		{
+			break;
+		}
+	}
+
+	// After skipping modifiers, do we see a variable name?
+	TokenKind final_k = p.peek(i).kind;
+	return final_k == IDENT || final_k == CONST_IDENT || final_k == CT_IDENT;
 }
 
 fn uint? parse_type_name(Parser* p, String msg)
@@ -269,26 +303,41 @@ fn bool can_start_expression(TokenKind kind)
 		return true;
 	}
 
-    switch (kind) 
+	switch (kind) 
 	{
-        case IDENT:
+		case IDENT:
+		case AT_IDENT:
 		case TYPE_IDENT:
 		case CT_TYPE_IDENT:
 		case CT_IDENT:
+		case CONST_IDENT:
 		case HASH_IDENT:
 		case HASH_TYPE_IDENT:
 		case BUILTIN:
 		case INTEGER: 
 		case FLOAT:
+		case REAL:
 		case STRING:
-        case LPAREN:
+		case CHAR_LITERAL:
+		case LPAREN:
 		case MINUS:
 		case BANG:
 		case BIT_NOT:
 		case AMP:
 		case ASTERISK:
-            return true;
-        default:
-            return false;
-    }
+			return true;
+		default:
+			return false;
+	}
+}
+
+fn int base64_to_sextet(char c)
+{
+	if (c >= 'A' && c <= 'Z') return c - 'A';
+	if (c >= 'a' && c <= 'z') return c - 'a' + 26;
+	if (c >= '0' && c <= '9') return c - '0' + 52;
+	if (c == '+')             return 62;
+	if (c == '/')             return 63;
+	if (c == '=')             return 0;
+	return -1;
 }

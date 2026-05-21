@@ -63,31 +63,31 @@ fn Node? parse_path_prefix(Parser* p)
 		return NOT_A_PATH~;
 	}
 
-    uint start_tok = p.current_pos();
-    uint ex = 0;
+	uint start_tok = p.current_pos();
+	uint ex = 0;
 
-    @with_scratch(; watermark) 
+	@with_scratch(; watermark) 
 	{
-        while (true) 
+		while (true) 
 		{
-            Token t = p.current();
-            scratch.push((uint)p.pool.intern(p.token_text(t)));
-            advance(p)!;
+			Token t = p.current();
+			scratch.push((uint)p.pool.intern(p.token_text(t)));
+			advance(p)!;
 
-            if (p.is(SCOPE) && is_some_ident(p.peek().kind)) 
+			if (p.is(SCOPE) && is_some_ident(p.peek().kind)) 
 			{
-                advance(p)!; // Consume '::'
-            } 
+				advance(p)!; // Consume '::'
+			} 
 			else 
 			{
-                break;
-            }
-        }
+				break;
+			}
+		}
 
-        ex = p.ast.push_extra_list(scratch_view(watermark, (uint)scratch.len() - watermark));
-    };
+		ex = p.ast.push_extra_list(scratch_view(watermark, (uint)scratch.len() - watermark));
+	};
 
-    return p.ast.add_node(PATH, start_tok, p.current_pos(), ex);
+	return p.ast.add_node(PATH, start_tok, p.current_pos(), ex);
 }
 
 <*
@@ -115,23 +115,23 @@ fn Node? parse_type(Parser* p, ParseFlags parse_flags = { })
 	else 
 	{
 		if (parse_flags.type_as_expression && p.peek().kind == SCOPE)
-        {
-            name_or_path = p.pool.intern(p.token_text(p.current()));
-            advance(p)!;
-        }
-        else 
-        {
-            uint? path = (uint)parse_path_prefix(p);
-            if (try path)
-            {
-                name_or_path = path;
-            }
-            else
-            {
-                name_or_path = p.pool.intern(p.token_text(p.current()));
-                advance(p)!;
-            }
-        }
+		{
+			name_or_path = p.pool.intern(p.token_text(p.current()));
+			advance(p)!;
+		}
+		else 
+		{
+			uint? path = (uint)parse_path_prefix(p);
+			if (try path)
+			{
+				name_or_path = path;
+			}
+			else
+			{
+				name_or_path = p.pool.intern(p.token_text(p.current()));
+				advance(p)!;
+			}
+		}
 
 		if (!parse_flags.no_generics && consume(p, LBRACE)!) 
 		{
@@ -139,7 +139,7 @@ fn Node? parse_type(Parser* p, ParseFlags parse_flags = { })
 			{
 				while (!p.is(RBRACE))
 				{
-					scratch.push((uint)parse_type(p)!);
+					scratch.push((uint)parse_constant_expr(p)!);
 					if (!consume(p, COMMA)!) break;
 				}
 				gen_args_list_ex = p.ast.push_extra_list(scratch_view(watermark, (uint)scratch.len() - watermark));
@@ -151,18 +151,18 @@ fn Node? parse_type(Parser* p, ParseFlags parse_flags = { })
 	while (true) 
 	{
 		// Vector <*4>
-        if (consume(p, LVEC)!)
+		if (consume(p, LVEC)!)
 		{ 
-            flags.is_vector = true;
-            array_size = consume(p, ASTERISK)! ? 0 : parse_expr(p)!;
-            expect(p, RVEC)!;
-            break; 
-        }
-        if (consume(p, ASTERISK)!) 
+			flags.is_vector = true;
+			array_size = consume(p, ASTERISK)! ? 0 : parse_expr(p)!;
+			expect(p, RVEC)!;
+			continue; 
+		}
+		if (consume(p, ASTERISK)!) 
 		{ 
 			ptr_count++; continue; 
 		}
-        if (consume(p, QUESTION)!) 
+		if (consume(p, QUESTION)!) 
 		{
 			flags.is_optional = true;
 			continue; 
@@ -178,21 +178,22 @@ fn Node? parse_type(Parser* p, ParseFlags parse_flags = { })
 			{
 				array_size = parse_expr(p)!;
 			}
-			
+
 			expect(p, RBRACKET)!;
 			continue;
 		}
 		break;
 	}
 
-	uint[6] header = { 
-		name_or_path, 
-		ptr_count, 
-		(uint)array_size, 
-		gen_args_list_ex, 
-		(uint)base_expr, 
-		(uint)flags 
-	};
+	uint[*] header = views::@data{TypeViewFields}
+	(
+		NAME, name_or_path, 
+		PTR_COUNT, ptr_count, 
+		ARRAY_SIZE, array_size, 
+		GENERICS, gen_args_list_ex, 
+		BASE_EXPR, base_expr, 
+		FLAGS, flags,
+	);
 
 	uint ex = p.ast.push_extra_block(&header);
 	return p.ast.add_node(TYPE_EXPR, start_tok, p.current_pos(), ex);
@@ -211,6 +212,11 @@ fn Node? parse_parameter_list(Parser* p, ParseFlags flags = {}) => @with_scratch
 	{
 		expect(p, LPAREN)!;
 	}
+	
+	if (p.is(EOS))
+	{
+		return p.ast.add_empty(start_pos);
+	}
 
 	while (!p.is(RPAREN) && !p.eof())
 	{
@@ -226,6 +232,7 @@ fn Node? parse_parameter_list(Parser* p, ParseFlags flags = {}) => @with_scratch
 		{
 			p.error("Expected ',' or ';' between parameters, found '%s'", p.token_text(p.current()));
 			p.push_invalid_node(p.current_pos());
+			p.skip_until({ RPAREN, EOS })!;
 		}
 	}
 
@@ -283,62 +290,90 @@ fn Node? parse_interface_impl(Parser* p)
 	Parses a sequence of attributes and returns an ATTRIBUTE_LIST node.
 	@param [&inout] p
 *>
-fn Node? parse_attributes(Parser* p)
+fn Node? parse_attributes(Parser* p, bool comma_seperated = false)
 {
-    if (!p.is(AT_IDENT) && !p.is(AT_TYPE_IDENT)) return {};
+	if (!p.is(AT_IDENT) && !p.is(AT_TYPE_IDENT)) return {};
 
-    uint start_pos = p.current_pos();
-    Node attribute_list_node;
+	uint start_pos = p.current_pos();
+	Node attribute_list_node;
 
-    @with_scratch(; base_watermark)
-    {
-        while (p.is(AT_IDENT) || p.is(AT_TYPE_IDENT))
-        {
-            uint attr_start = p.current_pos();
-            String attr_name = p.token_text(p.current());
-            advance(p)!;
-            
-            uint args_list_ex = 0;
+	@with_scratch(; base_watermark)
+	{
+		while (p.is(AT_IDENT) || p.is(AT_TYPE_IDENT))
+		{
+			uint attr_start = p.current_pos();
+			String attr_name = p.token_text(p.current());
+			advance(p)!;
 
-            // Standard argument list @attr(arg1, arg2)
-            if (consume(p, LPAREN)!)
-            {
-                @with_scratch(; watermark)
-                {
-                    while (!p.eof())
-                    {
-                        Node expr = parse_attribute_argument(p)!;
-                        if (expr.is_valid()) scratch.push((uint)expr);
-                        
-                        if (consume(p, RPAREN)!) break;
-                        expect(p, COMMA)!;
-                    }
-                    uint count = (uint)scratch.len() - watermark;
-                    args_list_ex = p.ast.push_extra_list(scratch_view(watermark, count));
-                };
-            }
-            // Short-hand string attribute @deprecated "message"
-            else if (p.is(STRING))
-            {
-                Node msg_expr = parse_expr(p)!; 
-                uint[1] single_arg = { (uint)msg_expr };
-                args_list_ex = p.ast.push_extra_list(&single_arg);
-            }
+			uint args_list_ex = 0;
+
+			AttributeKind attr_kind = common::get_attribute_from_string(attr_name);
+
+			if (attr_kind == OPERATOR || attr_kind == OPERATOR_R || attr_kind == OPERATOR_S)
+			{
+				expect(p, LPAREN)!;
+
+				if (consume(p, AMP)!)
+				{
+					if (consume(p, LBRACKET)!) expect(p, RBRACKET)!;
+				}
+				else if (consume(p, LBRACKET)!)
+				{
+					expect(p, RBRACKET)!;
+					consume(p, EQ)!;
+				}
+				else
+				{
+					p.advance()!;
+				}
+
+				// TODO: Actually save the good op
+				uint[1] single_arg = { 1 };
+				args_list_ex = p.ast.push_extra_list(&single_arg);
+				expect(p, RPAREN)!;
+			}
+			// Standard argument list @attr(arg1, arg2)
+			else if (consume(p, LPAREN)!)
+			{
+				@with_scratch(; watermark)
+				{
+					while (!p.eof())
+					{
+						Node expr = parse_attribute_argument(p)!;
+						if (expr.is_valid()) scratch.push((uint)expr);
+
+						if (consume(p, RPAREN)!) break;
+						expect(p, COMMA)!;
+					}
+					uint count = (uint)scratch.len() - watermark;
+					args_list_ex = p.ast.push_extra_list(scratch_view(watermark, count));
+				};
+			}
+			// Short-hand string attribute @deprecated "message"
+			else if (p.is(STRING))
+			{
+				Node msg_expr = parse_expr(p)!; 
+				uint[1] single_arg = { (uint)msg_expr };
+				args_list_ex = p.ast.push_extra_list(&single_arg);
+			}
 
 			uint[*] data = views::@data{AttributeViewFields}
 			(
-				KIND, (uint)common::get_attribute_from_string(attr_name),
+				KIND, attr_kind,
 				ARGS, args_list_ex,
 			);
 
-            uint ex = p.ast.push_extra_block(&data);
-            Node attr_node = p.ast.add_node(ATTRIBUTE, attr_start, p.previous_pos(), ex);
-            scratch.push((uint)attr_node);
-        }
+			uint ex = p.ast.push_extra_block(&data);
+			Node attr_node = p.ast.add_node(ATTRIBUTE, attr_start, p.previous_pos(), ex);
+			scratch.push((uint)attr_node);
 
-        // Wrap all found ATTRIBUTE nodes into one ATTRIBUTE_LIST
-        uint total_attrs = (uint)scratch.len() - base_watermark;
-        uint final_ex = p.ast.push_extra_list(scratch_view(base_watermark, total_attrs));
+			// if comma_seperated, we need a comma to continue
+			if (comma_seperated && !consume(p, COMMA)!) break;
+		}
+
+		// Wrap all found ATTRIBUTE nodes into one ATTRIBUTE_LIST
+		uint total_attrs = (uint)scratch.len() - base_watermark;
+		uint final_ex = p.ast.push_extra_list(scratch_view(base_watermark, total_attrs));
 
 		uint[*] data = views::@data{AttributeListViewFields}
 		(
@@ -346,10 +381,10 @@ fn Node? parse_attributes(Parser* p)
 		);
 
 		uint node_ex = p.ast.push_extra_block(&data);
-        attribute_list_node = p.ast.add_node(ATTRIBUTE_LIST, start_pos, p.previous_pos(), node_ex);
-    };
+		attribute_list_node = p.ast.add_node(ATTRIBUTE_LIST, start_pos, p.previous_pos(), node_ex);
+	};
 
-    return attribute_list_node;
+	return attribute_list_node;
 }
 
 fn Node? parse_attribute_argument(Parser* p) 
@@ -444,91 +479,98 @@ fn Node? parse_var_decl(Parser* p, ParseFlags flags)
 		}
 	}
 
+	Node type_node;
+
 	if (flags.is_var)
 	{
 		advance(p)!;
+		type_node = p.ast.add_empty(p.current_pos());
 	}
 
-	Node type_node;
-	if (is_type(p.current().kind) && is_declaration_followup(p))
+	if (is_type(p) && is_declaration_followup(p))
 	{
 		type_node = parse_type(p)!;
 	}
 
+	// if it is const, the type node is optional
+	if (flags.is_const && !type_node.is_valid())
+	{
+		type_node = p.ast.add_empty(p.current_pos());
+	}
+
 	@with_scratch(; watermark)
-    {
-        while (true)
-        {
-            Token t = p.current();
-            
-            if (flags.is_const && t.kind != CONST_IDENT)
-            {
-                p.error("Constants must use a CONST_IDENT, found '%s'", p.token_text(t));
-                return { };
-            }
-            if (!flags.is_const && t.kind != IDENT && !flags.is_local)
-            {
-                p.error("Global variables must use lower-case IDENT, found '%s'", p.token_text(t));
-                return { };
-            }
+	{
+		while (true)
+		{
+			Token t = p.current();
+			if (flags.is_const && t.kind != CONST_IDENT)
+			{
+				p.error("Constants must use a CONST_IDENT, found '%s'", p.token_text(t));
+				return { };
+			}
+			if (!flags.is_const && t.kind != IDENT && !flags.is_local)
+			{
+				p.error("Global variables must use lower-case IDENT, found '%s'", p.token_text(t));
+				return { };
+			}
 
-            uint name = p.pool.intern(p.token_text(t));
-            advance(p)!;
+			uint name = p.pool.intern(p.token_text(t));
+			advance(p)!;
 
-            Node attr = parse_attributes(p)!;
-            Node init_expr;
+			Node attr = parse_attributes(p)!;
+			Node init_expr;
 
-            if (consume(p, EQ)!)
-            {
+			if (consume(p, EQ)!)
+			{
 				if ((uint)scratch.len() > watermark)
-                {
-                    p.error("Initializers are not allowed in multi-declarations");
-                    return UNEXPECTED_TOKEN~;
-                }
+				{
+					p.error("Initializers are not allowed in multi-declarations");
+					return UNEXPECTED_TOKEN~;
+				}
 
-                if (flags.is_extern)
-                {
-                    p.error("a extern global cant have a initializer");
-                    return UNEXPECTED_TOKEN~;
-                }
-                init_expr = parse_expr(p)!;
-            }
-            else if (flags.is_const && !flags.is_extern)
-            {
-                p.error("Constants must be initialized");
-            }
+				if (flags.is_extern)
+				{
+					p.error("a extern global cant have a initializer");
+					return UNEXPECTED_TOKEN~;
+				}
+				init_expr = parse_expr(p)!;
+			}
+			else if (flags.is_const && !flags.is_extern)
+			{
+				p.error("Constants must be initialized");
+			}
 
-            VarDeclFlags packed_flags = {
-                .is_extern = flags.is_extern,
-                .is_const = flags.is_const,
-                .is_inline = flags.is_inline,
-                .is_local = flags.is_local,
-                .is_thread_local = flags.is_thread_local,
-                .is_static = flags.is_static,
-            };
+			VarDeclFlags packed_flags = {
+				.is_extern = flags.is_extern,
+				.is_const = flags.is_const,
+				.is_inline = flags.is_inline,
+				.is_local = flags.is_local,
+				.is_thread_local = flags.is_thread_local,
+				.is_static = flags.is_static,
+			};
 
-            uint[*] var_data = views::@data{VarDeclViewFields}
-            (
-                NAME, name,
-                TYPE, type_node, // Same type node shared by all in the list
-                INIT, init_expr,
-                ATTRIBUTES, attr,
-                FLAGS, packed_flags,
-            );
+			uint[*] var_data = views::@data{VarDeclViewFields}
+			(
+				NAME, name,
+				TYPE, type_node, // Same type node shared by all in the list
+				INIT, init_expr,
+				ATTRIBUTES, attr,
+				FLAGS, packed_flags,
+			);
 
-            uint var_ex = p.ast.push_extra_block(&var_data);
-            Node var_node = p.ast.add_node(VAR_DECL, t.pos, p.current_pos(), var_ex);
-            scratch.push((uint)var_node);
+			uint var_ex = p.ast.push_extra_block(&var_data);
+			Node var_node = p.ast.add_node(VAR_DECL, t.pos, p.current_pos(), var_ex);
+			scratch.push((uint)var_node);
 
 			if (flags.is_expr) break;
 
-            if (!consume(p, COMMA)!) break;
-        }
+			if (!consume(p, COMMA)!) break;
+		}
 
-        if (!flags.skip_eos)
-        {
-            expect(p, EOS)!;
-        }
+		if (!flags.skip_eos)
+		{
+			expect(p, EOS)!;
+		}
 
 		uint count = (uint)scratch.len() - watermark;
 
@@ -537,12 +579,12 @@ fn Node? parse_var_decl(Parser* p, ParseFlags flags)
 			return (Node)scratch.pop();
 		}
 
-        uint list_ex = p.ast.push_extra_list(scratch_view(watermark, count));
-        
-        uint[*] list_header = { list_ex };
-        uint final_ex = p.ast.push_extra_block(&list_header);
-        return p.ast.add_node(VAR_DECL_LIST, start_pos, p.current_pos(), final_ex);
-    }; 
+		uint list_ex = p.ast.push_extra_list(scratch_view(watermark, count));
+
+		uint[*] list_header = { list_ex };
+		uint final_ex = p.ast.push_extra_block(&list_header);
+		return p.ast.add_node(VAR_DECL_LIST, start_pos, p.current_pos(), final_ex);
+	}; 
 }	
 
 fn Node? parse_local(Parser* p, uint start_pos, Node type_node, ParseFlags flags = {})
@@ -602,7 +644,7 @@ fn Node? parse_local(Parser* p, uint start_pos, Node type_node, ParseFlags flags
 
 fn Node? parse_contract_param(Parser* p)
 {
-    uint start = p.current_pos();
+	uint start = p.current_pos();
 
 	ContractParamFlags flags;
 	InOutModifier mod;
@@ -636,16 +678,16 @@ fn Node? parse_contract_param(Parser* p)
 			p.push_invalid_node(p.current_pos());
 		}
 	}
-    
+
 	Node param_name;
-    if (!p.is(IDENT) && 
-		!p.is(CT_IDENT) && 
-		!p.is(TYPE_IDENT) &&
-		!p.is(CT_TYPE_IDENT)) 
-    {
-        p.error("Expected parameter name after @param");
-        p.push_invalid_node(p.current_pos());
-    }
+	if (!p.is(IDENT) && 
+		 !p.is(CT_IDENT) && 
+		 !p.is(TYPE_IDENT) &&
+		 !p.is(CT_TYPE_IDENT)) 
+	{
+		p.error("Expected parameter name after @param");
+		p.push_invalid_node(p.current_pos());
+	}
 	else
 	{
 		// ident_expr
@@ -653,97 +695,97 @@ fn Node? parse_contract_param(Parser* p)
 	}
 
 	uint description;
-    if (p.is(COLON))
+	if (p.is(COLON))
 	{
 		description = p.pool.intern(p.current_text());
 		advance(p)!;
 	}
-	else
+	else if (p.is(STRING))
 	{
 		p.error("Forgot colon after");
 		p.push_invalid_node(p.current_pos());
 	}
 
-    uint[4] data = { (uint)param_name, description, (uint)flags, (uint)mod };
-    uint ex = p.ast.push_extra_block(&data);
-    return p.ast.add_node(CONTRACT_PARAM, start, p.current_pos(), ex);
+	uint[4] data = { (uint)param_name, description, (uint)flags, (uint)mod };
+	uint ex = p.ast.push_extra_block(&data);
+	return p.ast.add_node(CONTRACT_PARAM, start, p.current_pos(), ex);
 }
 
 fn Node? parse_cond(Parser* p) => @with_scratch(; watermark)
 {
-    uint start_pos = p.current().pos;
+	uint start_pos = p.current().pos;
 
-    while (true)
-    {
-        if (p.is(TRY))
-        {
-            Node try_node = parse_try_unwrap_chain(p)!;
-            scratch.push((uint)try_node);
-            
-            if (p.is(COMMA)) 
+	while (true)
+	{
+		if (p.is(TRY))
+		{
+			Node try_node = parse_try_unwrap_chain(p)!;
+			scratch.push((uint)try_node);
+
+			if (p.is(COMMA)) 
 			{
-                p.error("The 'try' must be placed last in the condition list.");
-            }
-            break; 
-        }
+				p.error("The 'try' must be placed last in the condition list.");
+			}
+			break; 
+		}
 
-        if (p.is(CATCH))
-        {
-            Node catch_node = parse_catch_unwrap(p)!;
-            scratch.push((uint)catch_node);
-            
-            if (p.is(COMMA)) 
+		if (p.is(CATCH))
+		{
+			Node catch_node = parse_catch_unwrap(p)!;
+			scratch.push((uint)catch_node);
+
+			if (p.is(COMMA)) 
 			{
-                p.error("The 'catch' must be placed last in the condition list.");
-            }
-            break;
-        }
+				p.error("The 'catch' must be placed last in the condition list.");
+			}
+			break;
+		}
 
-        Node item = parse_decl_or_expr(p)!;
-        scratch.push((uint)item);
+		Node item = parse_decl_or_expr(p)!;
+		scratch.push((uint)item);
 
-        if (!consume(p, COMMA)!) break;
-        if (p.eof()) break;
-    }
+		if (!consume(p, COMMA)!) break;
+		if (p.eof()) break;
+	}
 
-    uint count = (uint)scratch.len() - watermark;
-    uint ex = p.ast.push_extra_list(scratch_view(watermark, count));
-    return p.ast.add_node(COND_EXPR, start_pos, p.previous_pos(), ex);
+	uint count = (uint)scratch.len() - watermark;
+	uint ex = p.ast.push_extra_list(scratch_view(watermark, count));
+	return p.ast.add_node(COND_EXPR, start_pos, p.previous_pos(), ex);
 }
 
 fn Node? parse_try_unwrap_chain(Parser* p) => @with_scratch(; watermark)
 {
-    uint start_pos = p.current_pos();
+	uint start_pos = p.current_pos();
 
-    Node first = parse_try_unwrap(p)!;
-    scratch.push((uint)first);
+	Node first = parse_try_unwrap(p)!;
+	scratch.push((uint)first);
 
-    // Look for '&&' chains 
-    while (consume(p, AND)!)
-    {
-        if (p.is(TRY))
-        {
-            // Another explicit 'try' (e.g., && try foo())
-            scratch.push((uint)parse_try_unwrap(p)!);
-        }
-        else
-        {
-            // A regular expression in the chain (e.g., && bar == 2)
-            scratch.push((uint)parse_expr(p)!);
-        }
-    }
+	// Look for '&&' chains 
+	while (consume(p, AND)!)
+	{
+		if (p.is(TRY))
+		{
+			// Another explicit 'try' (e.g., && try foo())
+			scratch.push((uint)parse_try_unwrap(p)!);
+		}
+		else
+		{
+			// A regular expression in the chain (e.g., && bar == 2)
+			scratch.push((uint)parse_expr(p)!);
+		}
+	}
 
-    uint count = (uint)scratch.len() - watermark;
-    uint ex = p.ast.push_extra_list(scratch_view(watermark, count));
-    return p.ast.add_node(TRY_UNWRAP_CHAIN_EXPR, start_pos, p.previous_pos(), ex);
+	uint count = (uint)scratch.len() - watermark;
+	uint ex = p.ast.push_extra_list(scratch_view(watermark, count));
+	return p.ast.add_node(TRY_UNWRAP_CHAIN_EXPR, start_pos, p.previous_pos(), ex);
 }
 
 fn Node? parse_try_unwrap(Parser* p)
 {
-    uint pos = p.current_pos();
-    expect(p, TRY)!;
-    Node expr = parse_expr(p)!;
-    return p.ast.add_node(TRY_UNWRAP_EXPR, pos, p.previous_pos(), (uint)expr);
+	uint pos = p.current_pos();
+	expect(p, TRY)!;
+	Node expr = parse_decl_or_expr(p)!;
+	return p.ast.add_node(TRY_UNWRAP_EXPR, pos, p.previous_pos(), (uint)expr);
 }
 
 fn Node? parse_catch_unwrap(Parser* p) => @with_scratch(; watermark)

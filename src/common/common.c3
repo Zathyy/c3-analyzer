@@ -8,9 +8,6 @@ const uint MAX_GENERICS       = 16;
 const uint MAX_ATTRIBUTES     = 16;
 const uint MAX_INTERFACE_IMPL = 16;
 
-
-
-
 typedef FileID = ushort;
 alias Size = sz;
 
@@ -187,6 +184,59 @@ bitstruct ContractParamFlags : uint
 {
 	bool is_ref;
 } 
+
+bitstruct AsmFlags : uint
+{
+	bool is_volatile;
+	bool is_string_style;
+}
+
+enum AsmArgKind : uint 
+{
+	ARG_REG,     // A register
+	ARG_ADDR,    // [...]
+	ARG_REGVAR,  // foo - variable in a register, r/=r/+r
+	ARG_MEMADDR, // &foo - address to a variable
+	ARG_MEMVAR,  // [&foo]
+	ARG_VALUE,   // -1, (expr), 1, 3.0
+	ARG_INT,     // Converted from VALUE
+}
+
+enum AsmOffsetKind : uint
+{
+	SCALE_1,    // *
+	SCALE_2,
+	SCALE_4,
+	SCALE_8,
+	SCALE_SHR,  // >>
+	SCALE_SHL,  // <<
+	SCALE_ASHL, // >>>
+	SCALE_ROR,  // ror
+	SCALE_RRX,  // rrx
+}
+
+bitstruct AsmArgBits : uint 
+{
+	bool arg_bits_8;
+	bool arg_bits_16;
+	bool arg_bits_32;
+	bool arg_bits_64;
+	bool arg_bits_128;
+	bool arg_bits_256;
+	bool arg_bits_512;
+	bool arg_bits_80;
+	bool arg_bits_5;
+	bool arg_bits_12;
+	bool arg_bits_20;
+}
+
+enum AsmRegisterKind : uint 
+{
+	REG_INT,
+	REG_FLOAT,
+	REG_IVEC,
+	REF_FVEC,
+}
 
 enum DeferKind : uint
 {

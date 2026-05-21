@@ -13,7 +13,8 @@ fn bool Node.is_valid(self) @inline
 
 enum NodeKind : char
 {
-	INVALID,
+	INVALID, // represents an invalid node
+	EMPTY, // represents a valid, but empty node
 	PATH,
 	ATTRIBUTE,
 	ATTRIBUTE_LIST,
@@ -22,7 +23,6 @@ enum NodeKind : char
 	BLOCK,
 	// a collection of statements
 	INITIALIZER_LIST,
-	DESIGNATED_INITIALIZER,
 	DESIGNATED_INITIALIZER_LIST,
 	FOREACH_VAR,
 	INTERFACE_IMPL,
@@ -36,7 +36,6 @@ enum NodeKind : char
 	PARAM_LIST,
 	BITSTRUCT_FIELD,
 	BITSTRUCT_FIELD_LIST,
-	DEFAULT_ELLIPSIS,
 
 	TYPE,
 	TYPE_DECL,
@@ -47,6 +46,7 @@ enum NodeKind : char
 	STRING_LITERAL,
 	BOOL_LITERAL,
 	NULL_LITERAL,
+	BYTES_LITERAL,
 
 	FN_DECL, 
 	ENUM_DECL,
@@ -72,6 +72,7 @@ enum NodeKind : char
 	FAULT_DECL,
 	FAULTDEF_DECL,
 	DECL_STMT_LIST,
+	CT_ASSERT_DECL,
 
 	REQUIRE_EXPR,
 	ENSURE_EXPR,
@@ -106,13 +107,6 @@ enum NodeKind : char
 	CATCH_UNWRAP_EXPR,
 	LAMBDA_EXPR,
 	ATTR_CALL_EXPR,
-	CT_FEATURE_EXPR,
-	COMPOUND_LITERAL_EXPR,
-	DESIGNATOR_PERIOD_EXPR,
-	DESIGNATOR_INDEX_EXPR,
-	DESIGNATOR_RANGE_EXPR,
-	LENGTHOF_EXPR,
-	GENERIC_IDENT_EXPR,
 
 	FOR_STMT,
 	COMPOUND_STMT,
@@ -131,14 +125,30 @@ enum NodeKind : char
 	FOREACH_STMT,
 	FOREACH_R_STMT,
 	WHILE_STMT,
+	CT_ECHO_STMT,
+	NOP_STMT,
+	ASM_STMT,
+	ASM_STMT_LIST,
+	ASM_BLOCK_STMT,
 
 	CT_IF_STMT,
 	CT_SWITCH_STMT,
-	CT_FOREACH_STMT,
 	CT_CASE_STMT,
 	CT_VAR_DECL,
 	CT_FOR_STMT,
 	CT_ASSERT_STMT,
+
+	// asm
+	ASM_ARG_REG,
+	ASM_ARG_REGVAR,
+	ASM_ARG_MEMVAR,
+	ASM_ARG_ADDR,
+	ASM_ARG_IMM,
+	ASM_ARG_ADDROF,
+	ASM_ARG_EXPR,
+	ASM_LABEL,
+	ASM_INST,
+	ASM_OFFSET,
 }
 
 struct Ast
@@ -149,16 +159,18 @@ struct Ast
 	List{uint} extra_indices;
 	List{uint} extra_data;
 	List{uint} top_level_nodes; // to track what nodes are "top-level" its really hard without it
+	Allocator allocator;
 }
 
-fn void Ast.init(&ast, Size estimated_size)
+fn void Ast.init(&ast, Allocator allocator, Size estimated_size)
 {
-	ast.kinds.tinit(estimated_size);
-	ast.start_tokens.tinit(estimated_size);
-	ast.end_tokens.tinit(estimated_size);
-	ast.extra_indices.tinit(estimated_size);
-	ast.extra_data.tinit(estimated_size * 2); // Usually more extra data than nodes
-	ast.top_level_nodes.tinit(estimated_size / 4);
+	ast.allocator = allocator;
+	ast.kinds.init(ast.allocator, estimated_size);
+	ast.start_tokens.init(ast.allocator, estimated_size);
+	ast.end_tokens.init(ast.allocator, estimated_size);
+	ast.extra_indices.init(ast.allocator, estimated_size);
+	ast.extra_data.init(ast.allocator, estimated_size * 2); // Usually more extra data than nodes
+	ast.top_level_nodes.init(ast.allocator, estimated_size / 4);
 
 	// push null state at index 0
 	ast.kinds.push(INVALID);
@@ -217,6 +229,16 @@ fn Node Ast.add_node(&self, NodeKind kind, uint start_tok, uint end_tok, uint ex
 	self.kinds.push(kind);
 	self.start_tokens.push(start_tok);
 	self.end_tokens.push(end_tok);
+	self.extra_indices.push(extra_idx);
+	return handle;
+}
+
+fn Node Ast.add_empty(&self, uint start_tok, uint end_tok = 0, uint extra_idx = 0)
+{
+	Node handle = (Node)self.kinds.len();
+	self.kinds.push(EMPTY);
+	self.start_tokens.push(start_tok);
+	self.end_tokens.push(end_tok ?: start_tok);
 	self.extra_indices.push(extra_idx);
 	return handle;
 }

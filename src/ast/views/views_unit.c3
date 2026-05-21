@@ -44,17 +44,27 @@ fn ParamsListView BodyParamView.inner_params(self)
     return { self.ast, list_handle };
 }
 
+constdef AttributeListViewFields : inline uint
+{
+	ATTRIBUTES = 0,
+}
+
 typedef AttributeListView = inline View;
 fn uint AttributeListView.count(self) => self.get_list_count(0);
 fn Node AttributeListView.get_attr(self, uint index) => self.get_list_item(0, index);
 
+constdef AttributeViewFields : inline uint
+{
+	KIND = 0,
+	ARGS,
+}
 // The view for a single @attr(args)
 typedef AttributeView = inline View;
-fn AttributeKind AttributeView.kind(self) => (AttributeKind)self.get_uint(0);
-fn uint AttributeView.arg_count(self) => self.get_uint(2);
+fn AttributeKind AttributeView.kind(self) => (AttributeKind)self.get_uint(AttributeViewFields.KIND);
+fn uint AttributeView.arg_count(self) => self.get_uint(AttributeViewFields.ARGS);
 fn Node AttributeView.get_arg(self, uint index)
 {
-    uint base = self.get_uint(1);
+    uint base = self.get_uint(AttributeViewFields.ARGS);
     return (Node)self.ast.extra_data[(Size)base + index];
 }
 
@@ -85,24 +95,34 @@ fn String PathView.get_text(PathView self, uint index, StringPool* pool)
 	return pool.get((StringHandle)self.get_string_handle(index));
 }
 
+constdef TypeViewFields : inline uint
+{
+	NAME = 0,
+	PTR_COUNT,
+	ARRAY_SIZE,
+	GENERICS,
+	BASE_EXPR,
+	FLAGS,
+}
 typedef TypeView = inline View;
 
 fn String TypeView.name(TypeView self, StringPool* pool)
 {
-	uint sh = self.get_uint(0);
+	uint sh = self.get_uint(TypeViewFields.NAME);
 	return pool.get((StringHandle)sh);
 }
 
-fn uint TypeView.ptr_count(TypeView self) => self.get_uint(1);
+fn uint TypeView.ptr_count(TypeView self) => self.get_uint(TypeViewFields.PTR_COUNT);
 
 // 0 in this case does not equal invalid it means infered size '[*]'
-fn Node TypeView.array_size(TypeView self) => self.get(2);
-fn uint TypeView.gen_count(TypeView self) => self.get_uint(3);
-fn TypeFlags TypeView.get_flags(TypeView self) => (TypeFlags)self.get(4);
+fn Node TypeView.array_size(TypeView self) => self.get(TypeViewFields.ARRAY_SIZE);
+fn uint TypeView.gen_count(TypeView self) => self.get_uint(TypeViewFields.GENERICS);
+fn TypeFlags TypeView.get_flags(TypeView self) => (TypeFlags)self.get(TypeViewFields.FLAGS);
 fn bool TypeView.is_vector(TypeView self) => self.get_flags().is_vector;
 fn Node TypeView.get_gen_arg(TypeView self, uint index)
 {
-	return self.get_at(5, index);
+	uint base = self.get_uint(TypeViewFields.GENERICS);
+	return (Node)self.ast.extra_data[(Size)base + index];
 }
 
 constdef FnTypeViewFields : inline uint

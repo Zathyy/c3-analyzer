@@ -89,7 +89,9 @@ constdef TypeAliasViewFields : inline uint
 {
 	NAME = 0,
 	TARGET_TYPE,
+	GENERICS,
 	ATTRIBUTES,
+	TYPE_ATTRIBUTES,
 }
 typedef TypeAliasView = inline View;
 fn String TypeAliasView.name(self, StringPool* pool) => pool.get((StringHandle)self.get_uint(TypeAliasViewFields.NAME));
@@ -119,12 +121,23 @@ constdef TypedefViewFields : inline uint
 {
 	NAME = 0,
 	BASE_TYPE,
+	ATTRIBUTES,
 	INTERFACES,
 	GENERICS,
+	TYPE_ATTRIBUTES,
 }
 typedef TypedefView = inline View;
 fn String TypedefView.name(TypedefView self, StringPool* pool) => pool.get((StringHandle)self.get_uint(TypedefViewFields.NAME));
 fn Node TypedefView.base_type(TypedefView self) => self.get(TypedefViewFields.BASE_TYPE);
+
+constdef AttrdefViewFields : inline uint
+{
+	NAME = 0,
+	PARAMS,
+	ATTRIBUTES,
+	VAL_ATTRIBUTES,
+}
+typedef AttrdefView = inline View;
 
 constdef VarDeclViewFields : inline uint
 {
@@ -194,10 +207,13 @@ constdef FieldViewFields : inline uint
 	NAME = 0,
 	TYPE,
 	ATTRIBUTES,
+	FLAGS,
 }
 typedef FieldView = inline View;
 fn String FieldView.name(self, StringPool* pool) => pool.get((StringHandle)self.get_uint(FieldViewFields.NAME));
 fn Node FieldView.type_node(self) => self.get(FieldViewFields.TYPE);
+fn uint FieldView.flags(self) => self.get_uint(FieldViewFields.FLAGS);
+fn bool FieldView.is_inline(self) => (self.flags() & (1 << 0)) != 0;
 
 constdef EnumViewFields : inline uint
 {
@@ -228,6 +244,7 @@ fn bool EnumView.is_inline(self)    => (self.flags() & (1 << 1)) != 0;
 constdef EnumMemberViewFields : inline uint
 {
 	NAME = 0,
+	ATTRIBUTES,
 	EXPLICIT_VALUE,
 	ASSOCIATED,
 }

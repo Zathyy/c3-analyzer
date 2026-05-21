@@ -53,7 +53,6 @@ fn Node CallView.get_compound(self) => self.get(CallViewFields.COMPOUND);
 constdef IfViewFields : inline uint
 {
 	CONDITION = 0,
-	LABEL,
 	THEN_BLOCK,
 	ELSE_BLOCK,
 }

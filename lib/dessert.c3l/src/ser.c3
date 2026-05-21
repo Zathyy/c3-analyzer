@@ -56,16 +56,16 @@ macro serialize(serializer, value) {
 
 <* @require $defined(s.serialize(serializer)) *>
 macro impl_serialize(s, Serializer serializer) {
-  $if $typeof(s)::kind != POINTER:
+  $if $Typeof(s)::kind != POINTER:
     $error "The first parameter must be a &self pointer.";
   $endif
 
   $switch:
-    $case $typeof(s)::inner.kind == ENUM:
+    $case $Typeof(s)::inner.kind == ENUM:
       impl_serialize_enum(s, serializer)!;
 
-    $case $typeof(s)::inner.kind == STRUCT:
-      var $type = $typeof(s)::inner;
+    $case $Typeof(s)::inner.kind == STRUCT:
+      var $type = $Typeof(s)::inner;
       $foreach $member : $type.members:
         DessertFieldConfig $config = $member.has_tag("dessert:ser") ??? $member.get_tag("dessert:ser") : (DessertFieldConfig) {};
         $if !$config.skip:
@@ -94,7 +94,7 @@ macro impl_serialize(s, Serializer serializer) {
               }
 
             $case $defined(s.$eval("skip_serializing_" +++ $member.name)()) 
-              &&& $typeof(s.$eval("skip_serializing_" +++ $member.name))::returns == bool:
+              &&& $Typeof(s.$eval("skip_serializing_" +++ $member.name))::returns == bool:
 
               if (!s.$eval("skip_serializing_" +++ $member.name)()) {
                 $if !$config.flatten:
@@ -143,7 +143,7 @@ macro @is_empty(#value) {
       } else {
         return false;
       }
-    $case $typeof(#value)::kind == POINTER:
+    $case $Typeof(#value)::kind == POINTER:
       return #value == null;
   $endswitch
 }
@@ -153,7 +153,7 @@ macro serialize_value(serializer, value, $config) {
     $case $defined(value.serialize) &&& $defined(value.serialize(serializer)):
       var $type = $reflect(value).type;
       $if $type.kind == POINTER:
-        $type = $typeof(value)::inner;
+        $type = $Typeof(value)::inner;
         if (value == null) {
           serializer.serialize_null()!;
           return;
@@ -172,22 +172,22 @@ macro serialize_value(serializer, value, $config) {
       if (catch inner) {
         serializer.serialize_null()!;
       } else {
-        $if $typeof(inner)::kind == STRUCT &&& !$config.flatten:
-          serializer.struct_start($typeof(inner)::name)!;
+        $if $Typeof(inner)::kind == STRUCT &&& !$config.flatten:
+          serializer.struct_start($Typeof(inner)::name)!;
         $endif
         inner.serialize(serializer)!;
-        $if $typeof(inner)::kind == STRUCT &&& !$config.flatten:
-          serializer.struct_end($typeof(inner)::name)!;
+        $if $Typeof(inner)::kind == STRUCT &&& !$config.flatten:
+          serializer.struct_end($Typeof(inner)::name)!;
         $endif
       }
 
     $case $defined(value.len) &&& $defined(value[0]) &&& $defined(value.len()):
       serializer.serialize_slice_start(value.len())!;
-      $typefrom($typeof(Serializer.serialize_slice_item_start)) cb_start;
+      $Typefrom($Typeof(Serializer.serialize_slice_item_start)) cb_start;
       if (&((Serializer) serializer).serialize_slice_item_start) {
         cb_start = &((Serializer) serializer).serialize_slice_item_start;
       }
-      $typefrom($typeof(Serializer.serialize_slice_item_end)) cb_end;
+      $Typefrom($Typeof(Serializer.serialize_slice_item_end)) cb_end;
       if (&((Serializer) serializer).serialize_slice_item_end) {
         cb_end = &((Serializer) serializer).serialize_slice_item_end;
       }
@@ -200,11 +200,11 @@ macro serialize_value(serializer, value, $config) {
 
     $case $defined(value.len) &&& $defined(value[0]):
       serializer.serialize_slice_start(value.len)!;
-      $typefrom($typeof(Serializer.serialize_slice_item_start)) cb_start;
+      $Typefrom($Typeof(Serializer.serialize_slice_item_start)) cb_start;
       if (&((Serializer) serializer).serialize_slice_item_start) {
         cb_start = &((Serializer) serializer).serialize_slice_item_start;
       }
-      $typefrom($typeof(Serializer.serialize_slice_item_end)) cb_end;
+      $Typefrom($Typeof(Serializer.serialize_slice_item_end)) cb_end;
       if (&((Serializer) serializer).serialize_slice_item_end) {
         cb_end = &((Serializer) serializer).serialize_slice_item_end;
       }
@@ -216,15 +216,15 @@ macro serialize_value(serializer, value, $config) {
       serializer.serialize_slice_end(value.len)!;
 
     $default:
-      $error @sprintf("Value not serializable: '%s (%s)'", $typeof(value)::name, $typeof(value)::kind);
+      $error @sprintf("Value not serializable: '%s (%s)'", $Typeof(value)::name, $Typeof(value)::kind);
   $endswitch
 }
 
 <*
-  @require $typeof(s)::inner.kind == ENUM
+  @require $Typeof(s)::inner.kind == ENUM
 *>
 macro impl_serialize_enum(s, serializer) @local {
-  var $type = $typeof(s)::inner;
+  var $type = $Typeof(s)::inner;
   var $config = $type.has_tag("dessert:ser:enum") ??? $type.get_tag("dessert:ser:enum") : (DessertEnumConfig) {};
 
   $switch $config.as:

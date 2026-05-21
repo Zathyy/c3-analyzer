@@ -58,7 +58,7 @@ macro @is_deserializable($Output) {
   $Output $value;
   return $defined($value.deserialize) ||| ($defined($value.len) &&& $defined($value[0])) ||| 
     ($defined($value.get) &&& $defined($value.get()) &&& 
-     ($defined($value.get()!) ||| $defined($value == maybe::value{$typeof($value.value)}($value.value))));
+     ($defined($value.get()!) ||| $defined($value == maybe::value{$Typeof($value.value)}($value.value))));
 }
 
 macro deserialize(Deserializer deserializer) <Output> {
@@ -78,11 +78,11 @@ macro deserialize(Deserializer deserializer) <Output> {
       return value;
 
     $case ($defined(value.get) &&& $defined(value.get()) &&& 
-           ($defined(value.get()!) ||| $defined(value == maybe::value{$typeof(value.value)}(value.value)))):
+           ($defined(value.get()!) ||| $defined(value == maybe::value{$Typeof(value.value)}(value.value)))):
       if (deserializer.next_null()!) {
-        return (Maybe{$typeof(value.value)}) {};
+        return (Maybe{$Typeof(value.value)}) {};
       } else {
-        return maybe::value{$typeof(value.value)}(deserialize{$typeof(value.value)}(deserializer)!);
+        return maybe::value{$Typeof(value.value)}(deserialize{$Typeof(value.value)}(deserializer)!);
       }
 
     $case $defined(value.len) &&& $defined(value[0]):
@@ -95,19 +95,19 @@ macro deserialize(Deserializer deserializer) <Output> {
       return elements.to_array(tmem);
 
     $default:
-      $error "The value cannot be deserialize: " +++ $typeof(value)::name;
+      $error "The value cannot be deserialize: " +++ $Typeof(value)::name;
 
   $endswitch
 }
 
 macro impl_deserialize(value, Deserializer deserializer) {
-  $if $typeof(value)::kind != POINTER:
+  $if $Typeof(value)::kind != POINTER:
     $error "The first parameter must be a &self pointer.";
   $endif
 
   $switch:
-    $case $typeof(value)::inner.kind == ENUM:
-      var $type = $typeof(value)::inner;
+    $case $Typeof(value)::inner.kind == ENUM:
+      var $type = $Typeof(value)::inner;
       var $config = $type.has_tag("dessert:des:enum") ??? $type.get_tag("dessert:des:enum") : (DessertEnumConfig) {};
 
       $switch $config.as:
@@ -141,8 +141,8 @@ macro impl_deserialize(value, Deserializer deserializer) {
           $endforeach
       $endswitch
 
-    $case $typeof(value)::inner.kind == STRUCT:
-      var $type = $typeof(value)::inner;
+    $case $Typeof(value)::inner.kind == STRUCT:
+      var $type = $Typeof(value)::inner;
       var $config = $type.has_tag("dessert:des:struct") ??? $type.get_tag("dessert:des:struct") : (DessertStructConfig) {};
       List{String} names;
       names.tinit();
@@ -155,14 +155,14 @@ macro impl_deserialize(value, Deserializer deserializer) {
           next_key!;
           return;
         }
-        $foreach $member : $typeof(value)::inner.members:
+        $foreach $member : $Typeof(value)::inner.members:
           DessertFieldConfig $dessert = $member.has_tag("dessert:des") ??? $member.get_tag("dessert:des") : (DessertFieldConfig) {};
           var $name = $dessert.rename.len > 0 ??? $dessert.rename : $member.name;
           if ($name == next_key) {
             if (names.contains(next_key)) {
               return DUPLICATED_KEY~;
             }
-            $typefrom($member.type)? next_value = deserialize{$member.type}(deserializer);
+            $Typefrom($member.type)? next_value = deserialize{$member.type}(deserializer);
             if (catch next_value) {
               io::eprintfn("Error deserializing key: %s", next_key);
               next_value!;
@@ -177,7 +177,7 @@ macro impl_deserialize(value, Deserializer deserializer) {
           }
         $endforeach
         $if $config.deny_unknown_fields:
-          io::eprintfn("While deserializing '" +++ $typeof(value)::inner.name +++ "' (which denies unknown fields), encountered unknown field '%s'.", next_key);
+          io::eprintfn("While deserializing '" +++ $Typeof(value)::inner.name +++ "' (which denies unknown fields), encountered unknown field '%s'.", next_key);
           return UNKNOWN_FIELD~;
         $else
           // Skip the value if not found
