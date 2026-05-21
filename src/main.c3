@@ -1,4 +1,4 @@
-module c3_parser;
+module c3_parser @if($feature(C3_PARSER_CLI));
 import lexer;
 import utils::ast;
 import std::io;
