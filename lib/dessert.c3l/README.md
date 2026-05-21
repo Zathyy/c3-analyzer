@@ -98,7 +98,7 @@ fn bool Person.skip_serializing_age(&self) {
 Use `@DEnum` (or `@DEnumSer` / `@DEnumDes`) on an enum type to control how it is serialized:
 
 ```c3
-enum Color @DEnum({ .as = NAME }) {
+enum Color @DEnum({ .as = DESCRIPTION }) {
     RED,
     GREEN,
     BLUE,
@@ -115,7 +115,7 @@ enum Color @DEnum({ .as = NAME }) {
 
 | Option    | Type          | Description                                                                          |
 |-----------|---------------|--------------------------------------------------------------------------------------|
-| `.as`     | `DessertEnum` | How to represent the enum: `NAME` (default), `ORDINAL`, or `FIELD`                  |
+| `.as`     | `DessertEnum` | How to represent the enum: `DESCRIPTION` (default), `ORDINAL`, or `FIELD`                  |
 | `.field`  | `String`      | Name of the associated field to use when `.as = FIELD`                              |
 
 **Struct attributes:**
