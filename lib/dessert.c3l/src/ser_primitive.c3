@@ -1,5 +1,7 @@
 module dessert::ser;
 
+import std::collections::object;
+
 faultdef UNSUPPORTED_DATA_TYPE;
 
 fn void? String.serialize(&self, Serializer ser) @dynamic {
@@ -119,3 +121,10 @@ fn void? double.serialize(&self, Serializer ser) @dynamic {
 //   }
 //   return UNSUPPORTED_DATA_TYPE~;
 // }
+
+fn void? Object.serialize(&self, Serializer des) @dynamic {
+  switch (self.type) {
+    default:
+      return UNSUPPORTED_DATA_TYPE~;
+  }
+}

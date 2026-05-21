@@ -7,17 +7,17 @@ import derive;
 
 // ── Test types ───────────────────────────────────────────────────────────────
 
-$expand(derive{SPoint}(dessert::serialize));
+$expand(derive(SPoint::name, dessert));
 struct SPoint {
   int x;
   int y;
 }
 
+$expand(derive(SBox::name, dessert));
 struct SBox {
   String label;
   SPoint center;
 }
-fn void? SBox.serialize(&self, Serializer serializer) => ser::impl_serialize(self, serializer);
 
 struct SWithPointer {
   String name;
@@ -460,6 +460,220 @@ fn void test_ser_csv_values() @test {
   assert(sunny[0].kind == CSVValueKind.BOOL && sunny[0].value.b == true);
   assert(sunny[1].kind == CSVValueKind.BOOL && sunny[1].value.b == true);
 }
+
+// ── Tests: inline sub-struct ──────────────────────────────────────────────────
+
+struct SWithInlineSub {
+  int id;
+  struct pos { 
+    int x;
+    int y; 
+  }
+}
+fn void? SWithInlineSub.serialize(&self, Serializer serializer) => ser::impl_serialize(self, serializer);
+
+struct SWithFlatSub {
+  int id;
+  struct pos @DField({ .flatten = true }) { 
+    int x;
+    int y; 
+  }
+}
+fn void? SWithFlatSub.serialize(&self, Serializer serializer) => ser::impl_serialize(self, serializer);
+
+fn void test_ser_inline_substruct_nested() @test {
+  SWithInlineSub s = { .id = 7, .pos = { .x = 3, .y = -4 } };
+  JsonSerializer js = json::serializer();
+  JsonValue j = ser::serialize(&js, s)!!;
+  defer j.free();
+
+  assert(j.kind == JsonValueKind.DICT);
+  assert(j.value.d.get("id")!!.value.i == 7);
+  JsonValue pos = j.value.d.get("pos")!!;
+  assert(pos.kind == JsonValueKind.DICT);
+  assert(pos.value.d.get("x")!!.value.i == 3);
+  assert(pos.value.d.get("y")!!.value.i == -4);
+}
+
+fn void test_ser_inline_substruct_flatten() @test {
+  SWithFlatSub s = { .id = 1, .pos = { .x = 10, .y = 20 } };
+  JsonSerializer js = json::serializer();
+  JsonValue j = ser::serialize(&js, s)!!;
+  defer j.free();
+
+  assert(j.value.d.get("id")!!.value.i == 1);
+  assert(j.value.d.get("x")!!.value.i == 10);
+  assert(j.value.d.get("y")!!.value.i == 20);
+  if (catch j.value.d.get("pos")) { /* correct: key absent */ } else { assert(false); }
+}
+
+// ── Tests: union (custom serialize) ──────────────────────────────────────────
+
+union SUVariant @DUnion({ .inlined = true }) {
+  long i;
+  double f;
+}
+
+struct STaggedUnion {
+  int      tag;
+  SUVariant val @DField({ .tagged_by = "tag" });
+}
+fn void? STaggedUnion.serialize(&self, Serializer serializer) => ser::impl_serialize(self, serializer);
+
+fn void test_ser_union_field() @test {
+  STaggedUnion tu = { .tag = 0, .val = { .i = 42 } };
+  JsonSerializer js = json::serializer();
+  JsonValue j = ser::serialize(&js, tu)!!;
+  defer j.free();
+
+  assert(j.kind == JsonValueKind.DICT);
+  assert(j.value.d.get("tag")!!.value.i == 0);
+  assert(j.value.d.get("val")!!.kind == JsonValueKind.INT);
+  assert(j.value.d.get("val")!!.value.i == 42);
+}
+
+fn void test_ser_union_negative_value() @test {
+  STaggedUnion tu = { .tag = 0, .val = { .i = -999 } };
+  JsonSerializer js = json::serializer();
+  JsonValue j = ser::serialize(&js, tu)!!;
+  defer j.free();
+
+  assert(j.value.d.get("val")!!.value.i == -999);
+}
+
+// ── Tests: @DField tagged union (named) ──────────────────────────────────────
+
+struct SDUnionNamed {
+  int kind;
+  union p @DField({ .tagged_by = "kind" }) {
+    int   first;
+    double second;
+    String third;
+  }
+}
+fn void? SDUnionNamed.serialize(&self, Serializer serializer) => ser::impl_serialize(self, serializer);
+
+fn void test_ser_dunion_named_first() @test {
+  // kind=0 → serialize p.first
+  SDUnionNamed s = { .kind = 0, .p = { .first = 42 } };
+  JsonSerializer js = json::serializer();
+  JsonValue j = ser::serialize(&js, s)!!;
+  defer j.free();
+
+  assert(j.kind == JsonValueKind.DICT);
+  assert(j.value.d.get("kind")!!.value.i == 0);
+  JsonValue p = j.value.d.get("p")!!;
+  assert(p.kind == JsonValueKind.DICT);
+  assert(p.value.d.get("first")!!.kind == JsonValueKind.INT);
+  assert(p.value.d.get("first")!!.value.i == 42);
+}
+
+fn void test_ser_dunion_named_second() @test {
+  // kind=1 → serialize p.second
+  SDUnionNamed s = { .kind = 1, .p = { .second = 3.14 } };
+  JsonSerializer js = json::serializer();
+  JsonValue j = ser::serialize(&js, s)!!;
+  defer j.free();
+
+  JsonValue p = j.value.d.get("p")!!;
+  assert(p.kind == JsonValueKind.DICT);
+  assert(p.value.d.get("second")!!.kind == JsonValueKind.FLOAT);
+  double diff = p.value.d.get("second")!!.value.f - 3.14;
+  if (diff < 0) diff = -diff;
+  assert(diff < 1e-9);
+}
+
+fn void test_ser_dunion_named_third() @test {
+  // kind=2 → serialize p.third (String)
+  SDUnionNamed s = { .kind = 2, .p = { .third = "hello" } };
+  JsonSerializer js = json::serializer();
+  JsonValue j = ser::serialize(&js, s)!!;
+  defer j.free();
+
+  JsonValue p = j.value.d.get("p")!!;
+  assert(p.kind == JsonValueKind.DICT);
+  assert(p.value.d.get("third")!!.kind == JsonValueKind.STRING);
+  assert(p.value.d.get("third")!!.value.s == "hello");
+}
+
+fn void test_ser_dunion_named_only_active_member() @test {
+  // only the active member key must appear in "p"
+  SDUnionNamed s = { .kind = 0, .p = { .first = 1 } };
+  JsonSerializer js = json::serializer();
+  JsonValue j = ser::serialize(&js, s)!!;
+  defer j.free();
+
+  JsonValue p = j.value.d.get("p")!!;
+  if (catch p.value.d.get("second")) { /* correct: absent */ } else { assert(false); }
+  if (catch p.value.d.get("third"))  { /* correct: absent */ } else { assert(false); }
+}
+
+// ── Tests: @DField anonymous union (flattened) ────────────────────────────────
+
+struct SDUnionAnon {
+  int kind;
+  union @DField({ .tagged_by = "kind" }) {
+    int    foo;
+    double bar;
+  }
+}
+fn void? SDUnionAnon.serialize(&self, Serializer serializer) => ser::impl_serialize(self, serializer);
+
+fn void test_ser_dunion_anon_first() @test {
+  // kind=0 → foo appears as top-level field
+  SDUnionAnon s = { .kind = 0, .foo = 99 };
+  JsonSerializer js = json::serializer();
+  JsonValue j = ser::serialize(&js, s)!!;
+  defer j.free();
+
+  assert(j.value.d.get("kind")!!.value.i == 0);
+  assert(j.value.d.get("foo")!!.kind == JsonValueKind.INT);
+  assert(j.value.d.get("foo")!!.value.i == 99);
+  // "bar" must not appear
+  if (catch j.value.d.get("bar")) { /* correct */ } else { assert(false); }
+}
+
+fn void test_ser_dunion_anon_second() @test {
+  // kind=1 → bar appears as top-level field
+  SDUnionAnon s = { .kind = 1, .bar = 2.5 };
+  JsonSerializer js = json::serializer();
+  JsonValue j = ser::serialize(&js, s)!!;
+  defer j.free();
+
+  assert(j.value.d.get("bar")!!.kind == JsonValueKind.FLOAT);
+  double diff = j.value.d.get("bar")!!.value.f - 2.5;
+  if (diff < 0) diff = -diff;
+  assert(diff < 1e-9);
+  // "foo" must not appear
+  if (catch j.value.d.get("foo")) { /* correct */ } else { assert(false); }
+}
+
+// ── Tests: rename_all = CAMEL_CASE ───────────────────────────────────────────
+
+struct SCamelCase @DStructSer({ .rename_all = CAMEL_CASE }) {
+  String first_name;
+  String last_name;
+  int    birth_year;
+}
+fn void? SCamelCase.serialize(&self, Serializer serializer) => ser::impl_serialize(self, serializer);
+
+fn void test_ser_camel_case() @test {
+  SCamelCase s = { .first_name = "John", .last_name = "Doe", .birth_year = 1990 };
+  JsonSerializer js = json::serializer();
+  JsonValue j = ser::serialize(&js, s)!!;
+  defer j.free();
+
+  // snake_case keys must be absent
+  if (catch j.value.d.get("first_name")) { /* correct */ } else { assert(false); }
+  if (catch j.value.d.get("last_name"))  { /* correct */ } else { assert(false); }
+  if (catch j.value.d.get("birth_year")) { /* correct */ } else { assert(false); }
+  // camelCase keys must be present with correct values
+  assert(j.value.d.get("firstName")!!.value.s == "John");
+  assert(j.value.d.get("lastName")!!.value.s == "Doe");
+  assert(j.value.d.get("birthYear")!!.value.i == 1990);
+}
+
+// ── Tests: CSV ───────────────────────────────────────────────────────────────
 
 fn void test_ser_csv_to_string_has_header() @test {
   SWeatherRow[1] rows = { { .city = "Toulouse", .temp = 18.0, .sunny = false } };
