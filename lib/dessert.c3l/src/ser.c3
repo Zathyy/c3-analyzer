@@ -68,13 +68,17 @@ macro impl_serialize(s, Serializer serializer) {
       impl_serialize_enum(s, serializer)!;
 
     $case $Typeof(s)::inner.kind == CONSTDEF:
-      return serialize_value(serializer, ($Typefrom($Typeof(s)::inner.inner)) s, (DFieldConfig) {});
+      return serialize_value(serializer, ($Typefrom($Typeof(s)::inner.inner)) *s, (DFieldConfig) {});
 
     $case $Typeof(s)::inner.kind == STRUCT:
       var $type = $Typeof(s)::inner;
       DStructConfig $struct_config = $type.has_tag("dessert:ser:struct") ??? $type.get_tag("dessert:ser:struct") : {};
-      $foreach $member : $type.members:
+      $foreach $i, $member : $type.members:
         DFieldConfig $config = $member.has_tag("dessert:ser") ??? $member.get_tag("dessert:ser") : {};
+        $if $i == 0 &&& $type.is_substruct:
+          $config = {...$config, .flatten = true};
+        $endif
+
         $if !$config.skip:
           $if $config.validator.len > 0: 
             if (!s.$eval($config.validator)($member.get(*s))) {
@@ -204,21 +208,40 @@ macro @impl_serialize_struct($Type, s, Serializer serializer, DStructConfig $str
   $endforeach
 }
 
+macro @impl_serialize_value($Type, s, Serializer serializer, $config) @local {
+  $switch :
+    $case $Type::kind == STRUCT &&& !$defined(s.serialize(serializer)):
+      @impl_serialize_struct($Type, &s, serializer, {})!;
+
+    $default:
+      serialize_value(serializer, s, $config)!;
+  $endswitch
+}
+
 macro @impl_serialize_union($UType, s, Serializer serializer, $member, DFieldConfig $config, DStructConfig $struct_config) @local {
   DUnionConfig $union_config = @get_tag($UType, "dessert:ser:union", (DUnionConfig) {});
   $if $config.tagged_by.len == 0:
     $error @sprintf("Unions must be tagged by another field's value (member %s with type %s)", $member.name, $UType::name);
   $endif
 
-  DFieldConfig $field_config = {...$config, .flatten = $union_config.inlined};
+  $if $config.flatten &&& $union_config.inlined:
+    $error @sprintf("A field cannot be inlined and flatten. (%s)", $member.name);
+  $endif
+
+  $if $union_config.inlined:
+    $config = { ...$config, .flatten = true };
+  $endif
 
   var tag_value = s.$eval($config.tagged_by);
   var $the_switch = "switch ((sz) tag_value) {";
 
   $foreach $i, $m : $UType::members:
     $the_switch +++= @sprintf("case %s:\n", $i);
-    $the_switch +++= @sprintf("@serialize_field(serializer, $field_config, &$member.get(*s), $UType::members[%s], $struct_config)!;\n", $i);
-
+    $if $union_config.inlined:
+      $the_switch +++= @sprintf("@impl_serialize_value($UType::members[%s].type, $UType::members[%s].get($member.get(*s)), serializer, $config)!;\n", $i, $i);
+    $else
+      $the_switch +++= @sprintf("@serialize_field(serializer, $config, &$member.get(*s), $UType::members[%s], $struct_config)!;\n", $i);
+    $endif
   $endforeach
 
   $the_switch +++= "}";
@@ -285,8 +308,8 @@ macro serialize_value(serializer, value, $config) {
         $endif
       }
 
-    $case $defined(value.len) &&& $defined(value[0]) &&& $defined(value.len()):
-      serializer.serialize_slice_start(value.len())!;
+    $case $defined(lengthof(value)) &&& $defined(value[0]):
+      serializer.serialize_slice_start(lengthof(value))!;
       $Typefrom($Typeof(Serializer.serialize_slice_item_start)) cb_start;
       if (&((Serializer) serializer).serialize_slice_item_start) {
         cb_start = &((Serializer) serializer).serialize_slice_item_start;
@@ -300,24 +323,7 @@ macro serialize_value(serializer, value, $config) {
         serialize_value(serializer, el, $config)!;
         if (cb_end) cb_end(serializer, (usz) i)!;
       }
-      serializer.serialize_slice_end(value.len())!;
-
-    $case $defined(value.len) &&& $defined(value[0]):
-      serializer.serialize_slice_start(value.len)!;
-      $Typefrom($Typeof(Serializer.serialize_slice_item_start)) cb_start;
-      if (&((Serializer) serializer).serialize_slice_item_start) {
-        cb_start = &((Serializer) serializer).serialize_slice_item_start;
-      }
-      $Typefrom($Typeof(Serializer.serialize_slice_item_end)) cb_end;
-      if (&((Serializer) serializer).serialize_slice_item_end) {
-        cb_end = &((Serializer) serializer).serialize_slice_item_end;
-      }
-      foreach (i, el: value) {
-        if (cb_start) cb_start(serializer, (usz) i)!;
-        serialize_value(serializer, el, $config)!;
-        if (cb_end) cb_end(serializer, (usz) i)!;
-      }
-      serializer.serialize_slice_end(value.len)!;
+      serializer.serialize_slice_end(lengthof(value))!;
 
     $default:
       $error @sprintf("Value not serializable: '%s (%s)'", $Typeof(value)::name, $Typeof(value)::kind);

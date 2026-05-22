@@ -26,4 +26,4 @@ macro @get_maybe_inner_type($Type) {
 }
 
 
-macro @get_tag($Type, String $tag_name, $default_val) @builtin => $Type::has_tag($tag_name) ??? $Type::get_tag($tag_name) : $default_val;
+macro @get_tag($Type, String $tag_name, $default_val) @const @builtin => $Type::has_tag($tag_name) ??? $Type::get_tag($tag_name) : $default_val;

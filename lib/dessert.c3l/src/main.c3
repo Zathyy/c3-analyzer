@@ -77,19 +77,26 @@ union MyUnion @DUnion({ .inlined = true }) {
   String third;
 }
 
+$expand(derive(Foo::name, dessert));
+struct Foo {
+  int bar;
+}
+
 $expand(derive(Request::name, dessert));
 struct Request {
+  inline Foo foo @DField({ .flatten = true });
   int kind;
   MyUnion p @DField({ .tagged_by = "kind" });
 }
 
 fn void main() {
-  Request req = { .kind = 1, .p = {.second = 2.2} };
+  Request req = { .bar = 2, .kind = 1, .p = {.second = 2.2} };
   String s = ser::serialize(&&json::string_serializer(), req)!!;
   io::printn(s);
 
   Request p = des::deserialize{Request}(&&json::deserializer(s))!!;
   io::printn("DESERIALIZED:");
+  io::printn(p.bar);
   io::printn(p.kind);
   io::printn(p.p.second);
 

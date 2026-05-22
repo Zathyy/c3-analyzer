@@ -4,6 +4,8 @@ All notable changes to dessert are documented here.
 
 ## 2026-05-21
 
+- Added support for an inline field in a struct (serialization only)
+- Added support for constdef values
 - Added inlined tag union support for both serialization and deserialization
 
 ## 2026-05-20

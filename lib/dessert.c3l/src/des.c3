@@ -74,6 +74,10 @@ macro deserialize(Deserializer deserializer) <Output> {
         return v;
       }
 
+    $case Output::kind == CONSTDEF:
+      value = (Output) deserialize{Output::inner}(deserializer)!;
+      return value;
+
     $case $defined(value.deserialize) &&& $defined(value.deserialize(deserializer)):
       value.deserialize(deserializer)!;
       return value;

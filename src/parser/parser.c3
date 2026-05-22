@@ -325,13 +325,14 @@ fn String peek_module_name(Parser* p)
 }
 
 <*
- Parse a specific file.
-  Appends the nodes to the provided Modules Ast
+ Parse source code at uri
+
+ Appends the nodes to the provided Modules Ast
  @param [&inout] ws
 *>
-fn void? parse_file(Workspace* ws, String path)
+fn void? parse(Workspace* ws, String uri, String src)
 {
-	Parser parser = { .mod = null, .pool = &ws.strings, .file_path = path, .allocator = ws.allocator };
+	Parser parser = { .mod = null, .pool = &ws.strings, .file_path = uri, .allocator = ws.allocator };
 
 	if (!scratch.is_initialized())
 	{
@@ -340,9 +341,7 @@ fn void? parse_file(Workspace* ws, String path)
 
 	scratch.clear();
 
-	String src = (String)file::load(tmem, path)!;
 	Lexer lexer = { .buffer = src, .index = 0, };
-
 	parser.src = src;
 
 	List{Token} tokens;
@@ -357,28 +356,19 @@ fn void? parse_file(Workspace* ws, String path)
 	tokens.push({ .kind = EOF, .pos = (tokens.last().pos + tokens.last().len) ?? 0, .len = 0 });
 	parser.tokens = tokens.array_view();
 
-	SourceFile* sf = ws.reset_source_file(path);
+	SourceFile* sf = ws.reset_source_file(uri);
 	sf.source = src;
 	parser.sf = sf;
 	parser.ast = &sf.ast;
 	parser.line_map = &sf.line_map;
 	parser.line_map.build(src);
 
-	// Module* mod = ws.get_or_create_module(mod_name);
-	// parser.mod = mod;
-
-	log::info("parsing file: %s", path);
-
-	// ModuleSection* section = workspace::get_or_create_section(mod, path);
-	// assert(section != null);
-	// section.source = src;
-	// section.start_node_idx = (uint)mod.ast.len();
+	log::info("parsing uri: %s", uri);
 
 	String mod_name = peek_module_name(&parser);
 	if (mod_name == "")
 	{
-		// parser.allow_submodules = false;
-		mod_name = path_to_module_name(path)!;
+		mod_name = path_to_module_name(uri)!;
 
 		Module* mod = ws.get_or_create_module(mod_name);
 		ModuleSection* sec = ws.get_or_create_section(mod, parser.sf);
@@ -406,8 +396,94 @@ fn void? parse_file(Workspace* ws, String path)
 		last_sec.end_node_idx = parser.sf.ast.len();
 	}
 
-	log::info("Succesfully parsed: %s", path);
+	log::info("Succesfully parsed: %s", uri);
 }
+
+<*
+ Parse a specific file.
+  Appends the nodes to the provided Modules Ast
+ @param [&inout] ws
+*>
+fn void? parse_file(Workspace* ws, String path) => parse(ws, path, (String)file::load(tmem, path)!);
+
+// {
+// 	Parser parser = { .mod = null, .pool = &ws.strings, .file_path = path, .allocator = ws.allocator };
+//
+// 	if (!scratch.is_initialized())
+// 	{
+// 		scratch.tinit(1000);
+// 	}
+//
+// 	scratch.clear();
+//
+// 	String src = (String)file::load(tmem, path)!;
+// 	Lexer lexer = { .buffer = src, .index = 0, };
+//
+// 	parser.src = src;
+//
+// 	List{Token} tokens;
+// 	tokens.init(parser.allocator, 1000);
+// 	defer tokens.free();
+// 	while (try token = lexer.next())
+// 	{
+// 		tokens.push(token);
+// 		log::debug("Added token: <%s> - %s", token.kind, parser.token_text(token));
+// 	}
+//
+// 	tokens.push({ .kind = EOF, .pos = (tokens.last().pos + tokens.last().len) ?? 0, .len = 0 });
+// 	parser.tokens = tokens.array_view();
+//
+// 	SourceFile* sf = ws.reset_source_file(path);
+// 	sf.source = src;
+// 	parser.sf = sf;
+// 	parser.ast = &sf.ast;
+// 	parser.line_map = &sf.line_map;
+// 	parser.line_map.build(src);
+//
+// 	// Module* mod = ws.get_or_create_module(mod_name);
+// 	// parser.mod = mod;
+//
+// 	log::info("parsing file: %s", path);
+//
+// 	// ModuleSection* section = workspace::get_or_create_section(mod, path);
+// 	// assert(section != null);
+// 	// section.source = src;
+// 	// section.start_node_idx = (uint)mod.ast.len();
+//
+// 	String mod_name = peek_module_name(&parser);
+// 	if (mod_name == "")
+// 	{
+// 		// parser.allow_submodules = false;
+// 		mod_name = path_to_module_name(path)!;
+//
+// 		Module* mod = ws.get_or_create_module(mod_name);
+// 		ModuleSection* sec = ws.get_or_create_section(mod, parser.sf);
+// 		parser.mod = mod;
+// 		sec.start_node_idx = 0;
+// 		log::info("Inferred module: %s", mod_name);
+// 	}
+//
+// 	while (!parser.eof())
+// 	{
+// 		if (catch err = parse_top_level(&parser, ws))
+// 		{
+// 			if (err == io::EOF)
+// 			{
+// 				break;
+// 			}
+//
+// 			synchronize(&parser)!;
+// 			continue;
+// 		}
+// 	}
+//
+// 	if (try last_sec = parser.sf.sections.last())
+// 	{
+// 		last_sec.end_node_idx = parser.sf.ast.len();
+// 	}
+//
+// 	log::info("Succesfully parsed: %s", path);
+// }
 
 fn String? path_to_module_name(String path)
 {
