@@ -35,15 +35,14 @@ module myapp;
 import std::io;
 import seali;
 
-struct Cli @Command("greet")
-  @About("Simple program to greet a person")
+struct Cli @Command({.name = "greet", .about = "Simple program to greet a person"})
 {
-  String name     @Seali(@arg(short, long, help = "Your name"));
-  uint   count    @Seali(@arg(short, long, default_value = 1, help = "Number of times to greet"));
+  String name  @Seali(arg(short, long, help = "Your name"));
+  uint   count @Seali(arg(short, long, default_value = 1, help = "Number of times to greet"));
 }
 
 fn int main(String[] args) {
-  Cli cli = seali::parse(Cli, args);
+  Cli cli = seali::parse(Cli, args)!!;
 
   for (uint i = 0; i < cli.count; i++) {
     io::printfn("Hello, %s!", cli.name);
@@ -60,61 +59,67 @@ fn int main(String[] args) {
 
 ## Attribute Reference
 
-### Command-Level Attributes
+### Command-Level Attribute: `@Command(CommandConfig)`
 
-| Attribute | Description | Example |
-|-----------|-------------|---------|
-| `@Command(String)` | Marks a struct as a CLI command | `@Command("myapp")` |
-| `@About(String)` | Short description shown in help | `@About("My CLI app")` |
-| `@LongAbout(String)` | Long description shown in help | `@LongAbout("A longer description...")` |
+`@Command` takes a `CommandConfig` struct literal. All fields are optional except `.name`.
 
-### Field-Level Attribute: `@Seali(@arg(...))`
+| Field | Description | Example |
+|-------|-------------|---------|
+| `.name` | Command name shown in help and matched for subcommands | `{.name = "myapp"}` |
+| `.about` | Short description shown in help | `{.about = "My CLI app"}` |
+| `.long_about` | Long description shown with `--help` | `{.long_about = "A longer description..."}` |
+| `.version` | Version string | `{.version = "1.0.0"}` |
+| `.help_on_empty` | Show help when invoked with no arguments | `{.help_on_empty = true}` |
+| `.rename_all` | Convention for auto-generated long flag names | `{.rename_all = KEBAB_CASE}` |
 
-All field configuration goes through the `@Seali(@arg(...))` attribute. The `@arg` macro accepts the following named options:
+`CaseConvention` values: `KEBAB_CASE` (default), `VERBATIM`.
+
+### Field-Level Attribute: `@Seali(arg(...))`
+
+All field configuration goes through the `@Seali(arg(...))` attribute. The `arg` macro accepts the following named options:
 
 | Option | Description | Example |
 |--------|-------------|---------|
-| `short` | Auto-generate short flag from the first character of the field name | `@arg(short)` |
-| `short = 'X'` | Custom short flag | `@arg(short = 'n')` |
-| `long` | Auto-generate long flag from the field name | `@arg(long)` |
-| `long = "name"` | Custom long flag | `@arg(long = "output")` |
-| `default_value = val` | Makes the field optional with a fallback | `@arg(default_value = 4)` |
-| `help = "text"` | Description shown in `--help` output | `@arg(help = "Input file")` |
-| `subcommand` | Marks a `Maybe{SubCmd}` field as a subcommand | `@arg(subcommand)` |
-| `skip` | Exclude this field from CLI parsing entirely | `@arg(skip)` |
+| `short` | Auto-generate short flag from the first character of the field name | `arg(short)` |
+| `short = 'X'` | Custom short flag | `arg(short = 'n')` |
+| `long` | Auto-generate long flag from the field name | `arg(long)` |
+| `long = "name"` | Custom long flag | `arg(long = "output")` |
+| `default_value = val` | Makes the field optional with a fallback | `arg(default_value = 4)` |
+| `help = "text"` | Description shown in `--help` output | `arg(help = "Input file")` |
+| `subcommand` | Marks a `Maybe{SubCmd}` field as a subcommand | `arg(subcommand)` |
+| `skip` | Exclude this field from CLI parsing entirely | `arg(skip)` |
 
 Options can be combined:
 
 ```c3
-String output @Seali(@arg(short, long = "out", help = "Output file", default_value = "a.out"));
+String output @Seali(arg(short, long = "out", help = "Output file", default_value = "a.out"));
 ```
 
 ### Argument Kinds
 
 | Kind | How to declare | Required? |
 |------|---------------|-----------|
-| Required flag | `@arg(long)` with no `default_value` | Yes |
-| Optional flag | `@arg(long, default_value = val)` | No (uses default) |
+| Required flag | `arg(long)` with no `default_value` | Yes |
+| Optional flag | `arg(long, default_value = val)` | No (uses default) |
 | Optional (no default) | Field type is `Maybe{T}` | No (absent = `none`) |
 | Positional | No `short`/`long` and no `default_value` | Yes |
-| Subcommand | `Maybe{SubCmd}` + `@arg(subcommand)` | No |
+| Subcommand | `Maybe{SubCmd}` + `arg(subcommand)` | No |
 
 ## Examples
 
 ### Flags with defaults
 
 ```c3
-struct Cli @Command("myapp")
-  @About("My awesome CLI application")
+struct Cli @Command({.name = "myapp", .about = "My awesome CLI application"})
 {
-  String input_file  @Seali(@arg(short, long, help = "Input file path"));
-  bool   verbose     @Seali(@arg(short = 'V', long, default_value = false, help = "Enable verbose output"));
-  String output      @Seali(@arg(short, long = "out", help = "Output file", default_value = "out.txt"));
-  uint   threads     @Seali(@arg(short, default_value = 4, help = "Number of threads"));
+  String input_file @Seali(arg(short, long, help = "Input file path"));
+  bool   verbose    @Seali(arg(short = 'V', long, default_value = false, help = "Enable verbose output"));
+  String output     @Seali(arg(short, long = "out", help = "Output file", default_value = "out.txt"));
+  uint   threads    @Seali(arg(short, default_value = 4, help = "Number of threads"));
 }
 
 fn int main(String[] args) {
-  Cli cli = seali::parse(Cli, args);
+  Cli cli = seali::parse(Cli, args)!!;
 
   if (cli.verbose) {
     io::printfn("Processing %s with %d threads", cli.input_file, cli.threads);
@@ -141,30 +146,27 @@ Options:
 
 ### Subcommands
 
-Use a `Maybe{SubCmd}` field with `@arg(subcommand)` to define subcommands. Each subcommand is its own struct marked with `@Command`.
+Use a `Maybe{SubCmd}` field with `arg(subcommand)` to define subcommands. Each subcommand is its own struct marked with `@Command`.
 
 ```c3
-struct Cli @Command("myapp")
-  @About("My package manager")
+struct Cli @Command({.name = "myapp", .about = "My package manager"})
 {
-  Maybe{Install} install @Seali(@arg(subcommand));
-  Maybe{Fetch}   fetch   @Seali(@arg(subcommand));
+  Maybe{Install} install @Seali(arg(subcommand));
+  Maybe{Fetch}   fetch   @Seali(arg(subcommand));
 }
 
-struct Install @Command("install")
-  @About("Install a library")
+struct Install @Command({.name = "install", .about = "Install a library"})
 {
-  String name @Seali(@arg(help = "The library to install"));
+  String name @Seali(arg(help = "The library to install"));
 }
 
-struct Fetch @Command("fetch")
-  @About("Fetch a tar file")
+struct Fetch @Command({.name = "fetch", .about = "Fetch a tar file"})
 {
-  String url @Seali(@arg(help = "The URL to fetch"));
+  String url @Seali(arg(help = "The URL to fetch"));
 }
 
 fn int main(String[] args) {
-  Cli cli = seali::parse(Cli, args);
+  Cli cli = seali::parse(Cli, args)!!;
 
   if (try install = cli.install.get()) {
     io::printfn("Installing: %s", install.name);
@@ -186,10 +188,10 @@ fn int main(String[] args) {
 
 ### `seali::parse($Cmd, String[] args)`
 
-Parses command-line arguments into the given command struct. Automatically handles `-h`/`--help`, applies defaults, validates required fields, and exits with an error on unknown options.
+Parses command-line arguments into the given command struct. Automatically handles `-h`/`--help`, applies defaults, validates required fields, and exits with an error on unknown options. Returns an optional — use `!!` to panic on error or `!` to propagate.
 
 ```c3
-Cli cli = seali::parse(Cli, args);
+Cli cli = seali::parse(Cli, args)!!;
 ```
 
 **Supported field types:** `String`, `int`, `uint`, `bool`, `Maybe{T}`, and any struct tagged with `@Command` (for subcommands).
@@ -199,9 +201,8 @@ Cli cli = seali::parse(Cli, args);
 ```
 seali.c3l/
 ├── src/
-│   ├── curse.c3     # @Seali / @arg attribute and config builder
+│   ├── curse.c3     # @Seali / arg attribute and config builder
 │   ├── macros.c3    # Core parse macro and help generation
-│   ├── cmd.c3       # Command and Arg struct definitions
 │   ├── utils.c3     # Utility functions
 │   └── main.c3      # Example usage (commented out)
 ├── project.json

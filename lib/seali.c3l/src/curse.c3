@@ -98,11 +98,7 @@ macro ArgConfig arg(...) @builtin {
           $if $val == "\"\"":
             $error "Empty string default values are not allowed. Use Maybe{String} instead.";
           $endif
-          $if @starts_with($val, "\""):
-            $default_value = $val[1..^2];
-          $else
-            $default_value = $val;
-          $endif
+          $default_value = $val;
         $endif
         
       $case @starts_with($s, "help"):
@@ -152,3 +148,4 @@ macro ArgConfig arg(...) @builtin {
     .skip = $skip,
   };
 }
+

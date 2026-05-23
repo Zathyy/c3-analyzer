@@ -4,17 +4,6 @@ import std::io;
 import std::collections::list;
 import std::collections::maybe;
 
-struct CommandConfig {
-  String name;
-  String version;
-  String about;
-  String long_about;
-  bool help_on_empty;
-	CaseConvention rename_all;
-}
-
-attrdef @Command(CommandConfig config) = @tag("seali:command", config);
-
 enum CaseConvention : (String example) {
   KEBAB_CASE { "kebab-case" },
   CAMEL_CASE { "camelCase" },
@@ -26,7 +15,16 @@ enum CaseConvention : (String example) {
   VERBATIM { "verbatim" },
 }
 
-attrdef @RenameAll(CaseConvention convention) = @tag("seali:rename_all", convention);
+struct CommandConfig {
+  String name;
+  String version;
+  String about;
+  String long_about;
+  bool help_on_empty;
+  CaseConvention rename_all;
+}
+
+attrdef @Command(CommandConfig config) = @tag("seali:command", config);
 
 // ------------------------------------
 
@@ -67,7 +65,7 @@ macro parse($Cmd, String[] _args) {
       $if $config.default_value.len > 0:
         args_with_values.push($member.name);
         do {
-          var val = @str_to_value($member.type, $config.default_value);
+          var val = ($Typefrom($member.type)) utils::@expand_val($config.default_value);
           $if $defined(val!):
             if (catch val) {
               val!;
@@ -167,44 +165,23 @@ macro ArgConfig @setup_config($cmd_config, $arg) {
 }
 
 macro String @rename(CaseConvention $convention, String $name) @local @const {
-	$switch $convention:
-		$case KEBAB_CASE:
-			var $new_name = "";
-			$foreach $v : $name:
-				$if $v == '_':
-					$new_name +++= "-";
-				$else
-					$new_name +++= $v;
-				$endif
-			$endforeach
-			return $new_name;
+  $switch $convention:
+    $case KEBAB_CASE:
+      var $new_name = "";
+      $foreach $v : $name:
+        $if $v == '_':
+          $new_name +++= "-";
+        $else
+          $new_name +++= $v;
+        $endif
+      $endforeach
+      return $new_name;
 
-		$case VERBATIM:
-			return $name;
-
-		$default:
-			$error @sprintf("Not supported yet: %s", $convention);
-	$endswitch
-}
-
-macro @str_to_value($Type, #value) {
-  $if @is_maybe_type($Type):
-    $Type $t;
-    return maybe::value{$Typeof($t.value)}(@str_to_value($Typeof($t.value), #value));
-  $endif
-
-  $switch:
-    $case $Type == int:
-      return #value.to_int();
-    $case $Type == uint:
-      return #value.to_uint();
-    $case $Type == String:
-      return #value;
-    $case $Type == bool:
-      return #value == "true";
+    $case VERBATIM:
+      return $name;
 
     $default:
-      $error "Unsupported type '" +++ $Type.name +++ "'";
+      $error @sprintf("Not supported yet: %s", $convention);
   $endswitch
 }
 
@@ -248,7 +225,7 @@ macro int? @arg_set_value(#cmd, $arg, $config, args, i) {
     }
   $endif
   #cmd.$eval($arg.name) = val;
-	return @arg_type_size($arg.type, args.len);
+  return @arg_type_size($arg.type, args.len);
 }
 
 macro int @arg_type_size($Type, int max) @local {
@@ -260,7 +237,7 @@ macro int @arg_type_size($Type, int max) @local {
       return max;
 
     $case @is_maybe_type($Type):
-			$Type $t;
+      $Type $t;
       return @arg_type_size($Typeof($t.value), max);
 
     $default:
@@ -273,7 +250,7 @@ macro @arg_to_value($Type, args, i) @local {
     $Type $t;
     return maybe::value{$Typeof($t.value)}(@arg_to_value($Typeof($t.value), args, i));
   $endif
-  
+
   $switch:
     $case $Type == bool:
       return true;
@@ -281,6 +258,10 @@ macro @arg_to_value($Type, args, i) @local {
     $case $Type == int:
       String arg = args[i];
       return arg.to_int()!;
+
+    $case $Type == char:
+      String arg = args[i];
+      return arg[0];
 
     $case $Type == uint:
       String arg = args[i];
@@ -290,11 +271,7 @@ macro @arg_to_value($Type, args, i) @local {
       return args[i];
 
     $case $Type::has_tag("seali:command"):
-      // if (i - 1 >= args.len) {
-      //   return parse($Type, {args[^2]})!;
-      // } else {
-        return parse($Type, args[i - 1..])!;
-      // }
+      return parse($Type, args[i - 1..])!;
 
     // $default:
     //   $error "Unsupported type arg '" +++ $Type.nameof +++ "'";
@@ -440,10 +417,10 @@ macro @print_all_args($Cmd) @private {
     ArgConfig $config = @setup_config($Cmd::get_tag("seali:command"), $member);
     $if !$config.is_subcommand: // &&& ($config.default_value.len != 0 ||| @is_maybe_type($member.type)):
       var $all_names = @get_all_names($config);
-			var $member_len = $all_names.len + @arg_value_to_string($member).len + 2; // 2 spaces
-			$if $member_len > $max_len:
-				$max_len = $member_len;
-			$endif
+      var $member_len = $all_names.len + @arg_value_to_string($member).len + 2; // 2 spaces
+      $if $member_len > $max_len:
+        $max_len = $member_len;
+      $endif
     $endif
   $endforeach
 
@@ -451,21 +428,21 @@ macro @print_all_args($Cmd) @private {
     ArgConfig $config = @setup_config($Cmd::get_tag("seali:command"), $member);
     $if !$config.is_subcommand: //&&& ($config.default_value.len != 0 ||| @is_maybe_type($member.type)):
       var $all_names = @get_all_names($config);
-			var $arg_value = @arg_value_to_string($member);
-			io::print(
-				@sprintf(
-					"%s%s %s%s", 
-					$all_names.len == 0 ??? "" : " ", 
-					$all_names, 
-					$arg_value, 
-					$all_names.len == 0 ??? " " : ""
-				)
-			);
-			$for var $i = $all_names.len + $arg_value.len + 2; $i < $max_len + 1; $i++:
-				io::print(" ");
-			$endfor
-			@print_arg_desc($config);
-			io::printn();
+      var $arg_value = @arg_value_to_string($member);
+      io::print(
+        @sprintf(
+          "%s%s %s%s", 
+          $all_names.len == 0 ??? "" : " ", 
+          $all_names, 
+          $arg_value, 
+          $all_names.len == 0 ??? " " : ""
+        )
+      );
+      $for var $i = $all_names.len + $arg_value.len + 2; $i < $max_len + 1; $i++:
+        io::print(" ");
+      $endfor
+      @print_arg_desc($config);
+      io::printn();
     $endif
   $endforeach
 }
@@ -525,3 +502,4 @@ macro @get_maybe_inner_type($Type) {
   $endif
   return $Type;
 }
+

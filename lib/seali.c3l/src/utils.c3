@@ -9,3 +9,7 @@ macro String String.@to_upper($self) {
   $endforeach
   return $result;
 }
+
+macro @expand_val(String $val) @const {
+  $expand(@sprintf("return %s;", $val));
+}
