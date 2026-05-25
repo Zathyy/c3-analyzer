@@ -321,3 +321,10 @@ constdef FaultdefDeclViewFields : inline uint
 	ATTRIBUTES,
 }
 typedef FaultdefDeclView = inline View;
+
+constdef ExpandDeclViewFields : inline uint
+{
+	EXPR,
+	ATTRIBUTES,
+}
+typedef ExpandDeclView = inline View;
