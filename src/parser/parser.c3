@@ -335,6 +335,9 @@ fn String peek_module_name(Parser* p)
 fn Parser? parse(Workspace* ws, String uri, String src)
 {
 	Parser parser = { .mod = null, .pool = &ws.strings, .file_path = uri, .allocator = ws.allocator };
+	$if $feature(C3_PARSER_LIB):
+		parser.errors.init(ws.allocator);
+	$endif
 
 	if (!scratch.is_initialized())
 	{
