@@ -35,6 +35,7 @@
     },
     "c3_parser_lib": {
       "type": "static-lib",
+      "features": ["LSP"]
     }
   },
   // Global settings.
