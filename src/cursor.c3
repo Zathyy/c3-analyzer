@@ -267,6 +267,82 @@ fn bool contains(Cursor* self, uint pos)
 	return pos >= r.start && pos <= r.end;
 }
 
+fn bool Ast.has_attribute(&self, Node decl_node, String attr_name)
+{
+    if (!decl_node.is_valid()) return false;
+
+    NodeKind kind = self.get_kind(decl_node);
+    AttributeListView attr_list_view;
+    bool has_attrs = false;
+
+    switch (kind)
+    {
+        case MODULE_DECL:
+            ModuleView v = { self, decl_node };
+            attr_list_view = v.attributes();
+            has_attrs = true;
+            break;
+        case IMPORT_DECL:
+            ImportView v = { self, decl_node };
+            attr_list_view = v.attributes();
+            has_attrs = true;
+            break;
+        case FN_DECL:
+            FnView v = { self, decl_node };
+            attr_list_view = v.attributes();
+            has_attrs = true;
+            break;
+        case VAR_DECL:
+            VarDeclView v = { self, decl_node };
+            attr_list_view = v.attributes();
+            has_attrs = true;
+            break;
+        case ENUM_DECL:
+            EnumView v = { self, decl_node };
+            attr_list_view = v.attributes();
+            has_attrs = true;
+            break;
+        default:
+            break;
+    }
+
+    if (!has_attrs || attr_list_view.count() == 0) return false;
+
+    uint count = attr_list_view.count();
+    for (uint i = 0; i < count; i++)
+    {
+        Node attr_node = attr_list_view.get_attr(i);
+        if (!attr_node.is_valid()) continue;
+
+        AttributeView attr_view = { self, attr_node };
+        AttributeKind attr_kind = attr_view.kind();
+
+        if (attr_name == "private" && attr_kind == AttributeKind.PRIVATE) return true;
+        if (attr_name == "local" && attr_kind == AttributeKind.LOCAL) return true;
+    }
+
+    return false;
+}
+
+fn Visibility Cursor.visibility(&self)
+{
+    if (!self.node.is_valid() || self.section == null) return PUBLIC;
+
+    Ast* ast = &self.section.source_file.ast;
+
+    if (ast.has_attribute(self.node, "private")) return PRIVATE;
+    if (ast.has_attribute(self.node, "local")) return LOCAL;
+
+    Node mod_node = self.module_decl();
+    if (mod_node.is_valid())
+    {
+        if (ast.has_attribute(mod_node, "private")) return PRIVATE;
+        if (ast.has_attribute(mod_node, "local")) return LOCAL;
+    }
+
+    return PUBLIC;
+}
+
 <*
  Get the spelling/text for the current node
  @require self.section != null

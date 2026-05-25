@@ -301,3 +301,9 @@ struct TypeDescriptor
 	Node[MAX_GENERICS] gen_args;
 }
 
+enum Visibility
+{
+    PUBLIC,
+    PRIVATE,
+    LOCAL
+}
