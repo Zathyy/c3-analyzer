@@ -98,6 +98,8 @@ struct Parser
 	Token current_token @if(env::DEBUG_SYMBOLS);
 	String current_token_string @if(env::DEBUG_SYMBOLS);
 	// bool allow_submodules;
+
+  List{ParserError} errors @if($feature(C3_PARSER_LIB));
 }
 
 fn void? Parser.skip_until(Parser* p, TokenKind[] targets)
@@ -330,7 +332,7 @@ fn String peek_module_name(Parser* p)
  Appends the nodes to the provided Modules Ast
  @param [&inout] ws
 *>
-fn void? parse(Workspace* ws, String uri, String src)
+fn Parser? parse(Workspace* ws, String uri, String src)
 {
 	Parser parser = { .mod = null, .pool = &ws.strings, .file_path = uri, .allocator = ws.allocator };
 
@@ -397,6 +399,7 @@ fn void? parse(Workspace* ws, String uri, String src)
 	}
 
 	log::info("Succesfully parsed: %s", uri);
+	return parser;
 }
 
 <*
@@ -404,7 +407,7 @@ fn void? parse(Workspace* ws, String uri, String src)
   Appends the nodes to the provided Modules Ast
  @param [&inout] ws
 *>
-fn void? parse_file(Workspace* ws, String path) => parse(ws, path, (String)file::load(tmem, path)!);
+fn Parser? parse_file(Workspace* ws, String path) => parse(ws, path, (String)file::load(tmem, path)!);
 
 // {
 // 	Parser parser = { .mod = null, .pool = &ws.strings, .file_path = path, .allocator = ws.allocator };

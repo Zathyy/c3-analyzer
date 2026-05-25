@@ -38,29 +38,32 @@ fn void Parser.report(Parser* self, Token token, LogPriority level, String color
 {
 	Location loc = self.line_map.resolve(token.pos);
 
-	$if $feature(LSP):
-	buffered_log::log(level, fmt, args);
+	$if $feature(C3_PARSER_LIB):
+	// buffered_log::log(level, fmt, args);
+
+		self.errors.push({ level, loc, token, string::format(self.allocator, fmt, ...args) });
+
 	$else
-	io::printf("%s:%s:%s: %s%s:%s ", self.file_path, loc.line, loc.column, color, $stringify(level), ANSI_RESET);
-	io::printf(fmt, args);
-	io::printn("");
+		io::printf("%s:%s:%s: %s%s:%s ", self.file_path, loc.line, loc.column, color, $stringify(level), ANSI_RESET);
+		io::printf(fmt, args);
+		io::printn("");
 
-	String line_text = self.line_map.get_line_from_src(self.src, loc.line);
-	io::printf(" %4s | %s\n", loc.line, line_text);
+		String line_text = self.line_map.get_line_from_src(self.src, loc.line);
+		io::printf(" %4s | %s\n", loc.line, line_text);
 
-	io::printf(" %4s | ", "");
-	for (uint i = 1; i < loc.column; i++)
-	{
-		if (line_text[i - 1] == '\t')
+		io::printf(" %4s | ", "");
+		for (uint i = 1; i < loc.column; i++)
 		{
-			io::print("\t");
+			if (line_text[i - 1] == '\t')
+			{
+				io::print("\t");
+			}
+			else
+			{
+				io::print(" ");
+			}
 		}
-		else
-		{
-			io::print(" ");
-		}
-	}
-	io::printf("%s^%s\n", color, ANSI_RESET);
+		io::printf("%s^%s\n", color, ANSI_RESET);
 	$endif
 }
 
