@@ -5,6 +5,7 @@ import lexer;
 import line_map;
 import c3_parser::ast;
 import c3_parser::common;
+import buffered_log;
 
 // Colors for the terminal
 const String ANSI_RED    = "\x1b[31;1m";
@@ -15,30 +16,32 @@ const String ANSI_BOLD   = "\x1b[1m";
 
 macro void Parser.info(self, String fmt, ...)
 {
-	self.report(self.current(), "info", ANSI_CYAN, fmt, ...$vaarg);
+	self.report(self.current(), INFO, ANSI_CYAN, fmt, ...$vaarg);
 }
 
 macro void Parser.warn(self, String fmt, ...)
 {
-	self.report(self.current(), "warning", ANSI_YELLOW, fmt, ...$vaarg);
+	self.report(self.current(), WARN, ANSI_YELLOW, fmt, ...$vaarg);
 }
 
 macro void Parser.error(self, String fmt, ...)
 {
-	log::error(fmt, ...$vaarg);
-	self.report(self.current(), "error", ANSI_RED, fmt, ...$vaarg);
+	self.report(self.current(), ERROR, ANSI_RED, fmt, ...$vaarg);
 }
 
 macro void Parser.error_at(self, Token t, String fmt, ...)
 {
-    self.report(t, "error", ANSI_RED, fmt, ...$vaarg);
+    self.report(t, ERROR, ANSI_RED, fmt, ...$vaarg);
 }
 
-fn void Parser.report(Parser* self, Token token, String level, String color, String fmt, args ...)
+fn void Parser.report(Parser* self, Token token, LogPriority level, String color, String fmt, args ...)
 {
 	Location loc = self.line_map.resolve(token.pos);
 
-	io::printf("%s:%s:%s: %s%s:%s ", self.file_path, loc.line, loc.column, color, level, ANSI_RESET);
+	$if $feature(LSP):
+	buffered_log::log(level, fmt, args);
+	$else
+	io::printf("%s:%s:%s: %s%s:%s ", self.file_path, loc.line, loc.column, color, $stringify(level), ANSI_RESET);
 	io::printf(fmt, args);
 	io::printn("");
 
@@ -58,6 +61,7 @@ fn void Parser.report(Parser* self, Token token, String level, String color, Str
 		}
 	}
 	io::printf("%s^%s\n", color, ANSI_RESET);
+	$endif
 }
 
 fn bool is_keyword_ident(TokenKind type)
