@@ -273,40 +273,34 @@ fn bool Ast.has_attribute(&self, Node decl_node, String attr_name)
 
     NodeKind kind = self.get_kind(decl_node);
     AttributeListView attr_list_view;
-    bool has_attrs = false;
 
     switch (kind)
     {
         case MODULE_DECL:
             ModuleView v = { self, decl_node };
             attr_list_view = v.attributes();
-            has_attrs = true;
             break;
         case IMPORT_DECL:
             ImportView v = { self, decl_node };
             attr_list_view = v.attributes();
-            has_attrs = true;
             break;
         case FN_DECL:
             FnView v = { self, decl_node };
             attr_list_view = v.attributes();
-            has_attrs = true;
             break;
         case VAR_DECL:
             VarDeclView v = { self, decl_node };
             attr_list_view = v.attributes();
-            has_attrs = true;
             break;
         case ENUM_DECL:
             EnumView v = { self, decl_node };
             attr_list_view = v.attributes();
-            has_attrs = true;
             break;
         default:
             break;
     }
 
-    if (!has_attrs || attr_list_view.count() == 0) return false;
+    if (!attr_list_view.is_valid() || attr_list_view.count() == 0) return false;
 
     uint count = attr_list_view.count();
     for (uint i = 0; i < count; i++)
@@ -320,7 +314,7 @@ fn bool Ast.has_attribute(&self, Node decl_node, String attr_name)
         if (attr_name == "private" && attr_kind == AttributeKind.PRIVATE) return true;
         if (attr_name == "local" && attr_kind == AttributeKind.LOCAL) return true;
     }
-
+	
     return false;
 }
 
@@ -481,17 +475,10 @@ fn String? Cursor.spelling(&self)
 *>
 fn Node Cursor.module_decl(&self)
 {
-	// ModuleSection* s = section(self);
-	// if (s == null)
-	// {
-	// log::debug("invalid section for Node: ", self.node);
-	// return (Node){};
-	// }
-
 	ModuleSection* s = self.section;
 	for (uint i = s.start_node_idx; i < s.end_node_idx; i++)
 	{
-		Node n = (Node)s.start_node_idx;
+		Node n = (Node)i;
 		if (self.section.source_file.ast.get_kind(n) == MODULE_DECL)
 		{
 			return n;
