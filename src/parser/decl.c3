@@ -1315,3 +1315,25 @@ fn Node? parse_field_decl(Parser* p, Node shared_type = {}, uint flags = 0)
 	uint ex = p.ast.push_extra_block(&data);
 	return p.ast.add_node(FIELD_DECL, start_tok, p.current_pos(), ex);
 }
+
+<*
+	ct_expand_decl ::= $expand '(' const_expr ')' attributes?
+*>
+fn Node? parse_expand_decl(Parser* p)
+{
+	uint start_pos = p.current_pos();
+	expect(p, CT_EXPAND)!;
+
+	expect(p, LPAREN)!;
+	Node expr = parse_constant_expr(p)!;
+	expect(p, RPAREN)!;
+
+	Node attributes = parse_attributes(p)!;
+
+	uint[2] data = views::@data{ExpandDeclViewFields}(
+		EXPR, expr,
+		ATTRIBUTES, attributes,
+	);
+	uint ex = p.ast.push_extra_block(&data);
+	return p.ast.add_node(CT_EXPAND_DECL, start_pos, p.current_pos(), ex);
+}

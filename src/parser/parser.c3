@@ -605,6 +605,8 @@ fn void? parse_top_level(Parser* p, Workspace* ws)
 			flags.is_const = true;
 			advance(p)!;
 			node = parse_var_decl(p, flags)!;
+		case CT_EXPAND:
+			node = parse_expand_decl(p)!;
 		case CT_ASSERT:
 			uint start_pos = p.current_pos();
 			Node stmt = parse_ct_assert(p)!;

@@ -1072,6 +1072,7 @@ fn TokenKind Lexer.categorize_identifier(Lexer* self, String text)
 				case "default": return CT_DEFAULT;
 				case "defined": return CT_DEFINED;
 				case "echo": return CT_ECHO;
+				case "expand": return CT_EXPAND;
 				case "else": return CT_ELSE;
 				case "endfor": return CT_ENDFOR;
 				case "endforeach": return CT_ENDFOREACH;
