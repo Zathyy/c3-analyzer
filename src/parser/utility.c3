@@ -39,7 +39,6 @@ fn void ParseContext.report(ParseContext* self, Token token, LogPriority level, 
 	Location loc = self.line_map.resolve(token.pos);
 	
 	$if $feature(C3_PARSER_LIB):
-		log::info("Pushed error: num = %s", self.errors.len());
 		self.errors.push({ level, loc, token, string::format(self.allocator, fmt, ...args) });
 	$else
 		io::printf("%s:%s:%s: %s%s:%s ", self.file_path, loc.line, loc.column, color, $stringify(level), ANSI_RESET);
