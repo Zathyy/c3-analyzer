@@ -418,6 +418,7 @@ fn Node? parse_infix(ParseContext* ctx, Node left, Precedence rbp)
 		case QUESTQUEST:
 		case ELVIS:
 		case CT_CONCAT_OP:
+		case CT_CONCAT_ASSIGN:
 		case CT_AND_OP: 
 		case CT_OR_OP:
 			{
