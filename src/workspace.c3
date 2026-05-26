@@ -118,7 +118,6 @@ fn SourceFile* Workspace.reset_source_file(&self, PathString path)
 				&&(Pair{String, Allocator}) {path, self.allocator}
 			);
 		}
-		existing.ast.clear();
 		existing.sections.clear();
 		return existing;
 	}
@@ -152,15 +151,13 @@ fn Module* Workspace.get_or_create_module(&self, String name)
 
 fn ModuleSection* Workspace.get_or_create_section(&self, Module* mod, SourceFile* sf)
 {
-	foreach (sec : sf.sections)
-    {
-		if (sec.parent_module == mod)        
+	if (try last = mod.sections.last())
+	{
+		if (last.source_file.file_path == sf.file_path)
 		{
-            sec.start_node_idx = sf.ast.len(); 
-            sec.end_node_idx = sf.ast.len();
-            return sec;
-        }
-    }
+			return last;
+		}
+	}
 
 	ModuleSection* next_section = alloc::new(self.allocator, ModuleSection);
 	next_section.source_file = sf;
