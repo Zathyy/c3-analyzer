@@ -468,7 +468,7 @@ fn String Cursor.shortened_path(&self, Workspace* ws)
 	sz last_colon = full_mod_path.rindex_of("::") ?? -1;
 	if (last_colon != -1)
     {
-        sub_module = full_mod_path[last_colon..];
+        sub_module = full_mod_path[last_colon + 2..];
     }
     else
     {
