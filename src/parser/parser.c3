@@ -293,7 +293,7 @@ fn String ParseContext.current_text(ParseContext* self) @inline
 	return self.token_text(self.current());
 }
 
-fn String peek_module_name(ParseContext* ctx)
+fn String peek_module_name(ParseContext* ctx) => @pool()
 {
 	if (ctx.tokens[0].kind == MODULE)
 	{
@@ -321,7 +321,7 @@ fn String peek_module_name(ParseContext* ctx)
 
 			i++;
 		}
-		return full_name;
+		return full_name.copy(ctx.allocator);
 	}
 
 	return "";
@@ -382,6 +382,10 @@ fn ParseResult? parse(Workspace* ws, String uri, String src)
 		ctx.mod = mod;
 		sec.start_node_idx = 0;
 		log::info("Inferred module: %s", mod_name);
+	}
+	else
+	{
+		mod_name.free(ctx.allocator);
 	}
 
 	bool success = true;
