@@ -346,6 +346,7 @@ fn ParseResult? parse(Workspace* ws, String uri, String src)
 	}
 
 	scratch.clear();
+	defer scratch.free();
 
 	Lexer lexer = { .buffer = src, .index = 0, };
 	ctx.src = src;
