@@ -273,7 +273,7 @@ fn bool Ast.has_attribute(&self, Node decl_node, String attr_name)
 
     NodeKind kind = self.get_kind(decl_node);
     AttributeListView attr_list_view;
-
+	
     switch (kind)
     {
         case MODULE_DECL:
@@ -443,36 +443,46 @@ fn String? Cursor.spelling(&self)
 	}
 }
 
-// <*
-// find the ModuleSection the specified Cursor belongs to.
-// returns null if not found!
-// 
-// @param [&in] self
-// *>
-// fn ModuleSection* section(Cursor* self)
-// {
-// uint idx = (uint)self.node;
-// 
-// foreach (section : self.mod.sections)
-// {
-// if (idx >= section.start_node_idx && idx < section.end_node_idx)
-// {
-// assert(section.parent_module == self.mod);
-// return section;
-// }
-// }
-// 
-// log::warn("No module section found for node: %s", self.node);
-// return null;
-// }
+fn String Cursor.shortened_path(&self, Workspace* ws)
+{
+	if (!self.node.is_valid() || self.section == null) return "";
 
-<*
- find the MODULE_DECL node the specified cursor belongs to
+	Ast* ast = &self.section.source_file.ast;
+    NodeKind kind = ast.get_kind(self.node);
 
-    returns a invalid node if not found
- @param [&in] self
- @require self.section != null
-*>
+	String name = self.spelling() ?? "";
+
+	if (kind == NodeKind.STRUCT_DECL || kind == NodeKind.ENUM_DECL || kind == NodeKind.TYPEDEF_DECL)
+    {
+        return name;
+    }
+
+	Node mod_node = self.module_decl();
+    if (!mod_node.is_valid()) return name;
+
+	ModuleView mod_view = { ast, mod_node };
+    Cursor path_cursor = { self.section, mod_view.path() };
+    String full_mod_path = path_cursor.spelling() ?? "";
+	String sub_module = "";
+
+	sz last_colon = full_mod_path.rindex_of("::") ?? -1;
+	if (last_colon != -1)
+    {
+        sub_module = full_mod_path[last_colon..];
+    }
+    else
+    {
+        sub_module = full_mod_path;
+    }
+
+	if (sub_module.len > 0)
+    {
+        return string::tformat("%s::%s", sub_module, name);
+    }
+
+	return name;
+}
+
 fn Node Cursor.module_decl(&self)
 {
 	ModuleSection* s = self.section;
