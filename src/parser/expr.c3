@@ -58,6 +58,7 @@ fn void get_binding_power(TokenKind type, int* lbp, int* rbp)
 		case BIT_AND_ASSIGN:
 		case LSHIFT_ASSIGN:
 		case RSHIFT_ASSIGN:
+		case CT_CONCAT_ASSIGN:
 			*lbp = Precedence.ASSIGNMENT;
 			*rbp = Precedence.ASSIGNMENT - 1;
 			break;
