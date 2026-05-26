@@ -81,6 +81,7 @@ fn void Workspace.free(&self)
 	self.source_files.@each(;path, sf)
 	{
 		sf.ast.free();
+		sf.line_map.free();
 		foreach (section : sf.sections)
 		{
 			alloc::free(self.allocator, section);
@@ -89,17 +90,17 @@ fn void Workspace.free(&self)
 		alloc::free(self.allocator, sf);
 	};
 	self.source_files.free();
-	self.modules.@each(;name, mod)
+	self.modules.@each(;name, mod) 
 	{
 		mod.sections.free();
 		alloc::free(self.allocator, mod);
 	};
 	self.modules.free();
 	self.strings.free();
-}
+} 
 
 fn SourceFile* Workspace.reset_source_file(&self, PathString path)
-{
+{			
 	if (try existing = self.source_files.get(path))
 	{
 		foreach (section : existing.sections)
@@ -151,14 +152,15 @@ fn Module* Workspace.get_or_create_module(&self, String name)
 
 fn ModuleSection* Workspace.get_or_create_section(&self, Module* mod, SourceFile* sf)
 {
-	// Check if the current last section matches this file and header
-	if (try last = mod.sections.last())
-	{
-		if (last.source_file.file_path == sf.file_path)
+	foreach (sec : sf.sections)
+    {
+		if (sec.parent_module == mod)        
 		{
-			return last;
-		}
-	}
+            sec.start_node_idx = sf.ast.len(); 
+            sec.end_node_idx = sf.ast.len();
+            return sec;
+        }
+    }
 
 	ModuleSection* next_section = alloc::new(self.allocator, ModuleSection);
 	next_section.source_file = sf;

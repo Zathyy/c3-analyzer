@@ -8,12 +8,12 @@ struct LineMap
 	List{Size} line_offsets;
 }
 
-fn void LineMap.init(LineMap* map, Allocator alloc = tmem)
+fn void LineMap.init(LineMap* map, Allocator alloc = mem)
 {
 	map.line_offsets.init(alloc);
 }
-
-fn void LineMap.free(LineMap* map)
+ 
+fn void LineMap.free(LineMap* map) 
 {
 	map.line_offsets.free();
 }
@@ -27,7 +27,7 @@ fn void LineMap.build(LineMap* self, String src)
 {
 	if (!self.line_offsets.is_initialized())
 	{
-		self.line_offsets.tinit(100);
+		self.line_offsets.init(mem, 100);
 	}
 
 	self.clear();
@@ -40,7 +40,7 @@ fn void LineMap.build(LineMap* self, String src)
 		{
 			// The NEXT line starts at i + 1
 			self.line_offsets.push(i + 1);
-		}
+		}   
 	}
 }
 
