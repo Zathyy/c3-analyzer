@@ -14,35 +14,33 @@ const String ANSI_CYAN   = "\x1b[36;1m";
 const String ANSI_RESET  = "\x1b[0m";
 const String ANSI_BOLD   = "\x1b[1m";
 
-macro void Parser.info(self, String fmt, ...)
+macro void ParseContext.info(&self, String fmt, ...)
 {
 	self.report(self.current(), INFO, ANSI_CYAN, fmt, ...$vaarg);
 }
 
-macro void Parser.warn(self, String fmt, ...)
+macro void ParseContext.warn(&self, String fmt, ...)
 {
 	self.report(self.current(), WARN, ANSI_YELLOW, fmt, ...$vaarg);
 }
 
-macro void Parser.error(self, String fmt, ...)
+macro void ParseContext.error(&self, String fmt, ...)
 {
 	self.report(self.current(), ERROR, ANSI_RED, fmt, ...$vaarg);
 }
 
-macro void Parser.error_at(self, Token t, String fmt, ...)
+macro void ParseContext.error_at(&self, Token t, String fmt, ...)
 {
     self.report(t, ERROR, ANSI_RED, fmt, ...$vaarg);
 }
 
-fn void Parser.report(Parser* self, Token token, LogPriority level, String color, String fmt, args ...)
+fn void ParseContext.report(ParseContext* self, Token token, LogPriority level, String color, String fmt, args ...)
 {
 	Location loc = self.line_map.resolve(token.pos);
-
+	
 	$if $feature(C3_PARSER_LIB):
-	// buffered_log::log(level, fmt, args);
-
+		log::info("Pushed error: num = %s", self.errors.len());
 		self.errors.push({ level, loc, token, string::format(self.allocator, fmt, ...args) });
-
 	$else
 		io::printf("%s:%s:%s: %s%s:%s ", self.file_path, loc.line, loc.column, color, $stringify(level), ANSI_RESET);
 		io::printf(fmt, args);
@@ -97,16 +95,16 @@ fn bool is_non_type_ident(TokenKind k)
            k == CT_IDENT;
 }
 
-fn bool node_ends_with_block(Parser* p, Node n)
+fn bool node_ends_with_block(ParseContext* ctx, Node n)
 {
-	NodeKind kind = p.ast.get_kind(n);
+	NodeKind kind = ctx.ast.get_kind(n);
 
 	log::debug("%s", kind);
 	switch (kind)
 	{
 		case CALL_EXPR:
 		case ATTR_CALL_EXPR:
-			CallView view = { p.ast, n };
+			CallView view = { ctx.ast, n };
 			return view.get_compound().is_valid();
 		case COMPOUND_STMT:
 			return true;
@@ -115,14 +113,14 @@ fn bool node_ends_with_block(Parser* p, Node n)
 	}
 }
 
-fn bool is_type(Parser* p)
+fn bool is_type(ParseContext* ctx)
 {
-	TokenKind kind = p.current().kind;
+	TokenKind kind = ctx.current().kind;
 
 	if (is_type_primitive(kind)) return true;
 	if (kind == TYPE_IDENT) return true;
 
-	if (kind == IDENT && p.peek(1).kind == SCOPE)
+	if (kind == IDENT && ctx.peek(1).kind == SCOPE)
     {
         return true;
     }
@@ -167,12 +165,12 @@ fn bool is_type_primitive(TokenKind kind)
 	}
 }
 
-fn void attach_contract(Parser* p, Node decl, Node contract)
+fn void attach_contract(ParseContext* ctx, Node decl, Node contract)
 {
 	if (!decl.is_valid()) return;
 	if (!contract.is_valid()) return;
 
-    NodeKind kind = p.ast.get_kind(decl);
+    NodeKind kind = ctx.ast.get_kind(decl);
     
     uint offset = 0;
     switch (kind)
@@ -184,8 +182,8 @@ fn void attach_contract(Parser* p, Node decl, Node contract)
         default: return;
     }
     
-	uint base_extra_idx = p.ast.get_extra((uint)decl);
-    p.ast.set_extra(base_extra_idx + offset, (uint)contract);
+	uint base_extra_idx = ctx.ast.get_extra((uint)decl);
+    ctx.ast.set_extra(base_extra_idx + offset, (uint)contract);
 }
 
 fn OverloadKind get_overload_from_token(TokenKind kind)
@@ -220,32 +218,32 @@ fn OverloadKind get_overload_from_token(TokenKind kind)
 	}
 }
 
-fn bool is_declaration_followup(Parser* p)
+fn bool is_declaration_followup(ParseContext* ctx)
 {
 	uint i;
 
-	while (p.peek(i).kind == IDENT && p.peek(i + 1).kind == SCOPE)
+	while (ctx.peek(i).kind == IDENT && ctx.peek(i + 1).kind == SCOPE)
     {
         i += 2;
     }
 
 	i++;
 
-	if (p.is(CT_TYPEFROM) || p.is(CT_TYPEOF))
+	if (ctx.is(CT_TYPEFROM) || ctx.is(CT_TYPEOF))
 	{
 		i++;
 		uint depth = 1;
 		do {
-			if (p.peek(i).kind == LPAREN) depth++;
-			if (p.peek(i).kind == RPAREN) depth--;
+			if (ctx.peek(i).kind == LPAREN) depth++;
+			if (ctx.peek(i).kind == RPAREN) depth--;
 
 			i++;
-		} while (depth != 0 && p.peek(i).kind != EOF);
+		} while (depth != 0 && ctx.peek(i).kind != EOF);
 	}
 
 	while (true)
 	{
-		TokenKind k = p.peek(i).kind;
+		TokenKind k = ctx.peek(i).kind;
 
 		// Skip over common type modifiers
 		if (k == ASTERISK || k == QUESTION) 
@@ -256,14 +254,14 @@ fn bool is_declaration_followup(Parser* p)
 		{
 			// Skip the entire [ ... ] block
 			i++;
-			while (p.peek(i).kind != RBRACKET && p.peek(i).kind != EOF) i++;
+			while (ctx.peek(i).kind != RBRACKET && ctx.peek(i).kind != EOF) i++;
 			i++; 
 		} 
 		else if (k == LVEC)
 		{
 			// Skip the entire <* ... > block
 			i++;
-			while (p.peek(i).kind != RVEC && p.peek(i).kind != EOF) i++;
+			while (ctx.peek(i).kind != RVEC && ctx.peek(i).kind != EOF) i++;
 			i++;
 		}
 		else 
@@ -273,33 +271,33 @@ fn bool is_declaration_followup(Parser* p)
 	}
 
 	// After skipping modifiers, do we see a variable name?
-	TokenKind final_k = p.peek(i).kind;
+	TokenKind final_k = ctx.peek(i).kind;
 	return final_k == IDENT || final_k == CONST_IDENT || final_k == CT_IDENT;
 }
 
-fn uint? parse_type_name(Parser* p, String msg)
+fn uint? parse_type_name(ParseContext* ctx, String msg)
 {
-	if (p.is(IDENT)) 
+	if (ctx.is(IDENT)) 
 	{
-		p.error("Name of %s must start with and uppercase letter", msg);
+		ctx.error("Name of %s must start with and uppercase letter", msg);
 		return 0;
 	}
-	else if (p.is(CONST_IDENT))
+	else if (ctx.is(CONST_IDENT))
 	{
-		p.error("Name of %s cannot be all uppercase", msg);
+		ctx.error("Name of %s cannot be all uppercase", msg);
 		return 0;
 	}
 	else
 	{
-		if (!p.is(TYPE_IDENT))
+		if (!ctx.is(TYPE_IDENT))
 		{
-			p.error("'%s' should be followed by the name of the %s.", msg, msg);
+			ctx.error("'%s' should be followed by the name of the %s.", msg, msg);
 			return 0;
 		}
 	}
 
-	uint name = p.pool.intern(p.current_text());
-	advance(p)!;
+	uint name = ctx.pool.intern(ctx.current_text());
+	advance(ctx)!;
 	return name;
 }
 

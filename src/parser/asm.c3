@@ -7,34 +7,34 @@ import c3_parser::constants;
 
 import std::collections::list;
 
-fn Node? parse_asm_offset(Parser* p)
+fn Node? parse_asm_offset(ParseContext* ctx)
 {
-	uint start_pos = p.current_pos();
-	Node offset = parse_expr(p)!;
+	uint start_pos = ctx.current_pos();
+	Node offset = parse_expr(ctx)!;
 
 	uint[*] data = views::@data{AsmOffsetViewFields}
 	(
 		EXPR, offset,
 	);
-	uint ex = p.ast.push_extra_block(&data);
-	return p.ast.add_node(ASM_OFFSET, start_pos, start_pos, ex);
+	uint ex = ctx.ast.push_extra_block(&data);
+	return ctx.ast.add_node(ASM_OFFSET, start_pos, start_pos, ex);
 }
 
 <*
 	Asm [REG + BAR * 4], [&foo]
 	asm_addr ::= '[' asm_expr
 *>
-fn Node? parse_asm_addr(Parser* p)
+fn Node? parse_asm_addr(ParseContext* ctx)
 {   
-    uint start_pos = p.current_pos();
+    uint start_pos = ctx.current_pos();
     
     // [ expr ... ]
-    Node base = parse_asm_expr(p)!;
+    Node base = parse_asm_expr(ctx)!;
     
     // Simple case: [foo]
-    if (consume(p, RBRACKET)!)
+    if (consume(ctx, RBRACKET)!)
     {
-        return p.ast.add_node(ASM_ARG_MEMVAR, start_pos, p.current_pos(), (uint)base);
+        return ctx.ast.add_node(ASM_ARG_MEMVAR, start_pos, ctx.current_pos(), (uint)base);
     }
 
     // Complex case: [base + index * scale + disp]
@@ -43,36 +43,36 @@ fn Node? parse_asm_addr(Parser* p)
     Node disp;
 	bool neg_index;
 
-	if (p.is(PLUS) || p.is(MINUS))
+	if (ctx.is(PLUS) || ctx.is(MINUS))
     {
-        neg_index = p.is(MINUS);
-        p.advance()!;
+        neg_index = ctx.is(MINUS);
+        ctx.advance()!;
     }
 
-	if (p.is(INTEGER))
+	if (ctx.is(INTEGER))
 	{
-		disp = parse_asm_offset(p)!;
+		disp = parse_asm_offset(ctx)!;
 	}
 	else
 	{
-		index = parse_asm_expr(p)!;
+		index = parse_asm_expr(ctx)!;
         // Check for scale: [base + index * 4]
-        if (consume(p, ASTERISK)!)
+        if (consume(ctx, ASTERISK)!)
         {
             // We expect a literal for scale (1, 2, 4, 8)
-            scale = (uint)p.current_text().to_uint() ?? 1;
-            p.advance()!;
+            scale = (uint)ctx.current_text().to_uint() ?? 1;
+            ctx.advance()!;
         }
         
         // Check for an additional displacement: [base + index * 4 + 16]
-        if (p.is(PLUS) || p.is(MINUS))
+        if (ctx.is(PLUS) || ctx.is(MINUS))
         {
-            p.advance()!;
-            disp = parse_asm_offset(p)!;
+            ctx.advance()!;
+            disp = parse_asm_offset(ctx)!;
         }
 	}
 
-    expect(p, RBRACKET)!;
+    expect(ctx, RBRACKET)!;
 
     uint[*] data = views::@data{AsmArgAddrViewFields}
 	(
@@ -81,61 +81,61 @@ fn Node? parse_asm_addr(Parser* p)
 		SCALE, scale,
 		DISP, disp,
 	);
-    uint ex = p.ast.push_extra_block(&data);
-    return p.ast.add_node(ASM_ARG_ADDR, start_pos, p.current_pos(), ex);
+    uint ex = ctx.ast.push_extra_block(&data);
+    return ctx.ast.add_node(ASM_ARG_ADDR, start_pos, ctx.current_pos(), ex);
 }
 
 // asm_reg ::= CT_IDENT | CT_CONST_IDENT
-fn Node? parse_asm_reg(Parser* p)
+fn Node? parse_asm_reg(ParseContext* ctx)
 {
-    uint start_pos = p.current_pos();
-    uint reg_id = p.pool.intern(p.current_text());
-    p.advance()!;
-    return p.ast.add_node(ASM_ARG_REG, start_pos, p.current_pos(), reg_id);
+    uint start_pos = ctx.current_pos();
+    uint reg_id = ctx.pool.intern(ctx.current_text());
+    ctx.advance()!;
+    return ctx.ast.add_node(ASM_ARG_REG, start_pos, ctx.current_pos(), reg_id);
 }
 
 // asm_regvar ::= IDENT
-fn Node? parse_asm_regvar(Parser* p)
+fn Node? parse_asm_regvar(ParseContext* ctx)
 {
-    uint start_pos = p.current_pos();
-    uint var_id = p.pool.intern(p.current_text());
-    p.advance()!;
+    uint start_pos = ctx.current_pos();
+    uint var_id = ctx.pool.intern(ctx.current_text());
+    ctx.advance()!;
     // This represents a local variable used directly as a register
-    return p.ast.add_node(ASM_ARG_REGVAR, start_pos, p.current_pos(), var_id);
+    return ctx.ast.add_node(ASM_ARG_REGVAR, start_pos, ctx.current_pos(), var_id);
 }
 
 // asm_addof ::= '&' IDENT
-fn Node? parse_asm_addrof(Parser* p)
+fn Node? parse_asm_addrof(ParseContext* ctx)
 {
-    uint start_pos = p.current_pos();
-    expect(p, AMP)!;
-    uint var_id = p.pool.intern(p.current_text());
-    expect(p, IDENT)!;
-    return p.ast.add_node(ASM_ARG_ADDROF, start_pos, p.current_pos(), var_id);
+    uint start_pos = ctx.current_pos();
+    expect(ctx, AMP)!;
+    uint var_id = ctx.pool.intern(ctx.current_text());
+    expect(ctx, IDENT)!;
+    return ctx.ast.add_node(ASM_ARG_ADDROF, start_pos, ctx.current_pos(), var_id);
 }
 
-fn Node? parse_asm_argvalue(Parser* p)
+fn Node? parse_asm_argvalue(ParseContext* ctx)
 {
-    uint start_pos = p.current_pos();
+    uint start_pos = ctx.current_pos();
     
     // nested expressions: ( 1 + 2 )
-    if (consume(p, LPAREN)!)
+    if (consume(ctx, LPAREN)!)
     {
-        Node expr = parse_expr(p)!;
-        expect(p, RPAREN)!;
-        return p.ast.add_node(ASM_ARG_EXPR, start_pos, p.current_pos(), (uint)expr);
+        Node expr = parse_expr(ctx)!;
+        expect(ctx, RPAREN)!;
+        return ctx.ast.add_node(ASM_ARG_EXPR, start_pos, ctx.current_pos(), (uint)expr);
     }
 
     // Immediates: 123, 0xFF, 3.14
-    if (p.is(INTEGER) || p.is(FLOAT) || p.is(CONST_IDENT))
+    if (ctx.is(INTEGER) || ctx.is(FLOAT) || ctx.is(CONST_IDENT))
     {
-        uint val_id = p.pool.intern(p.current_text());
-        p.advance()!;
-        return p.ast.add_node(ASM_ARG_IMM, start_pos, p.current_pos(), val_id);
+        uint val_id = ctx.pool.intern(ctx.current_text());
+        ctx.advance()!;
+        return ctx.ast.add_node(ASM_ARG_IMM, start_pos, ctx.current_pos(), val_id);
     }
 
-    p.error("Invalid assembly operand");
-    return p.push_invalid_node(start_pos);
+    ctx.error("Invalid assembly operand");
+    return ctx.push_invalid_node(start_pos);
 }
 
 <*
@@ -145,30 +145,30 @@ fn Node? parse_asm_argvalue(Parser* p)
 	asm_addof = '&' IDENT (variable address)
 	asm_argvalue = ('-'? INTEGER) | CONST_IDENT | FLOAT | '(' expr ')'
 *>
-fn Node? parse_asm_expr(Parser* p)
+fn Node? parse_asm_expr(ParseContext* ctx)
 {
-    uint start_pos = p.current_pos();
-    switch (p.current().kind)
+    uint start_pos = ctx.current_pos();
+    switch (ctx.current().kind)
     {
         case LBRACKET:
-            p.advance()!;
-            return parse_asm_addr(p)!;
+            ctx.advance()!;
+            return parse_asm_addr(ctx)!;
         case CT_IDENT:
         case CT_CONST_IDENT:
-            return parse_asm_reg(p)!;
+            return parse_asm_reg(ctx)!;
         case AMP:
-            return parse_asm_addrof(p)!;
+            return parse_asm_addrof(ctx)!;
         case IDENT:
-            return parse_asm_regvar(p)!;
+            return parse_asm_regvar(ctx)!;
 		case MINUS:
 		case INTEGER:
 		case CONST_IDENT:
 		case FLOAT:
 		case LPAREN:
-            return parse_asm_argvalue(p)!;
+            return parse_asm_argvalue(ctx)!;
         default:
-			p.error("Invalid asm operand");
-			return p.push_invalid_node(start_pos);
+			ctx.error("Invalid asm operand");
+			return ctx.push_invalid_node(start_pos);
     }
 }
 
@@ -178,62 +178,62 @@ fn Node? parse_asm_expr(Parser* p)
 	asm_stmt      ::= IDENT | int ('.' IDENT) )? asm_expr_list? ';'
 	asm_expr_list ::= asm_expr (',' asm_expr)* ','?
 *>
-fn Node? parse_asm_stmt(Parser* p)
+fn Node? parse_asm_stmt(ParseContext* ctx)
 {
-    uint start_pos = p.current_pos();
+    uint start_pos = ctx.current_pos();
 
     // Handle ASM_LABEL: CONST_IDENT ':'
-    if (p.is(CONST_IDENT))
+    if (ctx.is(CONST_IDENT))
     {
-        uint label_name = p.pool.intern(p.current_text());
-        p.advance()!; // consume CONST_IDENT
-        expect(p, COLON)!;
+        uint label_name = ctx.pool.intern(ctx.current_text());
+        ctx.advance()!; // consume CONST_IDENT
+        expect(ctx, COLON)!;
         
-        return p.ast.add_node(ASM_LABEL, start_pos, p.current_pos(), label_name);
+        return ctx.ast.add_node(ASM_LABEL, start_pos, ctx.current_pos(), label_name);
     }
 
-    if (!p.is(IDENT) && !p.is(INT))
+    if (!ctx.is(IDENT) && !ctx.is(INT))
     {
-        p.error("Expected an asm instruction (mnemonic) or a label.");
-        return p.push_invalid_node(start_pos);
+        ctx.error("Expected an asm instruction (mnemonic) or a label.");
+        return ctx.push_invalid_node(start_pos);
     }
 
-    uint instruction = p.pool.intern(p.current_text());
-    p.advance()!;
+    uint instruction = ctx.pool.intern(ctx.current_text());
+    ctx.advance()!;
 
     uint variant;
-    if (consume(p, DOT)!)
+    if (consume(ctx, DOT)!)
     {
-        if (!p.is(IDENT))
+        if (!ctx.is(IDENT))
         {
-            p.error("Expected asm instruction variant (e.g., width suffix) after '.'");
-            return p.push_invalid_node(start_pos);
+            ctx.error("Expected asm instruction variant (e.g., width suffix) after '.'");
+            return ctx.push_invalid_node(start_pos);
         }
-        variant = p.pool.intern(p.current_text());
-        p.advance()!;
+        variant = ctx.pool.intern(ctx.current_text());
+        ctx.advance()!;
     }
 
     uint args;
     @with_scratch(; watermark)
     {
-        while (!consume(p, EOS)!)
+        while (!consume(ctx, EOS)!)
         {
-            Node arg = parse_asm_expr(p)!;
+            Node arg = parse_asm_expr(ctx)!;
             scratch.push((uint)arg);
             
-            if (consume(p, COMMA)!) 
+            if (consume(ctx, COMMA)!) 
             {
                 continue; 
             }
             
-            if (!p.is(EOS))
+            if (!ctx.is(EOS))
             {
-                p.error("Expected ';' or ',' in assembly operand list.");
+                ctx.error("Expected ';' or ',' in assembly operand list.");
                 break;
             }
         }
         uint count = (uint)scratch.len() - watermark;
-        args = p.ast.push_extra_list(scratch_view(watermark, count));
+        args = ctx.ast.push_extra_list(scratch_view(watermark, count));
     };
 
 	uint[*] data = views::@data{AsmInstViewFields}
@@ -242,78 +242,78 @@ fn Node? parse_asm_stmt(Parser* p)
 		VARIANT, variant,
 		ARGS, args,
 	);
-    uint ex = p.ast.push_extra_block(&data);
-    return p.ast.add_node(ASM_INST, start_pos, p.current_pos(), ex);
+    uint ex = ctx.ast.push_extra_block(&data);
+    return ctx.ast.add_node(ASM_INST, start_pos, ctx.current_pos(), ex);
 }
 
 
 <*
 	asm ::= 'asm' @pure? '{' asm_stmt* '}' | 'asm' '(' string ')'
 *>
-fn Node? parse_asm_block_stmt(Parser* p)
+fn Node? parse_asm_block_stmt(ParseContext* ctx)
 {
-	uint start_pos = p.current_pos();
-	expect(p, ASM)!;
+	uint start_pos = ctx.current_pos();
+	expect(ctx, ASM)!;
 	AsmFlags flags;
 	Node block;
 	Node asm_string_expr;
 	
-	if (p.is(AT_IDENT))
+	if (ctx.is(AT_IDENT))
 	{
-		String lexeme = p.current_text();
+		String lexeme = ctx.current_text();
 		if (lexeme == constants::KW_AT_PURE)
 		{
 			flags.is_volatile = false;
 		}
 		else
 		{
-			p.error("Only the '@pure' attribute is allowed");
-			p.skip_until({ EOF, EOS, RBRACE })!;
-			return p.push_invalid_node(start_pos);
+			ctx.error("Only the '@pure' attribute is allowed");
+			ctx.skip_until({ EOF, EOS, RBRACE })!;
+			return ctx.push_invalid_node(start_pos);
 		}
-		expect(p, AT_IDENT)!;
+		expect(ctx, AT_IDENT)!;
 	}
-	if (consume(p, LBRACE)!)
+	if (consume(ctx, LBRACE)!)
 	{
 		@with_scratch(; watermark)
 		{
-			uint block_start_pos = p.current_pos();
-			while (!p.is(RBRACE) && !p.eof())
+			uint block_start_pos = ctx.current_pos();
+			while (!ctx.is(RBRACE) && !ctx.eof())
 			{
-				Node stmt = parse_asm_stmt(p)!;
+				Node stmt = parse_asm_stmt(ctx)!;
 				scratch.push((uint)stmt);
 			}
-			expect(p, RBRACE)!;
+			expect(ctx, RBRACE)!;
 			uint count = (uint)scratch.len() - watermark;
-			uint ex = p.ast.push_extra_list(scratch_view(watermark, count));
-			block = p.ast.add_node(ASM_STMT_LIST, block_start_pos, p.current_pos(), ex);
+			uint ex = ctx.ast.push_extra_list(scratch_view(watermark, count));
+			block = ctx.ast.add_node(ASM_STMT_LIST, block_start_pos, ctx.current_pos(), ex);
 		};
 	}
-	else if (consume(p, LPAREN)!)
+	else if (consume(ctx, LPAREN)!)
 	{
 		flags.is_string_style = true;
-		asm_string_expr = parse_expr(p)!;
-		expect(p, RPAREN)!;
+		asm_string_expr = parse_expr(ctx)!;
+		expect(ctx, RPAREN)!;
 
-		if (p.is(AT_IDENT))
+		if (ctx.is(AT_IDENT))
 		{
-			String lexeme = p.current_text();
+			String lexeme = ctx.current_text();
 			if (lexeme == constants::KW_AT_PURE)
 			{
 				flags.is_volatile = false;
 			}
 			else
 			{
-				p.error("Only the '@pure' attribute is allowed.");
+				ctx.error("Only the '@pure' attribute is allowed.");
 			}
-			expect(p, AT_IDENT)!;
+			expect(ctx, AT_IDENT)!;
 		}
-		expect(p, EOS)!;
+		expect(ctx, EOS)!;
 	}
 	else
 	{
-		p.error("Expected '{' or '(' after 'asm'");
-		return p.push_invalid_node(start_pos);
+		ctx.error("Expected '{' or '(' after 'asm'");
+		return ctx.push_invalid_node(start_pos);
 	}
 
 	uint[*] data = views::@data{AsmViewFields}
@@ -323,6 +323,6 @@ fn Node? parse_asm_block_stmt(Parser* p)
 		BLOCK, block,
 	);
     
-	uint ex = p.ast.push_extra_block(&data);
-    return p.ast.add_node(ASM_BLOCK_STMT, start_pos, p.current_pos(), ex);
+	uint ex = ctx.ast.push_extra_block(&data);
+    return ctx.ast.add_node(ASM_BLOCK_STMT, start_pos, ctx.current_pos(), ex);
 } 

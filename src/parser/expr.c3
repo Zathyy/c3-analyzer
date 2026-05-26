@@ -158,47 +158,47 @@ fn void get_binding_power(TokenKind type, int* lbp, int* rbp)
 	Handles tokens that start an expression (e.g., -5, (expr), !true)
 	It has no "left" side to worry about.
 *>
-fn Node? parse_prefix_expr(Parser* p)
+fn Node? parse_prefix_expr(ParseContext* ctx)
 {
-	Token t = p.current();
+	Token t = ctx.current();
 
-	if (is_type(p))
+	if (is_type(ctx))
 	{
-		return parse_type(p, { .type_as_expression = true })!;
+		return parse_type(ctx, { .type_as_expression = true })!;
 	}
 
 	switch (t.kind)
 	{
 		case BUILTIN:
 		{
-			advance(p)!;
-			Token next = p.current();
+			advance(ctx)!;
+			Token next = ctx.current();
 
 			// parse ident
-			Node ident_node = parse_expr(p, Precedence.MULTIPLICATIVE)!;
+			Node ident_node = parse_expr(ctx, Precedence.MULTIPLICATIVE)!;
 
 			uint[2] data = { (uint)t.kind, (uint)ident_node };
-			uint ex = p.ast.push_extra_block(&data);
+			uint ex = ctx.ast.push_extra_block(&data);
 
 			if (next.kind == CONST_IDENT)
 			{
-				return p.ast.add_node(COMPILER_CONST_EXPR, t.pos, p.current_pos(), ex);
+				return ctx.ast.add_node(COMPILER_CONST_EXPR, t.pos, ctx.current_pos(), ex);
 			}
 
-			return p.ast.add_node(BUILTIN_EXPR, t.pos, p.current_pos(), ex);
+			return ctx.ast.add_node(BUILTIN_EXPR, t.pos, ctx.current_pos(), ex);
 		}
 		case NULL:
 		{
-			advance(p)!;
-			return p.ast.add_node(NULL_LITERAL, t.pos, t.pos, 0);
+			advance(ctx)!;
+			return ctx.ast.add_node(NULL_LITERAL, t.pos, t.pos, 0);
 		}
 		case FN: // lambda
 		{
-			return parse_lambda(p)!;
+			return parse_lambda(ctx)!;
 		}
 		case BYTES:
 		{
-			return parse_bytes_expr(p)!;
+			return parse_bytes_expr(ctx)!;
 		}
 		case AT_IDENT:
 		case AT_CONST_IDENT:
@@ -214,53 +214,53 @@ fn Node? parse_prefix_expr(Parser* p)
 		case HASH_TYPE_IDENT:
 			// Handle namespaced paths like MyModule::my_var
 			// and the new type properties ::
-			if (p.peek().kind == SCOPE)
+			if (ctx.peek().kind == SCOPE)
 			{
-				return parse_path_prefix(p)!;
+				return parse_path_prefix(ctx)!;
 			}
 
-			advance(p)!;
-			Token current = p.current();
-			uint sh = p.pool.intern(p.token_text(t));
-			return p.ast.add_node(IDENT_EXPR, t.pos, p.current_pos(), sh);
+			advance(ctx)!;
+			Token current = ctx.current();
+			uint sh = ctx.pool.intern(ctx.token_text(t));
+			return ctx.ast.add_node(IDENT_EXPR, t.pos, ctx.current_pos(), sh);
 
 		// getting the actual literal value is up to the semantic analysis
 		case STRING:
-			String text = p.token_text(t);
-			advance(p)!;
-			while (p.is(STRING))
+			String text = ctx.token_text(t);
+			advance(ctx)!;
+			while (ctx.is(STRING))
 			{
-				text = string::tformat("%s%s", text[..^2], p.token_text(p.current())[1..]);
-				advance(p)!;
+				text = string::tformat("%s%s", text[..^2], ctx.token_text(ctx.current())[1..]);
+				advance(ctx)!;
 			}
-			uint sh = p.pool.intern(text);
-			return p.ast.add_node(STRING_LITERAL, t.pos, p.current_pos(), sh);
+			uint sh = ctx.pool.intern(text);
+			return ctx.ast.add_node(STRING_LITERAL, t.pos, ctx.current_pos(), sh);
 		
 		case CHAR_LITERAL:
-			String text = p.token_text(t);
-			uint sh = p.pool.intern(text);
-			advance(p)!;
-			return p.ast.add_node(CHAR_LITERAL, t.pos, p.current_pos(), sh);
+			String text = ctx.token_text(t);
+			uint sh = ctx.pool.intern(text);
+			advance(ctx)!;
+			return ctx.ast.add_node(CHAR_LITERAL, t.pos, ctx.current_pos(), sh);
 
 		case TRUE:
-			advance(p)!;
-			return p.ast.add_node(BOOL_LITERAL, t.pos, p.current_pos(), 1);
+			advance(ctx)!;
+			return ctx.ast.add_node(BOOL_LITERAL, t.pos, ctx.current_pos(), 1);
 
 		case FALSE:
-			advance(p)!;
-			return p.ast.add_node(BOOL_LITERAL, t.pos, p.current_pos(), 0);
+			advance(ctx)!;
+			return ctx.ast.add_node(BOOL_LITERAL, t.pos, ctx.current_pos(), 0);
 
 		case REAL:
-			String text = p.token_text(t);
-			uint sh = p.pool.intern(text);
-			advance(p)!;
-			return p.ast.add_node(FLOAT_LITERAL, t.pos, p.current_pos(), sh);
+			String text = ctx.token_text(t);
+			uint sh = ctx.pool.intern(text);
+			advance(ctx)!;
+			return ctx.ast.add_node(FLOAT_LITERAL, t.pos, ctx.current_pos(), sh);
 
 		case INTEGER:
-			String text = p.token_text(t);
-			uint sh = p.pool.intern(text);
-			advance(p)!;
-			return p.ast.add_node(INT_LITERAL, t.pos, p.current_pos(), sh);
+			String text = ctx.token_text(t);
+			uint sh = ctx.pool.intern(text);
+			advance(ctx)!;
+			return ctx.ast.add_node(INT_LITERAL, t.pos, ctx.current_pos(), sh);
 		case BANG:
 		case BANGBANG:
 		case MINUS:
@@ -268,33 +268,33 @@ fn Node? parse_prefix_expr(Parser* p)
 		case AMP:
 		case AND: // for the unary temp value pointer
 		case ASTERISK:
-			bool is_bang_bang = p.is(BANGBANG);
-			advance(p)!;
-			Node rhs = parse_expr(p, UNARY)!;
+			bool is_bang_bang = ctx.is(BANGBANG);
+			advance(ctx)!;
+			Node rhs = parse_expr(ctx, UNARY)!;
 
 			uint[3] data = { (uint)t.kind, (uint)rhs, (uint)is_bang_bang };
-			uint ex = p.ast.push_extra_block(&data);
-			return p.ast.add_node(UNARY_EXPR, t.pos, p.current_pos(), ex);
+			uint ex = ctx.ast.push_extra_block(&data);
+			return ctx.ast.add_node(UNARY_EXPR, t.pos, ctx.current_pos(), ex);
 
 		case LPAREN:
 			Token start_token = t;
-			advance(p)!; // consume '('
+			advance(ctx)!; // consume '('
 
-			Node inner = parse_expr(p, Precedence.LOWEST)!;
+			Node inner = parse_expr(ctx, Precedence.LOWEST)!;
 			
-			expect(p, RPAREN)!;
+			expect(ctx, RPAREN)!;
 
-			NodeKind kind = p.ast.get_kind(inner);
+			NodeKind kind = ctx.ast.get_kind(inner);
 			
 			// IMPORTANT!
 			// Might be missing some kinds in 'can_start_expression'
 			// which makes a Cast expr parsed as a grouped expr
-			if (kind == TYPE_EXPR && can_start_expression(p.current().kind)) 
+			if (kind == TYPE_EXPR && can_start_expression(ctx.current().kind)) 
 			{
-				Node operand = parse_expr(p, Precedence.UNARY)!;
+				Node operand = parse_expr(ctx, Precedence.UNARY)!;
 				uint[2] data = { (uint)inner, (uint)operand };
-				uint ex = p.ast.push_extra_block(&data);
-				return p.ast.add_node(CAST_EXPR, start_token.pos, p.current_pos(), ex);
+				uint ex = ctx.ast.push_extra_block(&data);
+				return ctx.ast.add_node(CAST_EXPR, start_token.pos, ctx.current_pos(), ex);
 			}
 
 			// TODO: Add as grouped expr
@@ -302,75 +302,75 @@ fn Node? parse_prefix_expr(Parser* p)
 		case CT_TYPEFROM:
 		case CT_TYPEOF:
 			{
-				advance(p)!;
+				advance(ctx)!;
 
-				expect(p, LPAREN)!;
-				Node expr_inside = parse_expr(p)!;
-				expect(p, RPAREN)!;
+				expect(ctx, LPAREN)!;
+				Node expr_inside = parse_expr(ctx)!;
+				expect(ctx, RPAREN)!;
 
-				return p.ast.add_node(TYPE_EXPR, t.pos, p.current_pos(), (uint)expr_inside);
+				return ctx.ast.add_node(TYPE_EXPR, t.pos, ctx.current_pos(), (uint)expr_inside);
 			}
 		case CT_VAARG:
 		{
-			advance(p)!;
-			uint sh = p.pool.intern(p.token_text(t));
-			return p.ast.add_node(IDENT_EXPR, t.pos, p.current_pos(), sh);
+			advance(ctx)!;
+			uint sh = ctx.pool.intern(ctx.token_text(t));
+			return ctx.ast.add_node(IDENT_EXPR, t.pos, ctx.current_pos(), sh);
 		}
 		case CT_STRINGIFY:
 		case CT_REFLECT:
 		{
-			advance(p)!;
-			uint sh = p.pool.intern(p.token_text(t));
-			return p.ast.add_node(IDENT_EXPR, t.pos, p.current_pos(), sh);
+			advance(ctx)!;
+			uint sh = ctx.pool.intern(ctx.token_text(t));
+			return ctx.ast.add_node(IDENT_EXPR, t.pos, ctx.current_pos(), sh);
 		}
 		case CT_DEFINED:
 		{
-			return parse_ct_defined_expr(p)!;
+			return parse_ct_defined_expr(ctx)!;
 		}
 		case LBRACE:
-			return parse_initializer_list(p)!;
+			return parse_initializer_list(ctx)!;
 		case ELLIPSIS:
 		{
-			advance(p)!;
-			Node rhs = parse_expr(p, Precedence.UNARY)!;
+			advance(ctx)!;
+			Node rhs = parse_expr(ctx, Precedence.UNARY)!;
 
 			uint[2] data = { (uint)t.kind, (uint)rhs };
-			uint ex = p.ast.push_extra_block(&data);
-			return p.ast.add_node(SPLAT_EXPR, t.pos, p.current_pos(), ex);
+			uint ex = ctx.ast.push_extra_block(&data);
+			return ctx.ast.add_node(SPLAT_EXPR, t.pos, ctx.current_pos(), ex);
 		}
 		case MINUSMINUS:
 		case PLUSPLUS:
 			{
-				advance(p)!;
-				Node right = parse_expr(p, Precedence.CALL)!;
+				advance(ctx)!;
+				Node right = parse_expr(ctx, Precedence.CALL)!;
 				uint[2] data = { (uint)t.kind, (uint)right };
 
-				uint ex = p.ast.push_extra_block(&data);
-				return p.ast.add_node(PRE_UNARY_EXPR, t.pos, p.current_pos(), ex);
+				uint ex = ctx.ast.push_extra_block(&data);
+				return ctx.ast.add_node(PRE_UNARY_EXPR, t.pos, ctx.current_pos(), ex);
 			}
 		case CT_FEATURE:
 		{
-			advance(p)!;
-			expect(p, LPAREN)!;
-			Node expr = parse_expr(p)!;
-			expect(p, RPAREN)!;
-			return p.ast.add_node(CT_FEATURE_EXPR, t.pos, p.current_pos(), (uint)expr);
+			advance(ctx)!;
+			expect(ctx, LPAREN)!;
+			Node expr = parse_expr(ctx)!;
+			expect(ctx, RPAREN)!;
+			return ctx.ast.add_node(CT_FEATURE_EXPR, t.pos, ctx.current_pos(), (uint)expr);
 		}
 		case LENGTHOF:
 		{
-			advance(p)!;
-			expect(p, LPAREN)!;
-			Node expr = parse_expr(p)!;
-			expect(p, RPAREN)!;
-			return p.ast.add_node(LENGTHOF_EXPR, t.pos, p.current_pos(), (uint)expr);
+			advance(ctx)!;
+			expect(ctx, LPAREN)!;
+			Node expr = parse_expr(ctx)!;
+			expect(ctx, RPAREN)!;
+			return ctx.ast.add_node(LENGTHOF_EXPR, t.pos, ctx.current_pos(), (uint)expr);
 		}
 		default:
 			log::error(
 				"parse_prefix_expr - Expected expression for token: ((%s) %s - %s)",
-				p.token_text(p.current()),
-				p.current().kind
+				ctx.token_text(ctx.current()),
+				ctx.current().kind
 			);
-			p.error("Expected expression");
+			ctx.error("Expected expression");
 			return EXPECTED_EXPRESSION~;
 	}
 }
@@ -380,9 +380,9 @@ fn Node? parse_prefix_expr(Parser* p)
 	Handles tokens that connect expressions (e.g. 1 + 2, obj.prop, arr[0])
 	It takes a pre-parsed "left" node and attaches a "right" side to it.
 *>
-fn Node? parse_infix(Parser* p, Node left, Precedence rbp)
+fn Node? parse_infix(ParseContext* ctx, Node left, Precedence rbp)
 {
-	Token t = p.current();
+	Token t = ctx.current();
 
 	switch (t.kind)
 	{
@@ -421,101 +421,101 @@ fn Node? parse_infix(Parser* p, Node left, Precedence rbp)
 		case CT_AND_OP: 
 		case CT_OR_OP:
 			{
-				advance(p)!;
-				Node right = parse_expr(p, rbp)!;
+				advance(ctx)!;
+				Node right = parse_expr(ctx, rbp)!;
 
 				uint[3] data = { (uint)left, (uint)right, (uint)t.kind };
-				uint ex = p.ast.push_extra_block(&data);
-				return p.ast.add_node(BINARY_EXPR, t.pos, p.current_pos(), ex);
+				uint ex = ctx.ast.push_extra_block(&data);
+				return ctx.ast.add_node(BINARY_EXPR, t.pos, ctx.current_pos(), ex);
 			}
 		case PLUSPLUS:
 		case MINUSMINUS:
 		case BANG:
 		case BANGBANG:
 			{
-				advance(p)!;
+				advance(ctx)!;
 				uint[2] data = { (uint)t.kind, (uint)left };
 
-				uint ex = p.ast.push_extra_block(&data);
-				return p.ast.add_node(POST_UNARY_EXPR, t.pos, p.current_pos(), ex);
+				uint ex = ctx.ast.push_extra_block(&data);
+				return ctx.ast.add_node(POST_UNARY_EXPR, t.pos, ctx.current_pos(), ex);
 			}
 		case LPAREN:
 			{
-				advance(p)!;
-				return parse_call(p, t, left)!;
+				advance(ctx)!;
+				return parse_call(ctx, t, left)!;
 			}
 		case LBRACE:
 		{
-			NodeKind kind = p.ast.get_kind(left);
+			NodeKind kind = ctx.ast.get_kind(left);
 
 			if (kind == TYPE_EXPR) 
 			{
-				Node list = parse_initializer_list(p)!; 
+				Node list = parse_initializer_list(ctx)!; 
 
 				uint[*] data = {
 					(uint)left,
 					(uint)list,
 				};
-				uint ex = p.ast.push_extra_block(&data);
-				return p.ast.add_node(COMPOUND_LITERAL_EXPR, t.pos, p.current_pos(), ex);
+				uint ex = ctx.ast.push_extra_block(&data);
+				return ctx.ast.add_node(COMPOUND_LITERAL_EXPR, t.pos, ctx.current_pos(), ex);
 			}
 			
-			return parse_generic_expr(p)!;
+			return parse_generic_expr(ctx)!;
 		}
 		case QUESTION:
 		case CT_TERNARY:
 			{
-				return parse_ternary(p, left);
+				return parse_ternary(ctx, left);
 			}
 		case DOT:
 		case SCOPE:
 			{
-				advance(p)!;
-				Token member_token = p.current();
+				advance(ctx)!;
+				Token member_token = ctx.current();
 
 				if (member_token.kind == LBRACKET)
 				{
-					advance(p)!;
-					Node deref_node = p.ast.add_node(MAYBE_DEREF_EXPR, member_token.pos, p.current_pos(), (uint)left);
-					return parse_range(p, deref_node, t.pos);
+					advance(ctx)!;
+					Node deref_node = ctx.ast.add_node(MAYBE_DEREF_EXPR, member_token.pos, ctx.current_pos(), (uint)left);
+					return parse_range(ctx, deref_node, t.pos);
 				}
 
-				if ((!is_type(p)) 
+				if ((!is_type(ctx)) 
 					&& member_token.kind != IDENT
 					&& member_token.kind != CONST_IDENT
 					&& member_token.kind != CT_IDENT
 					&& member_token.kind != TYPE_IDENT
 					&& member_token.kind != AT_IDENT)
 				{
-					p.error("Expected identifier after '.' got: %s", p.token_text(member_token));
+					ctx.error("Expected identifier after '.' got: %s", ctx.token_text(member_token));
 					return UNEXPECTED_TOKEN~;
 				}
-				advance(p)!;
+				advance(ctx)!;
 
-				uint sh = p.pool.intern(p.token_text(member_token));
-				Node member_node = p.ast.add_node(IDENT_EXPR, member_token.pos, p.current_pos(), sh);
+				uint sh = ctx.pool.intern(ctx.token_text(member_token));
+				Node member_node = ctx.ast.add_node(IDENT_EXPR, member_token.pos, ctx.current_pos(), sh);
 
 				uint[2] data = { (uint)left, (uint)member_node };
-				uint ex = p.ast.push_extra_block(&data);
-				return p.ast.add_node(ACCESS_EXPR, t.pos, p.current_pos(), ex);
+				uint ex = ctx.ast.push_extra_block(&data);
+				return ctx.ast.add_node(ACCESS_EXPR, t.pos, ctx.current_pos(), ex);
 			}
 		case BIT_NOT:
 			{
-				advance(p)!;
-				if (p.ast.get_kind(left) == TYPE_EXPR)
+				advance(ctx)!;
+				if (ctx.ast.get_kind(left) == TYPE_EXPR)
 				{
-					p.error("Expected a fault before '~'");
+					ctx.error("Expected a fault before '~'");
 					return UNEXPECTED_TOKEN~;
 				}
-				return p.ast.add_node(OPTIONAL_EXPR, t.pos, p.current_pos(), (uint)left);
+				return ctx.ast.add_node(OPTIONAL_EXPR, t.pos, ctx.current_pos(), (uint)left);
 			}
 		case LBRACKET:
 			{
-				advance(p)!;
-				return parse_range(p, left, t.pos)!;
+				advance(ctx)!;
+				return parse_range(ctx, left, t.pos)!;
 			}
 		default:
-			p.error("Unexpected infix token: %s", t.kind);
+			ctx.error("Unexpected infix token: %s", t.kind);
 			return UNEXPECTED_TOKEN~;
 	}
 }
@@ -523,20 +523,20 @@ fn Node? parse_infix(Parser* p, Node left, Precedence rbp)
 <*
 	parse expressions recursively with Pratt parsing
 	using Binding power.
-	@param [&inout] p
+	@param [&inout] ctx
 	@param min_bp : "Starting binding power, always call with 0, it will call itself recursively with other values"
 *>
-fn Node? parse_expr(Parser* p, Precedence min_bp = LOWEST)
+fn Node? parse_expr(ParseContext* ctx, Precedence min_bp = LOWEST)
 {
-	Node left = parse_prefix_expr(p)!;
+	Node left = parse_prefix_expr(ctx)!;
 
 	while (true)
 	{
 		int lbp, rbp;
-		get_binding_power(p.current().kind, &lbp, &rbp);
+		get_binding_power(ctx.current().kind, &lbp, &rbp);
 
 		// debug purposes
-		log::debug("Current Token: %s, LBP: %d, MinBP: %d", p.current().kind, lbp, min_bp);
+		log::debug("Current Token: %s, LBP: %d, MinBP: %d", ctx.current().kind, lbp, min_bp);
 
 		// BREAK if:
         // 1. Token is not an infix operator (lbp is -1)
@@ -546,63 +546,63 @@ fn Node? parse_expr(Parser* p, Precedence min_bp = LOWEST)
             break;
         }
 
-		left = parse_infix(p, left, (Precedence)rbp)!;
+		left = parse_infix(ctx, left, (Precedence)rbp)!;
 	}
 
-	if (min_bp == 0 && p.is(AT_IDENT))
+	if (min_bp == 0 && ctx.is(AT_IDENT))
 	{
-		Node attr = parse_attributes(p)!;
+		Node attr = parse_attributes(ctx)!;
 		uint[2] data = { (uint)left, (uint)attr };
-		uint ex = p.ast.push_extra_block(&data);
-		left = p.ast.add_node(ATTRIBUTED_EXPR, p.current().pos, p.current_pos(), ex);
+		uint ex = ctx.ast.push_extra_block(&data);
+		left = ctx.ast.add_node(ATTRIBUTED_EXPR, ctx.current().pos, ctx.current_pos(), ex);
 	}
 
 	return left;
 }
 
-fn Node? parse_constant_expr(Parser* p)
+fn Node? parse_constant_expr(ParseContext* ctx)
 {
-	return parse_expr(p, ASSIGNMENT + 1);
+	return parse_expr(ctx, ASSIGNMENT + 1);
 }
 
 <*
 	"Shortcut" for when a left node has already been parsed (like an identifier) 
 	and want to continue building an expression from that specific point without starting over
 *>
-fn Node? parse_expr_resuming_with_left(Parser* p, Node left, int min_bp)
+fn Node? parse_expr_resuming_with_left(ParseContext* ctx, Node left, int min_bp)
 {
 	while (true)
 	{
 		int lbp, rbp;
-		get_binding_power(p.current().kind, &lbp, &rbp);
+		get_binding_power(ctx.current().kind, &lbp, &rbp);
 		if ((int) lbp < min_bp) break;
 
-		left = parse_infix(p, left, (Precedence)rbp)!;
+		left = parse_infix(ctx, left, (Precedence)rbp)!;
 	}
 	return left;
 }
 
-fn Node? parse_ternary(Parser* p, Node condition)
+fn Node? parse_ternary(ParseContext* ctx, Node condition)
 {
-	uint start_tok = p.current_pos();
-	bool is_const = p.is(CT_TERNARY);
-	advance(p)!;
+	uint start_tok = ctx.current_pos();
+	bool is_const = ctx.is(CT_TERNARY);
+	advance(ctx)!;
 
-	Node then_expr = parse_expr(p, Precedence.LOWEST)!;
-	expect(p, COLON)!;
+	Node then_expr = parse_expr(ctx, Precedence.LOWEST)!;
+	expect(ctx, COLON)!;
 
-	Node else_expr = parse_expr(p, TERNARY)!;
+	Node else_expr = parse_expr(ctx, TERNARY)!;
 
 	uint[4] data = { (uint)condition, (uint)then_expr, (uint)else_expr, (uint)is_const };
-	uint ex = p.ast.push_extra_block(&data);
-	return p.ast.add_node(TERNARY_EXPR, start_tok, p.current_pos(), ex);
+	uint ex = ctx.ast.push_extra_block(&data);
+	return ctx.ast.add_node(TERNARY_EXPR, start_tok, ctx.current_pos(), ex);
 }
 
 <*
  	TODO: needs more safety checks?
 	TODO: needs better handling/control flow?
 *>
-fn Node? parse_call(Parser* p, Token t, Node callee)
+fn Node? parse_call(ParseContext* ctx, Token t, Node callee)
 {
 	Node trailing_block;
 	uint type_args_list_ex;
@@ -616,78 +616,78 @@ fn Node? parse_call(Parser* p, Token t, Node callee)
 			{
 				Node arg_node;
 
-				if (p.is(EOS))
+				if (ctx.is(EOS))
 				{
-					arg_node = p.ast.add_node(NONE_EXPR, p.current_pos(), p.current_pos(), 0);
-					advance(p)!;
+					arg_node = ctx.ast.add_node(NONE_EXPR, ctx.current_pos(), ctx.current_pos(), 0);
+					advance(ctx)!;
 					scratch.push((uint)arg_node);
-					arg_node = (Node)parse_parameter_list(p, { .is_call = true })!;
+					arg_node = (Node)parse_parameter_list(ctx, { .is_call = true })!;
 				}
 				else
 				{
-					arg_node = parse_type(p)!;
+					arg_node = parse_type(ctx)!;
 				}
 
 				scratch.push((uint)arg_node);
 
-				if (!p.is(COMMA) && !p.is(EOS)) 
+				if (!ctx.is(COMMA) && !ctx.is(EOS)) 
 				{
 					break;
 				}
 
-				advance(p)!;
+				advance(ctx)!;
 			}
 
-			expect(p, RBRACE)!;
+			expect(ctx, RBRACE)!;
 			// skip LPAREN, like parse_infix_expr would do on a non-generic call
-			advance(p)!;
+			advance(ctx)!;
 		}
 
-		type_args_list_ex = p.ast.push_extra_list(scratch_view(watermark, (uint)scratch.len() - watermark));
+		type_args_list_ex = ctx.ast.push_extra_list(scratch_view(watermark, (uint)scratch.len() - watermark));
 	};
 
 
 	uint args_list_ex;
 	@with_scratch(; watermark)
 	{
-		while (p.current().kind != RPAREN && p.current().kind != EOS && !p.eof())
+		while (ctx.current().kind != RPAREN && ctx.current().kind != EOS && !ctx.eof())
 		{
 			Node arg_node;
 			// Named argument logic (name: expr)
-			TokenKind kind = p.current().kind;
-			if ((kind == IDENT || kind == HASH_IDENT || kind == CT_IDENT) && p.peek().kind == COLON)
+			TokenKind kind = ctx.current().kind;
+			if ((kind == IDENT || kind == HASH_IDENT || kind == CT_IDENT) && ctx.peek().kind == COLON)
 			{
-				Token name_tok = p.current();
-				advance(p, 2)!;
-				uint name_sh = p.pool.intern(p.token_text(name_tok));
-				Node value = parse_expr(p)!;
+				Token name_tok = ctx.current();
+				advance(ctx, 2)!;
+				uint name_sh = ctx.pool.intern(ctx.token_text(name_tok));
+				Node value = parse_expr(ctx)!;
 				uint[2] data = { name_sh, (uint)value };
-				uint arg_ex = p.ast.push_extra_block(&data);
-				arg_node = p.ast.add_node(NAMED_ARG_EXPR, name_tok.pos, p.current_pos(), arg_ex);
+				uint arg_ex = ctx.ast.push_extra_block(&data);
+				arg_node = ctx.ast.add_node(NAMED_ARG_EXPR, name_tok.pos, ctx.current_pos(), arg_ex);
 			}
 			else
 			{
-				arg_node = parse_expr(p)!;
+				arg_node = parse_expr(ctx)!;
 			}
 
 			scratch.push((uint)arg_node);
-			if (!consume(p, COMMA)!) break;
+			if (!consume(ctx, COMMA)!) break;
 		}
 
-		if (consume(p, EOS)!)
+		if (consume(ctx, EOS)!)
 		{
-			macro_body_args = (Node)parse_parameter_list(p, { .is_call = true })!;
+			macro_body_args = (Node)parse_parameter_list(ctx, { .is_call = true })!;
 		}
 
-		expect(p, RPAREN)!;
-		args_list_ex = p.ast.push_extra_list(scratch_view(watermark, (uint)scratch.len() - watermark));
+		expect(ctx, RPAREN)!;
+		args_list_ex = ctx.ast.push_extra_list(scratch_view(watermark, (uint)scratch.len() - watermark));
 	};
 
-	Node attr = parse_attributes(p)!;
+	Node attr = parse_attributes(ctx)!;
 
-	if (p.is(LBRACE))
+	if (ctx.is(LBRACE))
 	{
-		trailing_block = parse_compound(p)!;
+		trailing_block = parse_compound(ctx)!;
 	}
 
 	uint[*] final_data = views::@data{CallViewFields}
@@ -698,22 +698,22 @@ fn Node? parse_call(Parser* p, Token t, Node callee)
 		COMPOUND, trailing_block,
 	);
 
-	uint ex = p.ast.push_extra_block(&final_data);
-	return p.ast.add_node(CALL_EXPR, t.pos, p.current_pos(), ex);
+	uint ex = ctx.ast.push_extra_block(&final_data);
+	return ctx.ast.add_node(CALL_EXPR, t.pos, ctx.current_pos(), ex);
 }
 
-fn Node? parse_designator_path(Parser* p)
+fn Node? parse_designator_path(ParseContext* ctx)
 {
 	Node path;
 
 	while (true) 
 	{
-		if (p.is(DOT)) 
+		if (ctx.is(DOT)) 
 		{
-			Token dot_tok = p.peek();
-			advance(p)!;
+			Token dot_tok = ctx.peek();
+			advance(ctx)!;
 
-			Node field = parse_expr(p, HIGHEST)!;
+			Node field = parse_expr(ctx, HIGHEST)!;
 
 			if (!path.is_valid()) 
 			{
@@ -722,34 +722,34 @@ fn Node? parse_designator_path(Parser* p)
 			else 
 			{
 				uint[2] data = { (uint)path, (uint)field };
-				uint ex = p.ast.push_extra_block(&data);
-				path = p.ast.add_node(DESIGNATOR_PERIOD_EXPR, dot_tok.pos, p.current_pos(), ex);
+				uint ex = ctx.ast.push_extra_block(&data);
+				path = ctx.ast.add_node(DESIGNATOR_PERIOD_EXPR, dot_tok.pos, ctx.current_pos(), ex);
 			}
 			continue;
 		}
 
-		if (p.is(LBRACKET)) 
+		if (ctx.is(LBRACKET)) 
 		{
-			Token open_tok = p.peek();
-			advance(p)!;
+			Token open_tok = ctx.peek();
+			advance(ctx)!;
 
-			Node start = parse_expr(p)!;
+			Node start = parse_expr(ctx)!;
 			Node end = {};
 			bool is_range = false;
 
-			if (p.is(DOTDOT) || p.is(COLON))
+			if (ctx.is(DOTDOT) || ctx.is(COLON))
 			{
 				is_range = true;
-				advance(p)!;
-				end = parse_expr(p)!;
+				advance(ctx)!;
+				end = parse_expr(ctx)!;
 			}
 
-			expect(p, RBRACKET)!;
+			expect(ctx, RBRACKET)!;
 
 			NodeKind kind = is_range ? DESIGNATOR_RANGE_EXPR : DESIGNATOR_INDEX_EXPR;
 			uint[3] data = { (uint)path, (uint)start, (uint)end };
-			uint ex = p.ast.push_extra_block(&data);
-			path = p.ast.add_node(kind, open_tok.pos, p.current_pos(), ex);
+			uint ex = ctx.ast.push_extra_block(&data);
+			path = ctx.ast.add_node(kind, open_tok.pos, ctx.current_pos(), ex);
 			continue;
 		}
 		break;
@@ -757,15 +757,15 @@ fn Node? parse_designator_path(Parser* p)
 	return path;
 }
 
-fn Node? parse_initializer_list(Parser* p)
+fn Node? parse_initializer_list(ParseContext* ctx)
 {
-	uint start_tok = p.current_pos();
-	expect(p, LBRACE)!;
+	uint start_tok = ctx.current_pos();
+	expect(ctx, LBRACE)!;
 
 	// Handle empty initializer {}
-	if (consume(p, RBRACE)!)
+	if (consume(ctx, RBRACE)!)
 	{
-		return p.ast.add_node(INITIALIZER_LIST, start_tok, p.current_pos(), 0);
+		return ctx.ast.add_node(INITIALIZER_LIST, start_tok, ctx.current_pos(), 0);
 	}
 
 	uint ex = 0;
@@ -775,18 +775,18 @@ fn Node? parse_initializer_list(Parser* p)
 		{
 			Node expr;
 
-			if (p.is(DOT) || p.is(LBRACKET))            
+			if (ctx.is(DOT) || ctx.is(LBRACKET))            
 			{
-				uint path_start = p.current_pos();
-				Node path = parse_designator_path(p)!;
+				uint path_start = ctx.current_pos();
+				Node path = parse_designator_path(ctx)!;
 
-				if (consume(p, EQ)!)
+				if (consume(ctx, EQ)!)
 				{
-					Node val = parse_expr(p, Precedence.LOWEST)!;
+					Node val = parse_expr(ctx, Precedence.LOWEST)!;
 
 					uint[2] data = { (uint)path, (uint)val };
-					uint pair_ex = p.ast.push_extra_block(&data);
-					expr = p.ast.add_node(DESIGNATED_INITIALIZER, path_start, p.current_pos(), pair_ex);
+					uint pair_ex = ctx.ast.push_extra_block(&data);
+					expr = ctx.ast.add_node(DESIGNATED_INITIALIZER, path_start, ctx.current_pos(), pair_ex);
 				}
 				else
 				{
@@ -795,32 +795,32 @@ fn Node? parse_initializer_list(Parser* p)
 				}
 			}
 			// Nested Initializer: { {1, 2}, {3, 4} }
-			else if (p.is(LBRACE))
+			else if (ctx.is(LBRACE))
 			{
-				expr = parse_initializer_list(p)!;
+				expr = parse_initializer_list(ctx)!;
 			}
 			else
 			{
-				expr = parse_expr(p)!;
+				expr = parse_expr(ctx)!;
 			}
 
 			scratch.push((uint)expr);
 
-			if (consume(p, RBRACE)!) break;
-			expect(p, COMMA)!;
+			if (consume(ctx, RBRACE)!) break;
+			expect(ctx, COMMA)!;
 
 			// Handle trailing comma
-			if (p.is(RBRACE)) 
+			if (ctx.is(RBRACE)) 
 			{ 
-				advance(p)!; 
+				advance(ctx)!; 
 				break; 
 			} 
 		}
 
-		ex = p.ast.push_extra_list(scratch_view(watermark, (uint)scratch.len() - watermark));
+		ex = ctx.ast.push_extra_list(scratch_view(watermark, (uint)scratch.len() - watermark));
 	};
 
-	return p.ast.add_node(INITIALIZER_LIST, start_tok, p.current_pos(), ex);
+	return ctx.ast.add_node(INITIALIZER_LIST, start_tok, ctx.current_pos(), ex);
 }
 
 /**
@@ -829,107 +829,107 @@ fn Node? parse_initializer_list(Parser* p)
  * dot_range ::= ('^'? INTEGER)? .. ('^'? INTEGER)?
  * colon_range ::= ('^'? INTEGER)? : ('^'? INTEGER)?
  */
-fn Node? parse_range(Parser* p, Node left, uint start_pos)
+fn Node? parse_range(ParseContext* ctx, Node left, uint start_pos)
 {
 	Node start;
 	Node end;
 	bool is_slice = false;
 
-	if (p.is(COLON) || p.is(DOTDOT))
+	if (ctx.is(COLON) || ctx.is(DOTDOT))
 	{
 		is_slice = true;
-		advance(p)!;
+		advance(ctx)!;
 	}
 	else
 	{
-		if (consume(p, BIT_XOR)!)
+		if (consume(ctx, BIT_XOR)!)
 		{
-			Node inner = parse_expr(p, LOWEST)!;
+			Node inner = parse_expr(ctx, LOWEST)!;
 			uint[2] data = { (uint)TokenKind.BIT_XOR, (uint)inner };
-			uint ex = p.ast.push_extra_block(&data);
-			start = p.ast.add_node(PREFIX_EXPR, p.current().pos, p.current_pos(), ex);
+			uint ex = ctx.ast.push_extra_block(&data);
+			start = ctx.ast.add_node(PREFIX_EXPR, ctx.current().pos, ctx.current_pos(), ex);
 		}
 		else
 		{
-			start = parse_expr(p, LOWEST)!;
+			start = parse_expr(ctx, LOWEST)!;
 		}
 
-		if (p.is(COLON) || p.is(DOTDOT))
+		if (ctx.is(COLON) || ctx.is(DOTDOT))
 		{
 			is_slice = true;
-			advance(p)!;
+			advance(ctx)!;
 		}
 	}
 
-	if (is_slice && !p.is(RBRACKET))
+	if (is_slice && !ctx.is(RBRACKET))
 	{
-		if (consume(p, BIT_XOR)!)
+		if (consume(ctx, BIT_XOR)!)
 		{
-			Node inner = parse_expr(p, LOWEST)!;
+			Node inner = parse_expr(ctx, LOWEST)!;
 			uint[2] data = { (uint)TokenKind.BIT_XOR, (uint)inner };
-			uint ex = p.ast.push_extra_block(&data);
-			end = p.ast.add_node(PREFIX_EXPR, p.current().pos, p.current_pos(), ex);
+			uint ex = ctx.ast.push_extra_block(&data);
+			end = ctx.ast.add_node(PREFIX_EXPR, ctx.current().pos, ctx.current_pos(), ex);
 		}
 		else
 		{
-			end = parse_expr(p, LOWEST)!;
+			end = parse_expr(ctx, LOWEST)!;
 		}
 	}
 
-	expect(p, RBRACKET)!;
+	expect(ctx, RBRACKET)!;
 
 	if (is_slice)
 	{
 		uint[2] slice_data = { (uint)start, (uint)end };
-		uint slice_ex = p.ast.push_extra_block(&slice_data);
-		Node slice_node = p.ast.add_node(SLICE_EXPR, start_pos, p.current_pos(), slice_ex);
+		uint slice_ex = ctx.ast.push_extra_block(&slice_data);
+		Node slice_node = ctx.ast.add_node(SLICE_EXPR, start_pos, ctx.current_pos(), slice_ex);
 
 		uint[2] access_data = { (uint)left, (uint)slice_node };
-		uint access_ex = p.ast.push_extra_block(&access_data);
-		return p.ast.add_node(INDEX_EXPR, start_pos, p.current_pos(), access_ex);
+		uint access_ex = ctx.ast.push_extra_block(&access_data);
+		return ctx.ast.add_node(INDEX_EXPR, start_pos, ctx.current_pos(), access_ex);
 	}
 
 	uint[2] data = { (uint)left, (uint)start };
-	uint ex = p.ast.push_extra_block(&data);
-	return p.ast.add_node(INDEX_EXPR, start_pos, p.current_pos(), ex);
+	uint ex = ctx.ast.push_extra_block(&data);
+	return ctx.ast.add_node(INDEX_EXPR, start_pos, ctx.current_pos(), ex);
 }
 
-fn Node? parse_ct_expr_list(Parser* p) => @with_scratch(; watermark)
+fn Node? parse_ct_expr_list(ParseContext* ctx) => @with_scratch(; watermark)
 {
-	uint start_pos = p.current().pos;
+	uint start_pos = ctx.current().pos;
 
 	while (true)
 	{
 		Node item;
 
-		if (p.is(VAR))
+		if (ctx.is(VAR))
 		{
 			ParseFlags flags = { 
 				.is_local = true,
 				.is_var = true,
 				.is_comptime = true 
 			};
-			item = parse_var_decl(p, flags)!;
+			item = parse_var_decl(ctx, flags)!;
 		}
-		else if (is_type(p))
+		else if (is_type(ctx))
 		{
 			ParseFlags flags = { 
 				.is_local = true,
 				.is_var = true,
 				.is_comptime = true 
 			};
-			item = parse_var_decl(p, flags)!;
+			item = parse_var_decl(ctx, flags)!;
 		}
 		else
 		{
-			item = parse_expr(p)!;
+			item = parse_expr(ctx)!;
 		}
 
 		scratch.push((uint)item);
 
-		if (!consume(p, COMMA)!) break;
+		if (!consume(ctx, COMMA)!) break;
 
-		TokenKind next = p.current().kind;
+		TokenKind next = ctx.current().kind;
 		if (next == EOS || next == COLON || next == RPAREN || next == RBRACKET)
 		{
 			break;
@@ -937,59 +937,59 @@ fn Node? parse_ct_expr_list(Parser* p) => @with_scratch(; watermark)
 	}
 
 	uint count = (uint)scratch.len() - watermark;
-	uint ex = p.ast.push_extra_list(scratch_view(watermark, count));
-	return p.ast.add_node(EXPR_LIST, start_pos, p.previous_pos(), ex);
+	uint ex = ctx.ast.push_extra_list(scratch_view(watermark, count));
+	return ctx.ast.add_node(EXPR_LIST, start_pos, ctx.previous_pos(), ex);
 }
 
-fn Node? parse_contract_expr(Parser* p, bool is_ensure)
+fn Node? parse_contract_expr(ParseContext* ctx, bool is_ensure)
 {
-    uint start_pos = p.current().pos;
-    Node expr = parse_expr(p)!;
+    uint start_pos = ctx.current().pos;
+    Node expr = parse_expr(ctx)!;
     Node comment;
 
-    if (consume(p, COLON)!)
+    if (consume(ctx, COLON)!)
     {
-        comment = parse_expr(p)!; 
+        comment = parse_expr(ctx)!; 
     }
 
     uint[3] entry_data = { (uint)expr, (uint)comment, is_ensure ? 1 : 0 };
-    uint entry_ex = p.ast.push_extra_block(&entry_data);
+    uint entry_ex = ctx.ast.push_extra_block(&entry_data);
     
-    return p.ast.add_node(CONTRACT_ENTRY, start_pos, p.current_pos(), entry_ex);
+    return ctx.ast.add_node(CONTRACT_ENTRY, start_pos, ctx.current_pos(), entry_ex);
 }
 
-fn Node? parse_expr_list(Parser* p) => @with_scratch(; watermark)
+fn Node? parse_expr_list(ParseContext* ctx) => @with_scratch(; watermark)
 {
-    uint start_pos = p.current().pos;
+    uint start_pos = ctx.current().pos;
 
-	while (!p.eof())	
+	while (!ctx.eof())	
 	{
-		scratch.push((uint)parse_decl_or_expr(p)!);
-		if (p.is(EOS) || !consume(p, COMMA)!) break;
+		scratch.push((uint)parse_decl_or_expr(ctx)!);
+		if (ctx.is(EOS) || !consume(ctx, COMMA)!) break;
 	}
 
     uint count = (uint)scratch.len() - watermark;
-	uint ex = p.ast.push_extra_list(scratch_view(watermark, count));
-    return p.ast.add_node(EXPR_LIST, start_pos, p.previous_pos(), ex);
+	uint ex = ctx.ast.push_extra_list(scratch_view(watermark, count));
+    return ctx.ast.add_node(EXPR_LIST, start_pos, ctx.previous_pos(), ex);
 }
 
-fn Node? parse_ct_defined_expr(Parser* p) => @with_scratch(; watermark)
+fn Node? parse_ct_defined_expr(ParseContext* ctx) => @with_scratch(; watermark)
 {
-    uint start_pos = p.current().pos;
-	expect(p, CT_DEFINED)!;
+    uint start_pos = ctx.current().pos;
+	expect(ctx, CT_DEFINED)!;
 
-	if (consume(p, LPAREN)!)
+	if (consume(ctx, LPAREN)!)
 	{
-		while (!p.is(RPAREN) && !p.eof())
+		while (!ctx.is(RPAREN) && !ctx.eof())
 		{
-			scratch.push((uint)parse_decl_or_expr(p)!);
+			scratch.push((uint)parse_decl_or_expr(ctx)!);
 
-			if (!consume(p, COMMA)!)
+			if (!consume(ctx, COMMA)!)
 			{
-				if (!consume(p, RPAREN)!)
+				if (!consume(ctx, RPAREN)!)
 				{
-					p.error("Expected closing ')'");
-					p.push_invalid_node(p.current_pos());
+					ctx.error("Expected closing ')'");
+					ctx.push_invalid_node(ctx.current_pos());
 					break;
 				}
 				break;
@@ -998,64 +998,64 @@ fn Node? parse_ct_defined_expr(Parser* p) => @with_scratch(; watermark)
 	}
 	else
 	{
-		p.error("expected '('");
-		p.push_invalid_node(p.current_pos());
+		ctx.error("expected '('");
+		ctx.push_invalid_node(ctx.current_pos());
 	}
 
 	uint count = (uint)scratch.len() - watermark;
-    uint exprs_list_ex = p.ast.push_extra_list(scratch_view(watermark, count));
+    uint exprs_list_ex = ctx.ast.push_extra_list(scratch_view(watermark, count));
 
     uint[1] entry_data = { exprs_list_ex };
-    uint entry_ex = p.ast.push_extra_block(&entry_data);
+    uint entry_ex = ctx.ast.push_extra_block(&entry_data);
 
-    return p.ast.add_node(CT_DEFINED_EXPR, start_pos, p.current_pos(), entry_ex);	
+    return ctx.ast.add_node(CT_DEFINED_EXPR, start_pos, ctx.current_pos(), entry_ex);	
 }
 
-fn Node? parse_decl_or_expr(Parser* p)
+fn Node? parse_decl_or_expr(ParseContext* ctx)
 {
-	if (p.is(VAR))
+	if (ctx.is(VAR))
 	{
-		return parse_var_decl(p, { .is_expr = true, .is_local = true, .skip_eos = true, .is_var = true })!;
+		return parse_var_decl(ctx, { .is_expr = true, .is_local = true, .skip_eos = true, .is_var = true })!;
 	}
 
 	// Need to check that its not a type expr
-	if (is_type(p) && is_declaration_followup(p))
+	if (is_type(ctx) && is_declaration_followup(ctx))
 	{
-		return parse_var_decl(p, { .is_expr = true, .is_local = true, .skip_eos = true })!;
+		return parse_var_decl(ctx, { .is_expr = true, .is_local = true, .skip_eos = true })!;
 	}
 
-	return parse_expr(p)!;
+	return parse_expr(ctx)!;
 }
 
-fn Node? parse_lambda(Parser* p)
+fn Node? parse_lambda(ParseContext* ctx)
 {
-	uint start_tok = p.current_pos();
-	expect(p, FN)!;
+	uint start_tok = ctx.current_pos();
+	expect(ctx, FN)!;
 
 	Node return_type;
-	if (!p.is(LPAREN))
+	if (!ctx.is(LPAREN))
 	{
-		return_type = parse_type(p)!;
+		return_type = parse_type(ctx)!;
 	}
 
-	Node params = parse_parameter_list(p)!;
-	Node attr = parse_attributes(p)!;
+	Node params = parse_parameter_list(ctx)!;
+	Node attr = parse_attributes(ctx)!;
 
 	Node body;
-	if (p.is(IMPLIES))
+	if (ctx.is(IMPLIES))
 	{
-		advance(p)!;
+		advance(ctx)!;
 		log::debug("parse_fn_decl - parse_short_body");
-		body = parse_expr(p)!;
+		body = parse_expr(ctx)!;
 	}
-	else if (p.is(LBRACE))
+	else if (ctx.is(LBRACE))
 	{
-		body = parse_compound(p)!;
+		body = parse_compound(ctx)!;
 	}
 	else
 	{
-		p.error("Expected the beginning of a block or a short statement.");
-		body = p.push_invalid_node(p.current_pos());
+		ctx.error("Expected the beginning of a block or a short statement.");
+		body = ctx.push_invalid_node(ctx.current_pos());
 	}
 
 	uint[*] data = views::@data{LambdaViewFields}
@@ -1065,41 +1065,41 @@ fn Node? parse_lambda(Parser* p)
 		BODY, body,
 	);
 
-	uint ex = p.ast.push_extra_block(&data);
-	return p.ast.add_node(LAMBDA_EXPR, start_tok, p.current_pos(), ex);
+	uint ex = ctx.ast.push_extra_block(&data);
+	return ctx.ast.add_node(LAMBDA_EXPR, start_tok, ctx.current_pos(), ex);
 }
 
-fn Node? parse_generic_expr(Parser* p) => @with_scratch(; watermark)
+fn Node? parse_generic_expr(ParseContext* ctx) => @with_scratch(; watermark)
 {
-	uint start_pos = p.current_pos();
-	expect(p, LBRACE)!;
+	uint start_pos = ctx.current_pos();
+	expect(ctx, LBRACE)!;
 
 	do
 	{
-		scratch.push((uint)parse_expr(p)!);
-		if (!consume(p, COMMA)!)
+		scratch.push((uint)parse_expr(ctx)!);
+		if (!consume(ctx, COMMA)!)
 		{
-			expect(p, RBRACE)!;
+			expect(ctx, RBRACE)!;
 			break;
 		}
 	}
-	while (!consume(p, RBRACE)!);
+	while (!consume(ctx, RBRACE)!);
 
 	uint count = (uint)scratch.len() - watermark;
-	uint ex = p.ast.push_extra_list(scratch_view(watermark, count));
-	return p.ast.add_node(GENERIC_IDENT_EXPR, start_pos, p.current_pos(), ex);
+	uint ex = ctx.ast.push_extra_list(scratch_view(watermark, count));
+	return ctx.ast.add_node(GENERIC_IDENT_EXPR, start_pos, ctx.current_pos(), ex);
 }
 
-fn Node? parse_bytes_expr(Parser* p)
+fn Node? parse_bytes_expr(ParseContext* ctx)
 {
-    uint start_pos = p.current_pos();
+    uint start_pos = ctx.current_pos();
     
     @with_scratch(; watermark)
     {
-        while (p.is(BYTES))
+        while (ctx.is(BYTES))
         {
-            Token tok = p.current();
-            String lexeme = p.token_text(tok);
+            Token tok = ctx.current();
+            String lexeme = ctx.token_text(tok);
             
             // Determine if it's hex or b64 based on the prefix
             bool is_hex = lexeme[0] == 'x';
@@ -1151,7 +1151,7 @@ fn Node? parse_bytes_expr(Parser* p)
 				}
             }
             
-            advance(p)!;
+            advance(ctx)!;
         }
 
         uint total_len = (uint)scratch.len() - watermark;
@@ -1161,7 +1161,7 @@ fn Node? parse_bytes_expr(Parser* p)
             return UNEXPECTED_TOKEN~;
         }
 
-        uint ex = p.ast.push_extra_list(scratch_view(watermark, (uint)total_len));
-        return p.ast.add_node(BYTES_LITERAL, start_pos, p.current_pos(), ex);
+        uint ex = ctx.ast.push_extra_list(scratch_view(watermark, (uint)total_len));
+        return ctx.ast.add_node(BYTES_LITERAL, start_pos, ctx.current_pos(), ex);
     };
 }

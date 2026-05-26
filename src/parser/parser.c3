@@ -80,7 +80,7 @@ bitstruct ParseFlags : ulong
 	bool skip_eos;
 }
 
-struct Parser
+struct ParseContext
 {
 	LineMap* line_map;
 	StringPool* pool;
@@ -94,19 +94,20 @@ struct Parser
 
 	uint pos;
 	Node contract;
+  	List{ParserError} errors @if($feature(C3_PARSER_LIB));
+
 	// for when using debbugers so i can keep track of what its at
 	Token current_token @if(env::DEBUG_SYMBOLS);
 	String current_token_string @if(env::DEBUG_SYMBOLS);
 	// bool allow_submodules;
 
-  List{ParserError} errors @if($feature(C3_PARSER_LIB));
 }
 
-fn void? Parser.skip_until(Parser* p, TokenKind[] targets)
+fn void? ParseContext.skip_until(ParseContext* ctx, TokenKind[] targets)
 {
-    while (!p.eof())
+    while (!ctx.eof())
     {
-        TokenKind current = p.current().kind;
+        TokenKind current = ctx.current().kind;
         
         foreach (t : targets)
         {
@@ -115,28 +116,28 @@ fn void? Parser.skip_until(Parser* p, TokenKind[] targets)
 
         if (current == EOS || current == RBRACE) return;
 
-        advance(p)!;
+        advance(ctx)!;
     }
 }
 
-fn Node Parser.push_invalid_node(Parser* p, uint start_pos)
+fn Node ParseContext.push_invalid_node(ParseContext* ctx, uint start_pos)
 {
-    uint end_pos = p.current_pos();
-    return p.ast.add_node(INVALID, start_pos, end_pos, 0);
+    uint end_pos = ctx.current_pos();
+    return ctx.ast.add_node(INVALID, start_pos, end_pos, 0);
 }
 
 <*
  synchronize the top level/recover top level
- @param [&inout] p
+ @param [&inout] ctx
 *>
-fn void? synchronize(Parser* p)
+fn void? synchronize(ParseContext* ctx)
 {
 	int brace_depth = 0;
 
-	while (!p.eof())
+	while (!ctx.eof())
 	{
-		Token t = p.current();
-		Location loc = p.line_map.resolve((Size)t.pos);
+		Token t = ctx.current();
+		Location loc = ctx.line_map.resolve((Size)t.pos);
 
 		// Track depth to ensure we aren't inside a body
 		if (t.kind == LBRACE) brace_depth++;
@@ -168,145 +169,145 @@ fn void? synchronize(Parser* p)
 
 		if (brace_depth <= 0 && t.kind == EOS)
 		{
-			advance(p)!;
+			advance(ctx)!;
 			return;
 		}
 
-		advance(p)!;
+		advance(ctx)!;
 	}
 }
 
-fn bool Parser.eof(&self) @inline
+fn bool ParseContext.eof(&self) @inline
 {
 	return self.pos >= self.tokens.len || self.is(EOF);
 }
 
-fn bool Parser.is(&self, TokenKind kind)
+fn bool ParseContext.is(&self, TokenKind kind)
 {
 	return self.tokens[self.pos].kind == kind;
 }
 
-fn Token Parser.current(&self) @inline
+fn Token ParseContext.current(&self) @inline
 {
 	return self.peek(0);
 }
 
-fn Token Parser.peek(&self, uint pos = 1) @inline
+fn Token ParseContext.peek(&self, uint pos = 1) @inline
 {
 	assert ((Size)self.pos + pos < self.tokens.len);
 	return self.tokens[(Size)self.pos + pos];
 }
 
-fn uint Parser.current_pos(Parser* self) @inline
+fn uint ParseContext.current_pos(ParseContext* self) @inline
 {
 	return self.current().pos;
 }
 
-fn uint Parser.previous_pos(Parser* self) @inline
+fn uint ParseContext.previous_pos(ParseContext* self) @inline
 {
 	return self.tokens[(Size)self.pos - 1].pos;
 }
 
-fn void Parser.print_current(&self)
+fn void ParseContext.print_current(&self)
 {
 	log::debug("%s", self.token_text(self.current()));
 }
 
-fn void? reverse(Parser* parser, uint position)
+fn void? reverse(ParseContext* ctx, uint position)
 {
-	parser.pos = position;
-	advance(parser, 0)!;
+	ctx.pos = position;
+	advance(ctx, 0)!;
 }
 
-fn void? Parser.advance(Parser* parser, uint len = 1)
+fn void? ParseContext.advance(ParseContext* ctx, uint len = 1)
 {
-	return advance(parser, len)!;
+	return advance(ctx, len)!;
 }
 
 <*
- @param [&inout] parser
+ @param [&inout] ctx
 *>
-fn void? advance(Parser* parser, uint len = 1)
+fn void? advance(ParseContext* ctx, uint len = 1)
 {
-	if (parser.eof())
+	if (ctx.eof())
 	{
 		log::debug("parser::advance() : eof");
 		return io::EOF~;
 	}
 
-	parser.pos += len;
+	ctx.pos += len;
 
 	$if env::DEBUG_SYMBOLS:
-    if (!parser.eof()) 
+    if (!ctx.eof()) 
     {
-        parser.current_token = parser.current();
-        parser.current_token_string = parser.token_text(parser.current());
+        ctx.current_token = ctx.current();
+        ctx.current_token_string = ctx.token_text(ctx.current());
     }
     else 
     {
-        parser.current_token_string = "EOF";
+        ctx.current_token_string = "EOF";
     }
     $endif
 }
 
 <*
  a macro just so that it logs where it happened
- @param [&inout] parser
+ @param [&inout] ctx
 *>
-macro void? expect(Parser* parser, TokenKind kind)
+macro void? expect(ParseContext* ctx, TokenKind kind)
 {
-	if (!parser.is(kind))
+	if (!ctx.is(kind))
 	{
-		parser.error("Expected '%s' got '%s'", kind.description, parser.current().kind.description);
+		ctx.error("Expected '%s' got '%s'", kind.description, ctx.current().kind.description);
 		log::error("Error happened here");
 	}
 	else
 	{
-		advance(parser)!;
+		advance(ctx)!;
 	}
 }
 
 <*
- @param [&inout] parser
+ @param [&inout] ctx
  @param kind : "type to consume"
 *>
-fn bool? consume(Parser* parser, TokenKind kind)
+fn bool? consume(ParseContext* ctx, TokenKind kind)
 {
-	if (parser.eof()) return io::EOF~;
-	if (parser.is(kind))
+	if (ctx.eof()) return io::EOF~;
+	if (ctx.is(kind))
 	{
-		advance(parser)!;
+		advance(ctx)!;
 		return true;
 	}
 
 	return false;
 }
 
-fn String Parser.token_text(Parser* self, Token t) @inline
+fn String ParseContext.token_text(ParseContext* self, Token t) @inline
 {
 	return self.src[t.pos:t.len];
 }
 
-fn String Parser.current_text(Parser* self) @inline
+fn String ParseContext.current_text(ParseContext* self) @inline
 {
 	return self.token_text(self.current());
 }
 
-fn String peek_module_name(Parser* p)
+fn String peek_module_name(ParseContext* ctx)
 {
-	if (p.tokens[0].kind == MODULE)
+	if (ctx.tokens[0].kind == MODULE)
 	{
 		// Start collecting the name after the 'module' keyword
 		String full_name = "";
 
 		Size i = 1;
-		while (i < p.tokens.len)
+		while (i < ctx.tokens.len)
 		{
-			Token t = p.tokens[i];
+			Token t = ctx.tokens[i];
 
 			if (t.kind == IDENT)
 			{
-				String part = p.token_text(t);
+				String part = ctx.token_text(t);
 				full_name = full_name.tconcat(part);
 			}
 			else if (t.kind == SCOPE)
@@ -332,11 +333,11 @@ fn String peek_module_name(Parser* p)
  Appends the nodes to the provided Modules Ast
  @param [&inout] ws
 *>
-fn Parser? parse(Workspace* ws, String uri, String src)
+fn ParseResult? parse(Workspace* ws, String uri, String src)
 {
-	Parser parser = { .mod = null, .pool = &ws.strings, .file_path = uri, .allocator = ws.allocator };
+	ParseContext ctx = { .mod = null, .pool = &ws.strings, .file_path = uri, .allocator = ws.allocator };
 	$if $feature(C3_PARSER_LIB):
-		parser.errors.init(ws.allocator);
+		ctx.errors.init(ws.allocator);
 	$endif
 
 	if (!scratch.is_initialized())
@@ -347,149 +348,85 @@ fn Parser? parse(Workspace* ws, String uri, String src)
 	scratch.clear();
 
 	Lexer lexer = { .buffer = src, .index = 0, };
-	parser.src = src;
+	ctx.src = src;
 
 	List{Token} tokens;
-	tokens.init(parser.allocator, 1000);
+	tokens.init(ctx.allocator, 1000);
 	defer tokens.free();
 	while (try token = lexer.next())
 	{
 		tokens.push(token);
-		log::debug("Added token: <%s> - %s", token.kind, parser.token_text(token));
+		log::debug("Added token: <%s> - %s", token.kind, ctx.token_text(token));
 	}
 
 	tokens.push({ .kind = EOF, .pos = (tokens.last().pos + tokens.last().len) ?? 0, .len = 0 });
-	parser.tokens = tokens.array_view();
+	ctx.tokens = tokens.array_view();
 
 	SourceFile* sf = ws.reset_source_file(uri);
 	sf.source = src;
-	parser.sf = sf;
-	parser.ast = &sf.ast;
-	parser.line_map = &sf.line_map;
-	parser.line_map.build(src);
+	ctx.sf = sf;
+	ctx.ast = &sf.ast;
+	ctx.line_map = &sf.line_map;
+	ctx.line_map.build(src);
 
 	log::info("parsing uri: %s", uri);
 
-	String mod_name = peek_module_name(&parser);
+	String mod_name = peek_module_name(&ctx);
 	if (mod_name == "")
 	{
 		mod_name = path_to_module_name(uri)!;
 
 		Module* mod = ws.get_or_create_module(mod_name);
-		ModuleSection* sec = ws.get_or_create_section(mod, parser.sf);
-		parser.mod = mod;
+		ModuleSection* sec = ws.get_or_create_section(mod, ctx.sf);
+		ctx.mod = mod;
 		sec.start_node_idx = 0;
 		log::info("Inferred module: %s", mod_name);
 	}
 
-	while (!parser.eof())
+	bool success = true;
+	while (!ctx.eof())
 	{
-		if (catch err = parse_top_level(&parser, ws))
+		if (catch err = parse_top_level(&ctx, ws))
 		{
+			success = false;
 			if (err == io::EOF)
 			{
 				break;
 			}
 
-			synchronize(&parser)!;
+			synchronize(&ctx)!;
 			continue;
 		}
 	}
 
-	if (try last_sec = parser.sf.sections.last())
+	if (try last_sec = ctx.sf.sections.last())
 	{
-		last_sec.end_node_idx = parser.sf.ast.len();
+		last_sec.end_node_idx = ctx.sf.ast.len();
 	}
 
 	log::info("Succesfully parsed: %s", uri);
-	return parser;
+
+	$if $feature(C3_PARSER_LIB):
+	log::info("Result: %s", ctx.errors.len());
+	return {
+        .success = success,
+		.path = uri,
+        .errors = ctx.errors
+    };
+	$else
+	return {
+		.path = uri,
+        .success = success,
+    };
+	$endif
 }
 
 <*
  Parse a specific file.
-  Appends the nodes to the provided Modules Ast
+ Appends the nodes to the provided Modules Ast
  @param [&inout] ws
 *>
-fn Parser? parse_file(Workspace* ws, String path) => parse(ws, path, (String)file::load(tmem, path)!);
-
-// {
-// 	Parser parser = { .mod = null, .pool = &ws.strings, .file_path = path, .allocator = ws.allocator };
-//
-// 	if (!scratch.is_initialized())
-// 	{
-// 		scratch.tinit(1000);
-// 	}
-//
-// 	scratch.clear();
-//
-// 	String src = (String)file::load(tmem, path)!;
-// 	Lexer lexer = { .buffer = src, .index = 0, };
-//
-// 	parser.src = src;
-//
-// 	List{Token} tokens;
-// 	tokens.init(parser.allocator, 1000);
-// 	defer tokens.free();
-// 	while (try token = lexer.next())
-// 	{
-// 		tokens.push(token);
-// 		log::debug("Added token: <%s> - %s", token.kind, parser.token_text(token));
-// 	}
-//
-// 	tokens.push({ .kind = EOF, .pos = (tokens.last().pos + tokens.last().len) ?? 0, .len = 0 });
-// 	parser.tokens = tokens.array_view();
-//
-// 	SourceFile* sf = ws.reset_source_file(path);
-// 	sf.source = src;
-// 	parser.sf = sf;
-// 	parser.ast = &sf.ast;
-// 	parser.line_map = &sf.line_map;
-// 	parser.line_map.build(src);
-//
-// 	// Module* mod = ws.get_or_create_module(mod_name);
-// 	// parser.mod = mod;
-//
-// 	log::info("parsing file: %s", path);
-//
-// 	// ModuleSection* section = workspace::get_or_create_section(mod, path);
-// 	// assert(section != null);
-// 	// section.source = src;
-// 	// section.start_node_idx = (uint)mod.ast.len();
-//
-// 	String mod_name = peek_module_name(&parser);
-// 	if (mod_name == "")
-// 	{
-// 		// parser.allow_submodules = false;
-// 		mod_name = path_to_module_name(path)!;
-//
-// 		Module* mod = ws.get_or_create_module(mod_name);
-// 		ModuleSection* sec = ws.get_or_create_section(mod, parser.sf);
-// 		parser.mod = mod;
-// 		sec.start_node_idx = 0;
-// 		log::info("Inferred module: %s", mod_name);
-// 	}
-//
-// 	while (!parser.eof())
-// 	{
-// 		if (catch err = parse_top_level(&parser, ws))
-// 		{
-// 			if (err == io::EOF)
-// 			{
-// 				break;
-// 			}
-//
-// 			synchronize(&parser)!;
-// 			continue;
-// 		}
-// 	}
-//
-// 	if (try last_sec = parser.sf.sections.last())
-// 	{
-// 		last_sec.end_node_idx = parser.sf.ast.len();
-// 	}
-//
-// 	log::info("Succesfully parsed: %s", path);
-// }
+fn ParseResult? parse_file(Workspace* ws, String path) => parse(ws, path, (String)file::load(tmem, path)!);
 
 fn String? path_to_module_name(String path)
 {
@@ -497,9 +434,9 @@ fn String? path_to_module_name(String path)
 	return base_name.strip_suffix(".c3");
 }
 
-fn void? parse_top_level(Parser* p, Workspace* ws)
+fn void? parse_top_level(ParseContext* ctx, Workspace* ws)
 {
-	log::debug("parse_top_level: %s", p.token_text(p.current()));
+	log::debug("parse_top_level: %s", ctx.token_text(ctx.current()));
 
 	Node node;
 	ParseFlags flags = { .is_global = true };
@@ -507,21 +444,21 @@ fn void? parse_top_level(Parser* p, Workspace* ws)
 	// the individual parse functions will check that the modifiers are used appropiately
 	while (true)
 	{
-		Token t = p.current();
+		Token t = ctx.current();
 
 		if (t.kind == EXTERN)
 		{
-			if (flags.is_extern) p.error("Duplicate 'extern' modifier");
+			if (flags.is_extern) ctx.error("Duplicate 'extern' modifier");
 			flags.is_extern = true;
 		}
 		else if (t.kind == TLOCAL)
 		{
-			if (flags.is_thread_local) p.error("Duplicate 'tlocal' modifier");
+			if (flags.is_thread_local) ctx.error("Duplicate 'tlocal' modifier");
 			flags.is_thread_local = true;
 		}
 		else if (t.kind == INLINE)
 		{
-			if (flags.is_inline) p.error("Duplicate 'inline' modifier");
+			if (flags.is_inline) ctx.error("Duplicate 'inline' modifier");
 			flags.is_inline = true;
 		}
 		else
@@ -529,34 +466,34 @@ fn void? parse_top_level(Parser* p, Workspace* ws)
 			break;
 		}
 
-		advance(p)!;
+		advance(ctx)!;
 	}
 
-	if (is_type(p))
+	if (is_type(ctx))
 	{
-		node = parse_var_decl(p, flags)!;
+		node = parse_var_decl(ctx, flags)!;
 		if (node.is_valid())
 		{
-			p.ast.top_level_nodes.push((uint)node);
+			ctx.ast.top_level_nodes.push((uint)node);
 			return;
 		}
 	}
 
-	if (p.current().kind == IMPORT)
+	if (ctx.current().kind == IMPORT)
 	{
-		advance(p)!;
+		advance(ctx)!;
 		while (true)
 		{
-			uint start = p.current_pos();
+			uint start = ctx.current_pos();
 
-			Node? path_node = parse_path(p);
+			Node? path_node = parse_path(ctx);
 			if (catch err = path_node)
 			{
-				p.error("failed to parse path for module: %s", err);
+				ctx.error("failed to parse path for module: %s", err);
 				return err~;
 			}
 
-			Node attr = parse_attributes(p)!;
+			Node attr = parse_attributes(ctx)!;
 
 			uint[*] data = views::@data{ImportViewFields}
 			(
@@ -564,74 +501,74 @@ fn void? parse_top_level(Parser* p, Workspace* ws)
 				ATTRIBUTES, attr,
 			);
 
-			uint ex = p.ast.push_extra_block(&data);
-			Node imp_node = p.ast.add_node(IMPORT_DECL, start, p.current_pos(), ex);
-			p.ast.top_level_nodes.push((uint)imp_node);
-			if (!consume(p, COMMA)!) break;
+			uint ex = ctx.ast.push_extra_block(&data);
+			Node imp_node = ctx.ast.add_node(IMPORT_DECL, start, ctx.current_pos(), ex);
+			ctx.ast.top_level_nodes.push((uint)imp_node);
+			if (!consume(ctx, COMMA)!) break;
 		}
-		expect(p, EOS)!;
+		expect(ctx, EOS)!;
 		return;
 	}
 
-	switch (p.current().kind)
+	switch (ctx.current().kind)
 	{
 		case CONTRACT:
-			node = parse_contract(p)!;
-			p.contract = node;
+			node = parse_contract(ctx)!;
+			ctx.contract = node;
 		case INTERFACE:
-			node = parse_interface(p)!;
+			node = parse_interface(ctx)!;
 		case MODULE:
-			node = parse_module(p, ws)!;
+			node = parse_module(ctx, ws)!;
 		case FAULTDEF:
-			node = parse_faultdef_decl(p)!;
+			node = parse_faultdef_decl(ctx)!;
 		case FN:
-			node = parse_fn_decl(p, flags)!;
+			node = parse_fn_decl(ctx, flags)!;
 		case MACRO:
-			node = parse_macro_decl(p)!;
+			node = parse_macro_decl(ctx)!;
 		case ALIAS:
-			node = parse_alias(p)!;
+			node = parse_alias(ctx)!;
 		case TYPEDEF:
-			node = parse_typedef(p)!;
+			node = parse_typedef(ctx)!;
 		case ATTRDEF:
-			node = parse_attrdef(p)!;
+			node = parse_attrdef(ctx)!;
 		case UNION:
 		case STRUCT:
-			node = parse_struct(p)!;
+			node = parse_struct(ctx)!;
 		case BITSTRUCT:
-			node = parse_bitstruct_decl(p)!;
+			node = parse_bitstruct_decl(ctx)!;
 		case CONSTDEF:
 			flags.is_constdef = true;
-			node = parse_enum(p, flags)!;
+			node = parse_enum(ctx, flags)!;
 		case ENUM:
-			node = parse_enum(p, flags)!;
+			node = parse_enum(ctx, flags)!;
 		case CONST:
 			flags.is_const = true;
-			advance(p)!;
-			node = parse_var_decl(p, flags)!;
+			advance(ctx)!;
+			node = parse_var_decl(ctx, flags)!;
 		case CT_EXPAND:
-			node = parse_expand_decl(p)!;
+			node = parse_expand_decl(ctx)!;
 		case CT_ASSERT:
-			uint start_pos = p.current_pos();
-			Node stmt = parse_ct_assert(p)!;
-			node = p.ast.add_node(CT_ASSERT_DECL, start_pos, p.current_pos(), (uint)stmt);
+			uint start_pos = ctx.current_pos();
+			Node stmt = parse_ct_assert(ctx)!;
+			node = ctx.ast.add_node(CT_ASSERT_DECL, start_pos, ctx.current_pos(), (uint)stmt);
 		case EOS:
-			p.error("<EOS> appeared in parse_top_level");
-			advance(p)!;
+			ctx.error("<EOS> appeared in parse_top_level");
+			advance(ctx)!;
 			return UNEXPECTED_EOS~;
 		default:
-			p.error("Couldn't find any matching top level declaration: %s", string::from_struct(tmem, p.current()));
+			ctx.error("Couldn't find any matching top level declaration: %s", string::from_struct(tmem, ctx.current()));
 			return UNEXPECTED_TOKEN~;
 	}
 
 	// if (node.is_valid())
 	// {
-	p.ast.top_level_nodes.push((uint)node);
+	ctx.ast.top_level_nodes.push((uint)node);
 
-	if (p.contract.is_valid())
+	if (ctx.contract.is_valid())
 	{
-		attach_contract(p, node, p.contract);
+		attach_contract(ctx, node, ctx.contract);
 	}
 
-	p.contract = {};
+	ctx.contract = {};
 	// }
 }
