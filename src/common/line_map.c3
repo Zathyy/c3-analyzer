@@ -30,6 +30,8 @@ fn void LineMap.build(LineMap* self, String src)
 		self.line_offsets.tinit(100);
 	}
 
+	self.clear();
+
 	self.line_offsets.push(0);
 
 	for (Size i = 0; i < src.len; i++)

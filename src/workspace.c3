@@ -117,6 +117,7 @@ fn SourceFile* Workspace.reset_source_file(&self, PathString path)
 				&&(Pair{String, Allocator}) {path, self.allocator}
 			);
 		}
+		existing.ast.clear();
 		existing.sections.clear();
 		return existing;
 	}
