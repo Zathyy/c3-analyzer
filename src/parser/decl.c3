@@ -1330,6 +1330,8 @@ fn Node? parse_expand_decl(ParseContext* ctx)
 
 	Node attributes = parse_attributes(ctx)!;
 
+	expect(ctx, EOS)!;
+
 	uint[2] data = views::@data{ExpandDeclViewFields}(
 		EXPR, expr,
 		ATTRIBUTES, attributes,
