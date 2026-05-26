@@ -470,34 +470,7 @@ fn Node? parse_infix(ParseContext* ctx, Node left, Precedence rbp)
 		case DOT:
 		case SCOPE:
 			{
-				advance(ctx)!;
-				Token member_token = ctx.current();
-
-				if (member_token.kind == LBRACKET)
-				{
-					advance(ctx)!;
-					Node deref_node = ctx.ast.add_node(MAYBE_DEREF_EXPR, member_token.pos, ctx.current_pos(), (uint)left);
-					return parse_range(ctx, deref_node, t.pos);
-				}
-
-				if ((!is_type(ctx)) 
-					&& member_token.kind != IDENT
-					&& member_token.kind != CONST_IDENT
-					&& member_token.kind != CT_IDENT
-					&& member_token.kind != TYPE_IDENT
-					&& member_token.kind != AT_IDENT)
-				{
-					ctx.error("Expected identifier after '.' got: %s", ctx.token_text(member_token));
-					return UNEXPECTED_TOKEN~;
-				}
-				advance(ctx)!;
-
-				uint sh = ctx.pool.intern(ctx.token_text(member_token));
-				Node member_node = ctx.ast.add_node(IDENT_EXPR, member_token.pos, ctx.current_pos(), sh);
-
-				uint[2] data = { (uint)left, (uint)member_node };
-				uint ex = ctx.ast.push_extra_block(&data);
-				return ctx.ast.add_node(ACCESS_EXPR, t.pos, ctx.current_pos(), ex);
+				return parse_access_expr(ctx, left);
 			}
 		case BIT_NOT:
 			{
@@ -1088,6 +1061,62 @@ fn Node? parse_generic_expr(ParseContext* ctx) => @with_scratch(; watermark)
 	uint count = (uint)scratch.len() - watermark;
 	uint ex = ctx.ast.push_extra_list(scratch_view(watermark, count));
 	return ctx.ast.add_node(GENERIC_IDENT_EXPR, start_pos, ctx.current_pos(), ex);
+}
+
+fn Node? parse_access_expr(ParseContext* ctx, Node left)
+{
+	uint start_tok = ctx.current_pos();
+	advance(ctx)!;
+	Token member_token = ctx.current();
+
+	if (member_token.kind == LBRACKET)
+	{
+		advance(ctx)!;
+		Node deref_node = ctx.ast.add_node(MAYBE_DEREF_EXPR, member_token.pos, ctx.current_pos(), (uint)left);
+		return parse_range(ctx, deref_node, start_tok);
+	}
+
+	Node member_node;
+
+	if (member_token.kind == CT_EVAL)
+	{
+		advance(ctx)!;
+		if (ctx.current().kind != LPAREN)
+		{
+			ctx.error("Expected '(' after '$eval' got: %s", ctx.token_text(ctx.current()));
+			return UNEXPECTED_TOKEN~;
+		}
+		advance(ctx)!;
+
+		member_node = parse_expr(ctx)!;
+		if (ctx.current().kind != RPAREN)
+		{
+			ctx.error("Expected ')' after '$eval(...' got: %s", ctx.token_text(ctx.current()));
+			return UNEXPECTED_TOKEN~;
+		}
+		advance(ctx)!;
+	} 
+	else
+	{
+		if ((!is_type(ctx)) 
+				 && member_token.kind != IDENT
+				 && member_token.kind != CONST_IDENT
+				 && member_token.kind != CT_IDENT
+				 && member_token.kind != TYPE_IDENT
+				 && member_token.kind != AT_IDENT)
+		{
+			ctx.error("Expected identifier or '$eval(...)' after '.' got: %s", ctx.token_text(member_token));
+			return UNEXPECTED_TOKEN~;
+		}
+		advance(ctx)!;
+
+		uint sh = ctx.pool.intern(ctx.token_text(member_token));
+		member_node = ctx.ast.add_node(IDENT_EXPR, member_token.pos, ctx.current_pos(), sh);
+	}
+
+	uint[2] data = { (uint)left, (uint)member_node };
+	uint ex = ctx.ast.push_extra_block(&data);
+	return ctx.ast.add_node(ACCESS_EXPR, start_tok, ctx.current_pos(), ex);
 }
 
 fn Node? parse_bytes_expr(ParseContext* ctx)
