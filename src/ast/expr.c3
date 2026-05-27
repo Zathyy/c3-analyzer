@@ -5,7 +5,7 @@ import std::collections::list;
 
 struct BinaryExpr
 {
-    Node* left;
-    Node* right;
-    OperatorKind op;
+	Node* left;
+	Node* right;
+	OperatorKind op;
 }

@@ -5,11 +5,19 @@ import std::collections::list;
 
 struct IntLiteral
 {
-    long value;
+	long value;
 }
 
 struct StringLiteral
 {
-    String value;
+	String value;
 }
 
+struct Attribute
+{
+	String name;
+	AttributeKind kind;
+	NodeArray args;
+}
+
+alias AttributeList = Attribute*[];

@@ -7,14 +7,14 @@ typedef FileID = ushort;
  
 struct Location
 {
-	Size line;
-	Size column;
+	sz line;
+	sz column;
 }
 
 struct Range
 {
-	Size start;
-	Size end;
+	sz start;
+	sz end;
 }
 
 enum AttributeKind

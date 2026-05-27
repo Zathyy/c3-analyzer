@@ -5,12 +5,12 @@ import std::collections::list;
 
 struct IfStmt
 {
-    Node* condition;
-    Node* then_block;
-    Node* else_block;
+	Node* condition;
+	Node* then_block;
+	Node* else_block;
 }
 
 struct CompoundStmt
 {
-    Node*[] statements;
+	NodeArray statements;
 }
