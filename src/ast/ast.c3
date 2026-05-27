@@ -82,12 +82,14 @@ fn sz Ast.next_node_idx(&self) => self.top_level_nodes.len();
 fn void Ast.clear(&self)
 {
 	self.arena.reset();
+	self.string_pool.clear();
 	self.top_level_nodes.clear();
 }
 
 fn void Ast.free(&self)
 {
 	self.top_level_nodes.free();
+	self.string_pool.free();
 	self.arena.free();
 }
 
