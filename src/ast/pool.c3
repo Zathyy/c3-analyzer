@@ -16,12 +16,10 @@ struct AstPoolMember
 	bool free;
 }
 
-fn AstPool new(Allocator backing_allocator = mem)
+fn void AstPool.init(&self, Allocator backing_allocator = mem)
 {
-	List{AstPoolMember} pool;
-	pool.init_with_array(backing_allocator, { [0..INIT_POOL_SIZE-1] = { .ast = ast::new(backing_allocator), .free = true } });
-
-	return { .allocator = backing_allocator, .pool = pool };
+	self.allocator = backing_allocator;
+	self.pool.init_with_array(backing_allocator, { [0..INIT_POOL_SIZE-1] = { .ast = ast::new(backing_allocator), .free = true } });
 }
 
 fn Ast* AstPool.obtain(&self)

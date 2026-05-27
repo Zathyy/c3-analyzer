@@ -8,6 +8,7 @@ import std::collections::list;
 import std::collections::pair;
 
 import parser::ast @norecurse;
+import parser::ast::pool @norecurse;
 import std::io;
 
 faultdef
@@ -22,7 +23,7 @@ struct SourceFile
 	String source;
 	LineMap line_map;
 	List{ModuleSection*} sections;
-	Ast ast;
+	Ast* ast;
 }
 
 struct ModuleSection
@@ -45,6 +46,7 @@ struct Workspace
 {
 	HashMap{PathString, SourceFile*} source_files;
 	HashMap{String, Module*} modules;
+	AstPool ast_pool;
 	Allocator allocator;
 }
 
@@ -53,6 +55,7 @@ fn void Workspace.init(&self, Allocator allocator = mem)
 	self.allocator = allocator;
 	self.modules.init(allocator, 16);
 	self.source_files.init(allocator, 16);
+	self.ast_pool.init(allocator);
 }
 
 fn void Workspace.free(&self)
@@ -81,6 +84,7 @@ fn SourceFile* Workspace.reset_source_file(&self, PathString path)
 {			
 	if (try existing = self.source_files.get(path))
 	{
+		self.ast_pool.release(existing.ast)!!;
 		foreach (section : existing.sections)
 		{
 			section.parent_module.sections.remove_using_test(
@@ -104,7 +108,7 @@ fn SourceFile* Workspace.reset_source_file(&self, PathString path)
 	sf.file_path = path;
 	sf.sections.init(self.allocator, 4);
 
-	sf.ast.init(self.allocator);
+	sf.ast = self.ast_pool.obtain();
 
 	self.source_files.set(path, sf);
 	return sf;

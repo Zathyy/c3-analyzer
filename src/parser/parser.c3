@@ -329,6 +329,7 @@ fn String peek_module_name(ParseContext* ctx) => @pool()
 fn ParseResult? parse(Workspace* ws, String uri, String src)
 {
 	ParseContext ctx = { .mod = null, .file_path = uri, .allocator = ws.allocator };
+
 	$if $feature(PARSER_LIB):
 		ctx.errors.init(ws.allocator);
 	$endif
@@ -359,7 +360,7 @@ fn ParseResult? parse(Workspace* ws, String uri, String src)
 	SourceFile* sf = ws.reset_source_file(uri);
 	sf.source = src;
 	ctx.sf = sf;
-	ctx.ast = &sf.ast;
+	ctx.ast = sf.ast;
 	ctx.line_map = &sf.line_map;
 	ctx.line_map.build(src);
 
