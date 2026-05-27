@@ -4,7 +4,6 @@ import utils::ast;
 import std::io;
 import parser::workspace;
 import parser::parser;
-import parser::cursor;
 import std::collections::maybe;
 import seali;
 
@@ -57,27 +56,13 @@ fn int main(String[] args) => @pool()
 		{
 			foreach (section : mod.sections) 
 			{
-				foreach (i, root_node : section.source_file.ast.top_level_nodes)
-				{
-					bool is_last = (i == section.source_file.ast.top_level_nodes.len() - 1);
-					Cursor c = { section, (Node)root_node };
-
-					utils::ast::panic_on_invalid(c, {null, {}}, null, is_last);
-				}
+				
 			}
 		};
 	}
 
 	if (!cli.no_dump)
 	{
-		if (cli.json)
-		{
-			ast::dump_workspace_json(&ws, "ast-debug/")!!;
-		}
-		else
-		{
-			ast::dump_workspace(&ws);
-		}
 	}
 
 	return 0;

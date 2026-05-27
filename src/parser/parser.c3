@@ -85,8 +85,9 @@ struct ParseContext
 	String file_path; // current file being parsed
 	String src;
 	Allocator allocator;
+	Allocator arena;
 
-	uint pos;
+	int pos;
 	Node contract;
   	List{ParserError} errors @if($feature(PARSER_LIB));
 
@@ -111,7 +112,7 @@ fn Node* new_node(ParseContext* ctx, NodeKind kind, int start)
     
     node.kind = kind;
     node.start_token = start;
-    node.end_token = ctx.current_pos();
+    node.end_token = ctx.peek().pos;
 
 	return node;
 }
@@ -120,7 +121,7 @@ fn void? ParseContext.skip_until(ParseContext* ctx, TokenKind[] targets)
 {
     while (!ctx.eof())
     {
-        TokenKind current = ctx.current().kind;
+        TokenKind current = ctx.peek(0).kind;
         
         foreach (t : targets)
         {
@@ -133,11 +134,6 @@ fn void? ParseContext.skip_until(ParseContext* ctx, TokenKind[] targets)
     }
 }
 
-fn Node* ParseContext.push_invalid_node(ParseContext* ctx, uint start_pos) @inline
-{
-   	return new_node(ctx, INVALID, start_pos);
-}
-
 <*
  synchronize the top level/recover top level
  @param [&inout] ctx
@@ -148,8 +144,8 @@ fn void? synchronize(ParseContext* ctx)
 
 	while (!ctx.eof())
 	{
-		Token t = ctx.current();
-		Location loc = ctx.line_map.resolve((Size)t.pos);
+		Token t = ctx.peek();
+		Location loc = ctx.line_map.resolve((sz)t.pos);
 
 		// Track depth to ensure we aren't inside a body
 		if (t.kind == LBRACE) brace_depth++;
@@ -199,7 +195,7 @@ fn bool ParseContext.is(&self, TokenKind kind)
 	return self.tokens[self.pos].kind == kind;
 }
 
-fn Token ParseContext.peek(&self, int pos = 1) @inline
+fn Token ParseContext.peek(&self, int pos = 0) @inline
 {
 	assert ((sz)self.pos + pos < self.tokens.len);
 	return self.tokens[(sz)self.pos + pos];
@@ -207,7 +203,7 @@ fn Token ParseContext.peek(&self, int pos = 1) @inline
 
 fn void ParseContext.print_current(&self)
 {
-	log::debug("%s", self.token_text(self.current()));
+	log::debug("%s", self.token_text(self.peek(0)));
 }
 
 fn void? reverse(ParseContext* ctx, int position)
@@ -237,8 +233,8 @@ fn void? advance(ParseContext* ctx, int len = 1)
 	$if env::DEBUG_SYMBOLS:
     if (!ctx.eof()) 
     {
-        ctx.current_token = ctx.current();
-        ctx.current_token_string = ctx.token_text(ctx.current());
+        ctx.current_token = ctx.peek();
+        ctx.current_token_string = ctx.token_text(ctx.peek());
     }
     else 
     {
@@ -287,7 +283,7 @@ fn String ParseContext.token_text(ParseContext* self, Token t) @inline
 
 fn String ParseContext.current_text(ParseContext* self) @inline
 {
-	return self.token_text(self.current());
+	return self.token_text(self.peek(0));
 }
 
 fn String peek_module_name(ParseContext* ctx) => @pool()
@@ -332,8 +328,8 @@ fn String peek_module_name(ParseContext* ctx) => @pool()
 *>
 fn ParseResult? parse(Workspace* ws, String uri, String src)
 {
-	ParseContext ctx = { .mod = null, .pool = &ws.strings, .file_path = uri, .allocator = ws.allocator };
-	$if $feature(parser_LIB):
+	ParseContext ctx = { .mod = null, .file_path = uri, .allocator = ws.allocator };
+	$if $feature(PARSER_LIB):
 		ctx.errors.init(ws.allocator);
 	$endif
 
@@ -401,14 +397,9 @@ fn ParseResult? parse(Workspace* ws, String uri, String src)
 		}
 	}
 
-	if (try last_sec = ctx.sf.sections.last())
-	{
-		last_sec.end_node_idx = ctx.sf.ast.len();
-	}
-
 	log::info("Succesfully parsed: %s", uri);
 
-	$if $feature(parser_LIB):
+	$if $feature(PARSER_LIB):
 	log::info("Result: %s", ctx.errors.len());
 	return {
         .success = success,
@@ -438,10 +429,12 @@ fn String? path_to_module_name(String path)
 
 fn void? parse_top_level(ParseContext* ctx, Workspace* ws)
 {
-	log::debug("parse_top_level: %s", ctx.token_text(ctx.current()));
+	log::debug("parse_top_level: %s", ctx.token_text(ctx.peek()));
 
 	Node node;
 	ParseFlags flags = { .is_global = true };
+
+	/*
 
 	// the individual parse functions will check that the modifiers are used appropiately
 	while (true)
@@ -573,4 +566,6 @@ fn void? parse_top_level(ParseContext* ctx, Workspace* ws)
 
 	ctx.contract = {};
 	// }
+
+	*/
 }

@@ -8,7 +8,6 @@ import std::collections::list;
 import std::collections::pair;
 
 import parser::ast @norecurse;
-import parser::cursor;
 import std::io;
 
 faultdef
@@ -24,7 +23,6 @@ struct SourceFile
 	LineMap line_map;
 	List{ModuleSection*} sections;
 	Ast ast;
-	StringPool* strings;
 }
 
 struct ModuleSection
@@ -39,7 +37,6 @@ struct Module
 {
 	String name;
 	List{ModuleSection*} sections;
-	StringPool* strings;
 }
 
 alias PathString = String;
@@ -48,29 +45,12 @@ struct Workspace
 {
 	HashMap{PathString, SourceFile*} source_files;
 	HashMap{String, Module*} modules;
-	StringPool strings;
 	Allocator allocator;
-}
-
-fn List{uint} ModuleSection.top_level_nodes(&self)
-{
-	List{uint} top_level_nodes;
-	top_level_nodes.tinit(self.source_file.ast.top_level_nodes.len() / self.source_file.sections.len());
-	foreach (node : self.source_file.ast.top_level_nodes)
-	{
-		if (node >= self.start_node_idx && node < self.end_node_idx)
-		{
-			top_level_nodes.push(node);
-		}
-	}
-
-	return top_level_nodes;
 }
 
 fn void Workspace.init(&self, Allocator allocator = mem)
 {
 	self.allocator = allocator;
-	self.strings.init(allocator);
 	self.modules.init(allocator, 16);
 	self.source_files.init(allocator, 16);
 }
@@ -95,7 +75,6 @@ fn void Workspace.free(&self)
 		alloc::free(self.allocator, mod);
 	};
 	self.modules.free();
-	self.strings.free();
 } 
 
 fn SourceFile* Workspace.reset_source_file(&self, PathString path)
@@ -124,9 +103,8 @@ fn SourceFile* Workspace.reset_source_file(&self, PathString path)
 	SourceFile* sf = alloc::new(self.allocator, SourceFile);
 	sf.file_path = path;
 	sf.sections.init(self.allocator, 4);
-	sf.strings = &self.strings;
 
-	sf.ast.init(self.allocator, 100);
+	sf.ast.init(self.allocator);
 
 	self.source_files.set(path, sf);
 	return sf;
@@ -142,7 +120,6 @@ fn Module* Workspace.get_or_create_module(&self, String name)
 	Module* mod = alloc::new(self.allocator, Module);
 	mod.name = name;
 	mod.sections.init(self.allocator, 4);
-	mod.strings = &self.strings;
 
 	self.modules.set(name, mod);
 	return mod;
@@ -188,24 +165,6 @@ fn List{ModuleSection*} Workspace.find_section_by_path(&self, String file_path)
 	return sections;
 }
 
-fn Cursor Workspace.find_at_location(&self, String file_path, Location loc)
-{
-	List{ModuleSection*} secs = self.find_section_by_path(file_path);
-	if (secs.len() == 0) return { null, { } };
-
-	foreach (sec : secs)
-	{
-		uint offset = sec.source_file.line_map.get_offset(sec.source_file.source, loc);
-		Cursor candidate = cursor::find_at(sec, offset);
-		if (candidate.node.is_valid())
-		{
-			return candidate;
-		}
-	}
-
-	return { null, { } };
-}
-
 enum LookupTarget
 {
 	IDENT,
@@ -236,57 +195,4 @@ struct LookupOptions
 // 	}
 //
 // 	return SYMBOL_NOT_FOUND~;
-// }
-
-fn Cursor? Workspace.lookup(&self, String module_name, String symbol_name)
-	=> self.lookup_in_module(module_name, symbol_name);
-
-fn Cursor? Workspace.lookup_in_module(&self, String module_name, String symbol_name)
-{
-	Module* mod = self.modules.get(module_name)!;
-	if (!mod) return MODULE_NOT_FOUND~;
-
-	// Search the module's top-level declarations
-	foreach (section : mod.sections)
-	{
-		foreach (decl_handle : section.source_file.ast.top_level_nodes)
-		{
-			if (decl_handle < section.start_node_idx || decl_handle >= section.end_node_idx) continue;
-			Cursor c = { section, (Node)decl_handle };
-			if (c.spelling()! == symbol_name) return c;
-		}
-	}
-
-	return SYMBOL_NOT_FOUND~;
-}
-
-fn Cursor[]? Workspace.lookup_symbol(&self, String symbol_name) 
-{
-	List{Cursor} candidates;
-
-	self.modules.@each(; mod_name, mod)
-	{
-		if (try c = self.lookup_in_module(mod_name, symbol_name))
-		{
-			candidates.push(c);
-		}
-	};
-
-	return candidates.to_tarray();
-}
-
-fn Cursor? Workspace.cursor_from_file(&self, SourceFile* sf, Node node)
-{
-    if (!node.is_valid()) return { null, (Node)0 };
-
-    // Find which section of this file the node belongs to
-    foreach (section : sf.sections)
-    {
-        if ((uint)node >= section.start_node_idx && (uint)node < section.end_node_idx)
-        {
-            return { section, node };
-        }
-    }
-
-    return NODE_NOT_FOUND~;
-}
+// 

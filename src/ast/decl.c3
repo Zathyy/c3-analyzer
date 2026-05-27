@@ -10,7 +10,7 @@ struct ModuleDecl
 }
 
 <* @require self.kind == MODULE_DECL *>
-fn ImportDecl* Node.as_module(&self) @inline 
+fn ModuleDecl* Node.as_module(&self) @inline 
 { 
 	return &self.module_decl; 
 }
@@ -30,13 +30,14 @@ fn ImportDecl* Node.as_import(&self) @inline
 struct FnDecl 
 {
 	String name;
+	Node* type;
 	Node* body;
 	NodeArray params;
 	AttributeList attributes;
 }
 
 <* @require self.kind == FN_DECL *>
-fn ImportDecl* Node.as_fn(&self) @inline 
+fn FnDecl* Node.as_fn(&self) @inline 
 { 
 	return &self.fn_decl; 
 }

@@ -16,7 +16,7 @@ struct ParseResult
 
 fn void ParseResult.free(&self)
 {
-    $if $feature(parser_LIB):
+    $if $feature(PARSER_LIB):
         self.errors.free();
     $endif
 }

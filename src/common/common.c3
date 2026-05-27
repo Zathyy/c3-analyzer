@@ -291,3 +291,12 @@ enum Visibility
     PRIVATE,
     LOCAL
 }
+
+enum TypeKind : char
+{
+    TYPE_BASE,      // e.g., int, MyStruct
+    TYPE_POINTER,   // e.g., Type*
+    TYPE_SLICE,     // e.g., Type[]
+    TYPE_DARRAY,    // e.g., Type[*]
+    TYPE_AARRAY,    // e.g., Type[4]
+}

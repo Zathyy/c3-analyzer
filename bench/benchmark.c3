@@ -1,7 +1,6 @@
 module parser_benchmarks;
 import parser::workspace;
 import parser::parser;
-import parser::cursor;
 import parser::ast;
 import std::io;
 import std::collections::list;

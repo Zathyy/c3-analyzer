@@ -35,10 +35,11 @@ struct Node
 		IfStmt if_stmt;
 		
 		// EXPR
-
+		BinaryExpr binary_expr;
+		IdentExpr ident_expr;
+		PathExpr path_expr;
 		// UNIT
 		IntLiteral int_lit;
-		BinaryExpr binary;
 	}
 }
 
@@ -46,12 +47,6 @@ struct Node
 fn IntLiteral* Node.as_int(&self) @inline 
 { 
 	return &self.int_lit; 
-}
-
-<* @require self.kind == BINARY_EXPR *>
-fn BinaryExpr* Node.as_binary(&self) @inline 
-{ 
-	return &self.binary; 
 }
 
 <* @require self.kind == IF_STMT *>

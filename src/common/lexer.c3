@@ -329,7 +329,7 @@ bool is_in_contract = false;
 struct Lexer
 {
 	String buffer;
-	usz index;
+	int index;
 }
 
 fn bool is_digit(char c) @inline => c >= '0' && c <= '9';
@@ -364,7 +364,7 @@ fn bool is_all_upper(String text)
 	return has_alpha; // Ensure "123_" isn't counted as CONST_IDENT
 }
 
-fn char Lexer.peek(Lexer* self, usz ahead = 0) @inline
+fn char Lexer.peek(Lexer* self, sz ahead = 0) @inline
 {
 	if (self.index + ahead >= self.buffer.len) return 0;
 	return self.buffer[self.index + ahead];
@@ -377,7 +377,7 @@ fn bool Lexer.eof(&self) @inline
 
 fn char Lexer.peek_next(Lexer* self) @inline
 {
-	if (self.index + 1 >= self.buffer.len) return '\0';
+	if (self.index + 1 >= (int)self.buffer.len) return '\0';
 	return self.buffer[self.index + 1];
 }
 

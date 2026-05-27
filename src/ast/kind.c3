@@ -6,9 +6,19 @@ import std::collections::list;
 enum NodeKind : char
 {
 	INVALID,
-	BINARY_EXPR,
-	IF_STMT,
+	EMPTY,
 	INT_LITERAL,
 	VAR_DECL,
-	COMPOUND_STMT
+
+	MODULE_DECL,
+	IMPORT_DECL,
+	FN_DECL,
+
+	COMPOUND_STMT,
+	IF_STMT,
+
+	BINARY_EXPR,
+	IDENT_EXPR,
+	TYPE_EXPR,
+	PATH_EXPR,
 }

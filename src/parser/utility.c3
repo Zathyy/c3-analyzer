@@ -16,17 +16,17 @@ const String ANSI_BOLD   = "\x1b[1m";
 
 macro void ParseContext.info(&self, String fmt, ...)
 {
-	self.report(self.current(), INFO, ANSI_CYAN, fmt, ...$vaarg);
+	self.report(self.peek(), INFO, ANSI_CYAN, fmt, ...$vaarg);
 }
 
 macro void ParseContext.warn(&self, String fmt, ...)
 {
-	self.report(self.current(), WARN, ANSI_YELLOW, fmt, ...$vaarg);
+	self.report(self.peek(), WARN, ANSI_YELLOW, fmt, ...$vaarg);
 }
 
 macro void ParseContext.error(&self, String fmt, ...)
 {
-	self.report(self.current(), ERROR, ANSI_RED, fmt, ...$vaarg);
+	self.report(self.peek(), ERROR, ANSI_RED, fmt, ...$vaarg);
 }
 
 macro void ParseContext.error_at(&self, Token t, String fmt, ...)
@@ -94,27 +94,9 @@ fn bool is_non_type_ident(TokenKind k)
            k == CT_IDENT;
 }
 
-fn bool node_ends_with_block(ParseContext* ctx, Node n)
-{
-	NodeKind kind = ctx.ast.get_kind(n);
-
-	log::debug("%s", kind);
-	switch (kind)
-	{
-		case CALL_EXPR:
-		case ATTR_CALL_EXPR:
-			CallView view = { ctx.ast, n };
-			return view.get_compound().is_valid();
-		case COMPOUND_STMT:
-			return true;
-		default:
-			return false;
-	}
-}
-
 fn bool is_type(ParseContext* ctx)
 {
-	TokenKind kind = ctx.current().kind;
+	TokenKind kind = ctx.peek().kind;
 
 	if (is_type_primitive(kind)) return true;
 	if (kind == TYPE_IDENT) return true;
@@ -164,27 +146,6 @@ fn bool is_type_primitive(TokenKind kind)
 	}
 }
 
-fn void attach_contract(ParseContext* ctx, Node decl, Node contract)
-{
-	if (!decl.is_valid()) return;
-	if (!contract.is_valid()) return;
-
-    NodeKind kind = ctx.ast.get_kind(decl);
-    
-    uint offset = 0;
-    switch (kind)
-    {
-		case MODULE_DECL:  offset = ModuleViewFields.CONTRACT;
-        case FN_DECL:      offset = FnViewFields.CONTRACT;
-        case STRUCT_DECL:  offset = StructViewFields.CONTRACT;
-		case UNION_DECL:   offset = StructViewFields.CONTRACT;
-        default: return;
-    }
-    
-	uint base_extra_idx = ctx.ast.get_extra((uint)decl);
-    ctx.ast.set_extra(base_extra_idx + offset, (uint)contract);
-}
-
 fn OverloadKind get_overload_from_token(TokenKind kind)
 {
 	switch (kind)
@@ -219,7 +180,7 @@ fn OverloadKind get_overload_from_token(TokenKind kind)
 
 fn bool is_declaration_followup(ParseContext* ctx)
 {
-	uint i;
+	int i;
 
 	while (ctx.peek(i).kind == IDENT && ctx.peek(i + 1).kind == SCOPE)
     {
@@ -231,7 +192,7 @@ fn bool is_declaration_followup(ParseContext* ctx)
 	if (ctx.is(CT_TYPEFROM) || ctx.is(CT_TYPEOF))
 	{
 		i++;
-		uint depth = 1;
+		int depth = 1;
 		do {
 			if (ctx.peek(i).kind == LPAREN) depth++;
 			if (ctx.peek(i).kind == RPAREN) depth--;
@@ -272,32 +233,6 @@ fn bool is_declaration_followup(ParseContext* ctx)
 	// After skipping modifiers, do we see a variable name?
 	TokenKind final_k = ctx.peek(i).kind;
 	return final_k == IDENT || final_k == CONST_IDENT || final_k == CT_IDENT;
-}
-
-fn uint? parse_type_name(ParseContext* ctx, String msg)
-{
-	if (ctx.is(IDENT)) 
-	{
-		ctx.error("Name of %s must start with and uppercase letter", msg);
-		return 0;
-	}
-	else if (ctx.is(CONST_IDENT))
-	{
-		ctx.error("Name of %s cannot be all uppercase", msg);
-		return 0;
-	}
-	else
-	{
-		if (!ctx.is(TYPE_IDENT))
-		{
-			ctx.error("'%s' should be followed by the name of the %s.", msg, msg);
-			return 0;
-		}
-	}
-
-	uint name = ctx.pool.intern(ctx.current_text());
-	advance(ctx)!;
-	return name;
 }
 
 fn bool can_start_expression(TokenKind kind) 
