@@ -5,25 +5,44 @@ import std::collections::list;
 
 const sz ARENA_PAGE_SIZE = 4096;
 
-struct Node
+struct Node 
 {
     NodeKind kind;
+    Visibility visibility;
     int start_token;
     int end_token;
+    
+    union
+    {
+        ImportDecl import_decl;
+        IntLiteral int_lit;
+        BinaryExpr binary;
+        IfStmt if_stmt;
+    }
 }
 
-struct IntLiteral
-{
-    inline Node base;
-    long value;
+<* @require self.kind == INT_LITERAL *>
+fn IntLiteral* Node.as_int(&self) @inline 
+{ 
+    return &self.int_lit; 
 }
 
-struct BinaryExpr
-{
-    inline Node base;
-    Node* left;
-    Node* right;
-    OperatorKind op;
+<* @require self.kind == BINARY_EXPR *>
+fn BinaryExpr* Node.as_binary(&self) @inline 
+{ 
+    return &self.binary; 
+}
+
+<* @require self.kind == IF_STMT *>
+fn IfStmt* Node.as_if(&self) @inline 
+{ 
+    return &self.if_stmt; 
+}
+
+<* @require self.kind == IMPORT_DECL *>
+fn ImportDecl* Node.as_import(&self) @inline 
+{ 
+    return &self.import_decl; 
 }
 
 struct Ast

@@ -106,11 +106,11 @@ struct ParseContext
   @param kind  : "The NodeKind enum tag (e.g., IMPORT_DECL, VAR_DECL)"
   @param start : "The starting token index/position"
 *>
-macro Type* new_node(ParseContext* ctx, NodeKind kind, start) <Type>
+fn Node* new_node(ParseContext* ctx, NodeKind kind, int start)
 {
-    Type* node = alloc::new(ctx.ast.allocator, Type);
+    Node* node = alloc::new(ctx.ast.allocator, Node);
     
-    node.kind = Kind;
+    node.kind = kind;
     node.start_token = start;
     node.end_token = ctx.current_pos();
 
