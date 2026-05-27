@@ -59,7 +59,14 @@ struct Ast
 {
 	DynamicArenaAllocator arena;
 	Allocator allocator;
-	List{Node*} top_level_nodes; 
+	List{Node*} top_level_nodes;
+}
+
+fn Ast new(Allocator backing_allocator = mem)
+{
+	Ast ast;
+	ast.init(backing_allocator);
+	return ast;
 }
 
 fn void Ast.init(&self, Allocator backing_allocator = mem)
