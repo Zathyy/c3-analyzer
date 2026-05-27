@@ -1,10 +1,10 @@
-module c3_parser::parser;
+module parser::parser;
 
 import std::io;
 import lexer;
 import line_map;
-import c3_parser::ast;
-import c3_parser::common;
+import parser::ast;
+import parser::common;
 import buffered_log;
 
 // Colors for the terminal
@@ -38,7 +38,7 @@ fn void ParseContext.report(ParseContext* self, Token token, LogPriority level, 
 {
 	Location loc = self.line_map.resolve(token.pos);
 	
-	$if $feature(C3_PARSER_LIB):
+	$if $feature(PARSER_LIB):
 		self.errors.push({ level, loc, token, string::format(self.allocator, fmt, ...args) });
 	$else
 		io::printf("%s:%s:%s: %s%s:%s ", self.file_path, loc.line, loc.column, color, $stringify(level), ANSI_RESET);

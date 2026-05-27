@@ -1,2 +1,2 @@
-module c3_parser::sema;
+module parser::sema;
 

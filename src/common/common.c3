@@ -1,16 +1,10 @@
-module c3_parser::common;
+module parser;
 
-import c3_parser::ast @norecurse;
-
+import parser::ast @norecurse;
 import std::collections::list;
 
-const uint MAX_GENERICS       = 16;
-const uint MAX_ATTRIBUTES     = 16;
-const uint MAX_INTERFACE_IMPL = 16;
-
 typedef FileID = ushort;
-alias Size = sz;
-
+ 
 struct Location
 {
 	Size line;
@@ -289,16 +283,6 @@ enum InOutModifier
 	IN,
 	OUT,
 	INOUT,
-}
-
-struct TypeDescriptor
-{
-	uint name; // The StringPool handle
-	uint ptr_count;
-	Node array_size; // AST Node for [expr]
-	Node base_expr; // for compile time types expr
-	uint gen_count;
-	Node[MAX_GENERICS] gen_args;
 }
 
 enum Visibility

@@ -1,13 +1,11 @@
-module c3_parser::parser;
+module parser::parser;
 
 import lexer;
-import string_pool;
 import line_map;
 
-import c3_parser::ast;
-import c3_parser::common;
-import c3_parser::registry;
-import c3_parser::workspace @norecurse;
+import parser::ast;
+import parser::common;
+import parser::workspace @norecurse;
 
 import std::io;
 import std::io::path;
@@ -53,7 +51,6 @@ macro @scratch(; @body())
 	@body();
 }
 
-
 bitstruct ParseFlags : ulong
 {
 	bool is_interface; // Skip function bodies, disallow fields
@@ -94,13 +91,30 @@ struct ParseContext
 
 	uint pos;
 	Node contract;
-  	List{ParserError} errors @if($feature(C3_PARSER_LIB));
+  	List{ParserError} errors @if($feature(parser_LIB));
 
 	// for when using debbugers so i can keep track of what its at
 	Token current_token @if(env::DEBUG_SYMBOLS);
 	String current_token_string @if(env::DEBUG_SYMBOLS);
 	// bool allow_submodules;
 
+}
+
+<*
+  Allocates and initializes a strongly typed AST node inside the AST arena.
+  @param [&in] ctx : "Pointer to the ParseContext"
+  @param kind  : "The NodeKind enum tag (e.g., IMPORT_DECL, VAR_DECL)"
+  @param start : "The starting token index/position"
+*>
+macro Type* new_node(ParseContext* ctx, NodeKind kind, start) <Type>
+{
+    Type* node = alloc::new(ctx.ast.allocator, Type);
+    
+    node.kind = Kind;
+    node.start_token = start;
+    node.end_token = ctx.current_pos();
+
+	return node;
 }
 
 fn void? ParseContext.skip_until(ParseContext* ctx, TokenKind[] targets)
@@ -120,10 +134,14 @@ fn void? ParseContext.skip_until(ParseContext* ctx, TokenKind[] targets)
     }
 }
 
-fn Node ParseContext.push_invalid_node(ParseContext* ctx, uint start_pos)
+fn Node* ParseContext.push_invalid_node(ParseContext* ctx, uint start_pos)
 {
     uint end_pos = ctx.current_pos();
-    return ctx.ast.add_node(INVALID, start_pos, end_pos, 0);
+    Node* node = alloc::new(ctx.ast.allocator, Node);
+    node.kind = INVALID;
+    node.start_token = start_pos;
+    node.end_token = end_pos;
+    return node;
 }
 
 <*
@@ -187,25 +205,10 @@ fn bool ParseContext.is(&self, TokenKind kind)
 	return self.tokens[self.pos].kind == kind;
 }
 
-fn Token ParseContext.current(&self) @inline
-{
-	return self.peek(0);
-}
-
 fn Token ParseContext.peek(&self, uint pos = 1) @inline
 {
 	assert ((Size)self.pos + pos < self.tokens.len);
 	return self.tokens[(Size)self.pos + pos];
-}
-
-fn uint ParseContext.current_pos(ParseContext* self) @inline
-{
-	return self.current().pos;
-}
-
-fn uint ParseContext.previous_pos(ParseContext* self) @inline
-{
-	return self.tokens[(Size)self.pos - 1].pos;
 }
 
 fn void ParseContext.print_current(&self)
@@ -336,7 +339,7 @@ fn String peek_module_name(ParseContext* ctx) => @pool()
 fn ParseResult? parse(Workspace* ws, String uri, String src)
 {
 	ParseContext ctx = { .mod = null, .pool = &ws.strings, .file_path = uri, .allocator = ws.allocator };
-	$if $feature(C3_PARSER_LIB):
+	$if $feature(parser_LIB):
 		ctx.errors.init(ws.allocator);
 	$endif
 
@@ -411,7 +414,7 @@ fn ParseResult? parse(Workspace* ws, String uri, String src)
 
 	log::info("Succesfully parsed: %s", uri);
 
-	$if $feature(C3_PARSER_LIB):
+	$if $feature(parser_LIB):
 	log::info("Result: %s", ctx.errors.len());
 	return {
         .success = success,

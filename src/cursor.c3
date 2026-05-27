@@ -4,13 +4,10 @@
 
     represents some Node in the abstract syntax tree for a module
 *>
-module c3_parser::cursor;
+module parser::cursor;
 
-import c3_parser::workspace;
-import c3_parser::ast;
-import c3_parser::common;
-import string_pool;
-
+import parser::workspace;
+import parser::ast;
 import std::io;
 
 faultdef

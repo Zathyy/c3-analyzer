@@ -4,13 +4,13 @@
 	Resources for Binding power pratt parsing:
 	- https://matklad.github.io/2020/04/13/simple-but-powerful-pratt-parsing.html
 *>
-module c3_parser::parser;
+module parser::parser;
 
-import c3_parser::ast;
+import parser::ast;
 import lexer;
 import std::core::ascii;
 
-import c3_parser::common;
+import parser::common;
 
 import std::io;
 import std::collections::list;

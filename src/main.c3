@@ -1,10 +1,10 @@
-module c3_parser @if($feature(C3_PARSER_CLI));
+module parser @if($feature(PARSER_CLI));
 import lexer;
 import utils::ast;
 import std::io;
-import c3_parser::workspace;
-import c3_parser::parser;
-import c3_parser::cursor;
+import parser::workspace;
+import parser::parser;
+import parser::cursor;
 import std::collections::maybe;
 import seali;
 

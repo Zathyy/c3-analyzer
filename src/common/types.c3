@@ -1,9 +1,9 @@
-module c3_parser::common;
+module parser::common;
 
 import std::collections::list;
 import std::collections::maybe;
 
-import c3_parser::ast @norecurse;
+import parser::ast @norecurse;
 
 enum VarDeclKind
 {

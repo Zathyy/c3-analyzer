@@ -1,7 +1,6 @@
 module line_map;
 
 import std::collections::list;
-import c3_parser::common;
 
 struct LineMap
 {

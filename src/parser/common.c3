@@ -1,9 +1,9 @@
-module c3_parser::parser;
+module parser::parser;
 
-import c3_parser::ast;
+import parser::ast;
 import lexer;
-import c3_parser::common;
-import c3_parser::constants;
+import parser::common;
+import parser::constants;
 
 import std::collections::list;
 
@@ -16,7 +16,7 @@ struct ParseResult
 
 fn void ParseResult.free(&self)
 {
-    $if $feature(C3_PARSER_LIB):
+    $if $feature(parser_LIB):
         self.errors.free();
     $endif
 }

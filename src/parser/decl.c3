@@ -1,13 +1,11 @@
-module c3_parser::parser;
-import c3_parser::ast;
+module parser::parser;
+import parser::ast;
 import lexer;
-import string_pool;
 
-import c3_parser::common;
-import c3_parser::constants;
-import c3_parser::registry;
+import parser::common;
+import parser::constants;
 import std::collections::list;
-import c3_parser::workspace @norecurse;
+import parser::workspace @norecurse;
 import std::io;
 
 fn Node? parse_contract(ParseContext* ctx) => @pool()

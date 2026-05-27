@@ -1,10 +1,10 @@
 <*
  unit.c3 - parsing things which arent any of (Decl, Stmt, Expr)
 *>
-module c3_parser::parser;
+module parser::parser;
 
-import c3_parser::ast;
-import c3_parser::common;
+import parser::ast;
+import parser::common;
 import lexer;
 
 import std::io;

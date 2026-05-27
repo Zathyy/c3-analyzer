@@ -1,15 +1,14 @@
-module c3_parser::workspace;
+module parser::workspace;
 
-import c3_parser::common;
-import string_pool;
+import parser::common;
 import line_map;
 
 import std::collections::map;
 import std::collections::list;
 import std::collections::pair;
 
-import c3_parser::ast @norecurse;
-import c3_parser::cursor;
+import parser::ast @norecurse;
+import parser::cursor;
 import std::io;
 
 faultdef

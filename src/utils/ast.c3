@@ -7,12 +7,10 @@ import std::collections::list;
 import dessert;
 import json;
 
-import c3_parser::ast;
+import parser::ast;
 import lexer;
-import string_pool;
-import c3_parser::common;
-import c3_parser::workspace;
-import c3_parser::cursor;
+import parser::workspace;
+import parser::cursor;
 
 import std::collections::maybe;
 
