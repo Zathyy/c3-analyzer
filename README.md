@@ -1,7 +1,5 @@
 # C3 Parser
 
-Parsing using DOD (Data Oriented Design) with Struct of arrays <br>
-
-<p>
-Checkout the main file for example
-</p>
+# Error handling
+ERROR -> incorrect node here and I don't know what is going on <br>
+MISSING -> if we do as-if this node exists, the rest is valid 
