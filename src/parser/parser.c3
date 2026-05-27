@@ -24,13 +24,11 @@ faultdef
 	UNEXPECTED_TOKEN,
 ;
 
-// length in parts, eg: foo::bar = 2 parts
-const uint PATH_MAX_LENGTH = 16;
 
 // Scratch Buffer
-tlocal List{uint} scratch;
+tlocal List{Node*} scratch;
 
-fn uint[] scratch_view(uint index, uint len)
+fn Node*[] scratch_view(int index, int len)
 {
 	return scratch.entries[index:len];
 }
@@ -38,15 +36,15 @@ fn uint[] scratch_view(uint index, uint len)
 // defer so it always runs even if the function returns fault
 macro @with_scratch(; @body(index))
 {
-	uint watermark = (uint)scratch.len();
-	defer scratch.size = (Size)watermark;
+	int watermark = (int)scratch.len();
+	defer scratch.size = (sz)watermark;
 	@body(watermark);
 }
 
 // defer so it always runs even if the function returns fault
 macro @scratch(; @body())
 {
-	Size watermark = scratch.len();
+	sz watermark = scratch.len();
 	defer scratch.size = watermark;
 	@body();
 }
@@ -80,7 +78,6 @@ bitstruct ParseFlags : ulong
 struct ParseContext
 {
 	LineMap* line_map;
-	StringPool* pool;
 	Ast* ast;
 	Module* mod;
 	SourceFile* sf;
@@ -91,7 +88,7 @@ struct ParseContext
 
 	uint pos;
 	Node contract;
-  	List{ParserError} errors @if($feature(parser_LIB));
+  	List{ParserError} errors @if($feature(PARSER_LIB));
 
 	// for when using debbugers so i can keep track of what its at
 	Token current_token @if(env::DEBUG_SYMBOLS);
@@ -105,6 +102,8 @@ struct ParseContext
   @param [&in] ctx : "Pointer to the ParseContext"
   @param kind  : "The NodeKind enum tag (e.g., IMPORT_DECL, VAR_DECL)"
   @param start : "The starting token index/position"
+  @require ctx.ast != null
+  @require ctx.ast.allocator != null
 *>
 fn Node* new_node(ParseContext* ctx, NodeKind kind, int start)
 {
@@ -134,14 +133,9 @@ fn void? ParseContext.skip_until(ParseContext* ctx, TokenKind[] targets)
     }
 }
 
-fn Node* ParseContext.push_invalid_node(ParseContext* ctx, uint start_pos)
+fn Node* ParseContext.push_invalid_node(ParseContext* ctx, uint start_pos) @inline
 {
-    uint end_pos = ctx.current_pos();
-    Node* node = alloc::new(ctx.ast.allocator, Node);
-    node.kind = INVALID;
-    node.start_token = start_pos;
-    node.end_token = end_pos;
-    return node;
+   	return new_node(ctx, INVALID, start_pos);
 }
 
 <*
@@ -205,10 +199,10 @@ fn bool ParseContext.is(&self, TokenKind kind)
 	return self.tokens[self.pos].kind == kind;
 }
 
-fn Token ParseContext.peek(&self, uint pos = 1) @inline
+fn Token ParseContext.peek(&self, int pos = 1) @inline
 {
-	assert ((Size)self.pos + pos < self.tokens.len);
-	return self.tokens[(Size)self.pos + pos];
+	assert ((sz)self.pos + pos < self.tokens.len);
+	return self.tokens[(sz)self.pos + pos];
 }
 
 fn void ParseContext.print_current(&self)
@@ -216,13 +210,13 @@ fn void ParseContext.print_current(&self)
 	log::debug("%s", self.token_text(self.current()));
 }
 
-fn void? reverse(ParseContext* ctx, uint position)
+fn void? reverse(ParseContext* ctx, int position)
 {
 	ctx.pos = position;
 	advance(ctx, 0)!;
 }
 
-fn void? ParseContext.advance(ParseContext* ctx, uint len = 1)
+fn void? ParseContext.advance(ParseContext* ctx, int len = 1)
 {
 	return advance(ctx, len)!;
 }
@@ -230,7 +224,7 @@ fn void? ParseContext.advance(ParseContext* ctx, uint len = 1)
 <*
  @param [&inout] ctx
 *>
-fn void? advance(ParseContext* ctx, uint len = 1)
+fn void? advance(ParseContext* ctx, int len = 1)
 {
 	if (ctx.eof())
 	{
@@ -303,7 +297,7 @@ fn String peek_module_name(ParseContext* ctx) => @pool()
 		// Start collecting the name after the 'module' keyword
 		String full_name = "";
 
-		Size i = 1;
+		sz i = 1;
 		while (i < ctx.tokens.len)
 		{
 			Token t = ctx.tokens[i];
@@ -345,7 +339,7 @@ fn ParseResult? parse(Workspace* ws, String uri, String src)
 
 	if (!scratch.is_initialized())
 	{
-		scratch.init(mem, 1000);
+		scratch.init(ws.allocator, 1000);
 	}
 
 	scratch.clear();
