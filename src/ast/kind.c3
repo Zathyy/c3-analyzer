@@ -5,11 +5,11 @@ import std::collections::list;
 
 enum NodeKind : char
 {
-	INVALID,
-	EMPTY,
+	ERROR,
+	MISSING,
 	INT_LITERAL,
+	
 	VAR_DECL,
-
 	MODULE_DECL,
 	IMPORT_DECL,
 	FN_DECL,
