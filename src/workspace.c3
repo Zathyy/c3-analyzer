@@ -78,6 +78,8 @@ fn void Workspace.free(&self)
 		alloc::free(self.allocator, mod);
 	};
 	self.modules.free();
+
+	self.ast_pool.free();
 } 
 
 fn SourceFile* Workspace.reset_source_file(&self, PathString path)
