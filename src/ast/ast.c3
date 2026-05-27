@@ -58,6 +58,7 @@ fn IfStmt* Node.as_if(&self) @inline
 struct Ast
 {
 	DynamicArenaAllocator arena;
+	StringPool string_pool;
 	List{Node*} top_level_nodes;
 	List{Node*} error_nodes;
 }
@@ -72,6 +73,7 @@ fn Ast new(Allocator backing_allocator = mem)
 fn void Ast.init(&self, Allocator backing_allocator = mem)
 {
 	self.arena.init(backing_allocator, ARENA_PAGE_SIZE);
+	self.string_pool.init(&self.arena, 128);
 	self.top_level_nodes.init(&self.arena, 32);
 }
 
@@ -88,6 +90,19 @@ fn void Ast.free(&self)
 	self.top_level_nodes.free();
 	self.arena.free();
 }
+
+fn StringID Ast.internalize(&self, String s)
+{
+	if (try idx = self.string_pool.index_of(s))
+	{
+		return idx;
+	}
+	String copy_s = s.copy(&self.arena);
+	self.string_pool.push(copy_s);
+	return self.string_pool.len() - 1;
+}
+
+fn String? Ast.get_string(&self, StringID id) => self.string_pool.get(id);
 
 <*
   Allocates and initializes a strongly typed AST node inside the AST arena.
