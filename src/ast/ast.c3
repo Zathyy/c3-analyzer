@@ -98,13 +98,13 @@ fn void Ast.free(&self)
   @param kind  : "The NodeKind enum tag (e.g., IMPORT_DECL, VAR_DECL)"
   @param start : "The starting token index/position"
 *>
-fn Node* Ast.alloc_node(&self, NodeKind kind, int start, int end)
+fn Node* Ast.alloc_node(&self, NodeKind kind, int start, int end = 0)
 {
 	Node* node = alloc::new(&self.arena, Node);
 
 	node.kind = kind;
 	node.start_token = start;
-	node.end_token = end;
+	node.end_token = end == 0 ? node.start_token : end;
 
 	return node;
 }
