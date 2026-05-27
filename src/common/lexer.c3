@@ -320,8 +320,8 @@ enum TokenKind : ushort
 struct Token
 {
 	TokenKind kind;
-	uint pos; // Offset in the source buffer
-	uint len; // Length of the lexeme
+	int pos; // Offset in the source buffer
+	int len; // Length of the lexeme
 }
 
 bool is_in_contract = false;
@@ -427,7 +427,7 @@ fn void? Lexer.skip_line_comment(Lexer* self)
 fn void? Lexer.skip_block_comment(Lexer* self)
 {
     self.index += 2; // Skip the initial '/*'
-    uint depth = 1;
+    int depth = 1;
 
     while (self.index < self.buffer.len && depth > 0)
     {
@@ -451,7 +451,7 @@ fn void? Lexer.skip_block_comment(Lexer* self)
     }
 }
 
-fn Token? Lexer.lex_char(Lexer* self, uint start)
+fn Token? Lexer.lex_char(Lexer* self, int start)
 {
 	self.index++;
 
@@ -462,7 +462,7 @@ fn Token? Lexer.lex_char(Lexer* self, uint start)
 		if (c == '\'')
 		{
 			self.index++; 
-			return (Token) { CHAR_LITERAL, start, (uint)self.index - start };
+			return (Token) { CHAR_LITERAL, start, self.index - start };
 		}
 
 		if (c == '\\')
@@ -474,10 +474,10 @@ fn Token? Lexer.lex_char(Lexer* self, uint start)
 		self.index++; 
 	}
 
-	return (Token) { INVALID, start, (uint)self.index - start };
+	return (Token) { INVALID, start, self.index - start };
 }
 
-fn Token? Lexer.lex_string(Lexer* self, uint start)
+fn Token? Lexer.lex_string(Lexer* self, int start)
 {
 	self.index++;
 
@@ -488,7 +488,7 @@ fn Token? Lexer.lex_string(Lexer* self, uint start)
 		if (c == '"')
 		{
 			self.index++; 
-			return (Token) { STRING, start, (uint)self.index - start };
+			return (Token) { STRING, start, self.index - start };
 		}
 
 		if (c == '\\') 
@@ -500,10 +500,10 @@ fn Token? Lexer.lex_string(Lexer* self, uint start)
 		self.index++; 
 	}
 
-	return (Token) { INVALID, start, (uint)self.index - start };
+	return (Token) { INVALID, start, self.index - start };
 }
 
-fn Token? Lexer.lex_raw_string(Lexer* self, uint start)
+fn Token? Lexer.lex_raw_string(Lexer* self, int start)
 {
     self.index++; // Skip the opening `
 
@@ -512,11 +512,11 @@ fn Token? Lexer.lex_raw_string(Lexer* self, uint start)
         if (self.peek() == '`') // Only stop at a backtick
         {
             self.index++;
-            return (Token) { STRING, start, (uint)self.index - start };
+            return (Token) { STRING, start, self.index - start };
         }
         self.index++;
     }
-    return (Token) { INVALID, start, (uint)self.index - start };
+    return (Token) { INVALID, start, self.index - start };
 }
 
 fn TokenKind lookup_keyword(String text)
@@ -597,7 +597,7 @@ fn TokenKind lookup_keyword(String text)
 	}
 }
 
-fn Token? Lexer.lex_identifier(Lexer* self, uint start_pos)
+fn Token? Lexer.lex_identifier(Lexer* self, int start_pos)
 {
 	char first = self.peek();
 
@@ -611,7 +611,7 @@ fn Token? Lexer.lex_identifier(Lexer* self, uint start_pos)
 		self.advance()!;
 	}
 
-	uint length = (uint)self.index - start_pos;
+	int length = self.index - start_pos;
 	if (length == 0) return INVALID~;
 
 	String text = self.buffer[start_pos:length];
@@ -621,7 +621,7 @@ fn Token? Lexer.lex_identifier(Lexer* self, uint start_pos)
 	return self.emit(kind, start_pos, length);
 }
 
-fn Token? Lexer.lex_number(Lexer* self, uint start_pos)
+fn Token? Lexer.lex_number(Lexer* self, int start_pos)
 {
 	bool is_float = false;
 
@@ -725,15 +725,15 @@ fn Token? Lexer.lex_number(Lexer* self, uint start_pos)
 	}
 
 	TokenKind kind = is_float ? REAL : INTEGER;
-	return self.emit(kind, start_pos, (uint)self.index - start_pos);
+	return self.emit(kind, start_pos, self.index - start_pos);
 }
 
-fn Token? Lexer.lex_hex_array(Lexer* self, uint start_pos)
+fn Token? Lexer.lex_hex_array(Lexer* self, int start_pos)
 {
     char start_quote = self.peek(); 
     self.advance()!;
 
-    uint digit_count = 0;
+    int digit_count = 0;
 
     while (!self.eof())
     {
@@ -768,10 +768,10 @@ fn Token? Lexer.lex_hex_array(Lexer* self, uint start_pos)
         return UNEVEN_HEXADECIMAL~; 
     }
 
-    return self.emit(BYTES, start_pos, (uint)self.index - start_pos);
+    return self.emit(BYTES, start_pos, self.index - start_pos);
 }
 
-fn Token? Lexer.skip_contract(Lexer* self, uint start_pos)
+fn Token? Lexer.skip_contract(Lexer* self, int start_pos)
 {
 	while (!self.eof())
 	{
@@ -779,7 +779,7 @@ fn Token? Lexer.skip_contract(Lexer* self, uint start_pos)
 		if (c == '*' && self.peek(1) == '>')
 		{
 			self.advance(2)!;
-			return self.emit(CONTRACT, start_pos, (uint)self.index - start_pos);
+			return self.emit(CONTRACT, start_pos, self.index - start_pos);
 		}
 		self.advance()!;
 	}
@@ -787,13 +787,13 @@ fn Token? Lexer.skip_contract(Lexer* self, uint start_pos)
 	return CONTRACT_NOT_CLOSED~;
 }
 
-fn void? Lexer.advance(Lexer* self, uint len = 1) @inline
+fn void? Lexer.advance(Lexer* self, int len = 1) @inline
 {
 	if (self.eof()) return io::EOF~;
 	self.index += len;
 }
 
-fn Token Lexer.emit(&self, TokenKind kind, uint pos, uint len) @inline
+fn Token Lexer.emit(&self, TokenKind kind, int pos, int len) @inline
 {
 	return (Token) { .kind = kind, .pos = pos, .len = len };
 }
@@ -807,7 +807,7 @@ fn Token? Lexer.next(&self)
 		return io::EOF~;
 	}
 
-	uint start = (uint)self.index;
+	int start = self.index;
 	char c = self.peek();
 
 	switch (c)
