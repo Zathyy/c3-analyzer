@@ -163,7 +163,7 @@ fn Node*? parse_type_expr(ParseContext* ctx, ParseFlags parse_flags = {})
 {
 	int start = ctx.peek(0).pos;
 
-	Node* current_type = new_node(ctx, TYPE_EXPR, start);
+	Node* current_type = ctx.ast.alloc_node(TYPE_EXPR, start, ctx.peek().pos);
 	Node* path_expr = parse_path_expr(ctx)!;
 
 
@@ -174,7 +174,7 @@ fn Node*? parse_type_expr(ParseContext* ctx, ParseFlags parse_flags = {})
 fn Node*? parse_ident_expr(ParseContext* ctx)
 {
 	int start = ctx.peek(0).pos;
-	Node* node = new_node(ctx, IDENT_EXPR, start);
+	Node* node = ctx.ast.alloc_node(IDENT_EXPR, start, ctx.peek().pos);
 	if (ctx.peek().kind == SCOPE)
 	{
 		return parse_path_expr(ctx, true)!;
@@ -198,17 +198,17 @@ fn Node*? parse_path_expr(ParseContext* ctx, bool as_prefix = false) => @pool()
 		//TODO:	
 	}
 
-	Node* node = new_node(ctx, PATH_EXPR, start_pos);
+	Node* node = ctx.ast.alloc_node(PATH_EXPR, start_pos, ctx.peek().pos);
 	PathExpr* path = node.as_path();
 	defer node.end_token = ctx.peek(0).pos;
 
-	List{String} temp_segments;
-    temp_segments.init(tmem, 8);
+	List{StringID} temp_segments;
+	temp_segments.init(tmem, 8);
 
 	while (true)
 	{
 		Token t = ctx.peek(0);
-		temp_segments.push(ctx.token_text(t));
+		temp_segments.push(ctx.ast.string_pool.internalize(ctx.token_text(t)));
 		advance(ctx)!;
 
 		if (!consume(ctx, SCOPE)!) break;

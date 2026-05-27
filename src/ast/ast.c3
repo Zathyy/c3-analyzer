@@ -93,19 +93,6 @@ fn void Ast.free(&self)
 	self.arena.free();
 }
 
-fn StringID Ast.internalize(&self, String s)
-{
-	if (try idx = self.string_pool.index_of(s))
-	{
-		return idx;
-	}
-	String copy_s = s.copy(&self.arena);
-	self.string_pool.push(copy_s);
-	return self.string_pool.len() - 1;
-}
-
-fn String? Ast.get_string(&self, StringID id) => self.string_pool.get(id);
-
 <*
   Allocates and initializes a strongly typed AST node inside the AST arena.
   @param kind  : "The NodeKind enum tag (e.g., IMPORT_DECL, VAR_DECL)"
