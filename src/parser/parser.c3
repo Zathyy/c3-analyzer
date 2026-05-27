@@ -36,8 +36,8 @@ fn Node*[] scratch_view(int index, int len)
 // defer so it always runs even if the function returns fault
 macro @with_scratch(; @body(index))
 {
-	int watermark = (int)scratch.len();
-	defer scratch.size = (sz)watermark;
+	sz watermark = scratch.len();
+	defer scratch.size = watermark;
 	@body(watermark);
 }
 
@@ -96,25 +96,6 @@ struct ParseContext
 	String current_token_string @if(env::DEBUG_SYMBOLS);
 	// bool allow_submodules;
 
-}
-
-<*
-  Allocates and initializes a strongly typed AST node inside the AST arena.
-  @param [&in] ctx : "Pointer to the ParseContext"
-  @param kind  : "The NodeKind enum tag (e.g., IMPORT_DECL, VAR_DECL)"
-  @param start : "The starting token index/position"
-  @require ctx.ast != null
-  @require ctx.ast.allocator != null
-*>
-fn Node* new_node(ParseContext* ctx, NodeKind kind, int start)
-{
-    Node* node = alloc::new(ctx.ast.allocator, Node);
-    
-    node.kind = kind;
-    node.start_token = start;
-    node.end_token = ctx.peek().pos;
-
-	return node;
 }
 
 fn void? ParseContext.skip_until(ParseContext* ctx, TokenKind[] targets)
@@ -205,6 +186,8 @@ fn void ParseContext.print_current(&self)
 {
 	log::debug("%s", self.token_text(self.peek(0)));
 }
+
+fn Token ParseContext.current(&self) => self.peek(0);
 
 fn void? reverse(ParseContext* ctx, int position)
 {
@@ -432,10 +415,8 @@ fn void? parse_top_level(ParseContext* ctx, Workspace* ws)
 {
 	log::debug("parse_top_level: %s", ctx.token_text(ctx.peek()));
 
-	Node node;
+	Node* node;
 	ParseFlags flags = { .is_global = true };
-
-	/*
 
 	// the individual parse functions will check that the modifiers are used appropiately
 	while (true)
@@ -465,92 +446,92 @@ fn void? parse_top_level(ParseContext* ctx, Workspace* ws)
 		advance(ctx)!;
 	}
 
-	if (is_type(ctx))
-	{
-		node = parse_var_decl(ctx, flags)!;
-		if (node.is_valid())
-		{
-			ctx.ast.top_level_nodes.push((uint)node);
-			return;
-		}
-	}
+	// if (is_type(ctx))
+	// {
+	// 	node = parse_var_decl(ctx, flags)!;
+	// 	// if (node.is_valid())
+	// 	// {
+	// 		ctx.ast.top_level_nodes.push(node);
+	// 		return;
+	// 	// }
+	// }
 
-	if (ctx.current().kind == IMPORT)
-	{
-		advance(ctx)!;
-		while (true)
-		{
-			uint start = ctx.current_pos();
-
-			Node? path_node = parse_path(ctx);
-			if (catch err = path_node)
-			{
-				ctx.error("failed to parse path for module: %s", err);
-				return err~;
-			}
-
-			Node attr = parse_attributes(ctx)!;
-
-			uint[*] data = views::@data{ImportViewFields}
-			(
-				PATH, path_node,
-				ATTRIBUTES, attr,
-			);
-
-			uint ex = ctx.ast.push_extra_block(&data);
-			Node imp_node = ctx.ast.add_node(IMPORT_DECL, start, ctx.current_pos(), ex);
-			ctx.ast.top_level_nodes.push((uint)imp_node);
-			if (!consume(ctx, COMMA)!) break;
-		}
-		expect(ctx, EOS)!;
-		return;
-	}
+	// if (ctx.current().kind == IMPORT)
+	// {
+	// 	advance(ctx)!;
+	// 	while (true)
+	// 	{
+	// 		int start = ctx.current().pos;
+	//
+	// 		Node? path_node = parse_path(ctx);
+	// 		if (catch err = path_node)
+	// 		{
+	// 			ctx.error("failed to parse path for module: %s", err);
+	// 			return err~;
+	// 		}
+	//
+	// 		Node attr = parse_attributes(ctx)!;
+	//
+	// 		int[*] data = views::@data{ImportViewFields}
+	// 		(
+	// 			PATH, path_node,
+	// 			ATTRIBUTES, attr,
+	// 		);
+	//
+	// 		int ex = ctx.ast.push_extra_block(&data);
+	// 		Node imp_node = ctx.ast.add_node(IMPORT_DECL, start, ctx.current_pos(), ex);
+	// 		ctx.ast.top_level_nodes.push(imp_node);
+	// 		if (!consume(ctx, COMMA)!) break;
+	// 	}
+	// 	expect(ctx, EOS)!;
+	// 	return;
+	// }
 
 	switch (ctx.current().kind)
 	{
-		case CONTRACT:
-			node = parse_contract(ctx)!;
-			ctx.contract = node;
-		case INTERFACE:
-			node = parse_interface(ctx)!;
+		// case CONTRACT:
+		// 	node = parse_contract(ctx)!;
+		// 	ctx.contract = node;
+		// case INTERFACE:
+		// 	node = parse_interface(ctx)!;
 		case MODULE:
 			node = parse_module(ctx, ws)!;
-		case FAULTDEF:
-			node = parse_faultdef_decl(ctx)!;
-		case FN:
-			node = parse_fn_decl(ctx, flags)!;
-		case MACRO:
-			node = parse_macro_decl(ctx)!;
-		case ALIAS:
-			node = parse_alias(ctx)!;
-		case TYPEDEF:
-			node = parse_typedef(ctx)!;
-		case ATTRDEF:
-			node = parse_attrdef(ctx)!;
-		case UNION:
-		case STRUCT:
-			node = parse_struct(ctx)!;
-		case BITSTRUCT:
-			node = parse_bitstruct_decl(ctx)!;
-		case CONSTDEF:
-			flags.is_constdef = true;
-			node = parse_enum(ctx, flags)!;
-		case ENUM:
-			node = parse_enum(ctx, flags)!;
-		case CONST:
-			flags.is_const = true;
-			advance(ctx)!;
-			node = parse_var_decl(ctx, flags)!;
-		case CT_EXPAND:
-			node = parse_expand_decl(ctx)!;
-		case CT_ASSERT:
-			uint start_pos = ctx.current_pos();
-			Node stmt = parse_ct_assert(ctx)!;
-			node = ctx.ast.add_node(CT_ASSERT_DECL, start_pos, ctx.current_pos(), (uint)stmt);
-		case EOS:
-			ctx.error("<EOS> appeared in parse_top_level");
-			advance(ctx)!;
-			return UNEXPECTED_EOS~;
+		// case FAULTDEF:
+		// 	node = parse_faultdef_decl(ctx)!;
+		// case FN:
+		// 	node = parse_fn_decl(ctx, flags)!;
+		// case MACRO:
+		// 	node = parse_macro_decl(ctx)!;
+		// case ALIAS:
+		// 	node = parse_alias(ctx)!;
+		// case TYPEDEF:
+		// 	node = parse_typedef(ctx)!;
+		// case ATTRDEF:
+		// 	node = parse_attrdef(ctx)!;
+		// case UNION:
+		// case STRUCT:
+		// 	node = parse_struct(ctx)!;
+		// case BITSTRUCT:
+		// 	node = parse_bitstruct_decl(ctx)!;
+		// case CONSTDEF:
+		// 	flags.is_constdef = true;
+		// 	node = parse_enum(ctx, flags)!;
+		// case ENUM:
+		// 	node = parse_enum(ctx, flags)!;
+		// case CONST:
+		// 	flags.is_const = true;
+		// 	advance(ctx)!;
+		// 	node = parse_var_decl(ctx, flags)!;
+		// case CT_EXPAND:
+		// 	node = parse_expand_decl(ctx)!;
+		// case CT_ASSERT:
+		// 	int start_pos = ctx.current_pos();
+		// 	Node stmt = parse_ct_assert(ctx)!;
+		// 	node = ctx.ast.add_node(CT_ASSERT_DECL, start_pos, ctx.current_pos(), stmt);
+		// case EOS:
+		// 	ctx.error("<EOS> appeared in parse_top_level");
+		// 	advance(ctx)!;
+		// 	return UNEXPECTED_EOS~;
 		default:
 			ctx.error("Couldn't find any matching top level declaration: %s", string::from_struct(tmem, ctx.current()));
 			return UNEXPECTED_TOKEN~;
@@ -558,15 +539,13 @@ fn void? parse_top_level(ParseContext* ctx, Workspace* ws)
 
 	// if (node.is_valid())
 	// {
-	ctx.ast.top_level_nodes.push((uint)node);
+	ctx.ast.top_level_nodes.push(node);
 
-	if (ctx.contract.is_valid())
-	{
-		attach_contract(ctx, node, ctx.contract);
-	}
+	// if (ctx.contract.is_valid())
+	// {
+	// 	attach_contract(ctx, node, ctx.contract);
+	// }
 
 	ctx.contract = {};
 	// }
-
-	*/
 }

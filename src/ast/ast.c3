@@ -58,8 +58,8 @@ fn IfStmt* Node.as_if(&self) @inline
 struct Ast
 {
 	DynamicArenaAllocator arena;
-	Allocator allocator;
 	List{Node*} top_level_nodes;
+	List{Node*} error_nodes;
 }
 
 fn Ast new(Allocator backing_allocator = mem)
@@ -72,9 +72,10 @@ fn Ast new(Allocator backing_allocator = mem)
 fn void Ast.init(&self, Allocator backing_allocator = mem)
 {
 	self.arena.init(backing_allocator, ARENA_PAGE_SIZE);
-	self.allocator = &self.arena;
-	self.top_level_nodes.init(self.allocator, 32);
+	self.top_level_nodes.init(&self.arena, 32);
 }
+
+fn sz Ast.next_node_idx(&self) => self.top_level_nodes.len();
 
 fn void Ast.clear(&self)
 {
@@ -86,4 +87,20 @@ fn void Ast.free(&self)
 {
 	self.top_level_nodes.free();
 	self.arena.free();
+}
+
+<*
+  Allocates and initializes a strongly typed AST node inside the AST arena.
+  @param kind  : "The NodeKind enum tag (e.g., IMPORT_DECL, VAR_DECL)"
+  @param start : "The starting token index/position"
+*>
+fn Node* Ast.alloc_node(&self, NodeKind kind, int start, int end)
+{
+	Node* node = alloc::new(&self.arena, Node);
+
+	node.kind = kind;
+	node.start_token = start;
+	node.end_token = end;
+
+	return node;
 }
