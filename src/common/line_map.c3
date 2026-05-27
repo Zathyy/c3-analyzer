@@ -1,10 +1,15 @@
+<*
+	0 based line-map
+*>
 module line_map;
 
 import std::collections::list;
 
+import parser;
+
 struct LineMap
 {
-	List{Size} line_offsets;
+	List{sz} line_offsets;
 }
 
 fn void LineMap.init(LineMap* map, Allocator alloc = mem)
@@ -24,16 +29,11 @@ fn void LineMap.clear(LineMap* self)
 
 fn void LineMap.build(LineMap* self, String src)
 {
-	if (!self.line_offsets.is_initialized())
-	{
-		self.line_offsets.init(mem, 100);
-	}
-
 	self.clear();
 
 	self.line_offsets.push(0);
 
-	for (Size i = 0; i < src.len; i++)
+	for (sz i = 0; i < src.len; i++)
 	{
 		if (src[i] == '\n')
 		{
@@ -43,16 +43,16 @@ fn void LineMap.build(LineMap* self, String src)
 	}
 }
 
-fn Location LineMap.resolve(LineMap* self, Size pos)
+fn Location LineMap.resolve(LineMap* self, sz pos)
 {
 	// Binary search for the line index
-	Size line_idx = 0;
-	Size low = 0;
-	Size high = self.line_offsets.len() - 1;
+	sz line_idx = 0;
+	sz low = 0;
+	sz high = self.line_offsets.len() - 1;
 
 	while (low <= high)
 	{
-		Size mid = low + (high - low) / 2;
+		sz mid = low + (high - low) / 2;
 		if (self.line_offsets[mid] <= pos)
 		{
 			line_idx = mid;
@@ -64,39 +64,38 @@ fn Location LineMap.resolve(LineMap* self, Size pos)
 		}
 	}
 
-	// Line is 1-based, Col is 1-based
-	Size line_start_offset = self.line_offsets[line_idx];
-	return (Location) { .line = line_idx + 1, .column = (pos - line_start_offset) + 1 };
+	sz line_start_offset = self.line_offsets[line_idx];
+	return { .line = line_idx, .column = (pos - line_start_offset) };
 }
 
-fn uint LineMap.get_offset(LineMap* self, String src, Location loc)
+fn sz LineMap.get_offset(LineMap* self, String src, Location loc)
 {
-	Size line_idx = loc.line - 1;
-	if (line_idx >= self.line_offsets.len()) return (uint)src.len;
+	sz line_idx = loc.line;
+	if (line_idx >= self.line_offsets.len()) return src.len;
 
-	Size line_start = self.line_offsets[line_idx];
+	sz line_start = self.line_offsets[line_idx];
 
 	// Find where this line actually ends (\n or EOF)
-	Size next_line_start = (line_idx + 1 < self.line_offsets.len()) ? self.line_offsets[line_idx + 1] : src.len;
+	sz next_line_start = (line_idx + 1 < self.line_offsets.len()) ? self.line_offsets[line_idx + 1] : src.len;
 
-	Size offset = line_start + (loc.column - 1);
+	sz offset = line_start + (loc.column - 1);
 
 	// Clamp to the end of the current line so we don't bleed into the next one
-	if (offset >= next_line_start) return (uint)next_line_start - 1;
+	if (offset >= next_line_start) return next_line_start - 1;
 
-	return (uint)offset;
+	return offset;
 }
 
-fn String LineMap.get_line_from_src(&self, String src, Size line_num)
+fn String LineMap.get_line_from_src(&self, String src, sz line_num)
 {
 	if (line_num == 0 || line_num > self.line_offsets.len()) return "";
 
-	Size start = (Size)self.line_offsets[line_num - 1];
-	Size end;
+	sz start = self.line_offsets[line_num - 1];
+	sz end;
 
-	if (line_num < self.line_offsets.len())
+	if (line_num + 1 < self.line_offsets.len())
 	{
-		end = (Size)self.line_offsets[line_num];
+		end = self.line_offsets[line_num + 1];
 	}
 	else
 	{
