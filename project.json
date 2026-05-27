@@ -31,11 +31,11 @@
   "targets": {
     "c3_parser": {
       "type": "executable",
-			"features": [ "C3_PARSER_CLI" ],
+			"features": [ "PARSER_CLI" ],
     },
     "c3_parser_lib": {
       "type": "static-lib",
-      "features": ["C3_PARSER_LIB"]
+      "features": ["PARSER_LIB"]
     }
   },
   // Global settings.
