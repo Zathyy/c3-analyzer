@@ -30,6 +30,7 @@ struct Node
 		ModuleDecl module_decl;
 		ImportDecl import_decl;
 		FnDecl fn_decl;
+		ParamDecl param_decl;
 
 		// STMT
 		IfStmt if_stmt;
