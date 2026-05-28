@@ -18,7 +18,7 @@ fn BinaryExpr* Node.as_binary(&self) @inline
 
 struct IdentExpr 
 {
-	String ident;
+	StringID ident;
 }
 
 <* @require self.kind == IDENT_EXPR *>

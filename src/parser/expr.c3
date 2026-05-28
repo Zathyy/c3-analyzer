@@ -174,13 +174,13 @@ fn Node*? parse_type_expr(ParseContext* ctx, ParseFlags parse_flags = {})
 fn Node*? parse_ident_expr(ParseContext* ctx)
 {
 	int start = ctx.peek(0).pos;
-	Node* node = ctx.ast.alloc_node(IDENT_EXPR, start, ctx.peek().pos);
-	if (ctx.peek().kind == SCOPE)
+	if (ctx.peek(1).kind == SCOPE)
 	{
 		return parse_path_expr(ctx, true)!;
 	}
+	Node* node = ctx.ast.alloc_node(IDENT_EXPR, start, ctx.peek().pos);
 	IdentExpr* ident = node.as_ident();
-	ident.ident = ctx.token_text(ctx.peek(0)).copy(ctx.arena);
+	ident.ident = ctx.ast.string_pool.internalize(ctx.token_text(ctx.peek(0)));
 	advance(ctx)!;
 	return node;
 }
