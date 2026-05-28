@@ -24,9 +24,9 @@ fn String write_fixture(String name, String content) @private
 <*
   Count how many top-level nodes inside this specific ModuleSection match a given kind.
 *>
-fn uint count_kind(ModuleSection* s, NodeKind kind) @private
+fn int count_kind(ModuleSection* s, NodeKind kind) @private
 {
-    uint n = 0;
+    int n = 0;
     
     foreach (node_ptr : s.nodes)
     {
