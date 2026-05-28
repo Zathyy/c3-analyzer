@@ -1,6 +1,6 @@
 module parser::workspace;
 
-import parser::common;
+import parser::cursor;
 import line_map;
 
 import std::collections::map;
@@ -74,6 +74,7 @@ fn void Workspace.free(&self)
 	self.modules.@each(;name, mod) 
 	{
 		mod.sections.free();
+		mod.name.free(self.allocator);
 		alloc::free(self.allocator, mod);
 	};
 	self.modules.free();
@@ -123,7 +124,7 @@ fn Module* Workspace.get_or_create_module(&self, String name)
 	}
 
 	Module* mod = alloc::new(self.allocator, Module);
-	mod.name = name;
+	mod.name = name.copy(self.allocator);
 	mod.sections.init(self.allocator, 4);
 
 	self.modules.set(name, mod);
@@ -201,3 +202,26 @@ struct LookupOptions
 //
 // 	return SYMBOL_NOT_FOUND~;
 // 
+
+fn Node*? Workspace.lookup(&self, String module_name, String symbol_name) @inline
+{
+	return self.lookup_in_module(module_name, symbol_name)!;
+} 
+
+fn Node*? Workspace.lookup_in_module(&self, String module_name, String symbol_name) => @pool()
+{
+	Module* mod = self.modules.get(module_name)!;
+	if (!mod) return MODULE_NOT_FOUND~;
+
+	// Search the module's top-level declarations
+	foreach (section : mod.sections)
+	{
+		foreach (decl_handle : section.source_file.ast.top_level_nodes)
+		{
+			Cursor c = { section, decl_handle };
+			if (c.spelling(tmem)! == symbol_name) return decl_handle;
+		}
+	}
+
+	return SYMBOL_NOT_FOUND~;
+}

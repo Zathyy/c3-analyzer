@@ -1,4 +1,4 @@
-module parser_tests;
+module parser_tests @test;
 
 import parser::workspace;
 import parser::parser;
@@ -8,24 +8,39 @@ import std::collections::list;
 import std::io::file;
 import std::io::path;
 
-fn void test_basic_module() @test
+fn void test_basic_module() 
 {
     String path = write_fixture("basic", `module hello; fn void greet() {}`);
     Workspace ws; ws.init();
     defer ws.free();
     ParseResult res = parser::parse_file(&ws, path)!!;
-	assert(res.success == true, "Failed to parse");
-
-    assert(ws.modules.len() == 1, "Expected one module");
+	test::eq(res.success, true);
+    test::eq(ws.modules.len(), 1);
 
     Module* mod = ws.modules.get("hello")!!;
-    assert(mod != null, "Module 'hello' not found");
-    assert(mod.name == "hello", "Module name mismatch");
-    assert(mod.sections.len() == 1, "Expected one section inside module 'hello'");
+	test::ne(mod, null);
+	io::printfn("%s", mod.name);
+	test::eq(mod.name, "hello");
+	test::eq(mod.sections.len(), 1);
 
     ModuleSection* s = mod.sections[0];
 	io::printfn("%s", string::from_struct(tmem, s.source_file.ast));
 
-    assert(count_kind(s, MODULE_DECL) == 1, "Expected exactly 1 MODULE_DECL");
-    assert(count_kind(s, FN_DECL) == 1, "Expected exactly 1 FN_DECL");
+	test::eq(count_kind(s, MODULE_DECL), 1);
+	test::eq(count_kind(s, FN_DECL), 1);
 }
+
+fn void test_function_with_params()
+{
+	String path = write_fixture("basic", `module hello; 
+		fn void greet(int foo, Bar baz) {}`
+	);
+    Workspace ws; ws.init();
+    defer ws.free();
+    ParseResult res = parser::parse_file(&ws, path)!!;
+	test::eq(res.success, true);
+
+	Node* node = ws.lookup("hello", "greet")!!;
+	FnDecl* func = node.as(FN_DECL);
+}
+

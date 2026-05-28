@@ -437,7 +437,7 @@ fn void? parse_top_level(ParseContext* ctx, Workspace* ws)
 		// case INTERFACE:
 		// 	node = parse_interface(ctx)!;
 		case MODULE:
-			node = parse_module_decl(ctx)!;
+			node = parse_module_decl(ctx, ws)!;
 		case IMPORT:
 			node = parse_import_decl(ctx)!;
 		// case FAULTDEF:

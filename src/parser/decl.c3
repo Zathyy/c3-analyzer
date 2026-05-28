@@ -11,7 +11,7 @@ import std::io;
 <*
 	module_decl ::= module path_expr ';' attributes?
 *>
-fn Node*? parse_module_decl(ParseContext* ctx)
+fn Node*? parse_module_decl(ParseContext* ctx, Workspace* ws)
 {
 	int start_pos = ctx.peek(0).pos;
 	if (!expect(ctx, MODULE)!)
@@ -19,11 +19,13 @@ fn Node*? parse_module_decl(ParseContext* ctx)
 		return ctx.ast.alloc_node(ERROR, start_pos);
 	}
 
+	log::debug("parse_mod");
+
 	Node* node = ctx.ast.alloc_node(MODULE_DECL, start_pos);
-	ModuleDecl* mod = node.as(MODULE_DECL);
+	ModuleDecl* mod_decl = node.as(MODULE_DECL);
 	defer node.end_token = ctx.peek(0).pos;
 
-	mod.path = parse_path_expr(ctx, false)!;
+	mod_decl.path = parse_path_expr(ctx, false)!;
 	if (!expect(ctx, EOS)!)
     {
         node.kind = MISSING;
@@ -34,6 +36,13 @@ fn Node*? parse_module_decl(ParseContext* ctx)
 		//TODO:
         //mod.attributes = parse_attributes(ctx)!;
     }
+
+	PathExpr* path = mod_decl.path.as(PATH_EXPR);
+	String mod_name = path.full_path(&ctx.ast.string_pool, ctx.allocator)!;
+	defer mod_name.free(ctx.allocator);
+	Module* mod = ws.get_or_create_module(mod_name);
+	ModuleSection* sec = ws.get_or_create_section(mod, ctx.sf);
+	ctx.mod = mod;
 
 	return node;
 }
@@ -98,6 +107,8 @@ fn Node*? parse_fn_decl(ParseContext* ctx, ParseFlags flags = {})
 		return ctx.ast.alloc_node(ERROR, start_pos);
 	}
 
+	log::debug("parse_fn");
+
 	Node* node = ctx.ast.alloc_node(FN_DECL, start_pos);
 	FnDecl* func = node.as(FN_DECL);
 	defer node.end_token = ctx.peek(0).pos;
@@ -139,6 +150,8 @@ fn Node*? parse_fn_decl(ParseContext* ctx, ParseFlags flags = {})
         func.name = ctx.ast.string_pool.internalize(ctx.token_text(t));
         advance(ctx)!;
     }
+	
+	func.params = parse_parameter_list(ctx)!;
 
 	if (ctx.is(LBRACE))
     {
@@ -216,8 +229,6 @@ fn Node*? parse_param_decl(ParseContext* ctx)
 
         return node;
     }
-
-	param.type = parse_type_expr(ctx)!;
 
 	// Check for optional trailing ellipsis (e.g., "int... values")
     if (consume(ctx, ELLIPSIS)!)

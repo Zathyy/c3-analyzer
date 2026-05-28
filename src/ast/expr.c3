@@ -17,13 +17,58 @@ struct IdentExpr
 
 struct PathExpr
 {
-    StringID[] segments; // e.g., ["std", "io", "printf"]
+    StringID[] segments;
+	bool is_prefix;
 }
+
+fn String? PathExpr.full_path(&self, StringPool* pool, Allocator allocator) => @pool()
+{
+	sz len = self.segments.len;
+	String result;
+	for (sz i = 0; i < len; i++)
+	{
+		String part = pool.get(self.segments[i])!;
+		result = result.tconcat(part);
+		if (i < len - 1)
+		{
+			result = result.tconcat("::");
+		}
+	}
+
+	if (self.is_prefix)
+	{
+		result = result.tconcat("::");
+	}
+
+	return result.copy(allocator);
+}	
 
 struct TypeExpr
 {
-    TypeKind type_kind;
-    Node* base_type; // Points to the child Node type being wrapped/modified
-    Node* size_expr; // Only used for TYPE_AARRAY (e.g., the "4" in "int[4]")
-}
+	TypeKind kind;
+    union
+    {
+        struct unresolved
+		{
+			StringID name;
+            Node* path;
+        }
 
+        struct modify
+		{
+            Node* base;
+        }
+
+        struct array
+		{
+            Node* base;
+            Node* len_expr;
+        }
+
+        struct generic
+		{
+            Node* base;
+            Node*[] params;
+        }
+    }
+}
