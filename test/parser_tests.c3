@@ -11,10 +11,10 @@ import std::io::path;
 fn void test_basic_module() @test
 {
     String path = write_fixture("basic", `module hello; fn void greet() {}`);
-
     Workspace ws; ws.init();
     defer ws.free();
     ParseResult res = parser::parse_file(&ws, path)!!;
+	assert(res.success == true, "Failed to parse");
 
     assert(ws.modules.len() == 1, "Expected one module");
 
