@@ -18,6 +18,7 @@ struct IdentExpr
 struct PathExpr
 {
     StringID[] segments;
+	bool is_prefix;
 }
 
 fn String? PathExpr.full_path(&self, StringPool* pool, Allocator allocator) => @pool()
@@ -30,8 +31,13 @@ fn String? PathExpr.full_path(&self, StringPool* pool, Allocator allocator) => @
 		result = result.tconcat(part);
 		if (i < len - 1)
 		{
-			result = result.concat(tmem, "::");
+			result = result.tconcat("::");
 		}
+	}
+
+	if (self.is_prefix)
+	{
+		result = result.tconcat("::");
 	}
 
 	return result.copy(allocator);
