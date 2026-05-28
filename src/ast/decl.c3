@@ -29,8 +29,9 @@ fn ImportDecl* Node.as_import(&self) @inline
 
 struct FnDecl 
 {
-	String name;
-	Node* type;
+	StringID name;
+	Node* associated_type;
+	Node* ret_type;
 	Node* body;
 	NodeArray params;
 	AttributeList attributes;
@@ -40,4 +41,19 @@ struct FnDecl
 fn FnDecl* Node.as_fn(&self) @inline 
 { 
 	return &self.fn_decl; 
+}
+
+struct ParamDecl 
+{
+	StringID name;
+	Node* type;
+	Node* default_value;
+	bool is_variadic;
+	TokenKind ident_kind;
+}
+
+<* @require self.kind == PARAM_DECL *>
+fn ParamDecl* Node.as_param(&self) @inline 
+{ 
+	return &self.param_decl; 
 }
