@@ -195,7 +195,13 @@ fn Node*? parse_path_expr(ParseContext* ctx, bool as_prefix = false) => @pool()
 
 	if (!ctx.is(IDENT))
 	{
-		//TODO:	
+		if (as_prefix)
+		{
+			return ctx.ast.alloc_node(MISSING, start_pos);
+		}
+
+		ctx.error("Expected a path identifier here");
+		return ctx.ast.alloc_node(ERROR, start_pos);
 	}
 
 	Node* node = ctx.ast.alloc_node(PATH_EXPR, start_pos, ctx.peek().pos);
@@ -213,10 +219,11 @@ fn Node*? parse_path_expr(ParseContext* ctx, bool as_prefix = false) => @pool()
 
 		if (!consume(ctx, SCOPE)!) break;
 
-		if (!is_some_ident(ctx.peek(0).kind))
+		if (!expect(ctx, IDENT)!)
 		{
-			ctx.error("Expected identifier after '::'");
-			
+			temp_segments.push(-1);
+			node.kind = MISSING;
+			break;
 		}
 	}
 
