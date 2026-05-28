@@ -19,7 +19,11 @@ struct AstPoolMember
 fn void AstPool.init(&self, Allocator backing_allocator = mem)
 {
 	self.allocator = backing_allocator;
-	self.pool.init_with_array(backing_allocator, { [0..INIT_POOL_SIZE-1] = { .ast = ast::new(backing_allocator), .free = true } });
+	self.pool.init(backing_allocator);
+	for (int i = 0; i < INIT_POOL_SIZE; i++)
+	{
+		self.pool.push({ .ast = ast::new(backing_allocator), .free = true });
+	}
 }
 
 fn Ast* AstPool.obtain(&self)
