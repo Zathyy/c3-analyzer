@@ -39,8 +39,30 @@ fn String? PathExpr.full_path(&self, StringPool* pool, Allocator allocator) => @
 
 struct TypeExpr
 {
-    TypeKind type_kind;
-    Node* base_type; // Points to the child Node type being wrapped/modified
-    Node* size_expr; // Only used for TYPE_AARRAY (e.g., the "4" in "int[4]")
-}
+	TypeKind kind;
+    union
+    {
+        struct unresolved
+		{
+			StringID name;
+            Node* path;
+        }
 
+        struct modify
+		{
+            Node* base;
+        }
+
+        struct array
+		{
+            Node* base;
+            Node* len_expr;
+        }
+
+        struct generic
+		{
+            Node* base;
+            Node*[] params;
+        }
+    }
+}

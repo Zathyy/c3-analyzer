@@ -230,8 +230,6 @@ fn Node*? parse_param_decl(ParseContext* ctx)
         return node;
     }
 
-	param.type = parse_type_expr(ctx)!;
-
 	// Check for optional trailing ellipsis (e.g., "int... values")
     if (consume(ctx, ELLIPSIS)!)
     {

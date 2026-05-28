@@ -15,22 +15,111 @@ import parser::common;
 import std::io;
 import std::collections::list;
 
-<*
-	type_expr ::= path_expr? ( '*' | '[' [ EXPR ] ']' | '!' )*
-*>
+
 fn Node*? parse_type_expr(ParseContext* ctx, ParseFlags parse_flags = {})
 {
 	int start = ctx.peek(0).pos;
 
-	Node* current_type = ctx.ast.alloc_node(TYPE_EXPR, start, ctx.peek().pos);
+    Node* current_type = ctx.ast.alloc_node(TYPE_EXPR, start, ctx.peek().pos);
+    TypeExpr* data = current_type.as(TYPE_EXPR);
 
-	Node* path = parse_path_expr(ctx, true)!;
+    // Check for built-in primitive keywords (int, void, double, etc.)
+    if (is_type_primitive(ctx.peek(0).kind))
+    {
+        Token t = ctx.peek(0);
+        advance(ctx)!;
+        
+        data.kind = TYPE_IDENTIFIER;
+        data.unresolved.name = ctx.ast.string_pool.internalize(ctx.token_text(t));
+        data.unresolved.path = null;
+    }
+    else
+    {
+        Node* path = parse_path_expr(ctx, true)!;
+        if (path.kind == ERROR) return path;
 
-	advance(ctx)!;
+		if (!ctx.is(TYPE_IDENT))
+		{
+			ctx.error("Expected TypeIdent, got %s", ctx.current_text());
+			return ctx.ast.alloc_node(ERROR, ctx.current().pos);
+		}
 
-	//TODO:
+		advance(ctx)!;
+	
+        data.kind = TYPE_IDENTIFIER;
+        data.unresolved.name = ctx.ast.string_pool.internalize(ctx.token_text(ctx.current()));
+        data.unresolved.path = path;
+    }
 
-	return current_type;
+    current_type.end_token = ctx.peek(0).pos;
+
+    while (true)
+    {
+        Token t = ctx.peek(0);
+
+        if (t.kind == ASTERISK)
+        {
+            advance(ctx)!;
+
+            Node* ptr_node = ctx.ast.alloc_node(TYPE_EXPR, start, t.pos);
+            TypeExpr* ptr_data = ptr_node.as(TYPE_EXPR);
+            
+            ptr_data.kind = TYPE_POINTER;
+            ptr_data.modify.base = current_type; // The previous node becomes the base
+            
+            // Swap current_type out so the next iteration wraps THIS layer
+            current_type = ptr_node;
+            continue;
+        }
+
+        if (t.kind == LBRACKET)
+        {
+            advance(ctx)!;
+
+            Node* arr_node = ctx.ast.alloc_node(TYPE_EXPR, start, ctx.peek().pos);
+            TypeExpr* arr_data = arr_node.as(TYPE_EXPR);
+
+            if (ctx.is(RBRACKET))
+            {
+                advance(ctx)!;
+                arr_data.kind = TYPE_SLICE;
+                arr_data.modify.base = current_type;
+            }
+            else 
+            {
+                arr_data.kind = TYPE_ARRAY;
+                arr_data.array.base = current_type;
+                arr_data.array.len_expr = parse_expr(ctx)!;
+                
+                if (!consume(ctx, RBRACKET)!) return ctx.ast.alloc_node(ERROR, start);
+            }
+
+            arr_node.end_token = ctx.peek(0).pos;
+            current_type = arr_node;
+            continue;
+        }
+
+        // Handle Generics: '{' ... '}'
+        if (t.kind == LBRACE)
+        {
+            if (parse_flags.no_generics) break;
+
+            Node* gen_node = ctx.ast.alloc_node(TYPE_EXPR, start, ctx.peek().pos);
+            TypeExpr* gen_data = gen_node.as(TYPE_EXPR);
+            
+            gen_data.kind = TYPE_GENERIC;
+            gen_data.generic.base = current_type;
+            gen_data.generic.params = parse_generics_list(ctx)!;
+
+            gen_node.end_token = ctx.peek(0).pos;
+            current_type = gen_node;
+            continue;
+        }
+
+        break;
+    }
+
+    return current_type;
 }
 
 fn Node*? parse_ident_expr(ParseContext* ctx)
@@ -86,8 +175,11 @@ fn Node*? parse_path_expr(ParseContext* ctx, bool as_prefix = false) => @pool()
 
 		if (!ctx.is(IDENT))
 		{
-			temp_segments.push(-1);
-			node.kind = MISSING;
+			if (!as_prefix)
+			{
+				temp_segments.push(-1);
+				node.kind = MISSING;
+			}
 			break;
 		}
 	}

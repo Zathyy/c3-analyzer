@@ -41,6 +41,7 @@ struct Node
 		BinaryExpr binary_expr;
 		IdentExpr ident_expr;
 		PathExpr path_expr;
+		TypeExpr type_expr;
 		// UNIT
 		IntLiteral int_lit;
 	}
