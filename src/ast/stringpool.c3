@@ -1,10 +1,13 @@
 module parser::ast;
 
+import std::io;
+
 import std::collections::list;
 import std::collections::map;
 
 struct StringPool 
 {
+	Allocator allocator;
 	List{String} stable_strings;
 	HashMap{String, sz} lookup_map;
 }
@@ -12,6 +15,7 @@ alias StringID = sz;
 
 fn void StringPool.init(&self, Allocator allocator, int capacity)
 {
+	self.allocator = allocator;
 	self.stable_strings.init(allocator, capacity);
 	self.lookup_map.init(allocator, capacity);
 }
@@ -35,8 +39,10 @@ fn StringID StringPool.internalize(&self, String s)
 		return idx;
 	}
 
-	self.stable_strings.push(s);
-	self.lookup_map.set(s, self.stable_strings.len() - 1);
+	String c_s = s.copy(self.allocator);
+
+	self.stable_strings.push(c_s);
+	self.lookup_map.set(c_s, self.stable_strings.len() - 1);
 	return self.stable_strings.len() - 1;
 }
 
