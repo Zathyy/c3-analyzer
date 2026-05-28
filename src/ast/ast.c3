@@ -34,6 +34,7 @@ struct Node
 
 		// STMT
 		IfStmt if_stmt;
+		CompoundStmt compound_stmt;
 		
 		// EXPR
 		BinaryExpr binary_expr;
