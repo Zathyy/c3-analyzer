@@ -108,6 +108,6 @@ fn String LineMap.get_line_from_src(&self, String src, sz line_num)
 
 	if (start > src.len || end > src.len || start > end) return "";
 
-	String line = src[start:end];
+	String line = src[start..end - 1];
 	return line.trim_right();
 }
