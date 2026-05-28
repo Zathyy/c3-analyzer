@@ -24,31 +24,6 @@ faultdef
 	UNEXPECTED_TOKEN,
 ;
 
-
-// Scratch Buffer
-tlocal List{Node*} scratch;
-
-fn Node*[] scratch_view(int index, int len)
-{
-	return scratch.entries[index:len];
-}
-
-// defer so it always runs even if the function returns fault
-macro @with_scratch(; @body(index))
-{
-	sz watermark = scratch.len();
-	defer scratch.size = watermark;
-	@body(watermark);
-}
-
-// defer so it always runs even if the function returns fault
-macro @scratch(; @body())
-{
-	sz watermark = scratch.len();
-	defer scratch.size = watermark;
-	@body();
-}
-
 bitstruct ParseFlags : ulong
 {
 	bool is_interface; // Skip function bodies, disallow fields
@@ -311,7 +286,7 @@ fn String peek_module_name(ParseContext* ctx) => @pool()
  Appends the nodes to the provided Modules Ast
  @param [&inout] ws
 *>
-fn ParseResult? parse(Workspace* ws, String uri, String src)
+fn ParseResult? parse(Workspace* ws, String uri, String src) => @pool()
 {
 	ParseContext ctx = { .mod = null, .file_path = uri, .allocator = ws.allocator };
 
@@ -319,20 +294,11 @@ fn ParseResult? parse(Workspace* ws, String uri, String src)
 		ctx.errors.init(ws.allocator);
 	$endif
 
-	if (!scratch.is_initialized())
-	{
-		scratch.init(ws.allocator, 1000);
-	}
-
-	scratch.clear();
-	defer scratch.free();
-
 	Lexer lexer = { .buffer = src, .index = 0, };
 	ctx.src = src;
 
 	List{Token} tokens;
-	tokens.init(ctx.allocator, 1000);
-	defer tokens.free();
+	tokens.init(tmem, 1000);
 	while (try token = lexer.next())
 	{
 		tokens.push(token);
@@ -359,7 +325,6 @@ fn ParseResult? parse(Workspace* ws, String uri, String src)
 		Module* mod = ws.get_or_create_module(mod_name);
 		ModuleSection* sec = ws.get_or_create_section(mod, ctx.sf);
 		ctx.mod = mod;
-		sec.start_node_idx = 0;
 		log::info("Inferred module: %s", mod_name);
 	}
 	else
@@ -471,8 +436,8 @@ fn void? parse_top_level(ParseContext* ctx, Workspace* ws)
 			node = parse_import_decl(ctx)!;
 		// case FAULTDEF:
 		// 	node = parse_faultdef_decl(ctx)!;
-		// case FN:
-		// 	node = parse_fn_decl(ctx, flags)!;
+		case FN:
+			node = parse_fn_decl(ctx, flags)!;
 		// case MACRO:
 		// 	node = parse_macro_decl(ctx)!;
 		// case ALIAS:
