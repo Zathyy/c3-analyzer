@@ -235,6 +235,23 @@ fn bool is_declaration_followup(ParseContext* ctx)
 	return final_k == IDENT || final_k == CONST_IDENT || final_k == CT_IDENT;
 }
 
+<*
+	@param [&in] n
+*>
+fn bool node_ends_with_block(ParseContext* ctx, Node* n)
+{
+	NodeKind kind = n.kind;
+
+	switch (kind)
+	{
+		case CALL_EXPR:
+		case COMPOUND_STMT:
+			return true;
+		default:
+			return false;
+	}
+}
+
 fn bool can_start_expression(TokenKind kind) 
 { 
 	if (is_keyword_ident(kind) || is_base_type(kind))

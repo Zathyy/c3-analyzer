@@ -17,6 +17,7 @@ enum NodeKind : char
 
 	COMPOUND_STMT,
 	IF_STMT,
+	CALL_EXPR,
 
 	BINARY_EXPR,
 	IDENT_EXPR,

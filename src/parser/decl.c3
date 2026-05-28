@@ -162,7 +162,7 @@ fn Node*? parse_fn_decl(ParseContext* ctx, ParseFlags flags = {})
         // Clean statement ending validation
         if (!node_ends_with_block(ctx, func.body))
         {
-            if (!expect(ctx, EOS)) 
+            if (!expect(ctx, EOS)!) 
             {
                 node.kind = MISSING;
             }
@@ -171,7 +171,7 @@ fn Node*? parse_fn_decl(ParseContext* ctx, ParseFlags flags = {})
     else
     {
         // No body provided
-        if (!expect(ctx, EOS))
+        if (!expect(ctx, EOS)!)
         {
             node.kind = MISSING;
         }

@@ -9,7 +9,7 @@ import std::collections::list;
 
 fn Node*? parse_stmt(ParseContext* ctx)
 {
-	unreachable("not implemented");
+	return UNEXPECTED_TOKEN~;
 }
 
 <*
