@@ -25,7 +25,7 @@ fn void AstPool.init(&self, Allocator backing_allocator = mem)
 		self.pool.push({ .free = true });
 	}
 
-	foreach (member : self.pool)
+	foreach (&member : self.pool)
 	{
 		member.ast.init(backing_allocator);
 	}
