@@ -17,7 +17,7 @@ fn ModuleDecl* Node.as_module(&self) @inline
 
 struct ImportDecl
 {
-	Node* path;
+	NodeArray paths;
 	AttributeList attributes;
 }
 

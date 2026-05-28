@@ -39,9 +39,9 @@ fn Node*? parse_module_decl(ParseContext* ctx)
 }
 
 <*
-	import_decl ::= import path_expr ';' attributes?
+	import_decl ::= import path_expr (',' path_expr)* ';' attributes?
 *>
-fn Node*? parse_import_decl(ParseContext* ctx)
+fn Node*? parse_import_decl(ParseContext* ctx) => @pool()
 {
 	int start_pos = ctx.peek(0).pos;
 	if (!expect(ctx, IMPORT)!)
@@ -53,7 +53,25 @@ fn Node*? parse_import_decl(ParseContext* ctx)
 	ImportDecl* imp = node.as_import();
 	defer node.end_token = ctx.peek(0).pos;
 
-	imp.path = parse_path_expr(ctx, false)!;
+	List{Node*} temp_paths;
+    temp_paths.init(tmem, 4);
+
+	while (true)
+    {
+        Node* path_node = parse_path_expr(ctx, false)!;
+        temp_paths.push(path_node);
+
+        if (!consume(ctx, COMMA)!) break;
+        if (ctx.is(EOS))
+        {
+            ctx.error("Expected an import path after ','");
+            temp_paths.push(ctx.ast.alloc_node(MISSING, ctx.peek(0).pos));
+            break;
+        }
+    }
+
+	imp.paths = alloc::clone_slice(ctx.arena, temp_paths.array_view());
+
 	if (!expect(ctx, EOS)!)
     {
         node.kind = MISSING;
@@ -64,6 +82,6 @@ fn Node*? parse_import_decl(ParseContext* ctx)
 		//TODO:
         //mod.attributes = parse_attributes(ctx)!;
     }
-	
+
 	return node;
 }

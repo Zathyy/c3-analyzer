@@ -458,37 +458,6 @@ fn void? parse_top_level(ParseContext* ctx, Workspace* ws)
 	// 	// }
 	// }
 
-	// if (ctx.current().kind == IMPORT)
-	// {
-	// 	advance(ctx)!;
-	// 	while (true)
-	// 	{
-	// 		int start = ctx.current().pos;
-	//
-	// 		Node? path_node = parse_path(ctx);
-	// 		if (catch err = path_node)
-	// 		{
-	// 			ctx.error("failed to parse path for module: %s", err);
-	// 			return err~;
-	// 		}
-	//
-	// 		Node attr = parse_attributes(ctx)!;
-	//
-	// 		int[*] data = views::@data{ImportViewFields}
-	// 		(
-	// 			PATH, path_node,
-	// 			ATTRIBUTES, attr,
-	// 		);
-	//
-	// 		int ex = ctx.ast.push_extra_block(&data);
-	// 		Node imp_node = ctx.ast.add_node(IMPORT_DECL, start, ctx.current_pos(), ex);
-	// 		ctx.ast.top_level_nodes.push(imp_node);
-	// 		if (!consume(ctx, COMMA)!) break;
-	// 	}
-	// 	expect(ctx, EOS)!;
-	// 	return;
-	// }
-
 	switch (ctx.current().kind)
 	{
 		// case CONTRACT:
@@ -497,7 +466,9 @@ fn void? parse_top_level(ParseContext* ctx, Workspace* ws)
 		// case INTERFACE:
 		// 	node = parse_interface(ctx)!;
 		case MODULE:
-			node = parse_module(ctx, ws)!;
+			node = parse_module_decl(ctx)!;
+		case IMPORT:
+			node = parse_import_decl(ctx)!;
 		// case FAULTDEF:
 		// 	node = parse_faultdef_decl(ctx)!;
 		// case FN:
@@ -538,16 +509,11 @@ fn void? parse_top_level(ParseContext* ctx, Workspace* ws)
 			ctx.error("Couldn't find any matching top level declaration: %s", string::from_struct(tmem, ctx.current()));
 			return UNEXPECTED_TOKEN~;
 	}
-
-	// if (node.is_valid())
-	// {
+	
 	ctx.ast.top_level_nodes.push(node);
-
 	// if (ctx.contract.is_valid())
 	// {
 	// 	attach_contract(ctx, node, ctx.contract);
 	// }
-
 	ctx.contract = {};
-	// }
 }
