@@ -5,7 +5,7 @@ import std::collections::list;
 
 struct ModuleDecl 
 {
-	String path;
+	Node* path;
 	AttributeList attributes;
 }
 
