@@ -1,4 +1,4 @@
-module parser_tests;
+module parser_tests @test;
 
 import parser::workspace;
 import parser::parser;
@@ -8,7 +8,7 @@ import std::collections::list;
 import std::io::file;
 import std::io::path;
 
-fn void test_basic_module() @test
+fn void test_basic_module() 
 {
     String path = write_fixture("basic", `module hello; fn void greet() {}`);
     Workspace ws; ws.init();
