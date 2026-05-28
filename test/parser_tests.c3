@@ -32,8 +32,12 @@ fn void test_basic_module()
 
 fn void test_function_with_params()
 {
-	String path = write_fixture("basic", `module hello; 
-		fn void greet(int foo, Bar baz) {}`
+	String path = write_fixture("basic", `
+		module hello; 
+		fn void greet(int foo, Bar baz) {}
+		fn void foo(int foo, Bar baz) {}
+		fn void bar(int foo, Bar baz) {}
+		`
 	);
     Workspace ws; ws.init();
     defer ws.free();
@@ -42,5 +46,11 @@ fn void test_function_with_params()
 
 	Node* node = ws.lookup("hello", "greet")!!;
 	FnDecl* func = node.as(FN_DECL);
+
+	Node* node_2 = ws.lookup("hello", "foo")!!;
+	FnDecl* func_2 = node.as(FN_DECL);
+
+	Node* node_3 = ws.lookup("hello", "bar")!!;
+	FnDecl* func_3 = node.as(FN_DECL);
 }
 
