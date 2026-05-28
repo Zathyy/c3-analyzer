@@ -1,4 +1,6 @@
-module parser_tests @test;
+module decl_tests @test;
+
+import parser_tests;
 
 import parser::workspace;
 import parser::parser;
@@ -10,7 +12,7 @@ import std::io::path;
 
 fn void basic_module() 
 {
-    String path = write_fixture("basic", `module hello; fn void greet() {}`);
+    String path = parser_tests::write_fixture("basic", `module hello; fn void greet() {}`);
     Workspace ws; ws.init();
     defer ws.free();
     ParseResult res = parser::parse_file(&ws, path)!!;
@@ -26,13 +28,13 @@ fn void basic_module()
     ModuleSection* s = mod.sections[0];
 	io::printfn("%s", string::from_struct(tmem, s.source_file.ast));
 
-	test::eq(count_kind(s, MODULE_DECL), 1);
-	test::eq(count_kind(s, FN_DECL), 1);
+	test::eq(parser_tests::count_kind(s, MODULE_DECL), 1);
+	test::eq(parser_tests::count_kind(s, FN_DECL), 1);
 }
 
 fn void function_with_params()
 {
-	String path = write_fixture("basic", `
+	String path = parser_tests::write_fixture("basic", `
 		module hello; 
 		fn void greet(int foo, Bar baz) {}
 		fn void foo(int foo, Bar baz) {}
