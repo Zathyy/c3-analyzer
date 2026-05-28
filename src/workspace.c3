@@ -30,7 +30,7 @@ struct ModuleSection
 {
 	SourceFile* source_file;
 	Module* parent_module;
-	NodeArray[] nodes;
+	NodeArray nodes;
 }
 
 struct Module
