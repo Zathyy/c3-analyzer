@@ -22,7 +22,12 @@ fn void AstPool.init(&self, Allocator backing_allocator = mem)
 	self.pool.init(backing_allocator);
 	for (int i = 0; i < INIT_POOL_SIZE; i++)
 	{
-		self.pool.push({ .ast = ast::new(backing_allocator), .free = true });
+		self.pool.push({ .free = true });
+	}
+
+	foreach (member : self.pool)
+	{
+		member.ast.init(backing_allocator);
 	}
 }
 
@@ -37,7 +42,8 @@ fn Ast* AstPool.obtain(&self)
 		}
 	}
 
-	AstPoolMember new_member = { .ast = ast::new(self.allocator), .free = false };
+	AstPoolMember new_member = { .free = false };
+	new_member.ast.init(self.allocator);
 	self.pool.push(new_member);
 	return &self.pool[^1].ast;
 }

@@ -65,13 +65,6 @@ struct Ast
 	List{Node*} error_nodes;
 }
 
-fn Ast new(Allocator backing_allocator = mem)
-{
-	Ast ast;
-	ast.init(backing_allocator);
-	return ast;
-}
-
 fn void Ast.init(&self, Allocator backing_allocator = mem)
 {
 	self.arena.init(backing_allocator, ARENA_PAGE_SIZE);
@@ -90,8 +83,8 @@ fn void Ast.clear(&self)
 
 fn void Ast.free(&self)
 {
-	self.top_level_nodes.free();
-	self.string_pool.free();
+	self.top_level_nodes.clear();
+	self.string_pool.clear();
 	self.arena.free();
 }
 
