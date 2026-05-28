@@ -269,16 +269,9 @@ fn Node? parse_infix(ParseContext* ctx, Node left, Precedence rbp)
 		case ELVIS:
 		case CT_CONCAT_OP:
 		case CT_CONCAT_ASSIGN:
-		case CT_AND_OP: 
+		case CT_AND_OP:
 		case CT_OR_OP:
-			{
-				advance(ctx)!;
-				Node right = parse_expr(ctx, rbp)!;
-
-				uint[3] data = { (uint)left, (uint)right, (uint)t.kind };
-				uint ex = ctx.ast.push_extra_block(&data);
-				return ctx.ast.add_node(BINARY_EXPR, t.pos, ctx.current_pos(), ex);
-			}
+			return parse_binary_expr(ctx, left, rbp)!;
 		default:
 			ctx.error("Unexpected infix token: %s", t.kind);
 			return UNEXPECTED_TOKEN~;

@@ -89,3 +89,18 @@ fn Node*? parse_path_expr(ParseContext* ctx, bool as_prefix = false) => @pool()
 	path.segments = alloc::clone_slice(ctx.arena, temp_segments.array_view());
 	return node;
 }
+
+fn Node*? parse_binary_expr(ParseContext* ctx, Node* left, Precedence prec) 
+{
+	int start = ctx.peek(0).pos;
+	TokenKind kind = ctx.peek(0).kind;
+	advance(ctx)!;
+	Node* right = parse_expr(ctx, prec)!;
+
+	Node* node = ctx.ast.alloc_node(BINARY_EXPR, start, ctx.peek(0).pos);
+	BinaryExpr* bin = node.as_binary();
+	bin.left = left;
+	bin.right = right;
+	bin.op = binaryop_from_token(kind);
+	return node;
+}
