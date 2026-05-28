@@ -1,5 +1,7 @@
 module parser;
 
+import lexer;
+
 enum OperatorKind 
 {
 	OP_ERROR,
