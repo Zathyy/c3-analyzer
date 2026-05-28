@@ -38,7 +38,9 @@ fn void test_function_with_params()
     Workspace ws; ws.init();
     defer ws.free();
     ParseResult res = parser::parse_file(&ws, path)!!;
-	assert(res.success == true, "Failed to parse");
+	test::eq(res.success, true);
 
+	Node* node = ws.lookup("hello", "greet")!!;
+	FnDecl* func = node.as(FN_DECL);
 }
 
