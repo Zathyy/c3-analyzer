@@ -29,7 +29,7 @@ fn IdentExpr* Node.as_ident(&self) @inline
 
 struct PathExpr
 {
-    String[] segments; // e.g., ["std", "io", "printf"]
+    StringID[] segments; // e.g., ["std", "io", "printf"]
 }
 
 <* @require self.kind == PATH_EXPR *>
