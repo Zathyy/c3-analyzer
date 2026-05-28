@@ -74,6 +74,7 @@ fn void Workspace.free(&self)
 	self.modules.@each(;name, mod) 
 	{
 		mod.sections.free();
+		mod.name.free(self.allocator);
 		alloc::free(self.allocator, mod);
 	};
 	self.modules.free();
@@ -123,7 +124,7 @@ fn Module* Workspace.get_or_create_module(&self, String name)
 	}
 
 	Module* mod = alloc::new(self.allocator, Module);
-	mod.name = name;
+	mod.name = name.copy(self.allocator);
 	mod.sections.init(self.allocator, 4);
 
 	self.modules.set(name, mod);

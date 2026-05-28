@@ -16,14 +16,17 @@ import std::io;
 import std::collections::list;
 
 <*
-	TYPE_EXPR - unresolved type, parser only cares about the syntax
+	type_expr ::= path_expr? ( '*' | '[' [ EXPR ] ']' | '!' )*
 *>
 fn Node*? parse_type_expr(ParseContext* ctx, ParseFlags parse_flags = {})
 {
 	int start = ctx.peek(0).pos;
 
 	Node* current_type = ctx.ast.alloc_node(TYPE_EXPR, start, ctx.peek().pos);
-	Node* path_expr = parse_path_expr(ctx)!;
+
+	Node* path = parse_path_expr(ctx, true)!;
+
+	advance(ctx)!;
 
 	//TODO:
 

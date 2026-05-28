@@ -17,8 +17,25 @@ struct IdentExpr
 
 struct PathExpr
 {
-    StringID[] segments; // e.g., ["std", "io", "printf"]
+    StringID[] segments;
 }
+
+fn String? PathExpr.full_path(&self, StringPool* pool, Allocator allocator) => @pool()
+{
+	sz len = self.segments.len;
+	String result;
+	for (sz i = 0; i < len; i++)
+	{
+		String part = pool.get(self.segments[i])!;
+		result = result.tconcat(part);
+		if (i < len - 1)
+		{
+			result = result.concat(tmem, "::");
+		}
+	}
+
+	return result.copy(allocator);
+}	
 
 struct TypeExpr
 {

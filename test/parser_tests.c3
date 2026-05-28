@@ -16,11 +16,11 @@ fn void test_basic_module() @test
     ParseResult res = parser::parse_file(&ws, path)!!;
 	assert(res.success == true, "Failed to parse");
 
-	io::printfn("num modules = %s", ws.modules.len());
     assert(ws.modules.len() == 1, "Expected one module");
 
     Module* mod = ws.modules.get("hello")!!;
     assert(mod != null, "Module 'hello' not found");
+	io::printfn("%s", mod.name);
     assert(mod.name == "hello", "Module name mismatch");
     assert(mod.sections.len() == 1, "Expected one section inside module 'hello'");
 
