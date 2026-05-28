@@ -81,7 +81,7 @@ fn Node*? parse_path_expr(ParseContext* ctx, bool as_prefix = false) => @pool()
 
 		if (!consume(ctx, SCOPE)!) break;
 
-		if (!expect(ctx, IDENT)!)
+		if (!ctx.is(IDENT))
 		{
 			temp_segments.push(-1);
 			node.kind = MISSING;
