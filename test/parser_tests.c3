@@ -16,6 +16,7 @@ fn void test_basic_module() @test
     ParseResult res = parser::parse_file(&ws, path)!!;
 	assert(res.success == true, "Failed to parse");
 
+	io::printfn("num modules = %s", ws.modules.len());
     assert(ws.modules.len() == 1, "Expected one module");
 
     Module* mod = ws.modules.get("hello")!!;

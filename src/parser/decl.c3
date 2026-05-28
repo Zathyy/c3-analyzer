@@ -19,6 +19,9 @@ fn Node*? parse_module_decl(ParseContext* ctx)
 		return ctx.ast.alloc_node(ERROR, start_pos);
 	}
 
+	log::debug("parse_mod");
+
+
 	Node* node = ctx.ast.alloc_node(MODULE_DECL, start_pos);
 	ModuleDecl* mod = node.as(MODULE_DECL);
 	defer node.end_token = ctx.peek(0).pos;
@@ -98,6 +101,8 @@ fn Node*? parse_fn_decl(ParseContext* ctx, ParseFlags flags = {})
 		return ctx.ast.alloc_node(ERROR, start_pos);
 	}
 
+	log::debug("parse_fn");
+
 	Node* node = ctx.ast.alloc_node(FN_DECL, start_pos);
 	FnDecl* func = node.as(FN_DECL);
 	defer node.end_token = ctx.peek(0).pos;
@@ -139,6 +144,8 @@ fn Node*? parse_fn_decl(ParseContext* ctx, ParseFlags flags = {})
         func.name = ctx.ast.string_pool.internalize(ctx.token_text(t));
         advance(ctx)!;
     }
+	
+	func.params = parse_parameter_list(ctx)!;
 
 	if (ctx.is(LBRACE))
     {

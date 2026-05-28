@@ -17,11 +17,17 @@ fn NodeArray? parse_parameter_list(ParseContext* ctx) => @pool()
 {
 	int start_pos = ctx.peek(0).pos;
 
+	if (!expect(ctx, LPAREN)!)
+	{
+		return {ctx.ast.alloc_node(ERROR, start_pos)};
+	}
+
 	List{Node*} temp_params;
     temp_params.init(tmem, 4);
 
 	if (ctx.is(RPAREN))
     {
+		advance(ctx)!;
         return alloc::clone_slice(ctx.arena, temp_params.array_view());
     }
 
