@@ -52,11 +52,14 @@ fn Node*? parse_path_expr(ParseContext* ctx, bool as_prefix = false) => @pool()
 {
 	int start_pos = ctx.peek(0).pos;
 
-	if (!ctx.is(IDENT) && ctx.peek(1).kind != SCOPE)
+	if (!ctx.is(IDENT))
 	{
-		if (as_prefix)
+		if (ctx.peek(1).kind != SCOPE)
 		{
-			return ctx.ast.alloc_node(MISSING, start_pos);
+			if (as_prefix)
+			{
+				return ctx.ast.alloc_node(MISSING, start_pos);
+			}
 		}
 
 		ctx.error("Expected a path identifier here");

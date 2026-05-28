@@ -37,7 +37,6 @@ macro void ParseContext.error_at(&self, Token t, String fmt, ...)
 fn void ParseContext.report(ParseContext* self, Token token, LogPriority level, String color, String fmt, args ...)
 {
 	Location loc = self.line_map.resolve(token.pos);
-	
 	$if $feature(PARSER_LIB):
 		self.errors.push({ level, loc, token, string::format(self.allocator, fmt, ...args) });
 	$else
@@ -49,9 +48,9 @@ fn void ParseContext.report(ParseContext* self, Token token, LogPriority level, 
 		io::printf(" %4s | %s\n", loc.line, line_text);
 
 		io::printf(" %4s | ", "");
-		for (uint i = 1; i < loc.column; i++)
+		for (sz i = 1; i < loc.column; i++)
 		{
-			if (line_text[i - 1] == '\t')
+			if (i - 1 < line_text.len && line_text[i - 1] == '\t')
 			{
 				io::print("\t");
 			}
