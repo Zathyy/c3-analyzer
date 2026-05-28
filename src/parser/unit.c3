@@ -46,5 +46,36 @@ fn NodeArray? parse_parameter_list(ParseContext* ctx) => @pool()
         }
     }
 
+	if (!expect(ctx, RPAREN)!)
+	{
+		//TODO!
+	}
+
 	return alloc::clone_slice(ctx.arena, temp_params.array_view());
+}
+
+<*
+    generic_param_list ::= '{' expr ( ',' expr )* '}'
+*>
+fn NodeArray? parse_generics_list(ParseContext* ctx)
+{
+    if (!consume(ctx, LBRACE)!) return {};
+    List{Node*} params;
+    params.init(tmem, 4);
+
+    while (true)
+    {
+        if (ctx.is(RBRACE)) break;
+        Node* param = parse_expr(ctx)!;
+        params.push(param);
+        if (!consume(ctx, COMMA)!) break;
+    }
+
+    if (!consume(ctx, RBRACE)!)
+    {
+        ctx.error("Expected closing '}' after generic parameter list");
+        return {};
+    }
+
+    return alloc::clone_slice(ctx.arena, params.array_view());
 }
