@@ -43,6 +43,10 @@ fn void LineMap.build(LineMap* self, String src)
 	}
 }
 
+<*
+	returns the Location as 1 based
+	@require pos >= 0
+*>
 fn Location LineMap.resolve(LineMap* self, sz pos)
 {
 	// Binary search for the line index
@@ -65,12 +69,12 @@ fn Location LineMap.resolve(LineMap* self, sz pos)
 	}
 
 	sz line_start_offset = self.line_offsets[line_idx];
-	return { .line = line_idx, .column = (pos - line_start_offset) };
+	return { .line = line_idx + 1, .column = (pos - line_start_offset) + 1 };
 }
 
 fn sz LineMap.get_offset(LineMap* self, String src, Location loc)
 {
-	sz line_idx = loc.line;
+	sz line_idx = loc.line - 1;
 	if (line_idx >= self.line_offsets.len()) return src.len;
 
 	sz line_start = self.line_offsets[line_idx];
@@ -93,17 +97,17 @@ fn String LineMap.get_line_from_src(&self, String src, sz line_num)
 	sz start = self.line_offsets[line_num - 1];
 	sz end;
 
-	if (line_num + 1 < self.line_offsets.len())
+	if (line_num < self.line_offsets.len())
 	{
-		end = self.line_offsets[line_num + 1];
+		end = self.line_offsets[line_num];
 	}
 	else
 	{
 		end = src.len;
 	}
 
-	if (end >= src.len) return "";
+	if (start > src.len || end > src.len || start > end) return "";
 
-	String line = src[start..end];
+	String line = src[start:end];
 	return line.trim_right();
 }
