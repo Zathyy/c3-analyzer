@@ -91,3 +91,11 @@ fn OperatorKind binaryop_from_token(TokenKind kind)
 			unreachable("unknown binaryop kind");
 	}
 }
+
+enum VarDeclKind
+{
+	VAR_LOCAL,   
+	VAR_GLOBAL,
+	VAR_FIELD, 
+	VAR_PARAM
+}

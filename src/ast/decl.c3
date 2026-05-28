@@ -27,9 +27,19 @@ struct FnDecl
 
 struct ParamDecl 
 {
-	StringID name;
 	Node* type;
 	Node* default_value;
-	bool is_variadic;
+	StringID name;
 	TokenKind ident_kind;
+	bool is_variadic;
+}
+
+struct VarDecl 
+{
+	VarDeclKind kind;
+	VarDeclFlags flags;
+	StringID name;
+	Node* type;
+	Node* init_expr;
+	AttributeList attributes;
 }
