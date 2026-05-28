@@ -10,32 +10,14 @@ struct BinaryExpr
 	OperatorKind op;
 }
 
-<* @require self.kind == BINARY_EXPR *>
-fn BinaryExpr* Node.as_binary(&self) @inline 
-{ 
-	return &self.binary_expr;
-}
-
 struct IdentExpr 
 {
 	StringID ident;
 }
 
-<* @require self.kind == IDENT_EXPR *>
-fn IdentExpr* Node.as_ident(&self) @inline 
-{ 
-	return &self.ident_expr;
-}
-
 struct PathExpr
 {
     StringID[] segments; // e.g., ["std", "io", "printf"]
-}
-
-<* @require self.kind == PATH_EXPR *>
-fn PathExpr* Node.as_path(&self) @inline 
-{ 
-    return &self.path_expr; 
 }
 
 struct TypeExpr

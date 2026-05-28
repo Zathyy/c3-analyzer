@@ -52,18 +52,6 @@ macro Node.as(&self, NodeKind $kind)
 	return &self.$eval(utils::@str_to_lower($kind.description));
 }
 
-<* @require self.kind == INT_LITERAL *>
-fn IntLiteral* Node.as_int(&self) @inline 
-{ 
-	return &self.int_lit; 
-}
-
-<* @require self.kind == IF_STMT *>
-fn IfStmt* Node.as_if(&self) @inline 
-{ 
-	return &self.if_stmt; 
-}
-
 struct Ast
 {
 	DynamicArenaAllocator arena;

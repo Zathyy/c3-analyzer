@@ -24,7 +24,7 @@ fn Node*? parse_compound_stmt(ParseContext* ctx) => @pool()
 	}
 
 	Node* node = ctx.ast.alloc_node(COMPOUND_STMT, start_pos);
-    CompoundStmt* block = node.as_compound();
+    CompoundStmt* block = node.as(COMPOUND_STMT);
     defer node.end_token = ctx.peek(0).pos;
 
 	List{Node*} temp_stmts;
