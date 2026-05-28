@@ -4,7 +4,6 @@ import lexer;
 import line_map;
 
 import parser::ast;
-import parser::common;
 import parser::workspace @norecurse;
 
 import std::io;

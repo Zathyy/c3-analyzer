@@ -8,7 +8,6 @@ module parser::cursor;
 
 import parser::workspace;
 import parser::ast;
-import parser::common;
 
 import std::io;
 

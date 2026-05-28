@@ -1,8 +1,6 @@
 module parser::parser::error;
 
 import lexer;
-import parser::common;
-
 
 struct ParserError 
 {

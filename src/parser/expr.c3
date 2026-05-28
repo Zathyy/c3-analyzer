@@ -10,8 +10,6 @@ import parser::ast;
 import lexer;
 import std::core::ascii;
 
-import parser::common;
-
 import std::io;
 import std::collections::list;
 

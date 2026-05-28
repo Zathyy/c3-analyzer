@@ -4,7 +4,6 @@
 module parser::parser;
 
 import parser::ast;
-import parser::common;
 import lexer;
 
 import std::io;

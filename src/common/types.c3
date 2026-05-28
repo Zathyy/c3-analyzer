@@ -1,27 +1,9 @@
-module parser::common;
+module parser;
 
 import std::collections::list;
 import std::collections::maybe;
 
 import parser::ast @norecurse;
-
-enum VarDeclKind
-{
-	CONST,
-	GLOBAL,
-	LOCAL,
-	PARAM,
-	MEMBER,
-	BITMEMBER,
-	PARAM_EXPR,
-	UNWRAPPED,
-	ERASE,
-	REWRAPPED,
-	PARAM_CT,
-	PARAM_CT_TYPE,
-	LOCAL_CT,
-	LOCAL_CT_TYPE
-}
 
 enum TypeInfoKind
 {

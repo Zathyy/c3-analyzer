@@ -4,8 +4,6 @@ import std::io;
 import lexer;
 import line_map;
 import parser::ast;
-import parser::common;
-import buffered_log;
 
 // Colors for the terminal
 const String ANSI_RED    = "\x1b[31;1m";
