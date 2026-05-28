@@ -1,6 +1,7 @@
 module parser::ast;
 import lexer;
 
+import parser::ast::utils;
 import std::collections::list;
 
 const sz ARENA_PAGE_SIZE = 4096;
@@ -43,6 +44,12 @@ struct Node
 		// UNIT
 		IntLiteral int_lit;
 	}
+}
+
+macro Node.as(&self, NodeKind $kind)
+{
+	assert(self.kind == $kind, "Invalid kind");
+	return &self.$eval(utils::@str_to_lower($kind.description));
 }
 
 <* @require self.kind == INT_LITERAL *>

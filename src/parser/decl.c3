@@ -20,7 +20,7 @@ fn Node*? parse_module_decl(ParseContext* ctx)
 	}
 
 	Node* node = ctx.ast.alloc_node(MODULE_DECL, start_pos);
-	ModuleDecl* mod = node.as_module();
+	ModuleDecl* mod = node.as(MODULE_DECL);
 	defer node.end_token = ctx.peek(0).pos;
 
 	mod.path = parse_path_expr(ctx, false)!;
@@ -50,7 +50,7 @@ fn Node*? parse_import_decl(ParseContext* ctx) => @pool()
 	}
 
 	Node* node = ctx.ast.alloc_node(IMPORT_DECL, start_pos);
-	ImportDecl* imp = node.as_import();
+	ImportDecl* imp = node.as(IMPORT_DECL);
 	defer node.end_token = ctx.peek(0).pos;
 
 	List{Node*} temp_paths;
@@ -99,7 +99,7 @@ fn Node*? parse_fn_decl(ParseContext* ctx, ParseFlags flags = {})
 	}
 
 	Node* node = ctx.ast.alloc_node(FN_DECL, start_pos);
-	FnDecl* func = node.as_fn();
+	FnDecl* func = node.as(FN_DECL);
 	defer node.end_token = ctx.peek(0).pos;
 
 	func.ret_type = parse_type_expr(ctx)!;
@@ -190,7 +190,7 @@ fn Node*? parse_param_decl(ParseContext* ctx)
     int start_pos = ctx.peek(0).pos;
 
     Node* node = ctx.ast.alloc_node(PARAM_DECL, start_pos);
-    ParamDecl* param = node.as_param();
+    ParamDecl* param = node.as(PARAM_DECL);
     defer node.end_token = ctx.peek(0).pos;
 
     param.type = parse_type_expr(ctx)!;

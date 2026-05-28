@@ -38,7 +38,7 @@ fn Node*? parse_ident_expr(ParseContext* ctx)
 		return parse_path_expr(ctx, true)!;
 	}
 	Node* node = ctx.ast.alloc_node(IDENT_EXPR, start, ctx.peek().pos);
-	IdentExpr* ident = node.as_ident();
+	IdentExpr* ident = node.as(IDENT_EXPR);
 	ident.ident = ctx.ast.string_pool.internalize(ctx.token_text(ctx.peek(0)));
 	advance(ctx)!;
 	return node;
@@ -64,7 +64,7 @@ fn Node*? parse_path_expr(ParseContext* ctx, bool as_prefix = false) => @pool()
 	}
 
 	Node* node = ctx.ast.alloc_node(PATH_EXPR, start_pos, ctx.peek().pos);
-	PathExpr* path = node.as_path();
+	PathExpr* path = node.as(PATH_EXPR);
 	defer node.end_token = ctx.peek(0).pos;
 
 	List{StringID} temp_segments;
@@ -98,7 +98,7 @@ fn Node*? parse_binary_expr(ParseContext* ctx, Node* left, Precedence prec)
 	Node* right = parse_expr(ctx, prec)!;
 
 	Node* node = ctx.ast.alloc_node(BINARY_EXPR, start, ctx.peek(0).pos);
-	BinaryExpr* bin = node.as_binary();
+	BinaryExpr* bin = node.as(BINARY_EXPR);
 	bin.left = left;
 	bin.right = right;
 	bin.op = parser::binaryop_from_token(kind);

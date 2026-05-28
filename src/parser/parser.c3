@@ -64,7 +64,7 @@ struct ParseContext
 
 	int pos;
 	Node contract;
-  	List{ParserError} errors @if($feature(PARSER_LIB));
+	List{ParserError} errors @if($feature(PARSER_LIB));
 
 	// for when using debbugers so i can keep track of what its at
 	Token current_token @if(env::DEBUG_SYMBOLS);
