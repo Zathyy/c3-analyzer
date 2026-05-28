@@ -8,7 +8,7 @@ import std::collections::list;
 import std::io::file;
 import std::io::path;
 
-fn void test_basic_module() 
+fn void basic_module() 
 {
     String path = write_fixture("basic", `module hello; fn void greet() {}`);
     Workspace ws; ws.init();
@@ -30,7 +30,7 @@ fn void test_basic_module()
 	test::eq(count_kind(s, FN_DECL), 1);
 }
 
-fn void test_function_with_params()
+fn void function_with_params()
 {
 	String path = write_fixture("basic", `
 		module hello; 
