@@ -30,3 +30,15 @@ fn void test_basic_module()
     assert(count_kind(s, MODULE_DECL) == 1, "Expected exactly 1 MODULE_DECL");
     assert(count_kind(s, FN_DECL) == 1, "Expected exactly 1 FN_DECL");
 }
+
+fn void test_function_with_params()
+{
+	String path = write_fixture("basic", `module hello; 
+		fn void greet(int foo, Bar baz) {}`
+	);
+    Workspace ws; ws.init();
+    defer ws.free();
+    ParseResult res = parser::parse_file(&ws, path)!!;
+	assert(res.success == true, "Failed to parse");
+}
+
