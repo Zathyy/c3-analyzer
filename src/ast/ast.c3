@@ -27,6 +27,8 @@ struct Node
 
 	union
 	{
+		ErrorNode error;
+
 		// DECL
 		ModuleDecl module_decl;
 		ImportDecl import_decl;
@@ -67,6 +69,18 @@ fn void Ast.init(&self, Allocator backing_allocator = mem)
 	self.top_level_nodes.init(&self.arena, 32);
 }
 
+macro Node* Ast.error(&self, int start, int end = -1)
+{
+	Node* node = self.alloc_node(ERROR, start, end);
+	self.error_nodes.push(node);
+
+	$if !$feature(PARSER_LIB):
+		log::error("Error happened here");
+	$endif
+
+	return node;
+}
+
 fn sz Ast.next_node_idx(&self) => self.top_level_nodes.len();
 
 fn void Ast.clear(&self)
@@ -88,13 +102,13 @@ fn void Ast.free(&self)
   @param kind  : "The NodeKind enum tag (e.g., IMPORT_DECL, VAR_DECL)"
   @param start : "The starting token index/position"
 *>
-fn Node* Ast.alloc_node(&self, NodeKind kind, int start, int end = 0)
+fn Node* Ast.alloc_node(&self, NodeKind kind, int start, int end = -1)
 {
 	Node* node = alloc::new(&self.arena, Node);
 
 	node.kind = kind;
 	node.start_token = start;
-	node.end_token = end == 0 ? node.start_token : end;
+	node.end_token = end == -1 ? node.start_token : end;
 
 	return node;
 }
