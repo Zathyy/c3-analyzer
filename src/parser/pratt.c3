@@ -156,7 +156,7 @@ fn void get_binding_power(TokenKind type, int* lbp, int* rbp)
 *>
 fn Node*? parse_expr(ParseContext* ctx, Precedence min_bp = LOWEST)
 {
-	Node left = parse_prefix_expr(ctx)!;
+	Node* left = parse_prefix_expr(ctx)!;
 
 	while (true)
 	{
@@ -230,7 +230,7 @@ fn Node*? parse_prefix_expr(ParseContext* ctx)
 	Handles tokens that connect expressions (e.g. 1 + 2, obj.prop, arr[0])
 	It takes a pre-parsed "left" node and attaches a "right" side to it.
 *>
-fn Node? parse_infix(ParseContext* ctx, Node left, Precedence rbp)
+fn Node*? parse_infix(ParseContext* ctx, Node* left, Precedence rbp)
 {
 	Token t = ctx.current();
 

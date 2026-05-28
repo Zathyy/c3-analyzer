@@ -150,29 +150,29 @@ fn OverloadKind get_overload_from_token(TokenKind kind)
 {
 	switch (kind)
 	{
-		case PLUS: return OverloadKind.PLUS;
-		case PLUS_ASSIGN: return OverloadKind.PLUS_ASSIGN;
-		case MINUS: return OverloadKind.MINUS;
-		case MINUS_ASSIGN: return OverloadKind.MINUS_ASSIGN;
-		case ASTERISK: return OverloadKind.MULTIPLY;
-		case MULT_ASSIGN: return OverloadKind.MULTIPLY_ASSIGN;
-		case DIV: return OverloadKind.DIVIDE;
-		case DIV_ASSIGN: return OverloadKind.DIVIDE_ASSIGN;
-		case MOD: return OverloadKind.REMINDER;
-		case MOD_ASSIGN: return OverloadKind.REMINDER_ASSIGN;
-		case AMP: return OverloadKind.AND;
-		case BIT_AND_ASSIGN: return OverloadKind.AND_ASSIGN;
-		case BIT_OR: return OverloadKind.OR;
-		case BIT_OR_ASSIGN: return OverloadKind.OR_ASSIGN;
-		case BIT_XOR: return OverloadKind.XOR;
-		case BIT_XOR_ASSIGN: return OverloadKind.XOR_ASSIGN;
-		case LSHIFT: return OverloadKind.SHL;
-		case LSHIFT_ASSIGN: return OverloadKind.SHL_ASSIGN;
-		case RSHIFT: return OverloadKind.SHR;
-		case RSHIFT_ASSIGN: return OverloadKind.SHR_ASSIGN;
-		case BIT_NOT: return OverloadKind.NEGATE;
-		case EQEQ: return OverloadKind.EQUAL;
-		case NOT_EQUAL: return OverloadKind.NOT_EQUAL;
+		case PLUS: return           OV_PLUS;
+		case PLUS_ASSIGN: return    OV_PLUS_ASSIGN;
+		case MINUS: return          OV_MINUS;
+		case MINUS_ASSIGN: return   OV_MINUS_ASSIGN;
+		case ASTERISK: return       OV_MULTIPLY;
+		case MULT_ASSIGN: return    OV_MULTIPLY_ASSIGN;
+		case DIV: return            OV_DIVIDE;
+		case DIV_ASSIGN: return     OV_DIVIDE_ASSIGN;
+		case MOD: return            OV_REMINDER;
+		case MOD_ASSIGN: return     OV_REMINDER_ASSIGN;
+		case AMP: return            OV_AND;
+		case BIT_AND_ASSIGN: return OV_AND_ASSIGN;
+		case BIT_OR: return         OV_OR;
+		case BIT_OR_ASSIGN: return  OV_OR_ASSIGN;
+		case BIT_XOR: return        OV_XOR;
+		case BIT_XOR_ASSIGN: return OV_XOR_ASSIGN;
+		case LSHIFT: return         OV_SHL;
+		case LSHIFT_ASSIGN: return  OV_SHL_ASSIGN;
+		case RSHIFT: return         OV_SHR;
+		case RSHIFT_ASSIGN: return  OV_SHR_ASSIGN;
+		case BIT_NOT: return        OV_NEGATE;
+		case EQEQ: return           OV_EQUAL;
+		case NOT_EQUAL: return      OV_NOT_EQUAL;
 		default:
 			unreachable();
 	}

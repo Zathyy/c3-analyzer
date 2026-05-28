@@ -101,6 +101,6 @@ fn Node*? parse_binary_expr(ParseContext* ctx, Node* left, Precedence prec)
 	BinaryExpr* bin = node.as_binary();
 	bin.left = left;
 	bin.right = right;
-	bin.op = binaryop_from_token(kind);
+	bin.op = parser::binaryop_from_token(kind);
 	return node;
 }
