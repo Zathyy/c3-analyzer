@@ -16,7 +16,8 @@ fn Node*? parse_module_decl(ParseContext* ctx, Workspace* ws)
 	int start_pos = ctx.peek(0).pos;
 	if (!expect(ctx, MODULE)!)
 	{
-		return ctx.ast.alloc_node(ERROR, start_pos);
+		ctx.error("Expected a starting 'module'");
+		return ctx.ast.error(start_pos);
 	}
 
 	log::debug("parse_mod");
@@ -104,7 +105,8 @@ fn Node*? parse_fn_decl(ParseContext* ctx, ParseFlags flags = {})
 	int start_pos = ctx.peek(0).pos;
 	if (!expect(ctx, FN)!)
 	{
-		return ctx.ast.alloc_node(ERROR, start_pos);
+		ctx.error("expected a starting 'fn'");
+		return ctx.ast.error(start_pos);
 	}
 
 	log::debug("parse_fn");
@@ -128,7 +130,7 @@ fn Node*? parse_fn_decl(ParseContext* ctx, ParseFlags flags = {})
         {
             ctx.error("Expected member function name identifier");
             func.name = -1;
-            return ctx.ast.alloc_node(ERROR, start_pos);
+            return ctx.ast.error(start_pos);
         }
 
         Token t = ctx.peek(0);
@@ -143,7 +145,7 @@ fn Node*? parse_fn_decl(ParseContext* ctx, ParseFlags flags = {})
         if (!ctx.is(IDENT))
         {
             ctx.error("Expected function name identifier");
-            return ctx.ast.alloc_node(ERROR, start_pos);
+            return ctx.ast.error(start_pos);
         }
 
         Token t = ctx.peek(0);
@@ -158,7 +160,7 @@ fn Node*? parse_fn_decl(ParseContext* ctx, ParseFlags flags = {})
         if (flags.is_extern)
         {
             ctx.error("Extern functions cannot have a structural block body");
-            return ctx.ast.alloc_node(ERROR, start_pos);
+            return ctx.ast.error(start_pos);
         }
         func.body = parse_compound_stmt(ctx)!;
     }
@@ -167,7 +169,7 @@ fn Node*? parse_fn_decl(ParseContext* ctx, ParseFlags flags = {})
         if (flags.is_extern)
         {
             ctx.error("Extern functions cannot have an expression body");
-            return ctx.ast.alloc_node(ERROR, start_pos);
+            return ctx.ast.error(start_pos);
         }
 
         func.body = parse_expr(ctx)!;

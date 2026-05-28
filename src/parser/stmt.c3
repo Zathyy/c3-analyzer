@@ -20,7 +20,8 @@ fn Node*? parse_compound_stmt(ParseContext* ctx) => @pool()
 	int start_pos = ctx.peek(0).pos;
 	if (!expect(ctx, LBRACE)!)
 	{
-		return ctx.ast.alloc_node(ERROR, start_pos);
+		ctx.error("Expected opening '{'");
+		return ctx.ast.error(start_pos);
 	}
 
 	Node* node = ctx.ast.alloc_node(COMPOUND_STMT, start_pos);
@@ -36,7 +37,7 @@ fn Node*? parse_compound_stmt(ParseContext* ctx) => @pool()
 		if (catch stmt)
         {
             ctx.error("Malformed statement inside block");
-            Node* err_node = ctx.ast.alloc_node(ERROR, ctx.peek(0).pos);
+            Node* err_node = ctx.ast.error(ctx.peek(0).pos);
             temp_stmts.push(err_node);
             ctx.skip_until({ RBRACE, EOS })!;
             continue;

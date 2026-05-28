@@ -41,7 +41,7 @@ fn Node*? parse_type_expr(ParseContext* ctx, ParseFlags parse_flags = {})
 		if (!ctx.is(TYPE_IDENT))
 		{
 			ctx.error("Expected TypeIdent, got %s", ctx.current_text());
-			return ctx.ast.alloc_node(ERROR, ctx.current().pos);
+			return ctx.ast.error(ctx.current().pos);
 		}
 
 		advance(ctx)!;
@@ -91,7 +91,11 @@ fn Node*? parse_type_expr(ParseContext* ctx, ParseFlags parse_flags = {})
                 arr_data.array.base = current_type;
                 arr_data.array.len_expr = parse_expr(ctx)!;
                 
-                if (!consume(ctx, RBRACKET)!) return ctx.ast.alloc_node(ERROR, start);
+                if (!consume(ctx, RBRACKET)!)
+				{
+					ctx.error("Expected a closing ']'");
+					return ctx.ast.error(start);
+				}
             }
 
             arr_node.end_token = ctx.peek(0).pos;
@@ -155,7 +159,7 @@ fn Node*? parse_path_expr(ParseContext* ctx, bool as_prefix = false) => @pool()
 		}
 
 		ctx.error("Expected a path identifier here");
-		return ctx.ast.alloc_node(ERROR, start_pos);
+		return ctx.ast.error(start_pos);
 	}
 
 	Node* node = ctx.ast.alloc_node(PATH_EXPR, start_pos, ctx.peek().pos);
