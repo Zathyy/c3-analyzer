@@ -312,6 +312,7 @@ fn ParseResult? parse(Workspace* ws, String uri, String src) => @pool()
 	sf.source = src;
 	ctx.sf = sf;
 	ctx.ast = sf.ast;
+	ctx.arena = &ctx.ast.arena;
 	ctx.line_map = &sf.line_map;
 	ctx.line_map.build(src);
 
@@ -346,6 +347,11 @@ fn ParseResult? parse(Workspace* ws, String uri, String src) => @pool()
 			synchronize(&ctx)!;
 			continue;
 		}
+	}
+
+	if (try last_sec = ctx.sf.sections.last())
+	{
+		last_sec.nodes = ctx.ast.top_level_nodes.array_view();
 	}
 
 	log::info("Succesfully parsed: %s", uri);
