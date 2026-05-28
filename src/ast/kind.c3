@@ -13,6 +13,7 @@ enum NodeKind : char
 	MODULE_DECL,
 	IMPORT_DECL,
 	FN_DECL,
+	PARAM_DECL,
 
 	COMPOUND_STMT,
 	IF_STMT,
