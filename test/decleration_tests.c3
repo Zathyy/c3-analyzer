@@ -46,6 +46,9 @@ fn void function_with_params()
     ParseResult res = parser::parse_file(&ws, path)!!;
 	test::eq(res.success, true);
 
+    Module* mod = ws.modules.get("hello")!!;
+    ModuleSection* s = mod.sections[0];
+
 	Node* node = ws.lookup("hello", "greet")!!;
 	FnDecl* func = node.as(FN_DECL);
 
@@ -54,5 +57,8 @@ fn void function_with_params()
 
 	Node* node_3 = ws.lookup("hello", "bar")!!;
 	FnDecl* func_3 = node.as(FN_DECL);
+
+	test::eq(parser_tests::count_kind(s, MODULE_DECL), 1);
+	test::eq(parser_tests::count_kind(s, FN_DECL), 3);
 }
 
