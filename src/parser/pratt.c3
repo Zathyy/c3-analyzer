@@ -214,13 +214,13 @@ fn Node*? parse_prefix_expr(ParseContext* ctx)
 		case HASH_CONST_IDENT:
 		case HASH_TYPE_IDENT:
 			return parse_ident_expr(ctx)!;
-		case STRING:
+		case STRING_LITERAL:
 		case CHAR_LITERAL:
 		case TRUE:
 		case FALSE:
 		case NULL:
-		case REAL:
-		case INTEGER:
+		case FLOAT_LITERAL:
+		case INT_LITERAL:
 			return parse_literal_expr(ctx)!;
 		default:
 			log::error(

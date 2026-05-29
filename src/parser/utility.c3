@@ -68,7 +68,7 @@ fn bool is_keyword_ident(TokenKind type)
 
 fn bool is_base_type(TokenKind kind)
 {
-	return kind >= VOID && kind <= UNTYPEDLIST;
+	return kind >= VOID_TYPE && kind <= UNTYPEDLIST_TYPE;
 }
 
 fn bool is_some_ident(TokenKind type)
@@ -110,30 +110,30 @@ fn bool is_type_primitive(TokenKind kind)
 {
 	switch (kind)
 	{
-		case BOOL:
-		case CHAR:
-		case DOUBLE:
-		case FLOAT:
-		case FLOAT16:
-		case BFLOAT:
-		case INT128:
-		case ICHAR:
-		case INT:
-		case IPTR:
-		case LONG:
-		case SHORT:
-		case UINT128:
-		case UINT:
-		case ULONG:
-		case UPTR:
-		case USHORT:
-		case USZ:
-		case SZ:
-		case FLOAT128:
-		case TYPEID:
-		case FAULT:
-		case ANY:
-		case VOID:
+		case BOOL_TYPE:
+		case CHAR_TYPE:
+		case DOUBLE_TYPE:
+		case FLOAT_TYPE:
+		case FLOAT16_TYPE:
+		case BFLOAT_TYPE:
+		case INT128_TYPE:
+		case ICHAR_TYPE:
+		case INT_TYPE:
+		case IPTR_TYPE:
+		case LONG_TYPE:
+		case SHORT_TYPE:
+		case UINT128_TYPE:
+		case UINT_TYPE:
+		case ULONG_TYPE:
+		case UPTR_TYPE:
+		case USHORT_TYPE:
+		case USZ_TYPE:
+		case SZ_TYPE:
+		case FLOAT128_TYPE:
+		case TYPEID_TYPE:
+		case FAULT_TYPE:
+		case ANY_TYPE:
+		case VOID_TYPE:
 		case CT_TYPE_IDENT:
 		case CT_TYPEOF:
 		case CT_TYPEFROM:
@@ -267,10 +267,9 @@ fn bool can_start_expression(TokenKind kind)
 		case HASH_IDENT:
 		case HASH_TYPE_IDENT:
 		case BUILTIN:
-		case INTEGER: 
-		case FLOAT:
-		case REAL:
-		case STRING:
+		case INT_LITERAL: 
+		case FLOAT_LITERAL:
+		case STRING_LITERAL:
 		case CHAR_LITERAL:
 		case LPAREN:
 		case MINUS:

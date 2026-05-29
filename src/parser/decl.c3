@@ -143,12 +143,12 @@ fn Node*? parse_contract_decl(ParseContext* ctx) => @pool()
 				attribute.name = constants::KW_AT_DEPRECATED;
 				attribute.kind = DEPRECATED;
 				advance(ctx)!;
-				if (ctx.can_peek(1) && ctx.peek(0).kind == EOS && ctx.peek(1).kind == STRING)
+				if (ctx.can_peek(1) && ctx.peek(0).kind == EOS && ctx.peek(1).kind == STRING_LITERAL)
 				{
 					advance(ctx)!;
 				}
 				int start = ctx.peek(0).pos;
-				if (ctx.is(STRING))
+				if (ctx.is(STRING_LITERAL))
 				{
 					Node* expr = parse_expr(ctx)!;
 					attribute.exprs = { expr };
@@ -249,11 +249,8 @@ fn Node*? parse_import_decl(ParseContext* ctx) => @pool()
 fn Node*? parse_fn_decl(ParseContext* ctx, ParseFlags flags = {})
 {
 	int start_pos = ctx.peek(0).pos;
-	if (!expect(ctx, FN)!)
-	{
-		ctx.error("expected a starting 'fn'");
-		return ctx.ast.error(start_pos);
-	}
+
+	@expect_else(ctx, FN; err) { return err; }!;
 
 	log::debug("parse_fn");
 
@@ -264,79 +261,77 @@ fn Node*? parse_fn_decl(ParseContext* ctx, ParseFlags flags = {})
 	func.ret_type = parse_type_expr(ctx)!;
 
 	if (is_type(ctx))
-    {
-        func.associated_type = parse_type_expr(ctx)!;
-        
-        if (!expect(ctx, DOT)!)
-        {
-            node.kind = MISSING;
-        }
+	{
+		func.associated_type = parse_type_expr(ctx)!;
 
-        if (!ctx.is(IDENT))
-        {
-            ctx.error("Expected member function name identifier");
-            func.name = -1;
-            return ctx.ast.error(start_pos);
-        }
+		if (!expect(ctx, DOT)!)
+		{
+			node.kind = MISSING;
+		}
 
-        Token t = ctx.peek(0);
-        func.name = ctx.ast.string_pool.internalize(ctx.token_text(t));
-        advance(ctx)!;
-    }
-    else
-    {
-        // Standalone Function: No associated type prefix
-        func.associated_type = null;
+		Token t = @expect_else(ctx, IDENT; err) {
+			ctx.error("Expected member function name identifier");
+			func.name = -1;
+			return err;
+		}!;
 
-        if (!ctx.is(IDENT))
-        {
-            ctx.error("Expected function name identifier");
-            return ctx.ast.error(start_pos);
-        }
+		func.name = ctx.ast.string_pool.internalize(ctx.token_text(t));
+		advance(ctx)!;
+	}
+	else
+	{
+		// Standalone Function: No associated type prefix
+		func.associated_type = null;
 
-        Token t = ctx.peek(0);
-        func.name = ctx.ast.string_pool.internalize(ctx.token_text(t));
-        advance(ctx)!;
-    }
-	
+		if (!ctx.is(IDENT))
+		{
+			ctx.error("Expected function name identifier");
+			return ctx.ast.error(start_pos);
+		}
+
+		Token t = ctx.peek(0);
+		func.name = ctx.ast.string_pool.internalize(ctx.token_text(t));
+		advance(ctx)!;
+	}
+
 	func.params = parse_parameter_list(ctx)!;
 
 	if (ctx.is(LBRACE))
-    {
-        if (flags.is_extern)
-        {
-            ctx.error("Extern functions cannot have a structural block body");
-            return ctx.ast.error(start_pos);
-        }
-        func.body = parse_compound_stmt(ctx)!;
-    }
-    else if (consume(ctx, IMPLIES)!)
-    {
-        if (flags.is_extern)
-        {
-            ctx.error("Extern functions cannot have an expression body");
-            return ctx.ast.error(start_pos);
-        }
+	{
+		if (flags.is_extern)
+		{
+			ctx.error("Extern functions cannot have a structural block body");
+			return ctx.ast.error(start_pos);
+		}
+		func.body = parse_compound_stmt(ctx)!;
+	}
+	else if (consume(ctx, IMPLIES)!)
+	{
+		if (flags.is_extern)
+		{
+			ctx.error("Extern functions cannot have an expression body");
+			return ctx.ast.error(start_pos);
+		}
 
-        func.body = parse_expr(ctx)!;
+		func.body = parse_expr(ctx)!;
 
-        // Clean statement ending validation
-        if (!node_ends_with_block(ctx, func.body))
-        {
-            if (!expect(ctx, EOS)!) 
-            {
-                node.kind = MISSING;
-            }
-        }
-    }
-    else
-    {
-        // No body provided
-        if (!expect(ctx, EOS)!)
-        {
-            node.kind = MISSING;
-        }
-    }
+		// Clean statement ending validation
+		if (!node_ends_with_block(ctx, func.body))
+		{
+			if (!expect(ctx, EOS)!) 
+			{
+				node.kind = MISSING;
+			}
+		}
+	}
+	else
+	{
+		// No body provided
+		if (!expect(ctx, EOS)!)
+		{
+			node.kind = MISSING;
+		}
+	}
 
 	return node;
 }

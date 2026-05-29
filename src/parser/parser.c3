@@ -222,8 +222,11 @@ macro @expect_else(ParseContext* ctx, TokenKind kind; @body(err))
 			log::error("Error happened here");
 		$endif
 		@body(ctx.ast.error(ctx.current().pos));
+
+		return ctx.peek();
 	} else {
 		advance(ctx)!;
+		return ctx.peek(-1);
 	}
 }
 

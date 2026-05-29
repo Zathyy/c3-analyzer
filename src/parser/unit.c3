@@ -140,7 +140,7 @@ fn Node*? parse_contract_param(ParseContext* ctx)
 		param.description = ctx.ast.string_pool.internalize(ctx.current_text());
 		advance(ctx)!;
 	}
-	else if (ctx.is(STRING))
+	else if (ctx.is(STRING_LITERAL))
 	{
 		ctx.error("Expected ':' before string");
 		ctx.skip_until({ EOS, EOF })!;

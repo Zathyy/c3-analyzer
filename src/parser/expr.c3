@@ -160,7 +160,7 @@ fn Node*? parse_literal_expr(ParseContext* ctx)
 			literal.kind = BOOL;
 			literal.boolean = false;
 			break;
-		case INTEGER:
+		case INT_LITERAL:
 			literal.kind = INTEGER;
 			long? value = token_text.to_long();
 			if (catch err = value)
@@ -278,7 +278,7 @@ fn Node*? parse_contract_expr(ParseContext* ctx)
 
 	if (consume(ctx, COLON)!)
 	{	
-		if (!ctx.is(STRING))
+		if (!ctx.is(STRING_LITERAL))
 		{
 			ctx.error("Expected a string after ':'");
 			ctx.ast.error(ctx.current().pos);

@@ -153,13 +153,13 @@ enum TokenKind : ushort
 	// /*
 
 	// Literals (Identifiers and Strings)
-	STRING,
+	STRING_LITERAL,
 	// STRING
 	CHAR_LITERAL,
 	// 'a' 'FO' 'BARS' '\u1232'
-	BYTES, // Base64 or Hex
-	INTEGER, // 123 0x23 0b10010 0o327
-	REAL, // 0x23.2p-2a 43.23e23
+	BYTES_LITERAL, // Base64 or Hex
+	INT_LITERAL, // 123 0x23 0b10010 0o327
+	FLOAT_LITERAL, // 0x23.2p-2a 43.23e23
 	IDENT, // foo
 	TYPE_IDENT,
 	// Foo,
@@ -185,31 +185,31 @@ enum TokenKind : ushort
 	// $FOO,
 
 	// Base Types
-	VOID,
-	BOOL,
-	CHAR,
-	DOUBLE,
-	FLOAT,
-	FLOAT16,
-	BFLOAT,
-	INT128,
-	ICHAR,
-	INT,
-	IPTR,
-	SZ,
-	LONG,
-	SHORT,
-	UINT128,
-	UINT,
-	ULONG,
-	UPTR,
-	USHORT,
-	USZ,
-	FLOAT128,
-	ANY,
-	FAULT,
-	TYPEID,
-	UNTYPEDLIST,
+	VOID_TYPE,
+	BOOL_TYPE,
+	CHAR_TYPE,
+	DOUBLE_TYPE,
+	FLOAT_TYPE,
+	FLOAT16_TYPE,
+	BFLOAT_TYPE,
+	INT128_TYPE,
+	ICHAR_TYPE,
+	INT_TYPE,
+	IPTR_TYPE,
+	SZ_TYPE,
+	LONG_TYPE,
+	SHORT_TYPE,
+	UINT128_TYPE,
+	UINT_TYPE,
+	ULONG_TYPE,
+	UPTR_TYPE,
+	USHORT_TYPE,
+	USZ_TYPE,
+	FLOAT128_TYPE,
+	ANY_TYPE,
+	FAULT_TYPE,
+	TYPEID_TYPE,
+	UNTYPEDLIST_TYPE,
 
 	// Keywords
 	ALIAS,
@@ -488,7 +488,7 @@ fn Token? Lexer.lex_string(Lexer* self, int start)
 		if (c == '"')
 		{
 			self.index++; 
-			return (Token) { STRING, start, self.index - start };
+			return (Token) { STRING_LITERAL, start, self.index - start };
 		}
 
 		if (c == '\\') 
@@ -512,7 +512,7 @@ fn Token? Lexer.lex_raw_string(Lexer* self, int start)
         if (self.peek() == '`') // Only stop at a backtick
         {
             self.index++;
-            return (Token) { STRING, start, self.index - start };
+            return (Token) { STRING_LITERAL, start, self.index - start };
         }
         self.index++;
     }
@@ -540,7 +540,7 @@ fn TokenKind lookup_keyword(String text)
 		case "struct": return STRUCT;
 		case "union": return UNION;
 		// Explicit Keywords
-		case "any": return ANY;
+		case "any": return ANY_TYPE;
 		case "asm": return ASM;
 		case "assert": return ASSERT;
 		case "break": return BREAK;
@@ -570,29 +570,29 @@ fn TokenKind lookup_keyword(String text)
 		case "inline": return INLINE;
 		case "tlocal": return TLOCAL;
 		// Base
-		case "void": return VOID;
-		case "bool": return BOOL;
-		case "char": return CHAR;
-		case "ichar": return ICHAR;
-		case "short": return SHORT;
-		case "ushort": return USHORT;
-		case "int": return INT;
-		case "uint": return UINT;
-		case "long": return LONG;
-		case "ulong": return ULONG;
-		case "int128": return INT128;
-		case "uint128": return UINT128;
-		case "iptr": return IPTR;
-		case "uptr": return UPTR;
-		case "sz": return SZ;
-		case "usz": return USZ;
-		case "float": return FLOAT;
-		case "double": return DOUBLE;
-		case "float16": return FLOAT16;
-		case "bfloat": return BFLOAT;
-		case "float128": return FLOAT128;
-		case "fault": return FAULT;
-		case "typeid": return TYPEID;
+		case "void": return VOID_TYPE;
+		case "bool": return BOOL_TYPE;
+		case "char": return CHAR_TYPE;
+		case "ichar": return ICHAR_TYPE;
+		case "short": return SHORT_TYPE;
+		case "ushort": return USHORT_TYPE;
+		case "int": return INT_TYPE;
+		case "uint": return UINT_TYPE;
+		case "long": return LONG_TYPE;
+		case "ulong": return ULONG_TYPE;
+		case "int128": return INT128_TYPE;
+		case "uint128": return UINT128_TYPE;
+		case "iptr": return IPTR_TYPE;
+		case "uptr": return UPTR_TYPE;
+		case "sz": return SZ_TYPE;
+		case "usz": return USZ_TYPE;
+		case "float": return FLOAT_TYPE;
+		case "double": return DOUBLE_TYPE;
+		case "float16": return FLOAT16_TYPE;
+		case "bfloat": return BFLOAT_TYPE;
+		case "float128": return FLOAT128_TYPE;
+		case "fault": return FAULT_TYPE;
+		case "typeid": return TYPEID_TYPE;
 		default: return IDENT;
 	}
 }
@@ -724,7 +724,7 @@ fn Token? Lexer.lex_number(Lexer* self, int start_pos)
 		}
 	}
 
-	TokenKind kind = is_float ? REAL : INTEGER;
+	TokenKind kind = is_float ? FLOAT_LITERAL : INT_LITERAL;
 	return self.emit(kind, start_pos, self.index - start_pos);
 }
 
@@ -768,7 +768,7 @@ fn Token? Lexer.lex_hex_array(Lexer* self, int start_pos)
         return UNEVEN_HEXADECIMAL~; 
     }
 
-    return self.emit(BYTES, start_pos, self.index - start_pos);
+    return self.emit(BYTES_LITERAL, start_pos, self.index - start_pos);
 }
 
 fn Token? Lexer.skip_contract(Lexer* self, int start_pos)
