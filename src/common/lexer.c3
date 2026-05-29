@@ -153,36 +153,34 @@ enum TokenKind : ushort
 	// /*
 
 	// Literals (Identifiers and Strings)
-	STRING_LITERAL,
-	// STRING
-	CHAR_LITERAL,
-	// 'a' 'FO' 'BARS' '\u1232'
+
+	STRING_LITERAL, // STRING
+
+	CHAR_LITERAL, // 'a' 'FO' 'BARS' '\u1232'
 	BYTES_LITERAL, // Base64 or Hex
-	INT_LITERAL, // 123 0x23 0b10010 0o327
-	FLOAT_LITERAL, // 0x23.2p-2a 43.23e23
-	IDENT, // foo
-	TYPE_IDENT,
-	// Foo,
-	CONST_IDENT,
-	// FOO
-	AT_IDENT,
-	// @foo
-	AT_TYPE_IDENT,
-	// @Foo
-	AT_CONST_IDENT,
-	// @FOO
-	HASH_IDENT,
-	// #foo,
-	HASH_TYPE_IDENT,
-	// #Type
-	HASH_CONST_IDENT,
-	// #CONST_IDENT
-	CT_IDENT,
-	// $foo
-	CT_TYPE_IDENT,
-	// $Foo,
-	CT_CONST_IDENT,
-	// $FOO,
+
+	INT_DECIMAL_LITERAL, // 123
+	INT_HEX_LITERAL, // 0x23
+	INT_OCTAL_LITERAL, // 0o327
+	INT_BIN_LITERAL, // 0b10010
+
+	FLOAT_DECIMAL_LITERAL, // 43.23e23
+	FLOAT_HEX_LITERAL, // 0x23.2p-2a
+
+	<* foo *>
+	IDENT,
+
+	TYPE_IDENT, // Foo,
+	CONST_IDENT, // FOO
+	AT_IDENT, // @foo
+	AT_TYPE_IDENT, // @Foo
+	AT_CONST_IDENT, // @FOO
+	HASH_IDENT, // #foo,
+	HASH_TYPE_IDENT, // #Type
+	HASH_CONST_IDENT, // #CONST_IDENT
+	CT_IDENT, // $foo
+	CT_TYPE_IDENT, // $Foo,
+	CT_CONST_IDENT, // $FOO,
 
 	// Base Types
 	VOID_TYPE,
@@ -316,6 +314,12 @@ enum TokenKind : ushort
 	EOL,
 	EOF
 }
+
+fn bool TokenKind.is_int_literal(&self) @inline => 
+	TokenKind.INT_DECIMAL_LITERAL.ordinal <= self.ordinal && self.ordinal <= TokenKind.INT_BIN_LITERAL.ordinal;
+
+fn bool TokenKind.is_float_literal(&self) @inline => 
+	*self == TokenKind.FLOAT_DECIMAL_LITERAL || *self == TokenKind.FLOAT_HEX_LITERAL;
 
 struct Token
 {
@@ -623,11 +627,12 @@ fn Token? Lexer.lex_identifier(Lexer* self, int start_pos)
 
 fn Token? Lexer.lex_number(Lexer* self, int start_pos)
 {
-	bool is_float = false;
+	TokenKind kind;
 
 	// Hex: 0x
 	if (self.peek() == '0' && (ascii::to_lower(self.peek_next()) == 'x'))
 	{
+		kind = INT_HEX_LITERAL;
 		self.advance(2)!;
 		// Allow hex digits OR underscores
 		while (!self.eof() && (ascii::is_xdigit(self.peek()) || self.peek() == '_'))
@@ -637,7 +642,7 @@ fn Token? Lexer.lex_number(Lexer* self, int start_pos)
 
 		if (!self.eof() && self.peek() == '.' && self.peek_next() != '.') //&& ascii::is_xdigit(self.peek_next()))
 		{
-			is_float = true;
+			kind = FLOAT_HEX_LITERAL;
 			self.advance()!;
 			while (!self.eof() && (ascii::is_xdigit(self.peek()) || self.peek() == '_'))
 			{
@@ -650,7 +655,7 @@ fn Token? Lexer.lex_number(Lexer* self, int start_pos)
 			char next = self.peek_next();
 			if (ascii::is_xdigit(next) || next == '-' || next == '+')
 			{
-				is_float = true;
+				kind = FLOAT_HEX_LITERAL;
 				self.advance()!;
 				if (next == '-' || next == '+') self.advance()!;
 				while (!self.eof() && (ascii::is_xdigit(self.peek()) || self.peek() == '_'))
@@ -663,6 +668,7 @@ fn Token? Lexer.lex_number(Lexer* self, int start_pos)
 	// Binary: 0b
 	else if (self.peek() == '0' && (ascii::to_lower(self.peek_next()) == 'b'))
 	{
+		kind = INT_BIN_LITERAL;
 		self.advance(2)!;
 		while (!self.eof() && (ascii::is_bdigit(self.peek()) || self.peek() == '_'))
 		{
@@ -672,6 +678,7 @@ fn Token? Lexer.lex_number(Lexer* self, int start_pos)
 	// Octal: 0o
 	else if (self.peek() == '0' && (ascii::to_lower(self.peek_next()) == 'o'))
 	{
+		kind = INT_OCTAL_LITERAL;
 		self.advance(2)!;
 		while (!self.eof() && (ascii::is_odigit(self.peek()) || self.peek() == '_'))
 		{
@@ -689,7 +696,7 @@ fn Token? Lexer.lex_number(Lexer* self, int start_pos)
 		// Real/Float check
 		if (!self.eof() && self.peek() == '.' && self.peek_next() != '.')// && ascii::is_digit(self.peek_next()))
 		{
-			is_float = true;
+			kind = FLOAT_DECIMAL_LITERAL;
 			self.advance()!;
 			while (!self.eof() && (ascii::is_digit(self.peek()) || self.peek() == '_'))
 			{
@@ -702,7 +709,7 @@ fn Token? Lexer.lex_number(Lexer* self, int start_pos)
 			char next = self.peek_next();
 			if (ascii::is_digit(next) || next == '-' || next == '+')
 			{
-				is_float = true;
+				kind = FLOAT_DECIMAL_LITERAL;
 				self.advance()!;
 				if (next == '-' || next == '+') self.advance()!;
 				while (!self.eof() && (ascii::is_digit(self.peek()) || self.peek() == '_'))
@@ -724,7 +731,6 @@ fn Token? Lexer.lex_number(Lexer* self, int start_pos)
 		}
 	}
 
-	TokenKind kind = is_float ? FLOAT_LITERAL : INT_LITERAL;
 	return self.emit(kind, start_pos, self.index - start_pos);
 }
 
