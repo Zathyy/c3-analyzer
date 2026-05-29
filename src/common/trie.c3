@@ -3,6 +3,9 @@ module parser::trie <Type>;
 import std::math;
 import std::collections::list;
 
+const sz DENSE_CHILD_COUNT = 256;
+const sz DENSE_CHILD_PROMOTION_THRESHOLD = 4;
+
 struct Child @private
 {
 	char key;
@@ -15,6 +18,7 @@ struct Node @private
 	bool has_value;
 	Type value;
 	List{Child} children;
+	Node*[] dense_children;
 }
 
 struct CompressedTrie
@@ -141,8 +145,10 @@ fn void CompressedTrie.split_child(&self, Node* node, sz prefix_length)
 	suffix.has_value = node.has_value;
 	suffix.value = node.value;
 	suffix.children = node.children;
+	suffix.dense_children = node.dense_children;
 	node.children = {};
 	node.children.init(self.alloc, 0);
+	node.dense_children = {};
 
 	String old_label = node.label;
 	node.label = old_label[..prefix_length - 1].copy(self.alloc);
@@ -156,6 +162,8 @@ fn void CompressedTrie.split_child(&self, Node* node, sz prefix_length)
 
 fn Node* find_child(Node* node, char key) @private
 {
+	if (node.dense_children.len > 0) return node.dense_children[key];
+
 	foreach (&child : node.children)
 	{
 		if (child.key == key) return child.node;
@@ -165,6 +173,12 @@ fn Node* find_child(Node* node, char key) @private
 
 fn void set_child(Node* node, char key, Node* child_node) @private
 {
+	if (node.dense_children.len > 0)
+	{
+		node.dense_children[key] = child_node;
+		return;
+	}
+
 	foreach (&child : node.children)
 	{
 		if (child.key == key)
@@ -175,15 +189,41 @@ fn void set_child(Node* node, char key, Node* child_node) @private
 	}
 
 	node.children.push({ .key = key, .node = child_node });
+	if (node.children.len() > DENSE_CHILD_PROMOTION_THRESHOLD) promote_children(node);
+}
+
+fn void promote_children(Node* node) @private
+{
+	Node*[] dense_children = alloc::alloc_array(node.children.allocator, Node*, DENSE_CHILD_COUNT);
+	for (sz i = 0; i < DENSE_CHILD_COUNT; i++) dense_children[i] = null;
+
+	foreach (child : node.children)
+	{
+		dense_children[child.key] = child.node;
+	}
+
+	node.children.free();
+	node.dense_children = dense_children;
 }
 
 fn void free_node(Allocator alloc, Node* n) @private
 {
 	if (!n) return;
 
-	foreach (child : n.children)
+	if (n.dense_children.len > 0)
 	{
-		free_node(alloc, child.node);
+		foreach (child : n.dense_children)
+		{
+			free_node(alloc, child);
+		}
+		alloc::free(alloc, n.dense_children);
+	}
+	else
+	{
+		foreach (child : n.children)
+		{
+			free_node(alloc, child.node);
+		}
 	}
 
 	n.children.free();

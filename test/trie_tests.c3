@@ -191,3 +191,32 @@ fn void test_compressed_trie_sparse_children_keep_memory_small() @test
 	trie.free();
 	assert(!tracker.has_leaks());
 }
+
+fn void test_compressed_trie_handles_promoted_dense_children() @test
+{
+	TrackingAllocator tracker;
+	tracker.init(mem);
+	defer tracker.free();
+
+	CompressedTrie{int} trie;
+	trie.init(&tracker);
+
+	trie.insert("a_symbol", 1);
+	trie.insert("b_symbol", 2);
+	trie.insert("c_symbol", 3);
+	trie.insert("d_symbol", 4);
+	trie.insert("e_symbol", 5);
+	trie.insert("f_symbol", 6);
+	trie.insert("g_symbol", 7);
+	trie.insert("h_symbol", 8);
+	trie.insert("i_symbol", 9);
+	trie.insert("j_symbol", 10);
+
+	assert(trie.get("a_symbol")!! == 1);
+	assert(trie.get("e_symbol")!! == 5);
+	assert(trie.get("j_symbol")!! == 10);
+	assert(!trie.contains("k_symbol"));
+
+	trie.free();
+	assert(!tracker.has_leaks());
+}
