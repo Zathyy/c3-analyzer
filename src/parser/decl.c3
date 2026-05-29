@@ -48,6 +48,155 @@ fn Node*? parse_module_decl(ParseContext* ctx, Workspace* ws)
 }
 
 <*
+
+*>
+fn Node*? parse_contract_decl(ParseContext* ctx) => @pool()
+{
+	int start_pos = ctx.peek(0).pos;
+	if (!ctx.is(CONTRACT))
+	{
+		ctx.error("Expected contract here");
+		return ctx.ast.error(start_pos);
+	}
+
+	Token contract_token = ctx.current();
+	int global_offset = contract_token.pos;	
+
+	String slice = ctx.token_text(contract_token);
+
+	advance(ctx)!; // skip over contract
+
+	// store the "normal" tokens and index temporarly since
+	// we need to swap them
+	Token[] main_tokens = ctx.tokens;
+	int main_index = ctx.pos;
+	defer 
+	{
+		ctx.tokens = main_tokens;
+		ctx.pos = main_index;
+	}
+
+	List{Token} contract_tokens; contract_tokens.tinit();
+	ContractLexer cl; cl.init(slice);
+
+	// calculate the offset for 'ContractLexer' contract[2:^4];
+	int open_marker_len = 2;
+	int total_inner_len = slice.len - 4;
+	int first_at_index = total_inner_len - cl.lexer.buffer.len;
+	int offset = contract_token.pos + open_marker_len + first_at_index;
+
+	while (try next = cl.next())
+	{
+		// make return a identifier so the it can be parsed as expr
+		if (next.kind == RETURN)
+		{
+			next.kind = IDENT;
+		} 
+
+		next.pos += offset;
+		contract_tokens.push(next);
+
+		log::debug("ContractLexer - added: %s", next.kind);
+	}
+	contract_tokens.push({ .kind = EOF, .pos = (contract_tokens.last().pos + contract_tokens.last().len) ?? 0, .len = 0 });
+
+	ctx.tokens = contract_tokens.array_view();
+	ctx.pos = 0;
+
+	Node* node = ctx.ast.alloc_node(CONTRACT_DECL, ctx.current().pos);
+	ContractDecl* contract = node.as(CONTRACT_DECL);
+	log::debug("comment : %s", cl.description);
+	contract.comment = ctx.ast.string_pool.internalize(cl.description);
+
+	List{Node*} ensures;  ensures.tinit();
+	List{Node*} requires; requires.tinit();
+	List{Node*} params;   params.tinit();
+	List{Node*} returns;  returns.tinit();
+
+	while (!ctx.eof())
+	{
+		String attr = ctx.token_text(ctx.current());
+		log::debug("parse_contract - attribute = %s", attr);
+
+		if (consume(ctx, AT_IDENT)!)
+		{
+			if (attr == constants::KW_AT_REQUIRE)
+			{
+				log::debug("parse_contract_decl - @require");
+				requires.push(parse_contract_expr(ctx)!);
+			}
+			else if (attr == constants::KW_AT_ENSURE)
+			{
+				log::debug("parse_contract_decl - @ensure");
+				ensures.push(parse_contract_expr(ctx)!);
+			}
+			else if (attr == constants::KW_AT_PARAM)
+			{
+				params.push(parse_contract_param(ctx))!;
+			}
+			else if (attr == constants::KW_AT_DEPRECATED)
+			{
+				Node* n = ctx.ast.alloc_node(ATTRIBUTE_DECL, ctx.current().pos);
+				contract.deprecated = n;
+				AttributeDecl* attribute = n.as(ATTRIBUTE_DECL);
+				attribute.path = ctx.ast.alloc_node(MISSING, ctx.current().pos);
+				attribute.name = constants::KW_AT_DEPRECATED;
+				attribute.kind = DEPRECATED;
+				advance(ctx)!;
+				if (ctx.can_peek(1) && ctx.peek(0).kind == EOS && ctx.peek(1).kind == STRING)
+				{
+					advance(ctx)!;
+				}
+				int start = ctx.peek(0).pos;
+				if (ctx.is(STRING))
+				{
+					Node* expr = parse_expr(ctx)!;
+					attribute.exprs = { expr };
+				}
+			}
+			else if (attr == constants::KW_AT_PURE)
+			{
+				contract.is_pure = true;
+			}
+			else if (attr == constants::KW_AT_RETURN)
+			{
+				if (ctx.is(QUESTION))
+				{
+					advance(ctx)!;
+					while (!ctx.eof())
+					{
+						returns.push(parse_expr(ctx)!);
+						if (!consume(ctx, COMMA)!)
+						{
+							break;
+						}
+					}
+				}
+				else
+				{	
+					contract.return_desc = parse_expr(ctx)!;
+				}
+			}
+			else
+			{
+				if (catch advance(ctx)) break;
+			}
+		}
+		else
+		{
+			if (catch advance(ctx)) break;
+		}
+	}
+
+	contract.ensures  = alloc::clone_slice(ctx.arena,  ensures.array_view());
+	contract.requires = alloc::clone_slice(ctx.arena, requires.array_view());
+	contract.params   = alloc::clone_slice(ctx.arena,   params.array_view());
+	contract.returns  = alloc::clone_slice(ctx.arena,  returns.array_view());
+
+	return node;
+}	
+
+<*
 	import_decl ::= import path_expr (',' path_expr)* ';' attributes?
 *>
 fn Node*? parse_import_decl(ParseContext* ctx) => @pool()
@@ -55,7 +204,8 @@ fn Node*? parse_import_decl(ParseContext* ctx) => @pool()
 	int start_pos = ctx.peek(0).pos;
 	if (!expect(ctx, IMPORT)!)
 	{
-		return ctx.ast.alloc_node(ERROR, start_pos);
+		ctx.error("Expected 'import' here");
+		return ctx.ast.error(start_pos);
 	}
 
 	Node* node = ctx.ast.alloc_node(IMPORT_DECL, start_pos);
@@ -252,4 +402,142 @@ fn Node*? parse_param_decl(ParseContext* ctx)
     }
 
     return node;
+}
+
+<*
+	var_decl ::= ('var' | type_expr) decl_element (',' decl_element)* ';'
+*>
+fn Node*? parse_var_decl(ParseContext* ctx, ParseFlags flags = {})
+{
+	int start_pos = ctx.peek(0).pos;
+
+	if (flags.is_local)
+	{
+		if (flags.is_extern) 
+		{ 
+			ctx.error("A local variable cannot have an 'extern' modifier"); 
+			return ctx.ast.alloc_node(ERROR, start_pos); 
+		}
+		if (flags.is_inline) 
+		{ 
+			ctx.error("A local variable cannot be 'inline'"); 
+			return ctx.ast.alloc_node(ERROR, start_pos); 
+		}
+	}
+
+	Node* type_node;
+
+	if (flags.is_var)
+	{
+		advance(ctx)!; // Consume 'var'
+	}
+	else if (is_type_primitive(ctx.peek(0).kind) || ctx.is(IDENT) || ctx.is(TYPE_IDENT))
+	{
+		type_node = parse_type_expr(ctx, flags)!;
+		if (type_node.kind == ERROR) return type_node;
+	}
+	else if (!flags.is_const)
+	{
+		ctx.error("Expected a valid type signature or 'var'");
+		return ctx.ast.alloc_node(ERROR, start_pos);
+	}
+
+	Node* head_node;
+	Node* tail_node;
+
+	while (true)
+	{
+		Token t = ctx.peek(0);
+
+		if (flags.is_const && t.kind != CONST_IDENT)
+		{
+			ctx.error("Constants must use an uppercase CONST_IDENT, found '%s'", ctx.token_text(t));
+			return ctx.ast.alloc_node(ERROR, t.pos);
+		}
+		if (!flags.is_const && t.kind != IDENT && !flags.is_local)
+		{
+			ctx.error("Global variables must use lower-case IDENT, found '%s'", ctx.token_text(t));
+			return ctx.ast.alloc_node(ERROR, t.pos);
+		}
+		if (t.kind != IDENT && t.kind != CONST_IDENT)
+		{
+			ctx.error("Expected a variable name identifier, got '%s'", ctx.token_text(t));
+			return ctx.ast.alloc_node(ERROR, t.pos);
+		}
+
+		StringID name_id = ctx.ast.string_pool.internalize(ctx.token_text(t));
+        advance(ctx)!;
+
+        NodeArray attributes;// = parse_attributes(ctx)!;
+        Node* init_expr = null;
+
+        if (ctx.is(EQ))
+        {
+            advance(ctx)!;
+
+            if (head_node != null)
+            {
+                ctx.error("Initializers are not allowed on multi decleration");
+                return ctx.ast.alloc_node(ERROR, ctx.peek(0).pos);
+            }
+            if (flags.is_extern)
+            {
+                ctx.error("An extern declaration cannot contain an initial value assignment expression");
+                return ctx.ast.alloc_node(ERROR, ctx.peek(0).pos);
+            }
+
+            init_expr = parse_expr(ctx)!;
+            if (init_expr.kind == ERROR) return init_expr;
+        }
+        else if (flags.is_const && !flags.is_extern)
+        {
+            ctx.error("Constants must be initialized at their declaration site");
+        }
+
+        Node* var_node = ctx.ast.alloc_node(VAR_DECL, t.pos);
+        VarDecl* var_decl = var_node.as(VAR_DECL);
+
+        var_decl.name = name_id;
+        var_decl.type = type_node; // Reused across the entire chain segment
+        var_decl.init_expr = init_expr;
+        var_decl.attributes = attributes;
+        var_decl.next = null;       // Starts as terminal component
+        
+        var_decl.flags.is_extern = flags.is_extern;
+        var_decl.flags.is_const = flags.is_const;
+        var_decl.flags.is_inline = flags.is_inline;
+        var_decl.flags.is_local = flags.is_local;
+        var_decl.flags.is_thread_local = flags.is_thread_local;
+        var_decl.flags.is_static = flags.is_static;
+
+        if (flags.is_local)      { var_decl.kind = VAR_LOCAL;}
+        else if (flags.is_struct){ var_decl.kind = VAR_FIELD;}
+        else                     { var_decl.kind = VAR_GLOBAL;}
+
+        var_node.end_token = ctx.peek(0).pos;
+
+        if (head_node == null)
+        {
+            head_node = var_node;
+        }
+        else
+        {
+            tail_node.as(VAR_DECL).next = var_node;
+        }
+        tail_node = var_node;
+
+        if (flags.is_expr) break;
+        if (!consume(ctx, COMMA)!) break;
+	}
+
+	if (!flags.skip_eos)
+	{
+		if (!consume(ctx, EOS)!)
+		{
+			ctx.error("Expected ';' to terminate variable declaration sequence");
+			return ctx.ast.alloc_node(ERROR, ctx.peek(0).pos);
+		}
+	}
+
+	return head_node;
 }
