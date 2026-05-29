@@ -1035,8 +1035,17 @@ fn Token? Lexer.next(&self)
 		case 'b':
 			if (self.peek(1) == '6' && self.peek(2) == '4' && self.peek(3) == '`')
 			{
-				self.advance(3)!;
-				return self.lex_raw_string(start)!;
+				self.advance(4)!; // Advance past b, 6, 4, and `
+				while (!self.eof())
+				{
+					if (self.peek() == '`')
+					{
+						self.advance()!;
+						return self.emit(BYTES, start, self.index - start);
+					}
+					self.advance()!;
+				}
+				return INVALID~;
 			}
 			nextcase;
 		case 'x':
