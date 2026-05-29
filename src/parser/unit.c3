@@ -136,6 +136,7 @@ fn Node*? parse_contract_param(ParseContext* ctx)
 
 	if (ctx.is(COLON))
 	{
+		advance(ctx)!;
 		param.description = ctx.ast.string_pool.internalize(ctx.current_text());
 		advance(ctx)!;
 	}
