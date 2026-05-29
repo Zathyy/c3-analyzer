@@ -84,3 +84,24 @@ struct ExprList
 {
 	NodeArray exprs;
 }
+
+enum LiteralKind : char 
+{
+	INTEGER,
+	STRING,
+	BYTES,
+	BOOL,
+	NULL,
+}
+
+struct LiteralExpr
+{
+	LiteralKind kind;
+	
+	union 
+	{
+		long integer;
+		StringID string;
+		bool boolean;
+	}
+}

@@ -43,6 +43,7 @@ struct Node
 		CompoundStmt compound_stmt;
 		
 		// EXPR
+		LiteralExpr literal_expr;
 		BinaryExpr binary_expr;
 		IdentExpr ident_expr;
 		PathExpr path_expr;
@@ -50,7 +51,6 @@ struct Node
 		ExprList expr_list;
 		ContractExpr contract_expr;
 		// UNIT
-		IntLiteral int_lit;
 		ContractParam contract_param;
 	}
 }

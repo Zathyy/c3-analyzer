@@ -7,7 +7,6 @@ enum NodeKind : char
 {
 	ERROR,
 	MISSING,
-	INT_LITERAL,
 	
 	ATTRIBUTE_DECL,
 	CONTRACT_DECL,
@@ -26,6 +25,7 @@ enum NodeKind : char
 	TYPE_EXPR,
 	PATH_EXPR,
 	EXPR_LIST,
+	LITERAL_EXPR,
 	CONTRACT_EXPR,
 
 	CONTRACT_PARAM,
