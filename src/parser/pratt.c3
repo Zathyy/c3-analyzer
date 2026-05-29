@@ -277,3 +277,21 @@ fn Node*? parse_infix(ParseContext* ctx, Node* left, Precedence rbp)
 			return UNEXPECTED_TOKEN~;
 	}
 }
+
+<*
+	decl_or_expr ::= var_decl | expr
+*>
+fn Node*? parse_decl_or_expr(ParseContext* ctx)
+{
+	if (ctx.is(VAR))
+	{
+		return parse_var_decl(ctx, { .is_expr = true, .is_local = true, .skip_eos = true, .is_var = true })!;
+	}
+
+	if (is_type(ctx) && is_declaration_followup(ctx))
+	{
+		return parse_var_decl(ctx, { .is_expr = true, .is_local = true, .skip_eos = true })!;
+	}
+
+	return parse_expr(ctx)!;
+}
