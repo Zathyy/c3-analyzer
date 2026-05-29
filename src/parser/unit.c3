@@ -78,3 +78,73 @@ fn NodeArray? parse_generics_list(ParseContext* ctx)
 
     return alloc::clone_slice(ctx.arena, params.array_view());
 }
+
+fn Node*? parse_contract_param(ParseContext* ctx)
+{
+	int start = ctx.current().pos;
+
+	Node* node = ctx.ast.alloc_node(CONTRACT_PARAM, start);
+	defer node.end_token = ctx.current().pos;
+	ContractParam* param = node.as(CONTRACT_PARAM);
+
+	if (consume(ctx, LBRACKET)!)
+	{
+		param.by_ref = consume(ctx, AMP)!;
+		String modifier_name = ctx.token_text(ctx.current());
+		switch (modifier_name)
+		{
+			case "in":
+				param.modifier = IN;
+				advance(ctx)!;
+				break;
+			case "inout":
+				param.modifier = INOUT;
+				advance(ctx)!;
+				break;
+			case "out":
+				param.modifier = OUT;
+				advance(ctx)!;
+				break;
+			default:
+				ctx.error("'in', 'out' or 'inout' expected");
+				ctx.skip_until({ EOS, EOF })!;
+				return ctx.ast.error(ctx.current().pos);
+		}
+
+		if (!consume(ctx, RBRACKET)!)
+		{
+			ctx.error("Expected a closing ']'");
+			ctx.skip_until({ EOS, EOF })!;
+			return ctx.ast.error(ctx.current().pos);
+		}
+	}
+
+	switch (ctx.current().kind)
+	{
+		case IDENT:
+		case CT_IDENT:
+		case TYPE_IDENT:
+		case CT_TYPE_IDENT:
+			break;
+		default:
+			ctx.error("Expected parameter name");
+			ctx.skip_until({ EOS, EOF })!;
+			return ctx.ast.error(ctx.current().pos);
+	}
+
+	param.name = parse_expr(ctx)!;
+
+	if (ctx.is(COLON))
+	{
+		param.description = ctx.ast.string_pool.internalize(ctx.current_text());
+		advance(ctx)!;
+	}
+	else if (ctx.is(STRING))
+	{
+		ctx.error("Expected ':' before string");
+		ctx.skip_until({ EOS, EOF })!;
+		return ctx.ast.error(ctx.current().pos);
+	}
+
+	return node;
+}
