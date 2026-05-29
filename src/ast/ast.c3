@@ -30,6 +30,8 @@ struct Node
 		ErrorNode error;
 
 		// DECL
+		VarDecl var_decl;
+		AttributeDecl attribute_decl;
 		ContractDecl contract_decl;
 		ModuleDecl module_decl;
 		ImportDecl import_decl;
@@ -45,8 +47,11 @@ struct Node
 		IdentExpr ident_expr;
 		PathExpr path_expr;
 		TypeExpr type_expr;
+		ExprList expr_list;
+		ContractExpr contract_expr;
 		// UNIT
 		IntLiteral int_lit;
+		ContractParam contract_param;
 	}
 }
 

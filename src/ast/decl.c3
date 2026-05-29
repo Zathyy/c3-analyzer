@@ -5,10 +5,8 @@ import std::collections::list;
 
 struct ContractParam 
 {
-	StringID name;
+	Node* name;
 	StringID description;
-	int start_token;
-	int end_token;
 	InOutModifier modifier;
 	bool by_ref;
 }
@@ -17,24 +15,26 @@ struct ContractDecl
 {
 	NodeArray requires;
 	NodeArray ensures;
-	NodeArray opt_returns;
-	ContractParam[] params;
+	NodeArray returns;
+	NodeArray params; // ContractParam
 	StringID comment;
 	Node* return_desc; // ident_expr
-	Attribute* deprecated;
+	Node* deprecated;
 	bool is_pure;
 }
+
+fn String? ContractDecl.get_comment(&self, StringPool* pool) => pool.get(self.comment);
 
 struct ModuleDecl 
 {
 	Node* path;
-	AttributeList attributes;
+	NodeArray attributes;
 }
 
 struct ImportDecl
 {
 	NodeArray paths;
-	AttributeList attributes;
+	NodeArray attributes;
 }
 
 struct FnDecl 
@@ -44,7 +44,7 @@ struct FnDecl
 	Node* ret_type;
 	Node* body;
 	NodeArray params;
-	AttributeList attributes;
+	NodeArray attributes;
 }
 
 struct ParamDecl 
@@ -63,5 +63,15 @@ struct VarDecl
 	StringID name;
 	Node* type;
 	Node* init_expr;
-	AttributeList attributes;
+	NodeArray attributes;
+	Node* next; // next Var_decl if chained (e.g. int a, b, c; )
+}
+
+struct AttributeDecl
+{
+	Node* path;
+	String name;
+	NodeArray exprs;
+	AttributeKind kind;
+	bool is_custom;
 }

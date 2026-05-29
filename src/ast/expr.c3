@@ -77,5 +77,10 @@ struct ContractExpr
 {
 	Node* exprs;
 	StringID comment;
-	StringID expr_string;
+	Node* expr_string;
+}
+
+struct ExprList 
+{
+	NodeArray exprs;
 }
