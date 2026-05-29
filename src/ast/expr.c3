@@ -91,11 +91,12 @@ struct ExprList
 
 enum LiteralKind : char 
 {
-	INTEGER,
-	STRING,
-	BYTES,
-	BOOL,
-	NULL,
+	INT_LITERAL,
+	STRING_LITERAL,
+	BYTES_LITERAL,
+	REAL_LITERAL,
+	BOOL_LITERAL,
+	NULL_LITERAL,
 }
 
 struct LiteralExpr
@@ -105,7 +106,9 @@ struct LiteralExpr
 	union 
 	{
 		long integer;
+		double real;
 		StringID string;
+		char[] bytes;
 		bool boolean;
 	}
 }
