@@ -11,7 +11,7 @@ import std::io::file;
 import std::io::path;
 
 
-fn void basic_contract() 
+fn void contract_with_expr_checks() 
 {
     String path = parser_tests::write_fixture("basic_contract", `
 		module hello; 
@@ -54,6 +54,33 @@ fn void basic_contract()
 			test::eq(decl.ensures.len, 1);
 			test::eq(decl.requires.len, 1);
 			test::eq(decl.params.len, 1);
+
+			{
+				Node* req_expr = decl.requires[0];
+				ContractExpr* expr = req_expr.as(CONTRACT_EXPR);
+				ExprList* list = expr.exprs.as(EXPR_LIST);
+				BinaryExpr* bin = list.exprs[0].as(BINARY_EXPR);
+				test::eq(bin.left.as(IDENT_EXPR).get_ident(pool)!!, "a");
+				test::eq(bin.op, OperatorKind.OP_GT);
+				test::eq(bin.right.as(LITERAL_EXPR).integer, 0);
+			}
+			{
+				Node* req_expr = decl.ensures[0];
+				ContractExpr* expr = req_expr.as(CONTRACT_EXPR);
+				ExprList* list = expr.exprs.as(EXPR_LIST);
+				BinaryExpr* bin = list.exprs[0].as(BINARY_EXPR);
+				test::eq(bin.left.as(IDENT_EXPR).get_ident(pool)!!, "return");
+				test::eq(bin.op, OperatorKind.OP_GT);
+				test::eq(bin.right.as(LITERAL_EXPR).integer, 0);
+			}
+			{
+				Node* param = decl.params[0];
+				ContractParam* expr = param.as(CONTRACT_PARAM);
+				test::eq(expr.name.as(IDENT_EXPR).get_ident(pool)!!, "a");
+				test::eq(expr.modifier, InOutModifier.IN);
+				test::eq(expr.get_description(pool)!!, "\"my param\"");
+			}
+			
 		}
 	}
 }
