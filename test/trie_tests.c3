@@ -162,3 +162,32 @@ fn void test_compressed_trie_frees_split_nodes_without_leaks() @test
 	trie.free();
 	assert(!tracker.has_leaks());
 }
+
+fn void test_compressed_trie_sparse_children_keep_memory_small() @test
+{
+	TrackingAllocator tracker;
+	tracker.init(mem);
+	defer tracker.free();
+
+	CompressedTrie{sz} trie;
+	trie.init(&tracker);
+
+	for (sz i = 0; i < 4096; i++)
+	{
+		String key = string::format(
+			mem,
+			"module_%04d.scope_%04d.symbol_%04d.variant_%04d",
+			i,
+			i % 257,
+			i % 1021,
+			i % 17
+		);
+		trie.insert(key, i);
+		key.free(mem);
+	}
+
+	assert(tracker.max_allocated() < 4 * 1024 * 1024);
+
+	trie.free();
+	assert(!tracker.has_leaks());
+}

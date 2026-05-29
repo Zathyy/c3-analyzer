@@ -1,15 +1,20 @@
 module parser::trie <Type>;
 
 import std::math;
+import std::collections::list;
 
-const sz SIZE = char::max;
+struct Child @private
+{
+	char key;
+	Node* node;
+}
 
 struct Node @private
 {
 	String label;
 	bool has_value;
 	Type value;
-	Node*[SIZE] children;
+	List{Child} children;
 }
 
 struct CompressedTrie
@@ -37,8 +42,8 @@ fn Node*? CompressedTrie.find_node(&self, String key)
 
 	while (remaining.len > 0)
 	{
-		sz first_byte = remaining[0];
-		Node* child   = node.children[first_byte];
+		char first_byte = remaining[0];
+		Node* child     = find_child(node, first_byte);
 
 		if (!child) return NOT_FOUND~;
 
@@ -69,7 +74,9 @@ fn Type*? CompressedTrie.get_ref(&self, String key)
 fn Node* CompressedTrie.new_node(&self, String label)
 {
 	String cloned_label = label.copy(self.alloc);
-	return mem::alloc::new(self.alloc, Node, { .label = cloned_label });
+	Node* node = mem::alloc::new(self.alloc, Node, { .label = cloned_label });
+	node.children.init(self.alloc, 0);
+	return node;
 }
 
 fn Node* CompressedTrie.new_value_node(&self, String label, Type value = { })
@@ -87,11 +94,11 @@ fn void CompressedTrie.insert(&self, String key, Type value)
 
 	while (remaining.len > 0)
 	{
-		sz first_byte = remaining[0];
-		Node* child   = node.children[first_byte];
+		char first_byte = remaining[0];
+		Node* child     = find_child(node, first_byte);
 		if (!child)
 		{
-			node.children[first_byte] = self.new_value_node(remaining, value);
+			set_child(node, first_byte, self.new_value_node(remaining, value));
 			return;
 		}
 
@@ -114,7 +121,7 @@ fn void CompressedTrie.insert(&self, String key, Type value)
 		}
 
 		String suffix = remaining[prefix_length..];
-		child.children[suffix[0]] = self.new_value_node(suffix, value);
+		set_child(child, suffix[0], self.new_value_node(suffix, value));
 		return;
 	}
 
@@ -133,31 +140,53 @@ fn void CompressedTrie.split_child(&self, Node* node, sz prefix_length)
 
 	suffix.has_value = node.has_value;
 	suffix.value = node.value;
-	for (sz i = 0; i < SIZE; i++)
-	{
-		suffix.children[i] = node.children[i];
-		node.children[i] = null;
-	}
+	suffix.children = node.children;
+	node.children = {};
+	node.children.init(self.alloc, 0);
 
 	String old_label = node.label;
 	node.label = old_label[..prefix_length - 1].copy(self.alloc);
 	old_label.free(self.alloc);
 
 	node.has_value = false;
-	node.children[suffix.label[0]] = suffix;
+	set_child(node, suffix.label[0], suffix);
 }
 
 // Helpers
+
+fn Node* find_child(Node* node, char key) @private
+{
+	foreach (&child : node.children)
+	{
+		if (child.key == key) return child.node;
+	}
+	return null;
+}
+
+fn void set_child(Node* node, char key, Node* child_node) @private
+{
+	foreach (&child : node.children)
+	{
+		if (child.key == key)
+		{
+			child.node = child_node;
+			return;
+		}
+	}
+
+	node.children.push({ .key = key, .node = child_node });
+}
 
 fn void free_node(Allocator alloc, Node* n) @private
 {
 	if (!n) return;
 
-	foreach (node : n.children)
+	foreach (child : n.children)
 	{
-		free_node(alloc, node);
+		free_node(alloc, child.node);
 	}
 
+	n.children.free();
 	n.label.free(alloc);
 	mem::alloc::free(alloc, n);
 }
