@@ -1,5 +1,9 @@
-module bv;
+module hello; 
 
-import std::io;
-
-fn void greet(int a, Foo bar) {}
+<*
+	Hello there
+	@param [&in] a : "my param"
+	@require a > 0 : ""
+	@ensure return > 0 : ""
+*>
+fn int foo(int a) {}

@@ -19,5 +19,6 @@ fn void type_ident()
     Workspace ws; ws.init();
     defer ws.free();
     ParseResult res = parser::parse_file(&ws, path)!!;
+	
 	assert(res.success == true, "Failed to parse");
 }

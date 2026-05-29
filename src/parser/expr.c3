@@ -12,6 +12,7 @@ import std::core::ascii;
 
 import std::io;
 import std::collections::list;
+import std::encoding;
 
 
 fn Node*? parse_type_expr(ParseContext* ctx, ParseFlags parse_flags = {})
@@ -83,18 +84,27 @@ fn Node*? parse_type_expr(ParseContext* ctx, ParseFlags parse_flags = {})
                 arr_data.kind = TYPE_SLICE;
                 arr_data.modify.base = current_type;
             }
-            else 
+            else if (ctx.is(ASTERISK) && ctx.peek(1).kind == RBRACKET)
             {
+                advance(ctx)!; // Consume '*'
+                advance(ctx)!; // Consume ']'
+                
                 arr_data.kind = TYPE_ARRAY;
+                arr_data.array.base = current_type;
+                arr_data.array.len_expr = null; // null represents inferred array size [*]
+            }
+			else
+			{
+				arr_data.kind = TYPE_ARRAY;
                 arr_data.array.base = current_type;
                 arr_data.array.len_expr = parse_expr(ctx)!;
                 
                 if (!consume(ctx, RBRACKET)!)
-				{
-					ctx.error("Expected a closing ']'");
-					return ctx.ast.error(start);
-				}
-            }
+                {
+                    ctx.error("Expected a closing ']'");
+                    return ctx.ast.error(start);
+                }
+			}
 
             arr_node.end_token = ctx.peek(0).pos;
             current_type = arr_node;
@@ -138,45 +148,161 @@ fn Node*? parse_ident_expr(ParseContext* ctx)
 	return node;
 }
 
-fn Node*? parse_literal_expr(ParseContext* ctx)
+fn Node*? parse_literal_expr(ParseContext* ctx) => @pool()
 {
 	Token token = ctx.current();
 	int start = token.pos;
 
 	Node* node = ctx.ast.alloc_node(LITERAL_EXPR, start);
+	defer node.end_token = ctx.current().pos;
 	LiteralExpr* literal = node.as(LITERAL_EXPR);
 	String token_text = ctx.token_text(token);
+
+	log::debug("literal_expr: %s", token.kind);
 
 	switch (token.kind)
 	{
 		case NULL:
-			literal.kind = NULL;
+			literal.kind = NULL_LITERAL;
+			advance(ctx)!;
 			break;
 		case TRUE:
-			literal.kind = BOOL;
+			literal.kind = BOOL_LITERAL;
 			literal.boolean = true;
+			advance(ctx)!;
 			break;
 		case FALSE:
-			literal.kind = BOOL;
+			literal.kind = BOOL_LITERAL;
 			literal.boolean = false;
+			advance(ctx)!;
 			break;
-		default:
-			if (token.kind.is_int_literal())
+		case INT_DECIMAL_LITERAL:
+        case INT_HEX_LITERAL:
+        case INT_OCTAL_LITERAL:
+        case INT_BIN_LITERAL:			
+			literal.kind = INT_LITERAL;
+			String clean_string = token_text.treplace("_", "");
+			int base = 10;
+            usz start_idx = 0;
+            if (token.kind == INT_HEX_LITERAL)        { base = 16; start_idx = 2; }
+            else if (token.kind == INT_BIN_LITERAL)   { base = 2;  start_idx = 2; }
+            else if (token.kind == INT_OCTAL_LITERAL) { base = 8;  start_idx = 2; }
+            else                                      { base = 10; start_idx = 0; }
+
+			String body = clean_string[start_idx..];
+			usz end_idx = body.len;
+            while (end_idx > 0)
+            {
+                char last_char = body[end_idx - 1];
+                if (ascii::is_alpha(last_char))
+                {
+                    if (base == 16 && ascii::is_xdigit(last_char)) break;
+                    if (base == 10 && ascii::is_digit(last_char))  break; 
+                    if (base == 8  && ascii::is_odigit(last_char)) break;
+                    if (base == 2  && ascii::is_bdigit(last_char)) break;
+
+                    end_idx--;
+                }
+                else
+                {
+                    break;
+                }
+            }
+            String pure_digits = body[0:end_idx];
+			long? value = pure_digits.to_long(base);
+			if (catch err = value)
 			{
-				literal.kind = INTEGER;
-				long? value = token_text.to_long();
-				if (catch err = value)
+				ctx.error("Failed to parse int literal (%s): %s", pure_digits, err);
+				advance(ctx)!;
+				return ctx.ast.error(start);
+			}
+			literal.integer = value;
+			advance(ctx)!;
+			break;
+		case FLOAT_DECIMAL_LITERAL:
+		case FLOAT_HEX_LITERAL:
+		{
+			literal.kind = REAL_LITERAL;
+            String clean_string = token_text.treplace("_", "");
+            sz len = clean_string.len;
+            if (len > 0)
+            {
+				if (clean_string.ends_with("f32") || clean_string.ends_with("f64"))
 				{
-					ctx.error("Failed to parse int literal: %s", err);
+					clean_string = clean_string[0:len - 3];
+				}
+                if (clean_string.ends_with("f") || clean_string.ends_with("d"))
+                {
+                    if (token.kind == FLOAT_HEX_LITERAL)
+                    {
+                        if (clean_string.contains("p") || clean_string.contains("P"))
+                        {
+                            clean_string = clean_string[0:len - 1];
+                        }
+                    }
+                    else
+                    {
+                        clean_string = clean_string[0:len - 1];
+                    }
+                }
+            }
+            double? real = clean_string.to_double();
+            if (catch err = real)
+            {
+                ctx.error("Failed to decode float literal (%s): %s", token_text, err);
+                advance(ctx)!;
+                return ctx.ast.error(start);
+            }
+            literal.real = real;
+            advance(ctx)!;
+            break;
+		}
+		case STRING_LITERAL:
+			literal.kind = STRING_LITERAL;
+			String text = token_text[1:^2]; // remove trailing "
+			literal.string = ctx.ast.string_pool.internalize(text);
+			advance(ctx)!;
+			break;
+		case BYTES_LITERAL:
+			literal.kind = BYTES_LITERAL;
+			if (token_text.starts_with("b64"))
+			{
+				String clean = token_text[4:^5];
+				char[]? b64 = base64::decode(tmem, clean);
+				if (catch err = b64)
+				{
+					ctx.error("Failed to decode Base64(%s): %s", clean, err);
+					advance(ctx)!;
 					return ctx.ast.error(start);
 				}
-				literal.integer = value;
-				break;
+				literal.bytes = alloc::clone_slice(ctx.arena, b64);
+				advance(ctx)!;
 			}
-			else 
+			else if (token_text.starts_with("x"))
 			{
-				unreachable("Not implemented!");
+				String clean = token_text.treplace(" ", "");
+				String final = clean[2:^3];
+				log::debug("%s", final);
+				if (final.len % 2 != 0)
+                {
+                    ctx.error("Hex literal payload must have an even number of digits (got %s chars in '%s')", 
+                              final.len, final);
+                    advance(ctx)!;
+                    return ctx.ast.error(start);
+                }
+				char[]? hex = hex::decode(tmem, final);
+				if (catch err = hex)
+				{
+					ctx.error("Failed to decode hex(%s): %s", final, err);
+					advance(ctx)!;
+					return ctx.ast.error(start);
+				}
+				literal.bytes = alloc::clone_slice(ctx.arena, hex);
+				advance(ctx)!;
 			}
+			break;
+		default:
+			unreachable("Not implemented!");
 	}
 
 	return node;
@@ -292,7 +418,7 @@ fn Node*? parse_contract_expr(ParseContext* ctx)
 			return node;
 		}
 
-		expr.expr_string = parse_ident_expr(ctx)!;
+		expr.expr_string = parse_expr(ctx)!;
 	}
 
 	return node;

@@ -687,6 +687,8 @@ fn Token? Lexer.lex_number(Lexer* self, int start_pos)
 	}
 	else
 	{
+		kind = INT_DECIMAL_LITERAL;
+
 		// Standard Decimals
 		while (!self.eof() && (ascii::is_digit(self.peek()) || self.peek() == '_'))
 		{
@@ -1033,15 +1035,16 @@ fn Token? Lexer.next(&self)
 			}
 			nextcase;
 		case 'b':
-			if (self.peek(1) == '6' && self.peek(2) == '4' && self.peek(3) == '`')
+			if (self.peek(1) == '6' && self.peek(2) == '4' && (self.peek(3) == '`' || self.peek(3) == '"'))
 			{
-				self.advance(4)!; // Advance past b, 6, 4, and `
+				char quote_char = self.peek(3); 
+				self.advance(4)!; 
 				while (!self.eof())
 				{
-					if (self.peek() == '`')
+					if (self.peek() == quote_char)
 					{
-						self.advance()!;
-						return self.emit(BYTES, start, self.index - start);
+						self.advance()!; // Advance past the closing quote
+						return self.emit(BYTES_LITERAL, start, self.index - start);
 					}
 					self.advance()!;
 				}

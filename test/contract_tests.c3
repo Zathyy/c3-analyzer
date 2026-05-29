@@ -18,7 +18,7 @@ fn void contract_with_expr_checks()
 
 		<*
 			Hello there
-			@param [&in] a : "my param"
+			@param [in] a : "my param"
 			@require a > 0
 			@ensure return > 0
 		*>

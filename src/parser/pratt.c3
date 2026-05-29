@@ -225,6 +225,7 @@ fn Node*? parse_prefix_expr(ParseContext* ctx)
 		case INT_HEX_LITERAL:
 		case INT_OCTAL_LITERAL:
 		case INT_BIN_LITERAL:
+		case BYTES_LITERAL:
 			return parse_literal_expr(ctx)!;
 		default:
 			log::error(

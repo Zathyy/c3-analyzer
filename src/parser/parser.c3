@@ -367,7 +367,6 @@ fn ParseResult? parse(Workspace* ws, String uri, String src) => @pool()
 	{
 		if (catch err = parse_top_level(&ctx, ws))
 		{
-			success = false;
 			if (err == io::EOF)
 			{
 				break;
