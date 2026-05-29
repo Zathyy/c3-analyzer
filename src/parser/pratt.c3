@@ -219,8 +219,12 @@ fn Node*? parse_prefix_expr(ParseContext* ctx)
 		case TRUE:
 		case FALSE:
 		case NULL:
-		case FLOAT_LITERAL:
-		case INT_LITERAL:
+		case FLOAT_DECIMAL_LITERAL:
+		case FLOAT_HEX_LITERAL:
+		case INT_DECIMAL_LITERAL:
+		case INT_HEX_LITERAL:
+		case INT_OCTAL_LITERAL:
+		case INT_BIN_LITERAL:
 			return parse_literal_expr(ctx)!;
 		default:
 			log::error(

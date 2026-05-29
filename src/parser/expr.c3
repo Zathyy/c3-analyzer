@@ -160,18 +160,23 @@ fn Node*? parse_literal_expr(ParseContext* ctx)
 			literal.kind = BOOL;
 			literal.boolean = false;
 			break;
-		case INT_LITERAL:
-			literal.kind = INTEGER;
-			long? value = token_text.to_long();
-			if (catch err = value)
-			{
-				ctx.error("Failed to parse int literal: %s", err);
-				return ctx.ast.error(start);
-			}
-			literal.integer = value;
-			break;
 		default:
-			unreachable("Not implemented!");
+			if (token.kind.is_int_literal())
+			{
+				literal.kind = INTEGER;
+				long? value = token_text.to_long();
+				if (catch err = value)
+				{
+					ctx.error("Failed to parse int literal: %s", err);
+					return ctx.ast.error(start);
+				}
+				literal.integer = value;
+				break;
+			}
+			else 
+			{
+				unreachable("Not implemented!");
+			}
 	}
 
 	return node;

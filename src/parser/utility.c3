@@ -267,8 +267,12 @@ fn bool can_start_expression(TokenKind kind)
 		case HASH_IDENT:
 		case HASH_TYPE_IDENT:
 		case BUILTIN:
-		case INT_LITERAL: 
-		case FLOAT_LITERAL:
+		case FLOAT_DECIMAL_LITERAL:
+		case FLOAT_HEX_LITERAL:
+		case INT_DECIMAL_LITERAL:
+		case INT_HEX_LITERAL:
+		case INT_OCTAL_LITERAL:
+		case INT_BIN_LITERAL:
 		case STRING_LITERAL:
 		case CHAR_LITERAL:
 		case LPAREN:
