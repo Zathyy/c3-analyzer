@@ -11,6 +11,8 @@ struct ContractParam
 	bool by_ref;
 }
 
+fn String? ContractParam.get_description(&self, StringPool* pool) => pool.get(self.description);
+
 struct ContractDecl 
 {
 	NodeArray requires;

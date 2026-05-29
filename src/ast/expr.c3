@@ -15,6 +15,8 @@ struct IdentExpr
 	StringID ident;
 }
 
+fn String? IdentExpr.get_ident(&self, StringPool* pool) => pool.get(self.ident);
+
 struct PathExpr
 {
     StringID[] segments;
@@ -79,6 +81,8 @@ struct ContractExpr
 	StringID comment;
 	Node* expr_string;
 }
+
+fn String? ContractExpr.get_comment(&self, StringPool* pool) => pool.get(self.comment);
 
 struct ExprList 
 {
