@@ -20,7 +20,8 @@ struct ContractDecl
 	NodeArray opt_returns;
 	ContractParam[] params;
 	StringID comment;
-	StringID return_desc;
+	Node* return_desc; // ident_expr
+	Attribute* deprecated;
 	bool is_pure;
 }
 

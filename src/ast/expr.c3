@@ -72,3 +72,10 @@ struct TypeExpr
         }
     }
 }
+
+struct ContractExpr 
+{
+	Node* exprs;
+	StringID comment;
+	StringID expr_string;
+}
