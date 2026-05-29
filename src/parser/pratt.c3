@@ -214,6 +214,14 @@ fn Node*? parse_prefix_expr(ParseContext* ctx)
 		case HASH_CONST_IDENT:
 		case HASH_TYPE_IDENT:
 			return parse_ident_expr(ctx)!;
+		case STRING:
+		case CHAR_LITERAL:
+		case TRUE:
+		case FALSE:
+		case NULL:
+		case REAL:
+		case INTEGER:
+			return parse_literal_expr(ctx)!;
 		default:
 			log::error(
 				"parse_prefix_expr - Expected expression for token: ((%s) %s - %s)",

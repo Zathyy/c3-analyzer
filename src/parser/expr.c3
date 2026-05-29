@@ -138,6 +138,45 @@ fn Node*? parse_ident_expr(ParseContext* ctx)
 	return node;
 }
 
+fn Node*? parse_literal_expr(ParseContext* ctx)
+{
+	Token token = ctx.current();
+	int start = token.pos;
+
+	Node* node = ctx.ast.alloc_node(LITERAL_EXPR, start);
+	LiteralExpr* literal = node.as(LITERAL_EXPR);
+	String token_text = ctx.token_text(token);
+
+	switch (token.kind)
+	{
+		case NULL:
+			literal.kind = NULL;
+			break;
+		case TRUE:
+			literal.kind = BOOL;
+			literal.boolean = true;
+			break;
+		case FALSE:
+			literal.kind = BOOL;
+			literal.boolean = false;
+			break;
+		case INTEGER:
+			literal.kind = INTEGER;
+			long? value = token_text.to_long();
+			if (catch err = value)
+			{
+				ctx.error("Failed to parse int literal: %s", err);
+				return ctx.ast.error(start);
+			}
+			literal.integer = value;
+			break;
+		default:
+			unreachable("Not implemented!");
+	}
+
+	return node;
+}
+
 <*
 	Parse a full path e.g. foo::bar::baz;
 	@param [&inout] ctx
