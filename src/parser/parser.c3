@@ -374,6 +374,8 @@ fn ParseResult? parse(Workspace* ws, String uri, String src) => @pool()
 				break;
 			}
 
+			success = false;
+
 			synchronize(&ctx)!;
 			continue;
 		}

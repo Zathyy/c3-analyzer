@@ -136,13 +136,13 @@ fn Node*? parse_contract_decl(ParseContext* ctx) => @pool()
 			}
 			else if (attr == constants::KW_AT_DEPRECATED)
 			{
+				log::debug("parse_contract_decl - @deprecated");
 				Node* n = ctx.ast.alloc_node(ATTRIBUTE_DECL, ctx.current().pos);
 				contract.deprecated = n;
 				AttributeDecl* attribute = n.as(ATTRIBUTE_DECL);
 				attribute.path = ctx.ast.alloc_node(MISSING, ctx.current().pos);
 				attribute.name = constants::KW_AT_DEPRECATED;
 				attribute.kind = DEPRECATED;
-				advance(ctx)!;
 				if (ctx.can_peek(1) && ctx.peek(0).kind == EOS && ctx.peek(1).kind == STRING_LITERAL)
 				{
 					advance(ctx)!;
@@ -150,8 +150,10 @@ fn Node*? parse_contract_decl(ParseContext* ctx) => @pool()
 				int start = ctx.peek(0).pos;
 				if (ctx.is(STRING_LITERAL))
 				{
-					Node* expr = parse_expr(ctx)!;
-					attribute.exprs = { expr };
+					List{Node*} exprs; exprs.tinit(1);
+					exprs.push(parse_expr(ctx)!);
+					log::debug("parser @deprecated string");
+					attribute.exprs = alloc::clone_slice(ctx.arena, exprs.array_view());
 				}
 			}
 			else if (attr == constants::KW_AT_PURE)
