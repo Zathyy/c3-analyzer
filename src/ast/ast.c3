@@ -30,6 +30,7 @@ struct Node
 		ErrorNode error;
 
 		// DECL
+		ContractDecl contract_decl;
 		ModuleDecl module_decl;
 		ImportDecl import_decl;
 		FnDecl fn_decl;

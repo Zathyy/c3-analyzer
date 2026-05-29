@@ -3,6 +3,27 @@ import lexer;
 
 import std::collections::list;
 
+struct ContractParam 
+{
+	StringID name;
+	StringID description;
+	int start_token;
+	int end_token;
+	InOutModifier modifier;
+	bool by_ref;
+}
+
+struct ContractDecl 
+{
+	NodeArray requires;
+	NodeArray ensures;
+	NodeArray opt_returns;
+	ContractParam[] params;
+	StringID comment;
+	StringID return_desc;
+	bool is_pure;
+}
+
 struct ModuleDecl 
 {
 	Node* path;

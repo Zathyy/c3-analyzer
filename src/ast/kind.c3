@@ -9,6 +9,7 @@ enum NodeKind : char
 	MISSING,
 	INT_LITERAL,
 	
+	CONTRACT_DECL,
 	VAR_DECL,
 	MODULE_DECL,
 	IMPORT_DECL,
