@@ -12,7 +12,7 @@ import std::io::path;
 
 fn void test_literals()
 {
-	 String path = parser_tests::write_fixture("basic_contract", `
+	 String path = parser_tests::write_fixture("test_literals", `
 		module test_module; 
 
 		// Primitives & Numbers
