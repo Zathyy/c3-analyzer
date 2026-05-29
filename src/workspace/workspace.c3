@@ -216,10 +216,10 @@ fn Node*? Workspace.lookup_in_module(&self, String module_name, String symbol_na
 	// Search the module's top-level declarations
 	foreach (section : mod.sections)
 	{
-		foreach (decl_handle : section.source_file.ast.top_level_nodes)
+		foreach (node : section.source_file.ast.top_level_nodes)
 		{
-			Cursor c = { section, decl_handle };
-			if (c.spelling(tmem)! == symbol_name) return decl_handle;
+			Cursor c = { section, node };
+			if (c.spelling(tmem)! == symbol_name) return node;
 		}
 	}
 
