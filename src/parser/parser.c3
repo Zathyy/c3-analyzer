@@ -143,7 +143,8 @@ fn void? synchronize(ParseContext* ctx)
 
 fn bool ParseContext.eof(&self) @inline
 {
-	return self.pos >= self.tokens.len || self.is(EOF);
+	if (self.pos >= self.tokens.len) return true;
+    return self.tokens[self.pos].kind == EOF;
 }
 
 fn bool ParseContext.is(&self, TokenKind kind)
@@ -196,16 +197,17 @@ fn void? advance(ParseContext* ctx, int len = 1)
 
 	ctx.pos += len;
 
-	$if env::DEBUG_SYMBOLS:
-    if (!ctx.eof()) 
+	if (ctx.eof())
     {
+        $if env::DEBUG_SYMBOLS:
+            ctx.current_token_string = "EOF";
+        $endif
+        return;
+    }
+
+    $if env::DEBUG_SYMBOLS:
         ctx.current_token = ctx.peek();
         ctx.current_token_string = ctx.token_text(ctx.peek());
-    }
-    else 
-    {
-        ctx.current_token_string = "EOF";
-    }
     $endif
 }
 
@@ -255,7 +257,6 @@ macro bool? expect(ParseContext* ctx, TokenKind kind)
 *>
 fn bool? consume(ParseContext* ctx, TokenKind kind)
 {
-	if (ctx.eof()) return io::EOF~;
 	if (ctx.is(kind))
 	{
 		advance(ctx)!;
@@ -369,6 +370,7 @@ fn ParseResult? parse(Workspace* ws, String uri, String src) => @pool()
 		{
 			if (err == io::EOF)
 			{
+				log::error("EOF!");
 				break;
 			}
 
