@@ -26,6 +26,7 @@ faultdef
 bitstruct ParseFlags : ulong
 {
 	bool is_interface; // Skip function bodies, disallow fields
+	bool is_struct;
 	bool is_global; // Top-level declarations
 	bool is_local; // Inside a function/block
 	bool is_var; // has a 'var'
@@ -62,7 +63,7 @@ struct ParseContext
 	Allocator arena;
 
 	int pos;
-	Node contract;
+	Node* contract;
 	List{ParserError} errors @if($feature(PARSER_LIB));
 
 	// for when using debbugers so i can keep track of what its at
@@ -154,6 +155,14 @@ fn Token ParseContext.peek(&self, int pos = 0) @inline
 {
 	assert ((sz)self.pos + pos < self.tokens.len);
 	return self.tokens[(sz)self.pos + pos];
+}
+
+<*
+ Checks if there are enough tokens left to look ahead by 'offset' steps.
+*>
+fn bool ParseContext.can_peek(&self, int offset = 0) @inline
+{
+	return (sz)self.pos + offset < self.tokens.len;
 }
 
 fn void ParseContext.print_current(&self)
@@ -418,21 +427,18 @@ fn void? parse_top_level(ParseContext* ctx, Workspace* ws)
 		advance(ctx)!;
 	}
 
-	// if (is_type(ctx))
-	// {
-	// 	node = parse_var_decl(ctx, flags)!;
-	// 	// if (node.is_valid())
-	// 	// {
-	// 		ctx.ast.top_level_nodes.push(node);
-	// 		return;
-	// 	// }
-	// }
+	if (is_type(ctx))
+	{
+		node = parse_var_decl(ctx, flags)!;
+		ctx.ast.top_level_nodes.push(node);
+		return;
+	}
 
 	switch (ctx.current().kind)
 	{
-		// case CONTRACT:
-		// 	node = parse_contract(ctx)!;
-		// 	ctx.contract = node;
+		case CONTRACT:
+			node = parse_contract_decl(ctx)!;
+			ctx.contract = node;
 		// case INTERFACE:
 		// 	node = parse_interface(ctx)!;
 		case MODULE:
