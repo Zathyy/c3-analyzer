@@ -53,6 +53,7 @@ fn void basic_contract()
 			test::eq(decl.deprecated, null);
 			test::eq(decl.ensures.len, 1);
 			test::eq(decl.requires.len, 1);
+			test::eq(decl.params.len, 1);
 		}
 	}
 }
