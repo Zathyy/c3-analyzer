@@ -1,26 +1,20 @@
-module c3_parser::common;
+module parser;
 
-import c3_parser::ast @norecurse;
-
+import parser::ast @norecurse;
 import std::collections::list;
 
-const uint MAX_GENERICS       = 16;
-const uint MAX_ATTRIBUTES     = 16;
-const uint MAX_INTERFACE_IMPL = 16;
-
 typedef FileID = ushort;
-alias Size = sz;
-
+ 
 struct Location
 {
-	Size line;
-	Size column;
+	sz line;
+	sz column;
 }
 
 struct Range
 {
-	Size start;
-	Size end;
+	sz start;
+	sz end;
 }
 
 enum AttributeKind
@@ -252,35 +246,35 @@ enum DeferKind : uint
 
 enum OverloadKind : uint
 {
-	ELEMENT_AT,
-	ELEMENT_REF,
-	ELEMENT_SET,
-	LEN,
-	NEGATE,
-	UNARY_MINUS,
-	PLUS,
-	TYPED_START,
-	MINUS,
-	MULTIPLY,
-	DIVIDE,
-	REMINDER,
-	AND,
-	OR,
-	XOR,
-	SHL,
-	SHR,
-	EQUAL,
-	NOT_EQUAL,
-	PLUS_ASSIGN,
-	MINUS_ASSIGN,
-	MULTIPLY_ASSIGN,
-	DIVIDE_ASSIGN,
-	REMINDER_ASSIGN,
-	AND_ASSIGN,
-	OR_ASSIGN,
-	XOR_ASSIGN,
-	SHL_ASSIGN,
-	SHR_ASSIGN,
+	OV_ELEMENT_AT,
+	OV_ELEMENT_REF,
+	OV_ELEMENT_SET,
+	OV_LEN,
+	OV_NEGATE,
+	OV_UNARY_MINUS,
+	OV_PLUS,
+	OV_TYPED_START,
+	OV_MINUS,
+	OV_MULTIPLY,
+	OV_DIVIDE,
+	OV_REMINDER,
+	OV_AND,
+	OV_OR,
+	OV_XOR,
+	OV_SHL,
+	OV_SHR,
+	OV_EQUAL,
+	OV_NOT_EQUAL,
+	OV_PLUS_ASSIGN,
+	OV_MINUS_ASSIGN,
+	OV_MULTIPLY_ASSIGN,
+	OV_DIVIDE_ASSIGN,
+	OV_REMINDER_ASSIGN,
+	OV_AND_ASSIGN,
+	OV_OR_ASSIGN,
+	OV_XOR_ASSIGN,
+	OV_SHL_ASSIGN,
+	OV_SHR_ASSIGN,
 }
 
 enum InOutModifier
@@ -291,19 +285,18 @@ enum InOutModifier
 	INOUT,
 }
 
-struct TypeDescriptor
-{
-	uint name; // The StringPool handle
-	uint ptr_count;
-	Node array_size; // AST Node for [expr]
-	Node base_expr; // for compile time types expr
-	uint gen_count;
-	Node[MAX_GENERICS] gen_args;
-}
-
 enum Visibility
 {
     PUBLIC,
     PRIVATE,
     LOCAL
+}
+
+enum TypeKind : int
+{
+	TYPE_IDENTIFIER,
+    TYPE_POINTER,
+    TYPE_ARRAY,
+    TYPE_SLICE,
+    TYPE_GENERIC
 }

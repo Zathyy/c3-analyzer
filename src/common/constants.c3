@@ -1,4 +1,4 @@
-module c3_parser::constants;
+module parser::constants;
 
 const String KW_AT_DEPRECATED = "@deprecated";
 const String KW_AT_PURE       = "@pure";

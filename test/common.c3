@@ -1,44 +1,42 @@
-module c3_parser_tests;
+module parser_tests;
 
-import c3_parser::workspace;
-import c3_parser::parser;
-import c3_parser::cursor;
-import c3_parser::ast;
-import c3_parser::ast::views;
-import c3_parser::common;
+import parser::workspace;
+import parser::ast;
+
 import std::io;
 import std::collections::list;
 import std::io::file;
 import std::io::path;
 
-// ------------------------------------------------------------
-// Helpers
-// ------------------------------------------------------------
-
 <*
  Write a C3 source string to a named temp file under /tmp/ and
-  return the path.  Panics on I/O failure so tests fail fast.
+ return the path.  Panics on I/O failure so tests fail fast.
 *>
-fn String write_fixture(String name, String content) @private
+fn String write_fixture(String name, String content)
 {
-	String path = string::tformat("%s/c3_test_%s.c3", path::temp_directory(tmem)!!, name);
-	File f = file::open(path, "w")!!;
-	f.write(content)!!;
-	(void)f.close()!!;
-	return path;
+    String path = string::tformat("%s/c3_test_%s.c3", path::temp_directory(tmem)!!, name);
+    File f = file::open(path, "w")!!;
+    f.write(content)!!;
+    (void)f.close()!!;
+    return path;
 }
 
 <*
- Count how many top-level nodes in a section have a given kind.
+  Count how many top-level nodes inside this specific ModuleSection match a given kind.
 *>
-fn uint count_kind(ModuleSection* s, NodeKind kind) @private
+fn int count_kind(ModuleSection* s, NodeKind kind)
 {
-	uint n = 0;
-	foreach (h : s.source_file.ast.top_level_nodes)
-	{
-		if (h < s.start_node_idx || h >= s.end_node_idx) continue;
-		if (s.source_file.ast.get_kind((Node)h) == kind) n++;
-	}
-	return n;
+    int n = 0;
+    
+    foreach (node_ptr : s.nodes)
+    {
+        if (node_ptr == null) continue;
+        
+        // Directly check the node's kind field
+        if (node_ptr.kind == kind) 
+        {
+            n++;
+        }
+    }
+    return n;
 }
-

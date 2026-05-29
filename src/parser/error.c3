@@ -1,8 +1,6 @@
-module c3_parser::parser::error;
+module parser::parser::error;
 
 import lexer;
-import c3_parser::common;
-
 
 struct ParserError 
 {

@@ -1,11 +1,9 @@
-module c3_parser::parser;
+module parser::parser;
 
 import std::io;
 import lexer;
 import line_map;
-import c3_parser::ast;
-import c3_parser::common;
-import buffered_log;
+import parser::ast;
 
 // Colors for the terminal
 const String ANSI_RED    = "\x1b[31;1m";
@@ -16,17 +14,17 @@ const String ANSI_BOLD   = "\x1b[1m";
 
 macro void ParseContext.info(&self, String fmt, ...)
 {
-	self.report(self.current(), INFO, ANSI_CYAN, fmt, ...$vaarg);
+	self.report(self.peek(), INFO, ANSI_CYAN, fmt, ...$vaarg);
 }
 
 macro void ParseContext.warn(&self, String fmt, ...)
 {
-	self.report(self.current(), WARN, ANSI_YELLOW, fmt, ...$vaarg);
+	self.report(self.peek(), WARN, ANSI_YELLOW, fmt, ...$vaarg);
 }
 
 macro void ParseContext.error(&self, String fmt, ...)
 {
-	self.report(self.current(), ERROR, ANSI_RED, fmt, ...$vaarg);
+	self.report(self.peek(), ERROR, ANSI_RED, fmt, ...$vaarg);
 }
 
 macro void ParseContext.error_at(&self, Token t, String fmt, ...)
@@ -37,11 +35,10 @@ macro void ParseContext.error_at(&self, Token t, String fmt, ...)
 fn void ParseContext.report(ParseContext* self, Token token, LogPriority level, String color, String fmt, args ...)
 {
 	Location loc = self.line_map.resolve(token.pos);
-	
-	$if $feature(C3_PARSER_LIB):
+	$if $feature(PARSER_LIB):
 		self.errors.push({ level, loc, token, string::format(self.allocator, fmt, ...args) });
 	$else
-		io::printf("%s:%s:%s: %s%s:%s ", self.file_path, loc.line, loc.column, color, $stringify(level), ANSI_RESET);
+		io::printf("%s:%s:%s: %s%s:%s ", self.file_path, loc.line, loc.column, color, level.description, ANSI_RESET);
 		io::printf(fmt, args);
 		io::printn("");
 
@@ -49,9 +46,9 @@ fn void ParseContext.report(ParseContext* self, Token token, LogPriority level, 
 		io::printf(" %4s | %s\n", loc.line, line_text);
 
 		io::printf(" %4s | ", "");
-		for (uint i = 1; i < loc.column; i++)
+		for (sz i = 1; i < loc.column; i++)
 		{
-			if (line_text[i - 1] == '\t')
+			if (i - 1 < line_text.len && line_text[i - 1] == '\t')
 			{
 				io::print("\t");
 			}
@@ -94,27 +91,9 @@ fn bool is_non_type_ident(TokenKind k)
            k == CT_IDENT;
 }
 
-fn bool node_ends_with_block(ParseContext* ctx, Node n)
-{
-	NodeKind kind = ctx.ast.get_kind(n);
-
-	log::debug("%s", kind);
-	switch (kind)
-	{
-		case CALL_EXPR:
-		case ATTR_CALL_EXPR:
-			CallView view = { ctx.ast, n };
-			return view.get_compound().is_valid();
-		case COMPOUND_STMT:
-			return true;
-		default:
-			return false;
-	}
-}
-
 fn bool is_type(ParseContext* ctx)
 {
-	TokenKind kind = ctx.current().kind;
+	TokenKind kind = ctx.peek().kind;
 
 	if (is_type_primitive(kind)) return true;
 	if (kind == TYPE_IDENT) return true;
@@ -164,54 +143,33 @@ fn bool is_type_primitive(TokenKind kind)
 	}
 }
 
-fn void attach_contract(ParseContext* ctx, Node decl, Node contract)
-{
-	if (!decl.is_valid()) return;
-	if (!contract.is_valid()) return;
-
-    NodeKind kind = ctx.ast.get_kind(decl);
-    
-    uint offset = 0;
-    switch (kind)
-    {
-		case MODULE_DECL:  offset = ModuleViewFields.CONTRACT;
-        case FN_DECL:      offset = FnViewFields.CONTRACT;
-        case STRUCT_DECL:  offset = StructViewFields.CONTRACT;
-		case UNION_DECL:   offset = StructViewFields.CONTRACT;
-        default: return;
-    }
-    
-	uint base_extra_idx = ctx.ast.get_extra((uint)decl);
-    ctx.ast.set_extra(base_extra_idx + offset, (uint)contract);
-}
-
 fn OverloadKind get_overload_from_token(TokenKind kind)
 {
 	switch (kind)
 	{
-		case PLUS: return OverloadKind.PLUS;
-		case PLUS_ASSIGN: return OverloadKind.PLUS_ASSIGN;
-		case MINUS: return OverloadKind.MINUS;
-		case MINUS_ASSIGN: return OverloadKind.MINUS_ASSIGN;
-		case ASTERISK: return OverloadKind.MULTIPLY;
-		case MULT_ASSIGN: return OverloadKind.MULTIPLY_ASSIGN;
-		case DIV: return OverloadKind.DIVIDE;
-		case DIV_ASSIGN: return OverloadKind.DIVIDE_ASSIGN;
-		case MOD: return OverloadKind.REMINDER;
-		case MOD_ASSIGN: return OverloadKind.REMINDER_ASSIGN;
-		case AMP: return OverloadKind.AND;
-		case BIT_AND_ASSIGN: return OverloadKind.AND_ASSIGN;
-		case BIT_OR: return OverloadKind.OR;
-		case BIT_OR_ASSIGN: return OverloadKind.OR_ASSIGN;
-		case BIT_XOR: return OverloadKind.XOR;
-		case BIT_XOR_ASSIGN: return OverloadKind.XOR_ASSIGN;
-		case LSHIFT: return OverloadKind.SHL;
-		case LSHIFT_ASSIGN: return OverloadKind.SHL_ASSIGN;
-		case RSHIFT: return OverloadKind.SHR;
-		case RSHIFT_ASSIGN: return OverloadKind.SHR_ASSIGN;
-		case BIT_NOT: return OverloadKind.NEGATE;
-		case EQEQ: return OverloadKind.EQUAL;
-		case NOT_EQUAL: return OverloadKind.NOT_EQUAL;
+		case PLUS: return           OV_PLUS;
+		case PLUS_ASSIGN: return    OV_PLUS_ASSIGN;
+		case MINUS: return          OV_MINUS;
+		case MINUS_ASSIGN: return   OV_MINUS_ASSIGN;
+		case ASTERISK: return       OV_MULTIPLY;
+		case MULT_ASSIGN: return    OV_MULTIPLY_ASSIGN;
+		case DIV: return            OV_DIVIDE;
+		case DIV_ASSIGN: return     OV_DIVIDE_ASSIGN;
+		case MOD: return            OV_REMINDER;
+		case MOD_ASSIGN: return     OV_REMINDER_ASSIGN;
+		case AMP: return            OV_AND;
+		case BIT_AND_ASSIGN: return OV_AND_ASSIGN;
+		case BIT_OR: return         OV_OR;
+		case BIT_OR_ASSIGN: return  OV_OR_ASSIGN;
+		case BIT_XOR: return        OV_XOR;
+		case BIT_XOR_ASSIGN: return OV_XOR_ASSIGN;
+		case LSHIFT: return         OV_SHL;
+		case LSHIFT_ASSIGN: return  OV_SHL_ASSIGN;
+		case RSHIFT: return         OV_SHR;
+		case RSHIFT_ASSIGN: return  OV_SHR_ASSIGN;
+		case BIT_NOT: return        OV_NEGATE;
+		case EQEQ: return           OV_EQUAL;
+		case NOT_EQUAL: return      OV_NOT_EQUAL;
 		default:
 			unreachable();
 	}
@@ -219,7 +177,7 @@ fn OverloadKind get_overload_from_token(TokenKind kind)
 
 fn bool is_declaration_followup(ParseContext* ctx)
 {
-	uint i;
+	int i;
 
 	while (ctx.peek(i).kind == IDENT && ctx.peek(i + 1).kind == SCOPE)
     {
@@ -231,7 +189,7 @@ fn bool is_declaration_followup(ParseContext* ctx)
 	if (ctx.is(CT_TYPEFROM) || ctx.is(CT_TYPEOF))
 	{
 		i++;
-		uint depth = 1;
+		int depth = 1;
 		do {
 			if (ctx.peek(i).kind == LPAREN) depth++;
 			if (ctx.peek(i).kind == RPAREN) depth--;
@@ -274,30 +232,21 @@ fn bool is_declaration_followup(ParseContext* ctx)
 	return final_k == IDENT || final_k == CONST_IDENT || final_k == CT_IDENT;
 }
 
-fn uint? parse_type_name(ParseContext* ctx, String msg)
+<*
+	@param [&in] n
+*>
+fn bool node_ends_with_block(ParseContext* ctx, Node* n)
 {
-	if (ctx.is(IDENT)) 
-	{
-		ctx.error("Name of %s must start with and uppercase letter", msg);
-		return 0;
-	}
-	else if (ctx.is(CONST_IDENT))
-	{
-		ctx.error("Name of %s cannot be all uppercase", msg);
-		return 0;
-	}
-	else
-	{
-		if (!ctx.is(TYPE_IDENT))
-		{
-			ctx.error("'%s' should be followed by the name of the %s.", msg, msg);
-			return 0;
-		}
-	}
+	NodeKind kind = n.kind;
 
-	uint name = ctx.pool.intern(ctx.current_text());
-	advance(ctx)!;
-	return name;
+	switch (kind)
+	{
+		case CALL_EXPR:
+		case COMPOUND_STMT:
+			return true;
+		default:
+			return false;
+	}
 }
 
 fn bool can_start_expression(TokenKind kind) 

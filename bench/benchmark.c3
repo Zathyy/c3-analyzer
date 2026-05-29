@@ -1,10 +1,7 @@
-module c3_parser_benchmarks;
-import c3_parser::workspace;
-import c3_parser::parser;
-import c3_parser::cursor;
-import c3_parser::ast;
-import c3_parser::ast::views;
-import c3_parser::common;
+module parser_benchmarks;
+import parser::workspace;
+import parser::parser;
+import parser::ast;
 import std::io;
 import std::collections::list;
 import std::io::file;
