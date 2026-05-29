@@ -12,7 +12,7 @@
   // Version using semantic versioning.
   "version": "0.1.0",
   // Sources compiled for all targets.
-  "sources": [ "src/**", "bench/benchmark.c3" ],
+  "sources": [ "src/**" ],
   // Test sources compiled for all targets.
   "test-sources": [ "test/**" ],
   // C sources if the project also compiles C sources
@@ -36,6 +36,14 @@
     "c3_parser_lib": {
       "type": "static-lib",
       "features": ["PARSER_LIB"]
+    },
+    "parser_benchmarks": {
+      "type": "executable",
+      "sources": [ "bench/benchmark.c3" ]
+    },
+    "stringpool_benchmarks": {
+      "type": "executable",
+      "sources": [ "bench/stringpool_benchmarks.c3" ]
     }
   },
   // Global settings.
