@@ -2,9 +2,9 @@ module parser_tests @test;
 
 import parser::ast;
 
-fn void test_trie_string_pool_internalizes_unique_strings() @test
+fn void test_string_pool_internalizes_unique_strings() @test
 {
-	TrieStringPool pool;
+	StringPool pool;
 	pool.init(mem, 8);
 	defer pool.free();
 
@@ -18,9 +18,9 @@ fn void test_trie_string_pool_internalizes_unique_strings() @test
 	assert(pool.get(second)!! == "beta");
 }
 
-fn void test_trie_string_pool_contains_strings() @test
+fn void test_string_pool_contains_strings() @test
 {
-	TrieStringPool pool;
+	StringPool pool;
 	pool.init(mem, 8);
 	defer pool.free();
 
@@ -35,9 +35,9 @@ fn void test_trie_string_pool_contains_strings() @test
 	assert(!pool.contains("missing"));
 }
 
-fn void test_trie_string_pool_clear_resets_pool() @test
+fn void test_string_pool_clear_resets_pool() @test
 {
-	TrieStringPool pool;
+	StringPool pool;
 	pool.init(mem, 8);
 	defer pool.free();
 
@@ -54,13 +54,13 @@ fn void test_trie_string_pool_clear_resets_pool() @test
 	assert(pool.get(after_clear)!! == "after");
 }
 
-fn void test_trie_string_pool_free_releases_allocations() @test
+fn void test_string_pool_free_releases_allocations() @test
 {
 	TrackingAllocator tracker;
 	tracker.init(mem);
 	defer tracker.free();
 
-	TrieStringPool pool;
+	StringPool pool;
 	pool.init(&tracker, 8);
 
 	pool.internalize("romane");
