@@ -204,3 +204,52 @@ fn Node*? parse_binary_expr(ParseContext* ctx, Node* left, Precedence prec)
 	bin.op = parser::binaryop_from_token(kind);
 	return node;
 }
+
+<*
+	expr_list ::= decl_or_expr*
+*>
+fn Node*? parse_expr_list(ParseContext* ctx) => @pool()
+{
+	int start_pos = ctx.current().pos;
+	Node* node = ctx.ast.alloc_node(EXPR_LIST, start_pos);
+	ExprList* list = node.as(EXPR_LIST);
+	defer node.end_token = ctx.current().pos;
+	List{Node*} exprs; exprs.tinit();
+	while (!ctx.eof())
+	{	
+		exprs.push(parse_decl_or_expr(ctx)!);
+		if (!consume(ctx, COMMA)!) break;
+	}
+
+	list.exprs = alloc::clone_slice(ctx.arena, exprs.array_view());
+	return node;
+}
+
+<*
+	contract_expr ::= expr_list (':'? STRING)?
+*>
+fn Node*? parse_contract_expr(ParseContext* ctx)
+{
+	int start_pos = ctx.peek(0).pos;
+	Node* node = ctx.ast.alloc_node(CONTRACT_EXPR, start_pos);
+	defer node.end_token = ctx.peek(0).pos;
+	ContractExpr* expr = node.as(CONTRACT_EXPR);
+
+	expr.exprs = parse_expr_list(ctx)!;
+
+	if (consume(ctx, COLON)!)
+	{	
+		if (!ctx.is(STRING))
+		{
+			ctx.error("Expected a string after ':'");
+			ctx.ast.error(ctx.current().pos);
+			node.kind = ERROR;
+			ctx.skip_until({ EOS, EOF })!;
+			return node;
+		}
+
+		expr.expr_string = parse_ident_expr(ctx)!;
+	}
+
+	return node;
+}
