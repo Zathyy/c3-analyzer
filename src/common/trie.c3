@@ -3,7 +3,7 @@ module parser::trie <Type>;
 import std::math;
 import std::collections::list;
 
-const sz DENSE_CHILD_COUNT = 256;
+const sz DENSE_CHILD_COUNT               = 256;
 const sz DENSE_CHILD_PROMOTION_THRESHOLD = 4;
 
 struct Child @private
@@ -27,19 +27,19 @@ struct CompressedTrie
 	Node* root;
 }
 
-fn void CompressedTrie.init(&self, Allocator alloc)
+fn void CompressedTrie.init(&self, Allocator alloc) @inline
 {
 	self.alloc = alloc;
 	self.root = self.new_node("");
 }
 
-fn void CompressedTrie.free(&self)
+fn void CompressedTrie.free(&self) @inline
 {
 	free_node(self.alloc, self.root);
 	*self = { };
 }
 
-fn Node*? CompressedTrie.find_node(&self, String key)
+fn Node*? CompressedTrie.find_node(&self, String key) @inline
 {
 	Node* node       = self.root;
 	String remaining = key;
@@ -63,27 +63,28 @@ fn Node*? CompressedTrie.find_node(&self, String key)
 	return node;
 }
 
-fn Type? CompressedTrie.get(self, String key)
+fn Type? CompressedTrie.get(self, String key) @inline
 {
 	Node* child = self.find_node(key)!;
 	return child.value;
 }
 
-fn Type*? CompressedTrie.get_ref(&self, String key)
+fn Type*? CompressedTrie.get_ref(&self, String key) @inline
 {
 	Node* child = self.find_node(key)!;
 	return &child.value;
 }
 
-fn Node* CompressedTrie.new_node(&self, String label)
+fn Node* CompressedTrie.new_node(&self, String label) @inline
 {
 	String cloned_label = label.copy(self.alloc);
-	Node* node = mem::alloc::new(self.alloc, Node, { .label = cloned_label });
+	Node* node          = mem::alloc::new(self.alloc, Node, { .label = cloned_label });
+
 	node.children.init(self.alloc, 0);
 	return node;
 }
 
-fn Node* CompressedTrie.new_value_node(&self, String label, Type value = { })
+fn Node* CompressedTrie.new_value_node(&self, String label, Type value = { }) @inline
 {
 	Node* node = self.new_node(label);
 	node.has_value = true;
@@ -91,7 +92,7 @@ fn Node* CompressedTrie.new_value_node(&self, String label, Type value = { })
 	return node;
 }
 
-fn void CompressedTrie.insert(&self, String key, Type value)
+fn void CompressedTrie.insert(&self, String key, Type value) @inline
 {
 	Node* node       = self.root;
 	String remaining = key;
@@ -133,12 +134,12 @@ fn void CompressedTrie.insert(&self, String key, Type value)
 	node.value = value;
 }
 
-fn bool CompressedTrie.contains(self, String key)
+fn bool CompressedTrie.contains(self, String key) @inline
 {
 	return @ok(self.find_node(key));
 }
 
-fn void CompressedTrie.split_child(&self, Node* node, sz prefix_length)
+fn void CompressedTrie.split_child(&self, Node* node, sz prefix_length) @inline
 {
 	Node* suffix = self.new_node(node.label[prefix_length..]);
 
@@ -146,9 +147,10 @@ fn void CompressedTrie.split_child(&self, Node* node, sz prefix_length)
 	suffix.value = node.value;
 	suffix.children = node.children;
 	suffix.dense_children = node.dense_children;
-	node.children = {};
+
+	node.children = { };
 	node.children.init(self.alloc, 0);
-	node.dense_children = {};
+	node.dense_children = { };
 
 	String old_label = node.label;
 	node.label = old_label[..prefix_length - 1].copy(self.alloc);
@@ -160,7 +162,7 @@ fn void CompressedTrie.split_child(&self, Node* node, sz prefix_length)
 
 // Helpers
 
-fn Node* find_child(Node* node, char key) @private
+fn Node* find_child(Node* node, char key) @inline @private
 {
 	if (node.dense_children.len > 0) return node.dense_children[key];
 
@@ -171,7 +173,7 @@ fn Node* find_child(Node* node, char key) @private
 	return null;
 }
 
-fn void set_child(Node* node, char key, Node* child_node) @private
+fn void set_child(Node* node, char key, Node* child_node) @inline @private
 {
 	if (node.dense_children.len > 0)
 	{
@@ -192,7 +194,7 @@ fn void set_child(Node* node, char key, Node* child_node) @private
 	if (node.children.len() > DENSE_CHILD_PROMOTION_THRESHOLD) promote_children(node);
 }
 
-fn void promote_children(Node* node) @private
+fn void promote_children(Node* node) @inline @private
 {
 	Node*[] dense_children = alloc::alloc_array(node.children.allocator, Node*, DENSE_CHILD_COUNT);
 	for (sz i = 0; i < DENSE_CHILD_COUNT; i++) dense_children[i] = null;
@@ -206,7 +208,7 @@ fn void promote_children(Node* node) @private
 	node.dense_children = dense_children;
 }
 
-fn void free_node(Allocator alloc, Node* n) @private
+fn void free_node(Allocator alloc, Node* n) @inline @private
 {
 	if (!n) return;
 
@@ -231,7 +233,7 @@ fn void free_node(Allocator alloc, Node* n) @private
 	mem::alloc::free(alloc, n);
 }
 
-fn sz common_prefix_length(String s1, String s2)
+fn sz common_prefix_length(String s1, String s2) @inline
 {
 	sz min_length = math::min(s1.len, s2.len);
 	if (min_length == 0) return 0;

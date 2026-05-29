@@ -2,7 +2,7 @@ module parser_benchmarks;
 
 import parser::ast;
 
-const sz STRING_POOL_BENCH_COUNT = 4096;
+const sz STRING_POOL_BENCH_COUNT           = 4096;
 const sz STRING_POOL_BENCH_ARENA_PAGE_SIZE = 1 << 20;
 
 sz string_pool_benchmark_sink;
@@ -26,6 +26,7 @@ fn void configure_string_pool_benchmarks() @init @if(env::BENCHMARKING)
 fn String[] make_string_pool_benchmark_strings(Allocator allocator)
 {
 	String[] strings = alloc::alloc_array(allocator, String, STRING_POOL_BENCH_COUNT);
+
 	for (sz i = 0; i < STRING_POOL_BENCH_COUNT; i++)
 	{
 		strings[i] = string::format(
@@ -37,6 +38,7 @@ fn String[] make_string_pool_benchmark_strings(Allocator allocator)
 			i % 17
 		);
 	}
+
 	return strings;
 }
 
@@ -46,6 +48,7 @@ fn void free_string_pool_benchmark_strings(Allocator allocator, String[] strings
 	{
 		s.free(allocator);
 	}
+
 	alloc::free(allocator, strings);
 }
 
@@ -61,6 +64,8 @@ fn StringPoolMemoryStats measure_hash_string_pool_memory(String[] strings)
 {
 	TrackingAllocator tracker;
 	tracker.init(mem);
+	defer tracker.free();
+
 	StringPool pool;
 	pool.init(&tracker, STRING_POOL_BENCH_COUNT);
 
@@ -79,7 +84,6 @@ fn StringPoolMemoryStats measure_hash_string_pool_memory(String[] strings)
 	free_hash_string_pool_owned_strings(&pool);
 	pool.free();
 	assert(!tracker.has_leaks());
-	tracker.free();
 	return stats;
 }
 
@@ -87,6 +91,8 @@ fn StringPoolMemoryStats measure_trie_string_pool_memory(String[] strings)
 {
 	TrackingAllocator tracker;
 	tracker.init(mem);
+	defer tracker.free();
+
 	TrieStringPool pool;
 	pool.init(&tracker, STRING_POOL_BENCH_COUNT);
 
@@ -104,7 +110,7 @@ fn StringPoolMemoryStats measure_trie_string_pool_memory(String[] strings)
 
 	pool.free();
 	assert(!tracker.has_leaks());
-	tracker.free();
+
 	return stats;
 }
 
@@ -125,6 +131,7 @@ fn void benchmark_hash_string_pool_insert() @benchmark
 	String[] strings = make_string_pool_benchmark_strings(mem);
 	DynamicArenaAllocator arena;
 	arena.init(mem, STRING_POOL_BENCH_ARENA_PAGE_SIZE);
+
 	StringPool pool;
 	pool.init(&arena, STRING_POOL_BENCH_COUNT);
 
@@ -172,6 +179,7 @@ fn void benchmark_trie_string_pool_insert() @benchmark
 	String[] strings = make_string_pool_benchmark_strings(mem);
 	DynamicArenaAllocator arena;
 	arena.init(mem, STRING_POOL_BENCH_ARENA_PAGE_SIZE);
+
 	TrieStringPool pool;
 	pool.init(&arena, STRING_POOL_BENCH_COUNT);
 
@@ -193,6 +201,7 @@ fn void benchmark_hash_string_pool_get() @benchmark
 	String[] strings = make_string_pool_benchmark_strings(mem);
 	DynamicArenaAllocator arena;
 	arena.init(mem, STRING_POOL_BENCH_ARENA_PAGE_SIZE);
+
 	StringPool pool;
 	pool.init(&arena, STRING_POOL_BENCH_COUNT);
 	foreach (s : strings) (void)pool.internalize(s);
@@ -215,6 +224,7 @@ fn void benchmark_trie_string_pool_get() @benchmark
 	String[] strings = make_string_pool_benchmark_strings(mem);
 	DynamicArenaAllocator arena;
 	arena.init(mem, STRING_POOL_BENCH_ARENA_PAGE_SIZE);
+
 	TrieStringPool pool;
 	pool.init(&arena, STRING_POOL_BENCH_COUNT);
 	foreach (s : strings) (void)pool.internalize(s);
@@ -237,6 +247,7 @@ fn void benchmark_hash_string_pool_contains_existing() @benchmark
 	String[] strings = make_string_pool_benchmark_strings(mem);
 	DynamicArenaAllocator arena;
 	arena.init(mem, STRING_POOL_BENCH_ARENA_PAGE_SIZE);
+
 	StringPool pool;
 	pool.init(&arena, STRING_POOL_BENCH_COUNT);
 	foreach (s : strings) (void)pool.internalize(s);
@@ -259,6 +270,7 @@ fn void benchmark_trie_string_pool_contains_existing() @benchmark
 	String[] strings = make_string_pool_benchmark_strings(mem);
 	DynamicArenaAllocator arena;
 	arena.init(mem, STRING_POOL_BENCH_ARENA_PAGE_SIZE);
+
 	TrieStringPool pool;
 	pool.init(&arena, STRING_POOL_BENCH_COUNT);
 	foreach (s : strings) (void)pool.internalize(s);
@@ -281,6 +293,7 @@ fn void benchmark_hash_string_pool_contains_missing() @benchmark
 	String[] strings = make_string_pool_benchmark_strings(mem);
 	DynamicArenaAllocator arena;
 	arena.init(mem, STRING_POOL_BENCH_ARENA_PAGE_SIZE);
+
 	StringPool pool;
 	pool.init(&arena, STRING_POOL_BENCH_COUNT);
 	foreach (s : strings) (void)pool.internalize(s);
@@ -303,6 +316,7 @@ fn void benchmark_trie_string_pool_contains_missing() @benchmark
 	String[] strings = make_string_pool_benchmark_strings(mem);
 	DynamicArenaAllocator arena;
 	arena.init(mem, STRING_POOL_BENCH_ARENA_PAGE_SIZE);
+
 	TrieStringPool pool;
 	pool.init(&arena, STRING_POOL_BENCH_COUNT);
 	foreach (s : strings) (void)pool.internalize(s);
@@ -325,6 +339,7 @@ fn void benchmark_hash_string_pool_duplicate_insert() @benchmark
 	String[] strings = make_string_pool_benchmark_strings(mem);
 	DynamicArenaAllocator arena;
 	arena.init(mem, STRING_POOL_BENCH_ARENA_PAGE_SIZE);
+
 	StringPool pool;
 	pool.init(&arena, STRING_POOL_BENCH_COUNT);
 	foreach (s : strings) (void)pool.internalize(s);
@@ -347,6 +362,7 @@ fn void benchmark_trie_string_pool_duplicate_insert() @benchmark
 	String[] strings = make_string_pool_benchmark_strings(mem);
 	DynamicArenaAllocator arena;
 	arena.init(mem, STRING_POOL_BENCH_ARENA_PAGE_SIZE);
+
 	TrieStringPool pool;
 	pool.init(&arena, STRING_POOL_BENCH_COUNT);
 	foreach (s : strings) (void)pool.internalize(s);
