@@ -13,12 +13,13 @@ import std::io::path;
 
 fn void type_ident()
 {
-	String path = parser_tests::write_fixture("basic", `module hello; 
-		fn void greet(int foo, Bar baz) {}`
-	);
+	String text = `
+		module hello; 
+		fn void greet(int foo, Bar baz) {}
+	`;
     Workspace ws; ws.init();
     defer ws.free();
-    ParseResult res = parser::parse_file(&ws, path)!!;
+    ParseResult res = parser::parse(&ws, "type_ident", text)!!;
 	
 	assert(res.success == true, "Failed to parse");
 }

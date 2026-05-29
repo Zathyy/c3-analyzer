@@ -13,7 +13,7 @@ import std::io::path;
 
 fn void contract_with_expr_checks() 
 {
-    String path = parser_tests::write_fixture("basic_contract", `
+    String path = `
 		module hello; 
 
 		<*
@@ -23,11 +23,10 @@ fn void contract_with_expr_checks()
 			@ensure return > 0
 		*>
 		fn int foo(int a) {}
-	`
-	);
+	`;
     Workspace ws; ws.init();
     defer ws.free();
-    ParseResult res = parser::parse_file(&ws, path)!!;
+    ParseResult res = parser::parse(&ws, "contract_with_expr_checks", path)!!;
 	test::eq(res.success, true);
     test::eq(ws.modules.len(), 1);
 

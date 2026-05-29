@@ -12,7 +12,7 @@ import std::io::path;
 
 fn void test_literals()
 {
-	 String path = parser_tests::write_fixture("test_literals", `
+	String text = `
 		module test_module; 
 
 		// Primitives & Numbers
@@ -37,11 +37,10 @@ fn void test_literals()
 		char[*] m = x"4865 6c6c 6f20 776f 726c 6421";                  // Hex with interior spacing
 		char[*] n = x"414243";                          // Hex with single quotes
 		char[*] o = b64"SGVsbG8gV29ybGQ=";              // Base64 chunk
-	`
-	);
+	`;
 	Workspace ws; ws.init();
 	defer ws.free();
-	ParseResult res = parser::parse_file(&ws, path)!!;
+	ParseResult res = parser::parse(&ws, "test_literals", text)!!;
 	test::eq(res.success, true);
 	test::eq(ws.modules.len(), 1);
 

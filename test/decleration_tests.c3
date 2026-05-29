@@ -12,10 +12,10 @@ import std::io::path;
 
 fn void basic_module() 
 {
-    String path = parser_tests::write_fixture("basic", `module hello; fn void greet() {}`);
+    String text = `module hello; fn void greet() {}`;
     Workspace ws; ws.init();
     defer ws.free();
-    ParseResult res = parser::parse_file(&ws, path)!!;
+    ParseResult res = parser::parse(&ws, "basic_module", text)!!;
 	test::eq(res.success, true);
     test::eq(ws.modules.len(), 1);
 
@@ -34,16 +34,15 @@ fn void basic_module()
 
 fn void function_with_params()
 {
-	String path = parser_tests::write_fixture("basic", `
+	String path = `
 		module hello; 
 		fn void greet(int foo, Bar baz) {}
 		fn void foo(int foo, Bar baz) {}
 		fn void bar(int foo, Bar baz) {}
-		`
-	);
+	`;
     Workspace ws; ws.init();
     defer ws.free();
-    ParseResult res = parser::parse_file(&ws, path)!!;
+    ParseResult res = parser::parse(&ws, "function_with_params", path)!!;
 	test::eq(res.success, true);
 
     Module* mod = ws.modules.get("hello")!!;
