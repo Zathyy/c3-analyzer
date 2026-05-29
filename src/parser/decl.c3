@@ -202,11 +202,8 @@ fn Node*? parse_contract_decl(ParseContext* ctx) => @pool()
 fn Node*? parse_import_decl(ParseContext* ctx) => @pool()
 {
 	int start_pos = ctx.peek(0).pos;
-	if (!expect(ctx, IMPORT)!)
-	{
-		ctx.error("Expected 'import' here");
-		return ctx.ast.error(start_pos);
-	}
+
+	@expect_else(ctx, IMPORT; err) { return err; }!;
 
 	Node* node = ctx.ast.alloc_node(IMPORT_DECL, start_pos);
 	ImportDecl* imp = node.as(IMPORT_DECL);

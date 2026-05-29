@@ -213,6 +213,24 @@ fn void? advance(ParseContext* ctx, int len = 1)
  a macro just so that it logs where it happened
  @param [&inout] ctx
 *>
+macro @expect_else(ParseContext* ctx, TokenKind kind; @body(err))
+{
+	if (!ctx.is(kind))
+	{
+		ctx.error("Expected '%s' got '%s'", kind.description, ctx.current().kind.description);
+		$if $feature(PARSER_LIB):
+			log::error("Error happened here");
+		$endif
+		@body(ctx.ast.error(ctx.current().pos));
+	} else {
+		advance(ctx)!;
+	}
+}
+
+<*
+ a macro just so that it logs where it happened
+ @param [&inout] ctx
+*>
 macro bool? expect(ParseContext* ctx, TokenKind kind)
 {
 	if (!ctx.is(kind))
