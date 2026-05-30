@@ -1,6 +1,7 @@
 module parser::parser;
 
 import std::io;
+import std::collections::list;
 import lexer;
 import line_map;
 import parser::ast;
@@ -142,6 +143,76 @@ fn bool is_path_final_kind(TokenKind kind, PathExprOptions options)
 	if (options.allow_const_final && kind == CONST_IDENT) return true;
 	if (options.allow_attr_final && kind == AT_IDENT) return true;
 	return false;
+}
+
+<*
+ Append an arena-owned node slice into a temporary node list.
+ @param [&inout] list : "Destination list."
+ @param nodes : "Nodes to append."
+*>
+fn void append_node_array(List{Node*}* list, NodeArray nodes)
+{
+	foreach (node : nodes)
+	{
+		list.push(node);
+	}
+}
+
+<*
+ Parse attributes at the current token and append them into an existing list.
+ @param [&inout] ctx : "Parser context to consume attributes from."
+ @param [&inout] parent_node : "Node receiving visibility and has-attributes side effects."
+ @param [&inout] list : "Destination list for parsed ATTRIBUTE_DECL nodes."
+*>
+fn void? parse_attributes_into(ParseContext* ctx, Node* parent_node, List{Node*}* list)
+{
+	if (ctx.is(AT_IDENT))
+	{
+		append_node_array(list, parse_attributes(ctx, parent_node)!);
+	}
+}
+
+<*
+ Parse an optional parenthesized list of interface type expressions.
+
+ interface_type_list ::= '(' type_expr (',' type_expr)* ')' | empty
+ @param [&inout] ctx : "Parser context positioned at '(' when present."
+*>
+fn NodeArray? parse_interface_type_list(ParseContext* ctx) => @pool()
+{
+	List{Node*} interfaces;
+	interfaces.init(tmem, 4);
+
+	if (!consume(ctx, LPAREN)!)
+	{
+		return alloc::clone_slice(ctx.arena, interfaces.array_view());
+	}
+
+	while (!ctx.eof() && !ctx.is(RPAREN))
+	{
+		Node* interface_type = parse_type_expr(ctx)!;
+		interfaces.push(interface_type);
+
+		if (!consume(ctx, COMMA)!) break;
+		if (ctx.is(RPAREN))
+		{
+			ctx.error("Expected interface name after ',' in interface type list");
+			interfaces.push(ctx.ast.alloc_node(MISSING, ctx.peek(0).pos));
+			break;
+		}
+	}
+
+	if (!expect(ctx, RPAREN)!)
+	{
+		interfaces.push(ctx.ast.alloc_node(MISSING, ctx.peek(0).pos));
+	}
+
+	return alloc::clone_slice(ctx.arena, interfaces.array_view());
+}
+
+fn bool is_error_or_missing_node(Node* node)
+{
+	return node.kind == ERROR || node.kind == MISSING;
 }
 
 fn void? skip_balanced_group(ParseContext* ctx, TokenKind open, TokenKind close)

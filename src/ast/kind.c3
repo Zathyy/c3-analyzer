@@ -14,6 +14,7 @@ enum NodeKind : char
 	MODULE_DECL,
 	IMPORT_DECL,
 	ALIAS_DECL,
+	TYPEDEF_DECL,
 	FN_DECL,
 	PARAM_DECL,
 

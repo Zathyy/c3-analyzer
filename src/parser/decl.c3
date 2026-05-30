@@ -403,7 +403,7 @@ fn Node*? parse_alias_decl(ParseContext* ctx)
 		alias_decl.alias_kind = MODULE_ALIAS;
 		advance(ctx)!;
 		alias_decl.target = parse_alias_module_path(ctx)!;
-		if (alias_decl.target.kind == ERROR || alias_decl.target.kind == MISSING)
+		if (is_error_or_missing_node(alias_decl.target))
 		{
 			node.kind = MISSING;
 		}
@@ -411,8 +411,8 @@ fn Node*? parse_alias_decl(ParseContext* ctx)
 	else if (alias_decl.name_kind == TYPE_IDENT)
 	{
 		alias_decl.alias_kind = TYPE_ALIAS;
-		alias_decl.target = parse_type_expr(ctx)!;
-		if (alias_decl.target.kind == ERROR || alias_decl.target.kind == MISSING)
+		alias_decl.target = parse_alias_type_target(ctx)!;
+		if (is_error_or_missing_node(alias_decl.target))
 		{
 			node.kind = MISSING;
 		}
@@ -438,6 +438,104 @@ fn Node*? parse_alias_decl(ParseContext* ctx)
 			skip_balanced_group(ctx, LBRACE, RBRACE)!;
 		}
 	}
+
+	if (!expect(ctx, EOS)!)
+	{
+		node.kind = MISSING;
+	}
+
+	return node;
+}
+
+<*
+ typedef_decl ::= 'typedef' TYPE_IDENT interface_list? attributes? '=' 'inline'? type_expr attributes? ';'
+
+ Typedef declarations create distinct types. Function pointer syntax is
+ alias-only in C3, so a typedef base beginning with `fn` is consumed only for
+ recovery and an ERROR node is returned.
+ @param [&inout] ctx : "Parser context positioned at the typedef keyword."
+ @param flags : "Top-level modifiers consumed before the typedef keyword."
+*>
+fn Node*? parse_typedef_decl(ParseContext* ctx, ParseFlags flags = { })
+{
+	int start_pos = ctx.peek(0).pos;
+	if (!expect(ctx, TYPEDEF)!)
+	{
+		return ctx.ast.alloc_node(ERROR, start_pos);
+	}
+
+	Node* node                = ctx.ast.alloc_node(TYPEDEF_DECL, start_pos);
+	TypedefDecl* typedef_decl = node.as(TYPEDEF_DECL);
+	defer node.end_token = ctx.peek(0).pos;
+
+	if (flags.is_inline)
+	{
+		ctx.error("'inline' must appear after '=' in typedef declarations");
+		node.kind = MISSING;
+	}
+
+	Token name = ctx.peek(0);
+	if (name.kind != TYPE_IDENT)
+	{
+		ctx.error("Expected typedef type name");
+		node.kind = MISSING;
+		if (!ctx.is(EOS) && !ctx.eof())
+		{
+			advance(ctx)!;
+		}
+	}
+	else
+	{
+		typedef_decl.name = ctx.ast.string_pool.internalize(ctx.token_text(name));
+		advance(ctx)!;
+	}
+
+	typedef_decl.interfaces = parse_interface_type_list(ctx)!;
+	foreach (interface_type : typedef_decl.interfaces)
+	{
+		if (is_error_or_missing_node(interface_type))
+		{
+			node.kind = MISSING;
+		}
+	}
+
+	List{Node*} attributes;
+	attributes.init(tmem, 4);
+	parse_attributes_into(ctx, node, &attributes)!;
+
+	if (!expect(ctx, EQ)!)
+	{
+		node.kind = MISSING;
+		typedef_decl.attributes = alloc::clone_slice(ctx.arena, attributes.array_view());
+		return node;
+	}
+
+	if (consume(ctx, INLINE)!)
+	{
+		typedef_decl.is_inline = true;
+	}
+
+	if (ctx.is(FN))
+	{
+		ctx.error("cannot define a new function type");
+		parse_fn_type_expr(ctx)!;
+		if (!expect(ctx, EOS)!)
+		{
+			node.kind = MISSING;
+		}
+		return ctx.ast.error(start_pos);
+	}
+	else
+	{
+		typedef_decl.base_type = parse_type_expr(ctx)!;
+		if (is_error_or_missing_node(typedef_decl.base_type))
+		{
+			node.kind = MISSING;
+		}
+	}
+
+	parse_attributes_into(ctx, node, &attributes)!;
+	typedef_decl.attributes = alloc::clone_slice(ctx.arena, attributes.array_view());
 
 	if (!expect(ctx, EOS)!)
 	{

@@ -14,7 +14,69 @@ import std::io;
 import std::collections::list;
 import std::encoding;
 
+<*
+ Parse an alias-only C3 function pointer type.
 
+ Function pointer syntax is formed from a function declaration with the name
+ omitted, and C3 exposes it through alias declarations.
+ @param [&inout] ctx : "Parser context positioned at 'fn'."
+*>
+fn Node*? parse_fn_type_expr(ParseContext* ctx) => @pool()
+{
+	int start = ctx.peek(0).pos;
+	if (!expect(ctx, FN)!)
+	{
+		return ctx.ast.error(start);
+	}
+
+	Node* node        = ctx.ast.alloc_node(TYPE_EXPR, start);
+	TypeExpr* fn_type = node.as(TYPE_EXPR);
+	defer node.end_token = ctx.peek(0).pos;
+
+	fn_type.kind = TYPE_FUNCTION;
+	fn_type.func.ret_type = parse_type_expr(ctx)!;
+	if (is_error_or_missing_node(fn_type.func.ret_type))
+	{
+		node.kind = MISSING;
+	}
+
+	fn_type.func.params = parse_parameter_list(ctx)!;
+	foreach (param : fn_type.func.params)
+	{
+		if (is_error_or_missing_node(param))
+		{
+			node.kind = MISSING;
+		}
+	}
+
+	return node;
+}
+
+<*
+ Parse a type target for a TYPE_IDENT alias.
+
+ C3 function pointer types are alias-only, so this helper accepts `fn` syntax
+ for aliases without making `fn` a general type-expression start.
+ @param [&inout] ctx : "Parser context positioned at the alias target."
+*>
+fn Node*? parse_alias_type_target(ParseContext* ctx) => @pool()
+{
+	if (ctx.is(FN))
+	{
+		return parse_fn_type_expr(ctx)!;
+	}
+
+	return parse_type_expr(ctx)!;
+}
+
+<*
+ Parse a C3 type expression.
+
+ Handles primitive and named type identifiers plus postfix pointer, array,
+ slice, vector, and generic type forms.
+ @param [&inout] ctx : "Parser context positioned at the first type token."
+ @param parse_flags : "Type-expression options used by declaration and expression parsing."
+*>
 fn Node*? parse_type_expr(ParseContext* ctx, ParseFlags parse_flags = { })
 {
 	int start = ctx.peek(0).pos;
@@ -69,6 +131,27 @@ fn Node*? parse_type_expr(ParseContext* ctx, ParseFlags parse_flags = { })
 
 			// Swap current_type out so the next iteration wraps THIS layer
 			current_type = ptr_node;
+			continue;
+		}
+
+		if (t.kind == LVEC)
+		{
+			advance(ctx)!;
+
+			Node* vec_node     = ctx.ast.alloc_node(TYPE_EXPR, start, ctx.peek().pos);
+			TypeExpr* vec_data = vec_node.as(TYPE_EXPR);
+
+			vec_data.kind = TYPE_VECTOR;
+			vec_data.array.base = current_type;
+			vec_data.array.len_expr = parse_expr(ctx, ADDITIVE)!;
+
+			if (!expect(ctx, RVEC)!)
+			{
+				return ctx.ast.error(start);
+			}
+
+			vec_node.end_token = ctx.peek(0).pos;
+			current_type = vec_node;
 			continue;
 		}
 

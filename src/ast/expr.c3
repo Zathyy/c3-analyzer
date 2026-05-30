@@ -45,6 +45,17 @@ fn String? PathExpr.full_path(&self, StringPool* pool, Allocator allocator) => @
 	return result.copy(allocator);
 }
 
+<*
+ TypeExpr represents C3 type syntax.
+
+ Payloads:
+- unresolved: TYPE_IDENTIFIER name and optional module path.
+- modify: TYPE_POINTER and TYPE_SLICE base type.
+- array: TYPE_ARRAY and TYPE_VECTOR base type plus length expression.
+  `len_expr` is null for inferred arrays such as `Type[*]`.
+- generic: TYPE_GENERIC base type and generic argument expressions.
+- func: TYPE_FUNCTION return type and PARAM_DECL parameter nodes.
+*>
 struct TypeExpr
 {
 	TypeKind kind;
@@ -71,6 +82,12 @@ struct TypeExpr
 		{
 			Node* base;
 			Node*[] params;
+		}
+
+		struct func
+		{
+			Node* ret_type;
+			NodeArray params;
 		}
 	}
 }

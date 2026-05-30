@@ -302,11 +302,23 @@ enum Visibility
 	LOCAL
 }
 
+<*
+ Type expression variants.
+
+ Payload mapping:
+- TYPE_IDENTIFIER: TypeExpr.unresolved
+- TYPE_POINTER and TYPE_SLICE: TypeExpr.modify
+- TYPE_ARRAY and TYPE_VECTOR: TypeExpr.array
+- TYPE_GENERIC: TypeExpr.generic
+- TYPE_FUNCTION: TypeExpr.func
+*>
 enum TypeKind : int
 {
 	TYPE_IDENTIFIER,
 	TYPE_POINTER,
 	TYPE_ARRAY,
 	TYPE_SLICE,
-	TYPE_GENERIC
+	TYPE_VECTOR,
+	TYPE_GENERIC,
+	TYPE_FUNCTION
 }

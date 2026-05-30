@@ -71,6 +71,25 @@ struct AliasDecl
 	NodeArray attributes;
 }
 
+<*
+ TypedefDecl represents a C3 distinct type declaration.
+
+ Fields:
+- name: The interned typedef type name.
+- base_type: The underlying TYPE_EXPR this distinct type is based on.
+- interfaces: Optional interface type list after the typedef name.
+- attributes: Attributes written on the typedef declaration or base type.
+- is_inline: True when the declaration uses '= inline type'.
+*>
+struct TypedefDecl
+{
+	StringID name;
+	Node* base_type;
+	NodeArray interfaces;
+	NodeArray attributes;
+	bool is_inline;
+}
+
 struct FnDecl
 {
 	StringID name;

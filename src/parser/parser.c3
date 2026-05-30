@@ -447,8 +447,8 @@ fn void? parse_top_level(ParseContext* ctx, Workspace* ws)
 			// node = parse_macro_decl(ctx)!;
 		case ALIAS:
 			node = parse_alias_decl(ctx)!;
-			// case TYPEDEF:
-			// node = parse_typedef(ctx)!;
+		case TYPEDEF:
+			node = parse_typedef_decl(ctx, flags)!;
 			// case ATTRDEF:
 			// node = parse_attrdef(ctx)!;
 			// case UNION:
