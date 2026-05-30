@@ -9,4 +9,4 @@ brace_style: ALLMAN
 else_on_newline: true
 
 align_assignments: true
-align_comments: true
+align_comments: false
