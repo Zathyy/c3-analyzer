@@ -674,17 +674,17 @@ fn Node*? parse_var_decl(ParseContext* ctx, ParseFlags flags = { })
 		if (flags.is_const && t.kind != CONST_IDENT)
 		{
 			ctx.error("Constants must use an uppercase CONST_IDENT, found '%s'", ctx.token_text(t));
-			return ctx.ast.alloc_node(ERROR, t.pos);
+			return ctx.ast.error(t.pos);
 		}
 		if (!flags.is_const && t.kind != IDENT && !flags.is_local)
 		{
 			ctx.error("Global variables must use lower-case IDENT, found '%s'", ctx.token_text(t));
-			return ctx.ast.alloc_node(ERROR, t.pos);
+			return ctx.ast.error(t.pos);
 		}
 		if (t.kind != IDENT && t.kind != CONST_IDENT)
 		{
 			ctx.error("Expected a variable name identifier, got '%s'", ctx.token_text(t));
-			return ctx.ast.alloc_node(ERROR, t.pos);
+			return ctx.ast.error(t.pos);
 		}
 
 		StringID name_id = ctx.ast.string_pool.internalize(ctx.token_text(t));
