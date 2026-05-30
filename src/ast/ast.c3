@@ -17,7 +17,7 @@ bitstruct NodeFlags : ushort
 	bool has_attributes;
 }
 
-struct Node 
+struct Node
 {
 	NodeKind kind;
 	Visibility visibility;
@@ -35,13 +35,14 @@ struct Node
 		ContractDecl contract_decl;
 		ModuleDecl module_decl;
 		ImportDecl import_decl;
+		AliasDecl alias_decl;
 		FnDecl fn_decl;
 		ParamDecl param_decl;
 
 		// STMT
 		IfStmt if_stmt;
 		CompoundStmt compound_stmt;
-		
+
 		// EXPR
 		LiteralExpr literal_expr;
 		BinaryExpr binary_expr;
@@ -105,9 +106,9 @@ fn void Ast.free(&self)
 }
 
 <*
-  Allocates and initializes a strongly typed AST node inside the AST arena.
-  @param kind  : "The NodeKind enum tag (e.g., IMPORT_DECL, VAR_DECL)"
-  @param start : "The starting token index/position"
+ Allocates and initializes a strongly typed AST node inside the AST arena.
+ @param kind : "The NodeKind enum tag (e.g., IMPORT_DECL, VAR_DECL)"
+ @param start : "The starting token index/position"
 *>
 fn Node* Ast.alloc_node(&self, NodeKind kind, int start, int end = -1)
 {

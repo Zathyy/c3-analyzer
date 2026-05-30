@@ -12,15 +12,7 @@ import std::collections::list;
 import std::collections::maybe;
 
 faultdef
-	UNKNOWN,
-	UNEXPECTED_EOS, 
-	MODULE_HEADER_FAILED, 
-	CONTRACT_NOT_ALLOWED, 
-	INVALID_PATH,
-	NOT_A_PATH,
-	PATH_TOO_LONG, 
-	EXPECTED_EXPRESSION, 
-	UNEXPECTED_TOKEN,
+	UNKNOWN, UNEXPECTED_EOS, MODULE_HEADER_FAILED, CONTRACT_NOT_ALLOWED, INVALID_PATH, NOT_A_PATH, PATH_TOO_LONG, EXPECTED_EXPRESSION, UNEXPECTED_TOKEN,
 ;
 
 bitstruct ParseFlags : ulong
@@ -70,24 +62,23 @@ struct ParseContext
 	Token current_token @if(env::DEBUG_SYMBOLS);
 	String current_token_string @if(env::DEBUG_SYMBOLS);
 	// bool allow_submodules;
-
 }
 
 fn void? ParseContext.skip_until(ParseContext* ctx, TokenKind[] targets)
 {
-    while (!ctx.eof())
-    {
-        TokenKind current = ctx.peek(0).kind;
-        
-        foreach (t : targets)
-        {
-            if (current == t) return;
-        }
+	while (!ctx.eof())
+	{
+		TokenKind current = ctx.peek(0).kind;
 
-        if (current == EOS || current == RBRACE) return;
+		foreach (t : targets)
+		{
+			if (current == t) return;
+		}
 
-        advance(ctx)!;
-    }
+		if (current == EOS || current == RBRACE) return;
+
+		advance(ctx)!;
+	}
 }
 
 <*
@@ -100,7 +91,7 @@ fn void? synchronize(ParseContext* ctx)
 
 	while (!ctx.eof())
 	{
-		Token t = ctx.peek();
+		Token t      = ctx.peek();
 		Location loc = ctx.line_map.resolve((sz)t.pos);
 
 		// Track depth to ensure we aren't inside a body
@@ -144,7 +135,7 @@ fn void? synchronize(ParseContext* ctx)
 fn bool ParseContext.eof(&self) @inline
 {
 	if (self.pos >= self.tokens.len) return true;
-    return self.tokens[self.pos].kind == EOF;
+	return self.tokens[self.pos].kind == EOF;
 }
 
 fn bool ParseContext.is(&self, TokenKind kind)
@@ -154,7 +145,7 @@ fn bool ParseContext.is(&self, TokenKind kind)
 
 fn Token ParseContext.peek(&self, int pos = 0) @inline
 {
-	assert ((sz)self.pos + pos < self.tokens.len);
+	assert((sz)self.pos + pos < self.tokens.len);
 	return self.tokens[(sz)self.pos + pos];
 }
 
@@ -198,17 +189,17 @@ fn void? advance(ParseContext* ctx, int len = 1)
 	ctx.pos += len;
 
 	if (ctx.eof())
-    {
-        $if env::DEBUG_SYMBOLS:
-            ctx.current_token_string = "EOF";
-        $endif
-        return;
-    }
+	{
+		$if env::DEBUG_SYMBOLS:
+			ctx.current_token_string = "EOF";
+		$endif
+		return;
+	}
 
-    $if env::DEBUG_SYMBOLS:
-        ctx.current_token = ctx.peek();
-        ctx.current_token_string = ctx.token_text(ctx.peek());
-    $endif
+	$if env::DEBUG_SYMBOLS:
+		ctx.current_token = ctx.peek();
+		ctx.current_token_string = ctx.token_text(ctx.peek());
+	$endif
 }
 
 <*
@@ -226,7 +217,9 @@ macro @expect_else(ParseContext* ctx, TokenKind kind; @body(err))
 		@body(ctx.ast.error(ctx.current().pos));
 
 		return ctx.peek();
-	} else {
+	}
+	else
+	{
 		advance(ctx)!;
 		return ctx.peek(-1);
 	}
@@ -242,7 +235,7 @@ macro bool? expect(ParseContext* ctx, TokenKind kind)
 	{
 		ctx.error("Expected '%s' got '%s'", kind.description, ctx.current().kind.description);
 		$if $feature(PARSER_LIB):
-		log::error("Error happened here");
+			log::error("Error happened here");
 		$endif
 		return false;
 	}
@@ -353,7 +346,7 @@ fn ParseResult? parse(Workspace* ws, String uri, String src) => @pool()
 	{
 		mod_name = path_to_module_name(uri)!;
 
-		Module* mod = ws.get_or_create_module(mod_name);
+		Module* mod        = ws.get_or_create_module(mod_name);
 		ModuleSection* sec = ws.get_or_create_section(mod, ctx.sf);
 		ctx.mod = mod;
 		log::info("Inferred module: %s", mod_name);
@@ -389,17 +382,10 @@ fn ParseResult? parse(Workspace* ws, String uri, String src) => @pool()
 	log::info("Succesfully parsed: %s", uri);
 
 	$if $feature(PARSER_LIB):
-	log::info("Result: %s", ctx.errors.len());
-	return {
-        .success = success,
-		.path = uri,
-        .errors = ctx.errors
-    };
+		log::info("Result: %s", ctx.errors.len());
+		return { .success = success, .path = uri, .errors = ctx.errors };
 	$else
-	return {
-		.path = uri,
-        .success = success,
-    };
+		return { .path = uri, .success = success, };
 	$endif
 }
 
@@ -463,57 +449,57 @@ fn void? parse_top_level(ParseContext* ctx, Workspace* ws)
 		case CONTRACT:
 			node = parse_contract_decl(ctx)!;
 			ctx.contract = node;
-		// case INTERFACE:
-		// 	node = parse_interface(ctx)!;
+			// case INTERFACE:
+			// node = parse_interface(ctx)!;
 		case MODULE:
 			node = parse_module_decl(ctx, ws)!;
 		case IMPORT:
 			node = parse_import_decl(ctx)!;
-		// case FAULTDEF:
-		// 	node = parse_faultdef_decl(ctx)!;
+			// case FAULTDEF:
+			// node = parse_faultdef_decl(ctx)!;
 		case FN:
 			node = parse_fn_decl(ctx, flags)!;
-		// case MACRO:
-		// 	node = parse_macro_decl(ctx)!;
-		// case ALIAS:
-		// 	node = parse_alias(ctx)!;
-		// case TYPEDEF:
-		// 	node = parse_typedef(ctx)!;
-		// case ATTRDEF:
-		// 	node = parse_attrdef(ctx)!;
-		// case UNION:
-		// case STRUCT:
-		// 	node = parse_struct(ctx)!;
-		// case BITSTRUCT:
-		// 	node = parse_bitstruct_decl(ctx)!;
-		// case CONSTDEF:
-		// 	flags.is_constdef = true;
-		// 	node = parse_enum(ctx, flags)!;
-		// case ENUM:
-		// 	node = parse_enum(ctx, flags)!;
-		// case CONST:
-		// 	flags.is_const = true;
-		// 	advance(ctx)!;
-		// 	node = parse_var_decl(ctx, flags)!;
-		// case CT_EXPAND:
-		// 	node = parse_expand_decl(ctx)!;
-		// case CT_ASSERT:
-		// 	int start_pos = ctx.current_pos();
-		// 	Node stmt = parse_ct_assert(ctx)!;
-		// 	node = ctx.ast.add_node(CT_ASSERT_DECL, start_pos, ctx.current_pos(), stmt);
-		// case EOS:
-		// 	ctx.error("<EOS> appeared in parse_top_level");
-		// 	advance(ctx)!;
-		// 	return UNEXPECTED_EOS~;
+			// case MACRO:
+			// node = parse_macro_decl(ctx)!;
+		case ALIAS:
+			node = parse_alias_decl(ctx)!;
+			// case TYPEDEF:
+			// node = parse_typedef(ctx)!;
+			// case ATTRDEF:
+			// node = parse_attrdef(ctx)!;
+			// case UNION:
+			// case STRUCT:
+			// node = parse_struct(ctx)!;
+			// case BITSTRUCT:
+			// node = parse_bitstruct_decl(ctx)!;
+			// case CONSTDEF:
+			// flags.is_constdef = true;
+			// node = parse_enum(ctx, flags)!;
+			// case ENUM:
+			// node = parse_enum(ctx, flags)!;
+			// case CONST:
+			// flags.is_const = true;
+			// advance(ctx)!;
+			// node = parse_var_decl(ctx, flags)!;
+			// case CT_EXPAND:
+			// node = parse_expand_decl(ctx)!;
+			// case CT_ASSERT:
+			// int start_pos = ctx.current_pos();
+			// Node stmt = parse_ct_assert(ctx)!;
+			// node = ctx.ast.add_node(CT_ASSERT_DECL, start_pos, ctx.current_pos(), stmt);
+			// case EOS:
+			// ctx.error("<EOS> appeared in parse_top_level");
+			// advance(ctx)!;
+			// return UNEXPECTED_EOS~;
 		default:
 			ctx.error("Couldn't find any matching top level declaration: %s", string::from_struct(tmem, ctx.current()));
 			return UNEXPECTED_TOKEN~;
 	}
-	
+
 	ctx.ast.top_level_nodes.push(node);
 	// if (ctx.contract.is_valid())
 	// {
 	// 	attach_contract(ctx, node, ctx.contract);
 	// }
-	ctx.contract = {};
+	ctx.contract = { };
 }

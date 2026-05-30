@@ -3,7 +3,7 @@ import lexer;
 
 import std::collections::list;
 
-struct ContractParam 
+struct ContractParam
 {
 	Node* name;
 	StringID description;
@@ -13,7 +13,7 @@ struct ContractParam
 
 fn String? ContractParam.get_description(&self, StringPool* pool) => pool.get(self.description);
 
-struct ContractDecl 
+struct ContractDecl
 {
 	NodeArray requires;
 	NodeArray ensures;
@@ -27,7 +27,7 @@ struct ContractDecl
 
 fn String? ContractDecl.get_comment(&self, StringPool* pool) => pool.get(self.comment);
 
-struct ModuleDecl 
+struct ModuleDecl
 {
 	Node* path;
 	NodeArray attributes;
@@ -39,7 +39,39 @@ struct ImportDecl
 	NodeArray attributes;
 }
 
-struct FnDecl 
+enum AliasDeclKind : char
+{
+	TYPE_ALIAS,
+	MODULE_ALIAS,
+	IDENT_ALIAS,
+}
+
+<*
+ AliasDecl represents the three C3 alias forms:
+- TYPE_ALIAS: a TYPE_IDENT name with a type expression target.
+- MODULE_ALIAS: an IDENT name whose target is a module path after '=' 'module'.
+- IDENT_ALIAS: an IDENT, CONST_IDENT, or AT_IDENT name whose target path ends
+  in the same token kind.
+
+Fields:
+- name: The interned alias name text.
+- name_kind: The token kind used by the alias name.
+- alias_kind: Which alias form was parsed.
+- target: TYPE_EXPR for TYPE_ALIAS, PATH_EXPR for MODULE_ALIAS and IDENT_ALIAS.
+- generic_params: Generic alias declaration parameters, e.g. Ty in `alias Stack<Ty> = List{Ty};`.
+- attributes: Reserved for alias attributes; parsing currently skips them.
+*>
+struct AliasDecl
+{
+	StringID name;
+	TokenKind name_kind;
+	AliasDeclKind alias_kind;
+	Node* target;
+	StringID[] generic_params;
+	NodeArray attributes;
+}
+
+struct FnDecl
 {
 	StringID name;
 	Node* associated_type;
@@ -49,7 +81,7 @@ struct FnDecl
 	NodeArray attributes;
 }
 
-struct ParamDecl 
+struct ParamDecl
 {
 	Node* type;
 	Node* default_value;
@@ -58,7 +90,7 @@ struct ParamDecl
 	bool is_variadic;
 }
 
-struct VarDecl 
+struct VarDecl
 {
 	VarDeclKind kind;
 	VarDeclFlags flags;

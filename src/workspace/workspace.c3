@@ -12,9 +12,7 @@ import parser::ast::pool @norecurse;
 import std::io;
 
 faultdef
-	NODE_NOT_FOUND,
-	SYMBOL_NOT_FOUND, 
-	MODULE_NOT_FOUND
+	NODE_NOT_FOUND, SYMBOL_NOT_FOUND, MODULE_NOT_FOUND
 ;
 
 struct SourceFile
@@ -59,7 +57,7 @@ fn void Workspace.init(&self, Allocator allocator = mem)
 
 fn void Workspace.free(&self)
 {
-	self.source_files.@each(;path, sf)
+	self.source_files.@each(; path, sf)
 	{
 		sf.ast.free();
 		sf.line_map.free();
@@ -71,7 +69,7 @@ fn void Workspace.free(&self)
 		alloc::free(self.allocator, sf);
 	};
 	self.source_files.free();
-	self.modules.@each(;name, mod) 
+	self.modules.@each(; name, mod)
 	{
 		mod.sections.free();
 		mod.name.free(self.allocator);
@@ -80,27 +78,25 @@ fn void Workspace.free(&self)
 	self.modules.free();
 
 	self.ast_pool.free();
-} 
+}
 
 fn SourceFile* Workspace.reset_source_file(&self, PathString path)
-{			
+{
 	if (try existing = self.source_files.get(path))
 	{
 		self.ast_pool.release(existing.ast)!!;
 		foreach (section : existing.sections)
 		{
-			section.parent_module.sections.remove_using_test(
-				fn (s, ctx) {
-					Pair{String, Allocator} *args = (Pair{String, Allocator}*) ctx;
-					if ((*s).source_file.file_path == args.first)
-					{
-						alloc::free(args.second, *s);
-						return true;
-					}
-					return false;
-				},
-				&&(Pair{String, Allocator}) {path, self.allocator}
-			);
+			section.parent_module.sections.remove_using_test(fn (s, ctx)
+			{
+				Pair{String, Allocator}* args = (Pair{String, Allocator}*)ctx;
+				if ((*s).source_file.file_path == args.first)
+				{
+					alloc::free(args.second, *s);
+					return true;
+				}
+				return false;
+			}, &&(Pair{String, Allocator}) { path, self.allocator });
 		}
 		existing.sections.clear();
 		return existing;
@@ -177,18 +173,18 @@ enum LookupTarget
 	MODULE
 }
 
-struct LookupOptions 
+struct LookupOptions
 {
 	LookupTarget target;
 	String name;
 }
 
-// 
+// ---
 // fn Cursor? Workspace.lookup(&self, String symbol_name, LookupOptions options)
 // {
 // 	Module* mod = self.modules.get(module_name)!;
 // 	if (!mod) return MODULE_NOT_FOUND~;
-//
+// ---
 // 	// Search the module's top-level declarations
 // 	foreach (section : mod.sections)
 // 	{
@@ -199,14 +195,14 @@ struct LookupOptions
 // 			if (c.spelling()! == symbol_name) return c;
 // 		}
 // 	}
-//
+// ---
 // 	return SYMBOL_NOT_FOUND~;
-// 
+// ---
 
 fn Node*? Workspace.lookup(&self, String module_name, String symbol_name) @inline
 {
 	return self.lookup_in_module(module_name, symbol_name)!;
-} 
+}
 
 fn Node*? Workspace.lookup_in_module(&self, String module_name, String symbol_name) => @pool()
 {

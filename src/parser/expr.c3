@@ -15,27 +15,27 @@ import std::collections::list;
 import std::encoding;
 
 
-fn Node*? parse_type_expr(ParseContext* ctx, ParseFlags parse_flags = {})
+fn Node*? parse_type_expr(ParseContext* ctx, ParseFlags parse_flags = { })
 {
 	int start = ctx.peek(0).pos;
 
-    Node* current_type = ctx.ast.alloc_node(TYPE_EXPR, start, ctx.peek().pos);
-    TypeExpr* data = current_type.as(TYPE_EXPR);
+	Node* current_type = ctx.ast.alloc_node(TYPE_EXPR, start, ctx.peek().pos);
+	TypeExpr* data     = current_type.as(TYPE_EXPR);
 
-    // Check for built-in primitive keywords (int, void, double, etc.)
-    if (is_type_primitive(ctx.peek(0).kind))
-    {
-        Token t = ctx.peek(0);
-        advance(ctx)!;
-        
-        data.kind = TYPE_IDENTIFIER;
-        data.unresolved.name = ctx.ast.string_pool.internalize(ctx.token_text(t));
-        data.unresolved.path = null;
-    }
-    else
-    {
-        Node* path = parse_path_expr(ctx, true)!;
-        if (path.kind == ERROR) return path;
+	// Check for built-in primitive keywords (int, void, double, etc.)
+	if (is_type_primitive(ctx.peek(0).kind))
+	{
+		Token t = ctx.peek(0);
+		advance(ctx)!;
+
+		data.kind = TYPE_IDENTIFIER;
+		data.unresolved.name = ctx.ast.string_pool.internalize(ctx.token_text(t));
+		data.unresolved.path = null;
+	}
+	else
+	{
+		Node* path = parse_path_expr(ctx, true)!;
+		if (path.kind == ERROR) return path;
 
 		if (!ctx.is(TYPE_IDENT))
 		{
@@ -43,95 +43,96 @@ fn Node*? parse_type_expr(ParseContext* ctx, ParseFlags parse_flags = {})
 			return ctx.ast.error(ctx.current().pos);
 		}
 
+		Token t = ctx.peek(0);
 		advance(ctx)!;
-	
-        data.kind = TYPE_IDENTIFIER;
-        data.unresolved.name = ctx.ast.string_pool.internalize(ctx.token_text(ctx.current()));
-        data.unresolved.path = path;
-    }
 
-    current_type.end_token = ctx.peek(0).pos;
+		data.kind = TYPE_IDENTIFIER;
+		data.unresolved.name = ctx.ast.string_pool.internalize(ctx.token_text(t));
+		data.unresolved.path = path;
+	}
 
-    while (true)
-    {
-        Token t = ctx.peek(0);
+	current_type.end_token = ctx.peek(0).pos;
 
-        if (t.kind == ASTERISK)
-        {
-            advance(ctx)!;
+	while (true)
+	{
+		Token t = ctx.peek(0);
 
-            Node* ptr_node = ctx.ast.alloc_node(TYPE_EXPR, start, t.pos);
-            TypeExpr* ptr_data = ptr_node.as(TYPE_EXPR);
-            
-            ptr_data.kind = TYPE_POINTER;
-            ptr_data.modify.base = current_type; // The previous node becomes the base
-            
-            // Swap current_type out so the next iteration wraps THIS layer
-            current_type = ptr_node;
-            continue;
-        }
+		if (t.kind == ASTERISK)
+		{
+			advance(ctx)!;
 
-        if (t.kind == LBRACKET)
-        {
-            advance(ctx)!;
+			Node* ptr_node     = ctx.ast.alloc_node(TYPE_EXPR, start, t.pos);
+			TypeExpr* ptr_data = ptr_node.as(TYPE_EXPR);
 
-            Node* arr_node = ctx.ast.alloc_node(TYPE_EXPR, start, ctx.peek().pos);
-            TypeExpr* arr_data = arr_node.as(TYPE_EXPR);
+			ptr_data.kind = TYPE_POINTER;
+			ptr_data.modify.base = current_type; // The previous node becomes the base
 
-            if (ctx.is(RBRACKET))
-            {
-                advance(ctx)!;
-                arr_data.kind = TYPE_SLICE;
-                arr_data.modify.base = current_type;
-            }
-            else if (ctx.is(ASTERISK) && ctx.peek(1).kind == RBRACKET)
-            {
-                advance(ctx)!; // Consume '*'
-                advance(ctx)!; // Consume ']'
-                
-                arr_data.kind = TYPE_ARRAY;
-                arr_data.array.base = current_type;
-                arr_data.array.len_expr = null; // null represents inferred array size [*]
-            }
+			// Swap current_type out so the next iteration wraps THIS layer
+			current_type = ptr_node;
+			continue;
+		}
+
+		if (t.kind == LBRACKET)
+		{
+			advance(ctx)!;
+
+			Node* arr_node     = ctx.ast.alloc_node(TYPE_EXPR, start, ctx.peek().pos);
+			TypeExpr* arr_data = arr_node.as(TYPE_EXPR);
+
+			if (ctx.is(RBRACKET))
+			{
+				advance(ctx)!;
+				arr_data.kind = TYPE_SLICE;
+				arr_data.modify.base = current_type;
+			}
+			else if (ctx.is(ASTERISK) && ctx.peek(1).kind == RBRACKET)
+			{
+				advance(ctx)!; // Consume '*'
+				advance(ctx)!; // Consume ']'
+
+				arr_data.kind = TYPE_ARRAY;
+				arr_data.array.base = current_type;
+				arr_data.array.len_expr = null; // null represents inferred array size [*]
+			}
 			else
 			{
 				arr_data.kind = TYPE_ARRAY;
-                arr_data.array.base = current_type;
-                arr_data.array.len_expr = parse_expr(ctx)!;
-                
-                if (!consume(ctx, RBRACKET)!)
-                {
-                    ctx.error("Expected a closing ']'");
-                    return ctx.ast.error(start);
-                }
+				arr_data.array.base = current_type;
+				arr_data.array.len_expr = parse_expr(ctx)!;
+
+				if (!consume(ctx, RBRACKET)!)
+				{
+					ctx.error("Expected a closing ']'");
+					return ctx.ast.error(start);
+				}
 			}
 
-            arr_node.end_token = ctx.peek(0).pos;
-            current_type = arr_node;
-            continue;
-        }
+			arr_node.end_token = ctx.peek(0).pos;
+			current_type = arr_node;
+			continue;
+		}
 
-        // Handle Generics: '{' ... '}'
-        if (t.kind == LBRACE)
-        {
-            if (parse_flags.no_generics) break;
+		// Handle Generics: '{' ... '}'
+		if (t.kind == LBRACE)
+		{
+			if (parse_flags.no_generics) break;
 
-            Node* gen_node = ctx.ast.alloc_node(TYPE_EXPR, start, ctx.peek().pos);
-            TypeExpr* gen_data = gen_node.as(TYPE_EXPR);
-            
-            gen_data.kind = TYPE_GENERIC;
-            gen_data.generic.base = current_type;
-            gen_data.generic.params = parse_generics_list(ctx)!;
+			Node* gen_node     = ctx.ast.alloc_node(TYPE_EXPR, start, ctx.peek().pos);
+			TypeExpr* gen_data = gen_node.as(TYPE_EXPR);
 
-            gen_node.end_token = ctx.peek(0).pos;
-            current_type = gen_node;
-            continue;
-        }
+			gen_data.kind = TYPE_GENERIC;
+			gen_data.generic.base = current_type;
+			gen_data.generic.params = parse_generics_list(ctx)!;
 
-        break;
-    }
+			gen_node.end_token = ctx.peek(0).pos;
+			current_type = gen_node;
+			continue;
+		}
 
-    return current_type;
+		break;
+	}
+
+	return current_type;
 }
 
 fn Node*? parse_ident_expr(ParseContext* ctx)
@@ -141,7 +142,7 @@ fn Node*? parse_ident_expr(ParseContext* ctx)
 	{
 		return parse_path_expr(ctx, true)!;
 	}
-	Node* node = ctx.ast.alloc_node(IDENT_EXPR, start, ctx.peek().pos);
+	Node* node       = ctx.ast.alloc_node(IDENT_EXPR, start, ctx.peek().pos);
 	IdentExpr* ident = node.as(IDENT_EXPR);
 	ident.ident = ctx.ast.string_pool.internalize(ctx.token_text(ctx.peek(0)));
 	advance(ctx)!;
@@ -151,12 +152,12 @@ fn Node*? parse_ident_expr(ParseContext* ctx)
 fn Node*? parse_literal_expr(ParseContext* ctx) => @pool()
 {
 	Token token = ctx.current();
-	int start = token.pos;
+	int start   = token.pos;
 
 	Node* node = ctx.ast.alloc_node(LITERAL_EXPR, start);
 	defer node.end_token = ctx.current().pos;
 	LiteralExpr* literal = node.as(LITERAL_EXPR);
-	String token_text = ctx.token_text(token);
+	String token_text    = ctx.token_text(token);
 
 	log::debug("literal_expr: %s", token.kind);
 
@@ -177,38 +178,54 @@ fn Node*? parse_literal_expr(ParseContext* ctx) => @pool()
 			advance(ctx)!;
 			break;
 		case INT_DECIMAL_LITERAL:
-        case INT_HEX_LITERAL:
-        case INT_OCTAL_LITERAL:
-        case INT_BIN_LITERAL:			
+		case INT_HEX_LITERAL:
+		case INT_OCTAL_LITERAL:
+		case INT_BIN_LITERAL:
 			literal.kind = INT_LITERAL;
 			String clean_string = token_text.treplace("_", "");
 			int base = 10;
-            usz start_idx = 0;
-            if (token.kind == INT_HEX_LITERAL)        { base = 16; start_idx = 2; }
-            else if (token.kind == INT_BIN_LITERAL)   { base = 2;  start_idx = 2; }
-            else if (token.kind == INT_OCTAL_LITERAL) { base = 8;  start_idx = 2; }
-            else                                      { base = 10; start_idx = 0; }
+			usz start_idx = 0;
+			if (token.kind == INT_HEX_LITERAL)
+			{
+				base = 16;
+				start_idx = 2;
+			}
+			else if (token.kind == INT_BIN_LITERAL)
+			{
+				base = 2;
+				start_idx = 2;
+			}
+			else if (token.kind == INT_OCTAL_LITERAL)
+			{
+				base = 8;
+				start_idx = 2;
+			}
+			else
+			{
+				base = 10;
+				start_idx = 0;
+			}
 
 			String body = clean_string[start_idx..];
 			usz end_idx = body.len;
-            while (end_idx > 0)
-            {
-                char last_char = body[end_idx - 1];
-                if (ascii::is_alpha(last_char))
-                {
-                    if (base == 16 && ascii::is_xdigit(last_char)) break;
-                    if (base == 10 && ascii::is_digit(last_char))  break; 
-                    if (base == 8  && ascii::is_odigit(last_char)) break;
-                    if (base == 2  && ascii::is_bdigit(last_char)) break;
+			while (end_idx > 0)
+			{
+				char last_char = body[end_idx - 1];
+				if (ascii::is_alpha(last_char))
+				{
+					if (base == 16 && ascii::is_xdigit(last_char)) break;
+					if (base == 10 && ascii::is_digit(last_char)) break;
+					if (base == 8 && ascii::is_odigit(last_char)) break;
+					if (base == 2 && ascii::is_bdigit(last_char)) break;
 
-                    end_idx--;
-                }
-                else
-                {
-                    break;
-                }
-            }
-            String pure_digits = body[0:end_idx];
+					end_idx--;
+				}
+				else
+				{
+					break;
+				}
+			}
+			String pure_digits = body[0:end_idx];
 			long? value = pure_digits.to_long(base);
 			if (catch err = value)
 			{
@@ -221,42 +238,43 @@ fn Node*? parse_literal_expr(ParseContext* ctx) => @pool()
 			break;
 		case FLOAT_DECIMAL_LITERAL:
 		case FLOAT_HEX_LITERAL:
-		{
-			literal.kind = REAL_LITERAL;
-            String clean_string = token_text.treplace("_", "");
-            sz len = clean_string.len;
-            if (len > 0)
-            {
-				if (clean_string.ends_with("f32") || clean_string.ends_with("f64"))
+
+			{
+				literal.kind = REAL_LITERAL;
+				String clean_string = token_text.treplace("_", "");
+				sz len              = clean_string.len;
+				if (len > 0)
 				{
-					clean_string = clean_string[0:len - 3];
+					if (clean_string.ends_with("f32") || clean_string.ends_with("f64"))
+					{
+						clean_string = clean_string[0:len - 3];
+					}
+					if (clean_string.ends_with("f") || clean_string.ends_with("d"))
+					{
+						if (token.kind == FLOAT_HEX_LITERAL)
+						{
+							if (clean_string.contains("p") || clean_string.contains("P"))
+							{
+								clean_string = clean_string[0:len - 1];
+							}
+						}
+						else
+						{
+							clean_string = clean_string[0:len - 1];
+						}
+					}
 				}
-                if (clean_string.ends_with("f") || clean_string.ends_with("d"))
-                {
-                    if (token.kind == FLOAT_HEX_LITERAL)
-                    {
-                        if (clean_string.contains("p") || clean_string.contains("P"))
-                        {
-                            clean_string = clean_string[0:len - 1];
-                        }
-                    }
-                    else
-                    {
-                        clean_string = clean_string[0:len - 1];
-                    }
-                }
-            }
-            double? real = clean_string.to_double();
-            if (catch err = real)
-            {
-                ctx.error("Failed to decode float literal (%s): %s", token_text, err);
-                advance(ctx)!;
-                return ctx.ast.error(start);
-            }
-            literal.real = real;
-            advance(ctx)!;
-            break;
-		}
+				double? real = clean_string.to_double();
+				if (catch err = real)
+				{
+					ctx.error("Failed to decode float literal (%s): %s", token_text, err);
+					advance(ctx)!;
+					return ctx.ast.error(start);
+				}
+				literal.real = real;
+				advance(ctx)!;
+				break;
+			}
 		case STRING_LITERAL:
 			literal.kind = STRING_LITERAL;
 			String text = token_text[1:^2]; // remove trailing "
@@ -268,7 +286,7 @@ fn Node*? parse_literal_expr(ParseContext* ctx) => @pool()
 			if (token_text.starts_with("b64"))
 			{
 				String clean = token_text[4:^5];
-				char[]? b64 = base64::decode(tmem, clean);
+				char[]? b64  = base64::decode(tmem, clean);
 				if (catch err = b64)
 				{
 					ctx.error("Failed to decode Base64(%s): %s", clean, err);
@@ -284,12 +302,15 @@ fn Node*? parse_literal_expr(ParseContext* ctx) => @pool()
 				String final = clean[2:^3];
 				log::debug("%s", final);
 				if (final.len % 2 != 0)
-                {
-                    ctx.error("Hex literal payload must have an even number of digits (got %s chars in '%s')", 
-                              final.len, final);
-                    advance(ctx)!;
-                    return ctx.ast.error(start);
-                }
+				{
+					ctx.error(
+						"Hex literal payload must have an even number of digits (got %s chars in '%s')",
+						final.len,
+						final
+					);
+					advance(ctx)!;
+					return ctx.ast.error(start);
+				}
 				char[]? hex = hex::decode(tmem, final);
 				if (catch err = hex)
 				{
@@ -309,18 +330,58 @@ fn Node*? parse_literal_expr(ParseContext* ctx) => @pool()
 }
 
 <*
-	Parse a full path e.g. foo::bar::baz;
-	@param [&inout] ctx
+ Options for path parsing.
+
+ Fields:
+ - allow_const_final: Allow a CONST_IDENT only when it is the final segment.
+ - allow_attr_final: Allow an AT_IDENT only when it is the final segment.
+ - as_prefix: Parse as an optional prefix before another syntax node.
 *>
-fn Node*? parse_path_expr(ParseContext* ctx, bool as_prefix = false) => @pool()
+struct PathExprOptions
+{
+	bool allow_const_final;
+	bool allow_attr_final;
+	bool as_prefix;
+}
+
+<*
+ Return whether kind may appear as a path's final segment with options.
+ @param kind : "Candidate token kind for the segment."
+ @param options : "Final-segment allowances used by the caller."
+*>
+fn bool is_path_final_kind(TokenKind kind, PathExprOptions options)
+{
+	if (kind == IDENT) return true;
+	if (options.allow_const_final && kind == CONST_IDENT) return true;
+	if (options.allow_attr_final && kind == AT_IDENT) return true;
+	return false;
+}
+
+<*
+ Parse a path expression and report the final segment's token kind.
+
+ Normal paths only accept IDENT segments. Alias parsing may opt into a
+ CONST_IDENT or AT_IDENT final segment for targets such as
+ `constants::NEW_CONST` or `@new`; intermediate path segments remain IDENT.
+ @param [&inout] ctx : "Parser context to consume tokens from."
+ @param [&out] final_kind : "Receives the token kind of the final parsed segment."
+ @param options : "Path parsing mode and final-segment allowances."
+*>
+fn Node*? parse_path_expr_with_options(
+	ParseContext* ctx,
+	TokenKind* final_kind,
+	PathExprOptions options = { }
+) => @pool()
 {
 	int start_pos = ctx.peek(0).pos;
+	*final_kind = INVALID;
 
-	if (!ctx.is(IDENT))
+	bool first_is_final = ctx.peek(1).kind != SCOPE;
+	if (!ctx.is(IDENT) && !(first_is_final && is_path_final_kind(ctx.current().kind, options)))
 	{
 		if (ctx.peek(1).kind != SCOPE)
 		{
-			if (as_prefix)
+			if (options.as_prefix)
 			{
 				return ctx.ast.alloc_node(MISSING, start_pos);
 			}
@@ -330,7 +391,7 @@ fn Node*? parse_path_expr(ParseContext* ctx, bool as_prefix = false) => @pool()
 		return ctx.ast.error(start_pos);
 	}
 
-	Node* node = ctx.ast.alloc_node(PATH_EXPR, start_pos, ctx.peek().pos);
+	Node* node     = ctx.ast.alloc_node(PATH_EXPR, start_pos, ctx.peek().pos);
 	PathExpr* path = node.as(PATH_EXPR);
 	defer node.end_token = ctx.peek(0).pos;
 
@@ -339,18 +400,29 @@ fn Node*? parse_path_expr(ParseContext* ctx, bool as_prefix = false) => @pool()
 
 	while (true)
 	{
-		Token t = ctx.peek(0);
+		Token t               = ctx.peek(0);
+		bool segment_is_final = ctx.peek(1).kind != SCOPE;
+		if (segment_is_final && !is_path_final_kind(t.kind, options))
+		{
+			temp_segments.push(-1);
+			node.kind = MISSING;
+			break;
+		}
+
+		*final_kind = t.kind;
 		temp_segments.push(ctx.ast.string_pool.internalize(ctx.token_text(t)));
 		advance(ctx)!;
 
 		if (!consume(ctx, SCOPE)!) break;
 
-		if (!ctx.is(IDENT))
+		bool next_is_final = ctx.peek(1).kind != SCOPE;
+		if (!ctx.is(IDENT) && !(next_is_final && is_path_final_kind(ctx.current().kind, options)))
 		{
-			if (!as_prefix)
+			if (!options.as_prefix)
 			{
 				temp_segments.push(-1);
 				node.kind = MISSING;
+				advance(ctx)!;
 			}
 			break;
 		}
@@ -360,14 +432,25 @@ fn Node*? parse_path_expr(ParseContext* ctx, bool as_prefix = false) => @pool()
 	return node;
 }
 
-fn Node*? parse_binary_expr(ParseContext* ctx, Node* left, Precedence prec) 
+<*
+ Parse a full path e.g. foo::bar::baz;
+ @param [&inout] ctx : "Parser context to consume tokens from."
+ @param as_prefix : "When true, missing prefix paths return MISSING without reporting a hard path error."
+*>
+fn Node*? parse_path_expr(ParseContext* ctx, bool as_prefix = false) => @pool()
 {
-	int start = ctx.peek(0).pos;
+	TokenKind final_kind;
+	return parse_path_expr_with_options(ctx, &final_kind, { .as_prefix = as_prefix });
+}
+
+fn Node*? parse_binary_expr(ParseContext* ctx, Node* left, Precedence prec)
+{
+	int start      = ctx.peek(0).pos;
 	TokenKind kind = ctx.peek(0).kind;
 	advance(ctx)!;
 	Node* right = parse_expr(ctx, prec)!;
 
-	Node* node = ctx.ast.alloc_node(BINARY_EXPR, start, ctx.peek(0).pos);
+	Node* node      = ctx.ast.alloc_node(BINARY_EXPR, start, ctx.peek(0).pos);
 	BinaryExpr* bin = node.as(BINARY_EXPR);
 	bin.left = left;
 	bin.right = right;
@@ -376,17 +459,19 @@ fn Node*? parse_binary_expr(ParseContext* ctx, Node* left, Precedence prec)
 }
 
 <*
-	expr_list ::= decl_or_expr*
+ expr_list ::= decl_or_expr*
+
 *>
 fn Node*? parse_expr_list(ParseContext* ctx) => @pool()
 {
-	int start_pos = ctx.current().pos;
-	Node* node = ctx.ast.alloc_node(EXPR_LIST, start_pos);
+	int start_pos  = ctx.current().pos;
+	Node* node     = ctx.ast.alloc_node(EXPR_LIST, start_pos);
 	ExprList* list = node.as(EXPR_LIST);
 	defer node.end_token = ctx.current().pos;
-	List{Node*} exprs; exprs.tinit();
+	List{Node*} exprs;
+	exprs.tinit();
 	while (!ctx.eof())
-	{	
+	{
 		exprs.push(parse_decl_or_expr(ctx)!);
 		if (!consume(ctx, COMMA)!) break;
 	}
@@ -396,19 +481,19 @@ fn Node*? parse_expr_list(ParseContext* ctx) => @pool()
 }
 
 <*
-	contract_expr ::= expr_list (':'? STRING)?
+ contract_expr ::= expr_list (':'? STRING)?
 *>
 fn Node*? parse_contract_expr(ParseContext* ctx)
 {
 	int start_pos = ctx.peek(0).pos;
-	Node* node = ctx.ast.alloc_node(CONTRACT_EXPR, start_pos);
+	Node* node    = ctx.ast.alloc_node(CONTRACT_EXPR, start_pos);
 	defer node.end_token = ctx.peek(0).pos;
 	ContractExpr* expr = node.as(CONTRACT_EXPR);
 
 	expr.exprs = parse_expr_list(ctx)!;
 
 	if (consume(ctx, COLON)!)
-	{	
+	{
 		if (!ctx.is(STRING_LITERAL))
 		{
 			ctx.error("Expected a string after ':'");
