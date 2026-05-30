@@ -111,6 +111,12 @@ struct ParamDecl
 	bool is_self_by_ref;
 }
 
+<*
+ VarDecl: represents (Global, Local, Field) variables
+- type: type_expr if has type
+- init_expr: if has initializer
+- next: Var_decl if chained (e.g. int a, b, c; )
+*>
 struct VarDecl
 {
 	VarDeclKind kind;
@@ -119,7 +125,7 @@ struct VarDecl
 	Node* type;
 	Node* init_expr;
 	NodeArray attributes;
-	Node* next; // next Var_decl if chained (e.g. int a, b, c; )
+	Node* next; 
 }
 
 struct AttributeDecl
