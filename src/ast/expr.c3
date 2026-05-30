@@ -112,3 +112,9 @@ struct LiteralExpr
 		bool boolean;
 	}
 }
+
+struct UnaryExpr 
+{
+	UnaryOpKind operator;
+	Node* expr;
+}

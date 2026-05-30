@@ -99,3 +99,35 @@ enum VarDeclKind
 	VAR_FIELD, 
 	VAR_PARAM
 }
+
+enum UnaryOpKind
+{
+	UNARYOP_ERROR,
+	UNARYOP_DEREF,
+	UNARYOP_ADDR,
+	UNARYOP_NEG,
+	UNARYOP_PLUS,
+	UNARYOP_BITNEG,
+	UNARYOP_NOT,
+	UNARYOP_INC,
+	UNARYOP_DEC,
+	UNARYOP_TADDR,
+}
+
+fn UnaryOpKind? unaryop_from_token(TokenKind kind)
+{
+	switch (kind)
+	{
+		case ASTERISK:   return UNARYOP_DEREF;
+		case AMP:        return UNARYOP_ADDR;
+		case AND:        return UNARYOP_TADDR;
+		case BIT_NOT:    return UNARYOP_BITNEG;
+		case BANG:       return UNARYOP_NOT;
+		case BANGBANG:   return UNARYOP_NOT;
+		case MINUS:      return UNARYOP_NEG;
+		case PLUS:       return UNARYOP_PLUS;
+		case PLUSPLUS:   return UNARYOP_INC;
+		case MINUSMINUS: return UNARYOP_DEC;
+		default: return parser::UNEXPECTED_TOKEN~;
+	}
+}

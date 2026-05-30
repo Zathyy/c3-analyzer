@@ -22,6 +22,7 @@ enum NodeKind : char
 	CALL_EXPR,
 
 	BINARY_EXPR,
+	UNARY_EXPR,
 	IDENT_EXPR,
 	TYPE_EXPR,
 	PATH_EXPR,

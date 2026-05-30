@@ -431,6 +431,43 @@ fn Node*? parse_binary_expr(ParseContext* ctx, Node* left, Precedence prec)
 }
 
 <*
+	unary_expr ::= unary_op expr
+*>
+fn Node*? parse_unary_expr(ParseContext* ctx)
+{
+	int start_pos = ctx.current().pos;
+	if (ctx.is(MINUS))
+	{
+		if (is_integer(ctx.peek(1).kind))
+		{
+			advance(ctx)!;
+			return parse_expr(ctx)!;
+		}
+	}
+	bool is_bang_bang = ctx.is(BANGBANG);
+	Node* node = ctx.ast.alloc_node(UNARY_EXPR, start_pos);
+	defer node.end_token = ctx.current().pos;
+	UnaryExpr* unary = node.as(UNARY_EXPR);
+	UnaryOpKind? op = parser::unaryop_from_token(ctx.current().kind);
+	if (catch op)
+	{
+		ctx.error("Not a unary operator (%s)", ctx.current().kind);
+		return ctx.ast.error(ctx.current().pos);
+	}
+	advance(ctx)!;
+	unary.expr = parse_expr(ctx, UNARY)!;
+	if (is_bang_bang)
+	{
+		Node* outer = ctx.ast.alloc_node(UNARY_EXPR, ctx.current().pos);
+		UnaryExpr* out_unary = outer.as(UNARY_EXPR);
+		out_unary.expr = node;
+		out_unary.operator = UNARYOP_NOT;
+		return outer;
+	}	
+	return node;
+}
+
+<*
  expr_list ::= decl_or_expr*
 
 *>

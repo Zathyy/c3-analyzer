@@ -46,6 +46,7 @@ struct Node
 		// EXPR
 		LiteralExpr literal_expr;
 		BinaryExpr binary_expr;
+		UnaryExpr unary_expr;
 		IdentExpr ident_expr;
 		PathExpr path_expr;
 		TypeExpr type_expr;

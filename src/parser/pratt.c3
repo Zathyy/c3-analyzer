@@ -227,6 +227,14 @@ fn Node*? parse_prefix_expr(ParseContext* ctx)
 		case INT_BIN_LITERAL:
 		case BYTES_LITERAL:
 			return parse_literal_expr(ctx)!;
+		case BANG:
+		case BANGBANG:
+		case MINUS:
+		case BIT_NOT:
+		case AMP:
+		case AND:
+		case ASTERISK:
+			return parse_unary_expr(ctx)!;
 		default:
 			log::error(
 				"parse_prefix_expr - Expected expression for token: ((%s) %s - %s)",
