@@ -53,7 +53,6 @@ fn void global_array_pointer()
 	switch (type_data.kind)
 	{
 		case TYPE_POINTER:
-			log::info("Found pointer node, checking base child modifier...");
 			test::ne(type_data.modify.base, null);
 			TypeExpr* inner_type = type_data.modify.base.as(TYPE_EXPR);
 			test::eq(inner_type.kind, TypeKind.TYPE_ARRAY);
@@ -61,7 +60,6 @@ fn void global_array_pointer()
 			switch (inner_type.kind)
 			{
 				case TYPE_ARRAY:
-					log::info("Found array child node under pointer!");
 					test::ne(inner_type.array.base, null);
 					test::ne(inner_type.array.len_expr, null);
 					
