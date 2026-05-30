@@ -39,7 +39,7 @@ fn void ParseContext.report(ParseContext* self, Token token, LogPriority level, 
 		self.errors.push({ level, loc, token, string::format(self.allocator, fmt, ...args) });
 	$else
 		io::printf("%s:%s:%s: %s%s:%s ", self.file_path, loc.line, loc.column, color, level.description, ANSI_RESET);
-		io::printf(fmt, args);
+		io::printf(fmt, ...args);
 		io::printn("");
 
 		String line_text = self.line_map.get_line_from_src(self.src, loc.line);
