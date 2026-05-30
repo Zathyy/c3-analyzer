@@ -75,6 +75,12 @@ struct TypeExpr
     }
 }
 
+struct CallExpr
+{
+	Node* callee;
+	NodeArray args;
+}
+
 struct ContractExpr 
 {
 	Node* exprs;

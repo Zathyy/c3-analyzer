@@ -55,10 +55,10 @@ fn void function_with_params()
 	FnDecl* func = node.as(FN_DECL);
 
 	Node* node_2   = ws.lookup("hello", "foo")!!;
-	FnDecl* func_2 = node.as(FN_DECL);
+	FnDecl* func_2 = node_2.as(FN_DECL);
 
 	Node* node_3   = ws.lookup("hello", "bar")!!;
-	FnDecl* func_3 = node.as(FN_DECL);
+	FnDecl* func_3 = node_3.as(FN_DECL);
 
 	test::eq(parser_tests::count_kind(s, MODULE_DECL), 1);
 	test::eq(parser_tests::count_kind(s, FN_DECL), 3);

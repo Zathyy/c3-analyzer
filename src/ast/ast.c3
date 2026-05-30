@@ -47,6 +47,7 @@ struct Node
 		LiteralExpr literal_expr;
 		BinaryExpr binary_expr;
 		UnaryExpr unary_expr;
+		CallExpr call_expr;
 		IdentExpr ident_expr;
 		PathExpr path_expr;
 		TypeExpr type_expr;
@@ -59,7 +60,7 @@ struct Node
 
 macro Node.as(&self, NodeKind $kind)
 {
-	assert(self.kind == $kind, "Invalid kind");
+	assert(self.kind == $kind, "Invalid kind current: \"%s\" expected: \"%s\"", self.kind, $kind);
 	return &self.$eval(utils::@str_to_lower($kind.description));
 }
 

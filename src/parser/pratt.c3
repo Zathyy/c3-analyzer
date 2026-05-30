@@ -6,7 +6,7 @@
 *>
 module parser::parser;
 import lexer;
-
+import std::collections;
 import parser::ast;
 
 <*
@@ -201,6 +201,8 @@ fn Node*? parse_prefix_expr(ParseContext* ctx)
 
 	switch (t.kind)
 	{
+		case CT_FEATURE:
+		case CT_DEFINED:
 		case AT_IDENT:
 		case AT_CONST_IDENT:
 		case AT_TYPE_IDENT:
@@ -235,6 +237,8 @@ fn Node*? parse_prefix_expr(ParseContext* ctx)
 		case AND:
 		case ASTERISK:
 			return parse_unary_expr(ctx)!;
+		case LBRACE:
+			return parse_compound_literal(ctx)!;
 		default:
 			log::error(
 				"parse_prefix_expr - Expected expression for token: ((%s) %s - %s)",
@@ -244,6 +248,50 @@ fn Node*? parse_prefix_expr(ParseContext* ctx)
 			ctx.error("Expected expression");
 			return EXPECTED_EXPRESSION~;
 	}
+}
+
+fn Node*? parse_compound_literal(ParseContext* ctx) => @pool()
+{
+	int start_pos = ctx.current().pos;
+	advance(ctx)!;  // consume '{'
+
+	Node* node = ctx.ast.alloc_node(EXPR_LIST, start_pos);
+	defer node.end_token = ctx.peek(0).pos;
+	ExprList* expr_list = node.as(EXPR_LIST);
+
+	List{Node*} exprs;
+	exprs.init(tmem, 4);
+	while (!ctx.is(RBRACE) && !ctx.eof())
+	{
+		exprs.push(parse_expr(ctx)!);
+		if (ctx.eof() || !consume(ctx, COMMA)!) break;
+	}
+	if (!expect(ctx, RBRACE)!) { node.kind = MISSING; }
+	expr_list.exprs = alloc::clone_slice(ctx.arena, exprs.array_view());
+
+	return node;
+}
+
+fn Node*? parse_call_expr(ParseContext* ctx, Node* callee) => @pool()
+{
+	advance(ctx)!;  // consume '('
+
+	Node* node = ctx.ast.alloc_node(CALL_EXPR, callee.start_token);
+	defer node.end_token = ctx.peek(0).pos;
+	CallExpr* call = node.as(CALL_EXPR);
+	call.callee = callee;
+
+	List{Node*} args;
+	args.init(tmem, 4);
+	while (!ctx.is(RPAREN) && !ctx.eof())
+	{
+		args.push(parse_expr(ctx)!);
+		if (!consume(ctx, COMMA)!) break;
+	}
+	if (!expect(ctx, RPAREN)!) { node.kind = MISSING; }
+	call.args = alloc::clone_slice(ctx.arena, args.array_view());
+
+	return node;
 }
 
 <*
@@ -257,6 +305,8 @@ fn Node*? parse_infix(ParseContext* ctx, Node* left, Precedence rbp)
 
 	switch (t.kind)
 	{
+		case LPAREN:
+			return parse_call_expr(ctx, left)!;
 		case PLUS:
 		case PLUS_ASSIGN:
 		case MINUS:

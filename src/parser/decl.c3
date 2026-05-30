@@ -26,17 +26,17 @@ fn Node*? parse_module_decl(ParseContext* ctx, Workspace* ws)
 	defer node.end_token = ctx.peek(0).pos;
 
 	mod_decl.path = parse_path_expr(ctx, false)!;
+
+	if (ctx.is(AT_IDENT))
+	{
+		mod_decl.attributes = parse_attributes(ctx, node)!;
+	}
+
 	if (!expect(ctx, EOS)!)
 	{
 		node.kind = MISSING;
 	}
-
-	if (ctx.is(AT_IDENT))
-	{
-		// TODO:
-		// mod.attributes = parse_attributes(ctx)!;
-	}
-
+	
 	PathExpr* path  = mod_decl.path.as(PATH_EXPR);
 	String mod_name = path.full_path(&ctx.ast.string_pool, ctx.allocator)!;
 	defer mod_name.free(ctx.allocator);
@@ -213,7 +213,7 @@ fn Node*? parse_import_decl(ParseContext* ctx) => @pool()
 {
 	int start_pos = ctx.peek(0).pos;
 
-	@expect_else(ctx, IMPORT ; err)
+	@expect_else(ctx, IMPORT; err)
 	{
 		return err;
 	}!;
@@ -241,15 +241,14 @@ fn Node*? parse_import_decl(ParseContext* ctx) => @pool()
 
 	imp.paths = alloc::clone_slice(ctx.arena, temp_paths.array_view());
 
+	if (ctx.is(AT_IDENT)) 
+	{
+		imp.attributes = parse_attributes(ctx, node)!;
+	}
+
 	if (!expect(ctx, EOS)!)
 	{
 		node.kind = MISSING;
-	}
-
-	if (ctx.is(AT_IDENT))
-	{
-		// TODO:
-		// mod.attributes = parse_attributes(ctx)!;
 	}
 
 	return node;
@@ -505,6 +504,11 @@ fn Node*? parse_fn_decl(ParseContext* ctx, ParseFlags flags = { })
 
 	func.params = parse_parameter_list(ctx)!;
 
+	if (ctx.is(AT_IDENT))
+	{
+		func.attributes = parse_attributes(ctx, node)!;
+	}
+
 	if (ctx.is(LBRACE))
 	{
 		if (flags.is_extern)
@@ -692,7 +696,13 @@ fn Node*? parse_var_decl(ParseContext* ctx, ParseFlags flags = { })
 		StringID name_id = ctx.ast.string_pool.internalize(ctx.token_text(t));
 		advance(ctx)!;
 
-		NodeArray attributes; // = parse_attributes(ctx)!;
+		Node* var_node = ctx.ast.alloc_node(VAR_DECL, t.pos);
+		VarDecl* var_decl = var_node.as(VAR_DECL);
+
+		if (ctx.is(AT_IDENT)) {
+			var_decl.attributes = parse_attributes(ctx, var_node)!;
+		}
+
 		Node* init_expr = null;
 
 		if (ctx.is(EQ))
@@ -718,13 +728,9 @@ fn Node*? parse_var_decl(ParseContext* ctx, ParseFlags flags = { })
 			ctx.error("Constants must be initialized at their declaration site");
 		}
 
-		Node* var_node    = ctx.ast.alloc_node(VAR_DECL, t.pos);
-		VarDecl* var_decl = var_node.as(VAR_DECL);
-
 		var_decl.name = name_id;
 		var_decl.type = type_node; // Reused across the entire chain segment
 		var_decl.init_expr = init_expr;
-		var_decl.attributes = attributes;
 		var_decl.next = null; // Starts as terminal component
 
 		var_decl.flags.is_extern = flags.is_extern;
@@ -773,4 +779,52 @@ fn Node*? parse_var_decl(ParseContext* ctx, ParseFlags flags = { })
 	}
 
 	return head_node;
+}
+
+<*
+  attributes ::= attribute attribute*
+  attribute  ::= AT_IDENT ("(" expression_list? ")")?
+  @param [&inout] ctx
+*>
+fn NodeArray? parse_attributes(ParseContext* ctx, Node* parent_node) => @pool()
+{
+	List{Node*} nodes;
+	nodes.init(tmem, 4);
+
+	while (ctx.is(AT_IDENT))
+	{
+		Token t = ctx.peek(0);
+		advance(ctx)!;
+
+		Node* attr_node = ctx.ast.alloc_node(ATTRIBUTE_DECL, t.pos);
+		defer attr_node.end_token = ctx.peek(0).pos;
+		AttributeDecl* attr = attr_node.as(ATTRIBUTE_DECL);
+		String text = ctx.token_text(t);
+		attr.name = text.copy(&ctx.ast.arena);
+		attr.kind = parser::get_attribute_from_string(text);
+
+		if (parent_node && attr.kind == AttributeKind.PRIVATE)
+		{
+			parent_node.visibility = Visibility.PRIVATE;
+		}
+
+		if (consume(ctx, LPAREN)!)
+		{
+			List{Node*} exprs;
+			exprs.init(tmem, 4);
+			while (!ctx.is(RPAREN) && !ctx.eof())
+			{
+				exprs.push(parse_expr(ctx)!);
+				if (!consume(ctx, COMMA)!) break;
+			}
+			if (!expect(ctx, RPAREN)!) { attr_node.kind = MISSING; }
+			attr.exprs = alloc::clone_slice(&ctx.ast.arena, exprs.array_view());
+		}
+
+		nodes.push(attr_node);
+	}
+
+	parent_node.flags.has_attributes = nodes.len() > 0;
+
+	return alloc::clone_slice(&ctx.ast.arena, nodes.array_view());
 }
