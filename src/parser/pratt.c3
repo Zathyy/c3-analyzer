@@ -250,56 +250,6 @@ fn Node*? parse_prefix_expr(ParseContext* ctx)
 	}
 }
 
-fn Node*? parse_compound_literal(ParseContext* ctx) => @pool()
-{
-	int start_pos = ctx.current().pos;
-	advance(ctx)!; // consume '{'
-
-	Node* node = ctx.ast.alloc_node(EXPR_LIST, start_pos);
-	defer node.end_token = ctx.peek(0).pos;
-	ExprList* expr_list = node.as(EXPR_LIST);
-
-	List{Node*} exprs;
-	exprs.init(tmem, 4);
-	while (!ctx.is(RBRACE) && !ctx.eof())
-	{
-		exprs.push(parse_expr(ctx)!);
-		if (ctx.eof() || !consume(ctx, COMMA)!) break;
-	}
-	if (!expect(ctx, RBRACE)!)
-	{
-		node.kind = MISSING;
-	}
-	expr_list.exprs = alloc::clone_slice(ctx.arena, exprs.array_view());
-
-	return node;
-}
-
-fn Node*? parse_call_expr(ParseContext* ctx, Node* callee) => @pool()
-{
-	advance(ctx)!; // consume '('
-
-	Node* node = ctx.ast.alloc_node(CALL_EXPR, callee.start_token);
-	defer node.end_token = ctx.peek(0).pos;
-	CallExpr* call = node.as(CALL_EXPR);
-	call.callee = callee;
-
-	List{Node*} args;
-	args.init(tmem, 4);
-	while (!ctx.is(RPAREN) && !ctx.eof())
-	{
-		args.push(parse_expr(ctx)!);
-		if (!consume(ctx, COMMA)!) break;
-	}
-	if (!expect(ctx, RPAREN)!)
-	{
-		node.kind = MISSING;
-	}
-	call.args = alloc::clone_slice(ctx.arena, args.array_view());
-
-	return node;
-}
-
 <*
  parse_infix (Led)
 	Handles tokens that connect expressions (e.g. 1 + 2, obj.prop, arr[0])

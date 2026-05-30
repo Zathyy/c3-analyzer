@@ -125,7 +125,7 @@ struct VarDecl
 	Node* type;
 	Node* init_expr;
 	NodeArray attributes;
-	Node* next; 
+	Node* next;
 }
 
 struct AttributeDecl
