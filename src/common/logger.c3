@@ -11,10 +11,7 @@ struct Message
 
 List{Message} messages;
 
-macro void log(
-	LogPriority priority,
-	String fmt, 
-	...)
+macro void log(LogPriority priority, String fmt, ...)
 {
 	String msg = string::format(mem, fmt, ...$vaarg);
 	messages.push({ priority, msg });

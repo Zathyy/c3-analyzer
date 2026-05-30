@@ -13,44 +13,14 @@ enum SeekOrigin
 
 
 faultdef
-	ALREADY_EXISTS,
-	BUSY,
-	CANNOT_READ_DIR,
-	DIR_NOT_EMPTY,
-	PARENT_DIR_MISSING,
-	EOF,
-	FILE_CANNOT_DELETE,
-	FILE_IS_DIR,
-	FILE_IS_PIPE,
-	FILE_NOT_DIR,
-	FILE_NOT_FOUND,
-	FILE_NOT_VALID,
-	GENERAL_ERROR,
-	ILLEGAL_ARGUMENT,
-	INCOMPLETE_WRITE,
-	INTERRUPTED,
-	INVALID_POSITION,
-	INVALID_PUSHBACK,
-	NAME_TOO_LONG,
-	NOT_SEEKABLE,
-	NO_PERMISSION,
-	OUT_OF_SPACE,
-	OVERFLOW,
-	PATH_COULD_NOT_BE_FOUND,
-	READ_ONLY,
-	SYMLINK_FAILED,
-	TOO_MANY_DESCRIPTORS,
-	UNEXPECTED_EOF,
-	UNKNOWN_ERROR,
-	UNSUPPORTED_OPERATION,
-	WOULD_BLOCK;
+	ALREADY_EXISTS, BUSY, CANNOT_READ_DIR, DIR_NOT_EMPTY, PARENT_DIR_MISSING, EOF, FILE_CANNOT_DELETE, FILE_IS_DIR, FILE_IS_PIPE, FILE_NOT_DIR, FILE_NOT_FOUND, FILE_NOT_VALID, GENERAL_ERROR, ILLEGAL_ARGUMENT, INCOMPLETE_WRITE, INTERRUPTED, INVALID_POSITION, INVALID_PUSHBACK, NAME_TOO_LONG, NOT_SEEKABLE, NO_PERMISSION, OUT_OF_SPACE, OVERFLOW, PATH_COULD_NOT_BE_FOUND, READ_ONLY, SYMLINK_FAILED, TOO_MANY_DESCRIPTORS, UNEXPECTED_EOF, UNKNOWN_ERROR, UNSUPPORTED_OPERATION, WOULD_BLOCK
+;
 
 
 <*
  Read from a stream (default is stdin) to the next "\n"
  or to the end of the stream, whatever comes first.
  "\r" will be filtered from the String.
-
  @param [&inout] allocator : "The allocator used to allocate the read string."
  @param stream : `The stream to read from.`
  @param limit : `Optionally limits the amount of bytes to read in a single line. Will NOT discard the remaining line data.`
@@ -67,7 +37,6 @@ macro String? readline(Allocator allocator, stream = io::stdin(), sz limit = 0)
 <*
  Reads a string, see `readline`, except the it is allocated
  on the temporary allocator and does not need to be freed.
-
  @param stream : `The stream to read from.`
  @param limit : `Optionally limits the amount of bytes to read in a single line. Will NOT discard the remaining line data.`
  @require @is_not_instream_if_ptr(stream) : "The value for 'stream' should have been passed as a pointer and not as a value, please add '&'."
@@ -79,7 +48,7 @@ macro String? treadline(stream = io::stdin(), sz limit = 0)
 	return readline(tmem, stream, limit) @inline;
 }
 
-fn String? readline_impl(Allocator allocator, Stream stream, sz limit) <Stream> @private
+fn String? readline_impl(Allocator allocator, Stream stream, sz limit)<Stream> @private
 {
 	if (allocator == tmem)
 	{
@@ -97,7 +66,6 @@ fn String? readline_impl(Allocator allocator, Stream stream, sz limit) <Stream> 
 
 <*
  Reads a string, see `readline`, the data is passed to an outstream
-
  @param out_stream : `The stream to write to`
  @param in_stream : `The stream to read from.`
  @param limit : `Optionally limits the byte-length of the allocated output string.`
@@ -112,7 +80,7 @@ macro sz? readline_to_stream(out_stream, in_stream = io::stdin(), sz limit = 0)
 	return readline_to_stream_impl{$typeof(in_stream), $typeof(out_stream)}(out_stream, in_stream, limit);
 }
 
-fn sz? readline_to_stream_impl(OStream out_stream, IStream in_stream, sz limit) <IStream, OStream> @private
+fn sz? readline_to_stream_impl(OStream out_stream, IStream in_stream, sz limit)<IStream, OStream> @private
 {
 	bool $is_stream = IStream == InStream;
 	$if $is_stream:
@@ -162,7 +130,6 @@ fn sz? readline_to_stream_impl(OStream out_stream, IStream in_stream, sz limit) 
 }
 <*
  Print a value to a stream.
-
  @param out : `the stream to print to`
  @param x : `the value to print`
  @require @is_outstream(out) : `The output must implement OutStream.`
@@ -172,17 +139,20 @@ macro sz? fprint(out, x)
 {
 	var $Type = $typeof(x);
 	$switch $Type:
-		$case String: return out.write(x);
-		$case ZString: return out.write(x.str_view());
-		$case DString: return out.write(x.str_view());
+		$case String:
+			return out.write(x);
+		$case ZString:
+			return out.write(x.str_view());
+		$case DString:
+			return out.write(x.str_view());
 		$default:
 			$if $defined(String a = x):
 				return out.write((String)x);
 			$else
 				$if is_struct_with_default_print($Type):
 					Formatter formatter;
-                    formatter.init(&out_putstream_fn, &&(OutStream)out);
-                    return struct_to_format(x, &formatter, false);
+					formatter.init(&out_putstream_fn, &&(OutStream)out);
+					return struct_to_format(x, &formatter, false);
 				$else
 					return fprintf(out, "%s", x);
 				$endif
@@ -193,7 +163,6 @@ macro sz? fprint(out, x)
 <*
  Prints using a 'printf'-style formatting string.
  See `printf` for details on formatting.
-
  @param [inout] out : `The OutStream to print to`
  @param [in] format : `The printf-style format string`
  @return `the number of characters printed`
@@ -208,7 +177,6 @@ fn sz? fprintf(OutStream out, String format, args...) @format(1)
 <*
  Prints using a 'printf'-style formatting string,
  appending '\n' at the end. See `printf`.
-
  @param [inout] out : `The OutStream to print to`
  @param [in] format : `The printf-style format string`
  @return `the number of characters printed`
@@ -233,7 +201,7 @@ macro sz? fprintn(out, x = "")
 	$switch:
 		$case $typeof(out) == OutStream:
 			if (&out.flush) out.flush()!;
-		$case $defined(out.flush):
+		$case $defined ( out.flush ):
 			out.flush()!;
 	$endswitch
 	return len + 1;
@@ -249,7 +217,6 @@ macro void print(x)
 
 <*
  Print any value to stdout, appending an '\n’ after.
-
  @param x : "The value to print"
 *>
 macro void printn(x = "")
@@ -267,7 +234,6 @@ macro void eprint(x)
 
 <*
  Print any value to stderr, appending an '\n’ after.
-
  @param x : "The value to print"
 *>
 macro void eprintn(x = "")
@@ -285,10 +251,14 @@ fn void? out_putstream_fn(void* data, char c) @private
 macro sz putchar_buf_size() @const
 {
 	$switch env::MEMORY_ENV:
-		$case NORMAL: return 32 * 1024;
-		$case SMALL: return 1024;
-		$case TINY: return 256;
-		$case NONE: return 256;
+		$case NORMAL:
+			return 32 * 1024;
+		$case SMALL:
+			return 1024;
+		$case TINY:
+			return 256;
+		$case NONE:
+			return 256;
 	$endswitch
 }
 
@@ -332,7 +302,6 @@ fn void? out_putchar_buffer_fn(void* data @unused, char c) @private
 
  To create a custom output for a type, implement
  the Printable interface.
-
  @param [in] format : `The printf-style format string`
  @return `the number of characters printed`
 *>
@@ -349,7 +318,6 @@ fn sz? printf(String format, args...) @format(0) @maydiscard
 <*
  Prints using a 'printf'-style formatting string,
  appending '\n' at the end. See `printf`.
-
  @param [in] format : `The printf-style format string`
  @return `the number of characters printed`
 *>
@@ -367,7 +335,6 @@ fn sz? printfn(String format, args...) @format(0) @maydiscard
 <*
  Prints using a 'printf'-style formatting string
  to stderr.
-
  @param [in] format : `The printf-style format string`
  @return `the number of characters printed`
 *>
@@ -383,7 +350,6 @@ fn sz? eprintf(String format, args...) @maydiscard
 <*
  Prints using a 'printf'-style formatting string,
  to stderr appending '\n' at the end. See `printf`.
-
  @param [in] format : `The printf-style format string`
  @return `the number of characters printed`
 *>
@@ -401,7 +367,6 @@ fn sz? eprintfn(String format, args...) @maydiscard
 <*
  Prints using a 'printf'-style formatting string,
  to a string buffer. See `printf`.
-
  @param [inout] buffer : `The buffer to print to`
  @param [in] format : `The printf-style format string`
  @return `a slice formed from the "buffer" with the resulting length.`
@@ -416,9 +381,9 @@ fn char[]? bprintf(char[] buffer, String format, args...) @maydiscard
 }
 
 // Used to print to a buffer.
-fn void? out_buffer_fn(void *data, char c) @private
+fn void? out_buffer_fn(void* data, char c) @private
 {
-	BufferData *buffer_data = data;
+	BufferData* buffer_data = data;
 	if (buffer_data.written >= buffer_data.buffer.len) return BUFFER_EXCEEDED~;
 	buffer_data.buffer[buffer_data.written++] = c;
 }
@@ -431,7 +396,7 @@ struct BufferData @private
 }
 
 // Only available with LIBC
-module std::io @if (env::LIBC);
+module std::io @if(env::LIBC);
 import libc;
 
 <*
@@ -444,7 +409,6 @@ fn void putchar(char c) @inline
 
 <*
  Get standard out.
-
  @return `stdout as a File`
 *>
 fn File* stdout()
@@ -456,7 +420,6 @@ fn File* stdout()
 
 <*
  Get standard err.
-
  @return `stderr as a File`
 *>
 fn File* stderr()
@@ -468,7 +431,6 @@ fn File* stderr()
 
 <*
  Get standard in.
-
  @return `stdin as a File`
 *>
 fn File* stdin()
@@ -503,5 +465,3 @@ fn File* stdin()
 {
 	return &stdin_file;
 }
-
-

@@ -4,7 +4,7 @@ import parser::ast @norecurse;
 import std::collections::list;
 
 typedef FileID = ushort;
- 
+
 struct Location
 {
 	sz line;
@@ -177,7 +177,7 @@ bitstruct ContractFlags : uint
 bitstruct ContractParamFlags : uint
 {
 	bool is_ref;
-} 
+}
 
 bitstruct AsmFlags : uint
 {
@@ -185,31 +185,31 @@ bitstruct AsmFlags : uint
 	bool is_string_style;
 }
 
-enum AsmArgKind : uint 
+enum AsmArgKind : uint
 {
-	ARG_REG,     // A register
-	ARG_ADDR,    // [...]
-	ARG_REGVAR,  // foo - variable in a register, r/=r/+r
+	ARG_REG, // A register
+	ARG_ADDR, // [...]
+	ARG_REGVAR, // foo - variable in a register, r/=r/+r
 	ARG_MEMADDR, // &foo - address to a variable
-	ARG_MEMVAR,  // [&foo]
-	ARG_VALUE,   // -1, (expr), 1, 3.0
-	ARG_INT,     // Converted from VALUE
+	ARG_MEMVAR, // [&foo]
+	ARG_VALUE, // -1, (expr), 1, 3.0
+	ARG_INT, // Converted from VALUE
 }
 
 enum AsmOffsetKind : uint
 {
-	SCALE_1,    // *
+	SCALE_1, // *
 	SCALE_2,
 	SCALE_4,
 	SCALE_8,
-	SCALE_SHR,  // >>
-	SCALE_SHL,  // <<
+	SCALE_SHR, // >>
+	SCALE_SHL, // <<
 	SCALE_ASHL, // >>>
-	SCALE_ROR,  // ror
-	SCALE_RRX,  // rrx
+	SCALE_ROR, // ror
+	SCALE_RRX, // rrx
 }
 
-bitstruct AsmArgBits : uint 
+bitstruct AsmArgBits : uint
 {
 	bool arg_bits_8;
 	bool arg_bits_16;
@@ -224,7 +224,7 @@ bitstruct AsmArgBits : uint
 	bool arg_bits_20;
 }
 
-enum AsmRegisterKind : uint 
+enum AsmRegisterKind : uint
 {
 	REG_INT,
 	REG_FLOAT,
@@ -236,12 +236,22 @@ enum DeferKind : uint
 {
 	NORMAL,
 	// defer ...
+
+
+
 	TRY,
 	// defer try ...
+
+
+
 	CATCH,
 	// defer catch ...
+
+
+
 	CATCH_VAR
 	// defer (catch var) ...
+
 }
 
 enum OverloadKind : uint
@@ -287,16 +297,16 @@ enum InOutModifier
 
 enum Visibility
 {
-    PUBLIC,
-    PRIVATE,
-    LOCAL
+	PUBLIC,
+	PRIVATE,
+	LOCAL
 }
 
 enum TypeKind : int
 {
 	TYPE_IDENTIFIER,
-    TYPE_POINTER,
-    TYPE_ARRAY,
-    TYPE_SLICE,
-    TYPE_GENERIC
+	TYPE_POINTER,
+	TYPE_ARRAY,
+	TYPE_SLICE,
+	TYPE_GENERIC
 }

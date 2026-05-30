@@ -10,7 +10,7 @@ import std::io;
 import std::collections::list;
 
 <*
-	parameter_list ::= (param_decl (',' param_decl)*)?
+ parameter_list ::= (param_decl (',' param_decl)*)?
 *>
 fn NodeArray? parse_parameter_list(ParseContext* ctx) => @pool()
 {
@@ -18,65 +18,65 @@ fn NodeArray? parse_parameter_list(ParseContext* ctx) => @pool()
 
 	if (!expect(ctx, LPAREN)!)
 	{
-		return {ctx.ast.error(start_pos)};
+		return { ctx.ast.error(start_pos) };
 	}
 
 	List{Node*} temp_params;
-    temp_params.init(tmem, 4);
+	temp_params.init(tmem, 4);
 
 	if (ctx.is(RPAREN))
-    {
+	{
 		advance(ctx)!;
-        return alloc::clone_slice(ctx.arena, temp_params.array_view());
-    }
+		return alloc::clone_slice(ctx.arena, temp_params.array_view());
+	}
 
 	while (true)
-    {
-        Node* param = parse_param_decl(ctx)!;
-        temp_params.push(param);
+	{
+		Node* param = parse_param_decl(ctx)!;
+		temp_params.push(param);
 
-        if (!consume(ctx, COMMA)!) break;
+		if (!consume(ctx, COMMA)!) break;
 
-        if (ctx.is(RPAREN))
-        {
-            ctx.error("Expected parameter declaration after ','");
-            temp_params.push(ctx.ast.alloc_node(MISSING, ctx.peek(0).pos));
-            break;
-        }
-    }
+		if (ctx.is(RPAREN))
+		{
+			ctx.error("Expected parameter declaration after ','");
+			temp_params.push(ctx.ast.alloc_node(MISSING, ctx.peek(0).pos));
+			break;
+		}
+	}
 
 	if (!expect(ctx, RPAREN)!)
 	{
-		//TODO!
+		// TODO!
 	}
 
 	return alloc::clone_slice(ctx.arena, temp_params.array_view());
 }
 
 <*
-    generic_param_list ::= '{' expr ( ',' expr )* '}'
+ generic_param_list ::= '{' expr ( ',' expr )* '}'
 *>
 fn NodeArray? parse_generics_list(ParseContext* ctx)
 {
-    if (!consume(ctx, LBRACE)!) return {};
-    List{Node*} params;
-    params.init(tmem, 4);
+	if (!consume(ctx, LBRACE)!) return { };
+	List{Node*} params;
+	params.init(tmem, 4);
 
-    while (true)
-    {
-        if (ctx.is(RBRACE)) break;
-        Node* param = parse_expr(ctx)!;
-        params.push(param);
-        if (!consume(ctx, COMMA)!) break;
-    }
+	while (true)
+	{
+		if (ctx.is(RBRACE)) break;
+		Node* param = parse_expr(ctx)!;
+		params.push(param);
+		if (!consume(ctx, COMMA)!) break;
+	}
 
-    if (!consume(ctx, RBRACE)!)
-    {
-        ctx.error("Expected closing '}' after generic parameter list");
-        return {};
-    }
+	if (!consume(ctx, RBRACE)!)
+	{
+		ctx.error("Expected closing '}' after generic parameter list");
+		return { };
+	}
 
-    return alloc::clone_slice(ctx.arena, params.array_view());
+	return alloc::clone_slice(ctx.arena, params.array_view());
 }
 
 fn Node*? parse_contract_param(ParseContext* ctx)

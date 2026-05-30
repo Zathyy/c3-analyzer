@@ -47,7 +47,9 @@ fn void test_literals()
 		char[*] n = x"414243";                          // Hex with single quotes
 		char[*] o = b64"SGVsbG8gV29ybGQ=";              // Base64 chunk
 	`;
-	Workspace ws; ws.init();
+
+	Workspace ws;
+	ws.init();
 	defer ws.free();
 	ParseResult res = parser::parse(&ws, "test_literals", text)!!;
 	test::eq(res.success, true);
@@ -70,7 +72,7 @@ fn void test_literals()
 		VarDecl* var_decl = node.as(VAR_DECL);
 		test::eq(var_decl.kind, VarDeclKind.VAR_GLOBAL);
 		String var_name = pool.get(var_decl.name)!!;
-		
+
 		test::ne(var_decl.init_expr, null);
 		Node* expr_node = var_decl.init_expr;
 
@@ -92,7 +94,7 @@ fn void test_literals()
 			test::eq(zl.exprs.len, var_name == "arr2" ? 1 : 0);
 			continue;
 		}
-		
+
 		test::eq(expr_node.kind, NodeKind.LITERAL_EXPR);
 		LiteralExpr* lit = expr_node.as(LITERAL_EXPR);
 		if (var_name == "a")
@@ -108,8 +110,7 @@ fn void test_literals()
 		{
 			test::eq(lit.kind, LiteralKind.BOOL_LITERAL);
 			test::eq(lit.boolean, false);
-		}
-		// Integers (Decimal, Hex, Binary, Octal)
+		} // Integers (Decimal, Hex, Binary, Octal)
 		else if (var_name == "d")
 		{
 			test::eq(lit.kind, LiteralKind.INT_LITERAL);
@@ -199,7 +200,8 @@ fn void unary()
         void* x = &&foo;
         int x = *foo;
 	`;
-	Workspace ws; ws.init();
+	Workspace ws;
+	ws.init();
 	defer ws.free();
 	ParseResult res = parser::parse(&ws, "unary", path)!!;
 	test::eq(res.success, true);

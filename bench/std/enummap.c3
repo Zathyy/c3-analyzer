@@ -55,4 +55,3 @@ fn void EnumMap.set(&self, Enum key, ValueType value) @operator([]=) @inline
 {
 	self.values[key.ordinal] = value;
 }
-

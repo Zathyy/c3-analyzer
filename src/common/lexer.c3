@@ -3,10 +3,7 @@ module lexer;
 import std::io;
 
 faultdef
-	INVALID, 
-	UNEVEN_HEXADECIMAL,
-	CONTRACT_NOT_CLOSED,
-	INVALID_CONTRACT
+	INVALID, UNEVEN_HEXADECIMAL, CONTRACT_NOT_CLOSED, INVALID_CONTRACT
 ;
 
 enum TokenKind : ushort
@@ -14,143 +11,328 @@ enum TokenKind : ushort
 	INVALID,
 	// Invalid
 
+
+
 	// Operators
 	AMP,
 	// &
+
+
+
 	BIT_OR,
 	// |
+
+
+
 	BIT_XOR,
 	// ^
+
+
+
 	BIT_NOT,
 	// ~
+
+
+
 	BANG,
 	// !
+
+
+
 	PLUS,
 	// +
+
+
+
 	MINUS,
 	// -
+
+
+
 	ASTERISK,
 	// *
+
+
+
 	DIV,
 	// /
+
+
+
 	MOD,
 	// %
+
+
+
 	QUESTION,
 	// ?
+
+
+
 	QUESTQUEST,
 	// ??
+
+
+
 	ELVIS,
 	// ?:
+
+
+
 	BANGBANG,
 	// !!
+
+
+
 	BUILTIN,
 	// $$
+
+
+
 	RSHIFT,
 	// >>
+
+
+
 	LSHIFT,
 	// <<
+
+
+
 	PLUSPLUS,
 	// ++
+
+
+
 	MINUSMINUS,
 	// --
+
+
+
 	CT_CONCAT_OP,
 	// +++
+
+
+
 	CT_TERNARY,
 	// ???
+
+
 
 	// Assignment
 	EQ,
 	// =
+
+
+
 	RSHIFT_ASSIGN,
 	// >>=
+
+
+
 	LSHIFT_ASSIGN,
 	// <<=
+
+
+
 	PLUS_ASSIGN,
 	// +=
+
+
+
 	MINUS_ASSIGN,
 	// -=
+
+
+
 	MULT_ASSIGN,
 	// *=
+
+
+
 	DIV_ASSIGN,
 	// /=
+
+
+
 	MOD_ASSIGN,
 	// %=
+
+
+
 	BIT_AND_ASSIGN,
 	// &=
+
+
+
 	BIT_XOR_ASSIGN,
 	// ^=
+
+
+
 	BIT_OR_ASSIGN,
 	// |=
+
+
+
 	CT_CONCAT_ASSIGN,
 	// +++=
+
+
 
 	// Comparison
 	LESS,
 	// <
+
+
+
 	GREATER,
 	// >
+
+
+
 	AND,
 	// &&
+
+
+
 	OR,
 	// ||
+
+
+
 	LESS_EQ,
 	// <=
+
+
+
 	GREATER_EQ,
 	// >=
+
+
+
 	EQEQ,
 	// ==
+
+
+
 	NOT_EQUAL,
 	// !=
+
+
+
 	CT_AND_OP,
 	// &&&
+
+
+
 	CT_OR_OP,
 	// |||
+
+
 
 	// Punctuation
 	EOS,
 	// ;
+
+
+
 	COLON,
 	// :
+
+
+
 	SCOPE,
 	// ::
+
+
+
 	COMMA,
 	// ,
+
+
+
 	DOT,
 	// .
+
+
+
 	DOTDOT,
 	// ..
+
+
+
 	ELLIPSIS,
 	// ...
+
+
 
 	// Structure
 	LBRACE,
 	// {
+
+
+
 	RBRACE,
 	// }
+
+
+
 	LBRACKET,
 	// [
+
+
+
 	RBRACKET,
 	// ]
+
+
+
 	LPAREN,
 	// (
+
+
+
 	RPAREN,
 	// )
+
+
+
 	ARROW,
 	// ->
+
+
+
 	IMPLIES,
 	// =>
+
+
+
 	LVEC,
 	// [<
+
+
+
 	RVEC,
 	// >]
+
+
 
 	// Comments and Contracts
 	CONTRACT,
 	// <*
+
+
+
 	LINE_COMMENT,
 	// //
+
+
+
 	BLOCK_COMMENT,
 	// /*
+
+
 
 	// Literals (Identifiers and Strings)
 
@@ -256,56 +438,133 @@ enum TokenKind : ushort
 
 	CT_ASSERT,
 	// $assert
+
+
+
 	CT_CASE,
 	// $case
+
+
+
 	CT_DEFAULT,
 	// $default
+
+
+
 	CT_DEFINED,
 	// $defined
+
+
+
 	CT_ECHO,
 	// $echo
+
+
+
 	CT_ELSE,
 	// $else
+
+
+
 	CT_EMBED,
 	// $embed
+
+
+
 	CT_ENDFOR,
 	// $endfor
+
+
+
 	CT_ENDFOREACH,
 	// $endforeach
+
+
+
 	CT_ENDIF,
 	// $endif
+
+
+
 	CT_ENDSWITCH,
 	// $endswitch
+
+
+
 	CT_EVAL,
 	// $eval
+
+
+
 	CT_ERROR,
 	// $error
+
+
+
 	CT_EXEC,
 	// $exec
+
+
+
 	CT_EXPAND,
 	// $expand
+
+
+
 	CT_FEATURE,
 	// $feature
+
+
+
 	CT_FOR,
 	// $for
+
+
+
 	CT_FOREACH,
 	// $foreach
+
+
+
 	CT_IF,
 	// $if
+
+
+
 	CT_INCLUDE,
 	// $include
+
+
+
 	CT_REFLECT,
 	// $reflect
+
+
+
 	CT_STRINGIFY,
 	// $stringify
+
+
+
 	CT_SWITCH,
 	// $switch
+
+
+
 	CT_TYPEFROM,
 	// $Typefrom
+
+
+
 	CT_TYPEOF,
 	// $Typeof
+
+
+
 	CT_VAARG,
 	// $vaarg,
+
+
 
 	AT_INLINE,
 	AT_PURE,
@@ -315,11 +574,13 @@ enum TokenKind : ushort
 	EOF
 }
 
-fn bool TokenKind.is_int_literal(&self) @inline => 
-	TokenKind.INT_DECIMAL_LITERAL.ordinal <= self.ordinal && self.ordinal <= TokenKind.INT_BIN_LITERAL.ordinal;
+fn bool TokenKind.is_int_literal(
+	&self
+) @inline => TokenKind.INT_DECIMAL_LITERAL.ordinal <= self.ordinal && self.ordinal <= TokenKind.INT_BIN_LITERAL.ordinal;
 
-fn bool TokenKind.is_float_literal(&self) @inline => 
-	*self == TokenKind.FLOAT_DECIMAL_LITERAL || *self == TokenKind.FLOAT_HEX_LITERAL;
+fn bool TokenKind.is_float_literal(
+	&self
+) @inline => *self == TokenKind.FLOAT_DECIMAL_LITERAL || *self == TokenKind.FLOAT_HEX_LITERAL;
 
 struct Token
 {
@@ -430,29 +691,29 @@ fn void? Lexer.skip_line_comment(Lexer* self)
 
 fn void? Lexer.skip_block_comment(Lexer* self)
 {
-    self.index += 2; // Skip the initial '/*'
-    int depth = 1;
+	self.index += 2; // Skip the initial '/*'
+	int depth = 1;
 
-    while (self.index < self.buffer.len && depth > 0)
-    {
-        // Look for nested start: '/*'
-        if (self.buffer[self.index] == '/' && self.peek_next() == '*')
-        {
-            depth++;
-            self.index += 2;
-            continue;
-        }
+	while (self.index < self.buffer.len && depth > 0)
+	{
+		// Look for nested start: '/*'
+		if (self.buffer[self.index] == '/' && self.peek_next() == '*')
+		{
+			depth++;
+			self.index += 2;
+			continue;
+		}
 
-        // Look for end: '*/'
-        if (self.buffer[self.index] == '*' && self.peek_next() == '/')
-        {
-            depth--;
-            self.index += 2;
-            continue;
-        }
+		// Look for end: '*/'
+		if (self.buffer[self.index] == '*' && self.peek_next() == '/')
+		{
+			depth--;
+			self.index += 2;
+			continue;
+		}
 
-        self.advance()!;
-    }
+		self.advance()!;
+	}
 }
 
 fn Token? Lexer.lex_char(Lexer* self, int start)
@@ -465,7 +726,7 @@ fn Token? Lexer.lex_char(Lexer* self, int start)
 
 		if (c == '\'')
 		{
-			self.index++; 
+			self.index++;
 			return (Token) { CHAR_LITERAL, start, self.index - start };
 		}
 
@@ -475,7 +736,7 @@ fn Token? Lexer.lex_char(Lexer* self, int start)
 			continue;
 		}
 
-		self.index++; 
+		self.index++;
 	}
 
 	return (Token) { INVALID, start, self.index - start };
@@ -491,17 +752,17 @@ fn Token? Lexer.lex_string(Lexer* self, int start)
 
 		if (c == '"')
 		{
-			self.index++; 
+			self.index++;
 			return (Token) { STRING_LITERAL, start, self.index - start };
 		}
 
-		if (c == '\\') 
+		if (c == '\\')
 		{
 			self.index += 2;
 			continue;
 		}
 
-		self.index++; 
+		self.index++;
 	}
 
 	return (Token) { INVALID, start, self.index - start };
@@ -509,18 +770,18 @@ fn Token? Lexer.lex_string(Lexer* self, int start)
 
 fn Token? Lexer.lex_raw_string(Lexer* self, int start)
 {
-    self.index++; // Skip the opening `
+	self.index++; // Skip the opening `
 
-    while (self.index < self.buffer.len)
-    {
-        if (self.peek() == '`') // Only stop at a backtick
-        {
-            self.index++;
-            return (Token) { STRING_LITERAL, start, self.index - start };
-        }
-        self.index++;
-    }
-    return (Token) { INVALID, start, self.index - start };
+	while (self.index < self.buffer.len)
+	{
+		if (self.peek() == '`') // Only stop at a backtick
+		{
+			self.index++;
+			return (Token) { STRING_LITERAL, start, self.index - start };
+		}
+		self.index++;
+	}
+	return (Token) { INVALID, start, self.index - start };
 }
 
 fn TokenKind lookup_keyword(String text)
@@ -640,7 +901,7 @@ fn Token? Lexer.lex_number(Lexer* self, int start_pos)
 			self.advance()!;
 		}
 
-		if (!self.eof() && self.peek() == '.' && self.peek_next() != '.') //&& ascii::is_xdigit(self.peek_next()))
+		if (!self.eof() && self.peek() == '.' && self.peek_next() != '.') // && ascii::is_xdigit(self.peek_next()))
 		{
 			kind = FLOAT_HEX_LITERAL;
 			self.advance()!;
@@ -651,7 +912,7 @@ fn Token? Lexer.lex_number(Lexer* self, int start_pos)
 		}
 
 		if (!self.eof() && (self.peek() == 'p' || self.peek() == 'P'))
-		{ 
+		{
 			char next = self.peek_next();
 			if (ascii::is_xdigit(next) || next == '-' || next == '+')
 			{
@@ -664,8 +925,7 @@ fn Token? Lexer.lex_number(Lexer* self, int start_pos)
 				}
 			}
 		}
-	} 
-	// Binary: 0b
+	} // Binary: 0b
 	else if (self.peek() == '0' && (ascii::to_lower(self.peek_next()) == 'b'))
 	{
 		kind = INT_BIN_LITERAL;
@@ -674,8 +934,7 @@ fn Token? Lexer.lex_number(Lexer* self, int start_pos)
 		{
 			self.advance()!;
 		}
-	} 
-	// Octal: 0o
+	} // Octal: 0o
 	else if (self.peek() == '0' && (ascii::to_lower(self.peek_next()) == 'o'))
 	{
 		kind = INT_OCTAL_LITERAL;
@@ -696,7 +955,7 @@ fn Token? Lexer.lex_number(Lexer* self, int start_pos)
 		}
 
 		// Real/Float check
-		if (!self.eof() && self.peek() == '.' && self.peek_next() != '.')// && ascii::is_digit(self.peek_next()))
+		if (!self.eof() && self.peek() == '.' && self.peek_next() != '.') // && ascii::is_digit(self.peek_next()))
 		{
 			kind = FLOAT_DECIMAL_LITERAL;
 			self.advance()!;
@@ -707,7 +966,7 @@ fn Token? Lexer.lex_number(Lexer* self, int start_pos)
 		}
 
 		if (!self.eof() && (self.peek() == 'e' || self.peek() == 'E'))
-		{ 
+		{
 			char next = self.peek_next();
 			if (ascii::is_digit(next) || next == '-' || next == '+')
 			{
@@ -724,7 +983,7 @@ fn Token? Lexer.lex_number(Lexer* self, int start_pos)
 
 	// Handle Suffixes (e.g., 1u, 1.0f, 0xFFu64)
 	char c = (char)ascii::to_lower(self.peek());
-	if (c == 'u' || c == 'i' || c == 'f' || c == 'l')    
+	if (c == 'u' || c == 'i' || c == 'f' || c == 'l')
 	{
 		self.advance()!;
 		while (!self.eof() && ascii::is_alnum(self.peek()))
@@ -738,45 +997,45 @@ fn Token? Lexer.lex_number(Lexer* self, int start_pos)
 
 fn Token? Lexer.lex_hex_array(Lexer* self, int start_pos)
 {
-    char start_quote = self.peek(); 
-    self.advance()!;
+	char start_quote = self.peek();
+	self.advance()!;
 
-    int digit_count = 0;
+	int digit_count = 0;
 
-    while (!self.eof())
-    {
-        char c = self.peek();
+	while (!self.eof())
+	{
+		char c = self.peek();
 
-        if (c == start_quote) 
-        {
-            self.advance()!;
-            break;
-        }
+		if (c == start_quote)
+		{
+			self.advance()!;
+			break;
+		}
 
-    	if (is_whitespace(c))
+		if (is_whitespace(c))
 		{
 			self.advance()!;
 			continue;
 		}
 
-        if (is_hex(c))
-        {
+		if (is_hex(c))
+		{
 			self.advance()!;
 			digit_count++;
 			continue;
-        }
+		}
 
 		log::error("[Lexer]: Unexpected character '%c' in hex string at index %d", c, self.index);
-        return INVALID~;
-    }
+		return INVALID~;
+	}
 
-    if (digit_count % 2 != 0)
-    {
+	if (digit_count % 2 != 0)
+	{
 		log::error("[Lexer]: The hexadecimal string is not an even length");
-        return UNEVEN_HEXADECIMAL~; 
-    }
+		return UNEVEN_HEXADECIMAL~;
+	}
 
-    return self.emit(BYTES_LITERAL, start_pos, self.index - start_pos);
+	return self.emit(BYTES_LITERAL, start_pos, self.index - start_pos);
 }
 
 fn Token? Lexer.skip_contract(Lexer* self, int start_pos)
@@ -816,7 +1075,7 @@ fn Token? Lexer.next(&self)
 	}
 
 	int start = self.index;
-	char c = self.peek();
+	char c    = self.peek();
 
 	switch (c)
 	{
@@ -832,14 +1091,14 @@ fn Token? Lexer.next(&self)
 			self.advance()!;
 			switch (self.peek())
 			{
-				case '|': 
+				case '|':
 					if (self.peek(1) == '|')
 					{
 						self.advance(2)!;
 						return self.emit(CT_OR_OP, start, 3);
 					}
 
-					self.advance()!; 
+					self.advance()!;
 					return self.emit(OR, start, 2);
 				case '=': self.advance()!; return self.emit(BIT_OR_ASSIGN, start, 2);
 			}
@@ -875,7 +1134,7 @@ fn Token? Lexer.next(&self)
 			self.advance()!;
 			switch (self.peek())
 			{
-				case '>': 
+				case '>':
 					self.advance()!;
 					if (self.peek() == '=')
 					{
@@ -892,7 +1151,7 @@ fn Token? Lexer.next(&self)
 			switch (self.peek())
 			{
 				case '<':
-					self.advance()!; 
+					self.advance()!;
 					if (self.peek() == '=')
 					{
 						self.advance()!;
@@ -908,6 +1167,7 @@ fn Token? Lexer.next(&self)
 			switch (self.peek())
 			{
 				case '&':
+
 					{
 						if (self.peek(1) == '&')
 						{
@@ -922,7 +1182,7 @@ fn Token? Lexer.next(&self)
 			}
 			return self.emit(AMP, start, 1);
 		case '*':
-			self.advance()!; 
+			self.advance()!;
 			switch (self.peek())
 			{
 				case '=': self.advance()!; return self.emit(MULT_ASSIGN, start, 2);
@@ -932,8 +1192,8 @@ fn Token? Lexer.next(&self)
 			self.advance()!;
 			switch (self.peek())
 			{
-				case '?': 
-					self.advance()!; 
+				case '?':
+					self.advance()!;
 					if (self.peek() == '?')
 					{
 						self.advance()!;
@@ -978,6 +1238,7 @@ fn Token? Lexer.next(&self)
 			switch (self.peek())
 			{
 				case '+':
+
 					{
 						if (self.peek(1) == '+')
 						{
@@ -1013,8 +1274,8 @@ fn Token? Lexer.next(&self)
 		case '}': self.advance()!; return self.emit(RBRACE, start, 1);
 		case ';': self.advance()!; return self.emit(EOS, start, 1);
 		case ',': self.advance()!; return self.emit(COMMA, start, 1);
-		case '/': 
-			self.advance()!; 
+		case '/':
+			self.advance()!;
 			if (self.peek() == '=')
 			{
 				self.advance()!;
@@ -1037,8 +1298,8 @@ fn Token? Lexer.next(&self)
 		case 'b':
 			if (self.peek(1) == '6' && self.peek(2) == '4' && (self.peek(3) == '`' || self.peek(3) == '"'))
 			{
-				char quote_char = self.peek(3); 
-				self.advance(4)!; 
+				char quote_char = self.peek(3);
+				self.advance(4)!;
 				while (!self.eof())
 				{
 					if (self.peek() == quote_char)
@@ -1072,7 +1333,7 @@ fn TokenKind Lexer.categorize_identifier(Lexer* self, String text)
 {
 	if (text.len == 0) return INVALID;
 
-	char prefix = text[0];
+	char prefix     = text[0];
 	String base;
 	bool has_prefix = false;
 
@@ -1123,7 +1384,7 @@ fn TokenKind Lexer.categorize_identifier(Lexer* self, String text)
 
 	while (base[0] == '_') base = base[1..];
 
-	bool is_type = false;
+	bool is_type  = false;
 	bool is_const = false;
 
 	char first_char = base[0];
@@ -1178,8 +1439,8 @@ fn void ContractLexer.init(&self, String contract)
 	String inner = contract[2:^4];
 	log::debug("ContractLexer - string = %s", inner);
 
-	usz i = 0;
-	bool line_start = true;
+	usz i              = 0;
+	bool line_start    = true;
 	usz first_at_index = inner.len;
 
 	// Scan for the first '@' that starts a line
@@ -1215,7 +1476,7 @@ fn Token? ContractLexer.next(&self) => self.lexer.next();
 
 fn void test_lexer() @test
 {
-	String src = "module foo; \nfn void bar() {}";
+	String src  = "module foo; \nfn void bar() {}";
 	Lexer lexer = (Lexer) { .buffer = src, .index = 0, };
 
 	while (!lexer.eof())

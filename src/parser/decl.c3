@@ -36,7 +36,7 @@ fn Node*? parse_module_decl(ParseContext* ctx, Workspace* ws)
 	{
 		node.kind = MISSING;
 	}
-	
+
 	PathExpr* path  = mod_decl.path.as(PATH_EXPR);
 	String mod_name = path.full_path(&ctx.ast.string_pool, ctx.allocator)!;
 	defer mod_name.free(ctx.allocator);
@@ -213,7 +213,7 @@ fn Node*? parse_import_decl(ParseContext* ctx) => @pool()
 {
 	int start_pos = ctx.peek(0).pos;
 
-	@expect_else(ctx, IMPORT; err)
+	@expect_else(ctx, IMPORT ; err)
 	{
 		return err;
 	}!;
@@ -241,7 +241,7 @@ fn Node*? parse_import_decl(ParseContext* ctx) => @pool()
 
 	imp.paths = alloc::clone_slice(ctx.arena, temp_paths.array_view());
 
-	if (ctx.is(AT_IDENT)) 
+	if (ctx.is(AT_IDENT))
 	{
 		imp.attributes = parse_attributes(ctx, node)!;
 	}
@@ -565,25 +565,25 @@ fn Node*? parse_param_decl(ParseContext* ctx)
 	bool is_self_by_ref = consume(ctx, AMP)!;
 
 	if (ctx.is(IDENT) && ctx.current_text() == "self")
-    {
-        Token t = ctx.peek(0);
-        param.ident_kind = t.kind;
-        param.name = ctx.ast.string_pool.internalize("self");
-        advance(ctx)!;
+	{
+		Token t = ctx.peek(0);
+		param.ident_kind = t.kind;
+		param.name = ctx.ast.string_pool.internalize("self");
+		advance(ctx)!;
 
-        param.is_self = true; 
-        param.is_self_by_ref = is_self_by_ref;
-        
-        param.type = ctx.ast.alloc_node(MISSING, t.pos); 
+		param.is_self = true;
+		param.is_self_by_ref = is_self_by_ref;
 
-        return node;
-    }
-    else if (is_self_by_ref)
-    {
-        // Found a '&' but it wasn't followed by 'self', rewind 
-        // so that parse_type_expr can parse it as a reference type modifier.
-        reverse(ctx, start_pos)!;
-    }
+		param.type = ctx.ast.alloc_node(MISSING, t.pos);
+
+		return node;
+	}
+	else if (is_self_by_ref)
+	{
+		// Found a '&' but it wasn't followed by 'self', rewind
+		// so that parse_type_expr can parse it as a reference type modifier.
+		reverse(ctx, start_pos)!;
+	}
 
 	param.type = parse_type_expr(ctx)!;
 
@@ -696,10 +696,11 @@ fn Node*? parse_var_decl(ParseContext* ctx, ParseFlags flags = { })
 		StringID name_id = ctx.ast.string_pool.internalize(ctx.token_text(t));
 		advance(ctx)!;
 
-		Node* var_node = ctx.ast.alloc_node(VAR_DECL, t.pos);
+		Node* var_node    = ctx.ast.alloc_node(VAR_DECL, t.pos);
 		VarDecl* var_decl = var_node.as(VAR_DECL);
 
-		if (ctx.is(AT_IDENT)) {
+		if (ctx.is(AT_IDENT))
+		{
 			var_decl.attributes = parse_attributes(ctx, var_node)!;
 		}
 
@@ -782,9 +783,9 @@ fn Node*? parse_var_decl(ParseContext* ctx, ParseFlags flags = { })
 }
 
 <*
-  attributes ::= attribute attribute*
+ attributes ::= attribute attribute*
   attribute  ::= AT_IDENT ("(" expression_list? ")")?
-  @param [&inout] ctx
+ @param [&inout] ctx
 *>
 fn NodeArray? parse_attributes(ParseContext* ctx, Node* parent_node) => @pool()
 {
@@ -799,7 +800,7 @@ fn NodeArray? parse_attributes(ParseContext* ctx, Node* parent_node) => @pool()
 		Node* attr_node = ctx.ast.alloc_node(ATTRIBUTE_DECL, t.pos);
 		defer attr_node.end_token = ctx.peek(0).pos;
 		AttributeDecl* attr = attr_node.as(ATTRIBUTE_DECL);
-		String text = ctx.token_text(t);
+		String text         = ctx.token_text(t);
 		attr.name = text.copy(&ctx.ast.arena);
 		attr.kind = parser::get_attribute_from_string(text);
 
@@ -817,7 +818,10 @@ fn NodeArray? parse_attributes(ParseContext* ctx, Node* parent_node) => @pool()
 				exprs.push(parse_expr(ctx)!);
 				if (!consume(ctx, COMMA)!) break;
 			}
-			if (!expect(ctx, RPAREN)!) { attr_node.kind = MISSING; }
+			if (!expect(ctx, RPAREN)!)
+			{
+				attr_node.kind = MISSING;
+			}
 			attr.exprs = alloc::clone_slice(&ctx.ast.arena, exprs.array_view());
 		}
 

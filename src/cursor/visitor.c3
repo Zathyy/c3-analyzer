@@ -10,10 +10,17 @@ enum ChildVisitResult : int
 {
 	BREAK,
 	// Terminate the entire walk
+
+
+
 	CONTINUE,
 	// Continue to the next sibling
+
+
+
 	RECURSE
 	// Dive into the children of the current node
+
 }
 
 alias CursorVisitor = fn ChildVisitResult(Cursor cursor, Cursor parent, void* user_data, args...);
@@ -51,5 +58,5 @@ fn bool visit(Cursor child, Cursor parent, CursorVisitor visitor, void* data)
 *>
 fn bool visit_children(Cursor parent, CursorVisitor visitor, void* data)
 {
-    return true;
+	return true;
 }

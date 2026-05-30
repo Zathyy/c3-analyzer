@@ -7,10 +7,10 @@
 module std::collections::elastic_array <Type, MAX_SIZE>;
 import std::io, std::math, std::collections::list_common;
 
-alias ElementPredicate = fn bool(Type *type);
-alias ElementTest = fn bool(Type *type, any context);
+alias ElementPredicate = fn bool(Type* type);
+alias ElementTest = fn bool(Type* type, any context);
 const ELEMENT_IS_EQUATABLE = types::is_equatable_type(Type);
-const ELEMENT_IS_POINTER = Type::kind == POINTER;
+const ELEMENT_IS_POINTER   = Type::kind == POINTER;
 macro bool type_is_overaligned() => Type::alignment > mem::DEFAULT_MEM_ALIGNMENT;
 
 struct ElasticArray (Printable)
@@ -26,8 +26,7 @@ fn sz? ElasticArray.to_format(&self, Formatter* formatter) @dynamic
 
 <*
  Try to add an element. Will fail if it is full.
-
- @return? mem::OUT_OF_MEMORY
+ @return ? mem::OUT_OF_MEMORY
 *>
 fn void? ElasticArray.push_try(&self, Type element) @inline
 {
@@ -66,19 +65,17 @@ fn Type? ElasticArray.pop_first(&self)
 
 <*
  Remove an element at a particular place.
-
  @require index < self.size && index >= 0 : "The index is out of bounds"
 *>
 fn void ElasticArray.remove_at(&self, sz index)
 {
 	if (!--self.size || index == self.size) return;
-	self.entries[index .. self.size - 1] = self.entries[index + 1 .. self.size];
+	self.entries[index..self.size - 1] = self.entries[index + 1..self.size];
 }
 
 <*
  Removes an element at "index" by copying the last element to this slot and reducing
  the length by 1.
-
  @require index < self.size && index >= 0 : "Index out of bounds"
 *>
 fn void ElasticArray.remove_unordered_at(&self, sz index)
@@ -118,7 +115,6 @@ fn sz ElasticArray.add_all_to_limit(&self, ElasticArray* other_list)
 <*
  Add as many values from this array as possible, returning the
  number of elements that didn't fit.
-
  @param [in] array
 *>
 fn sz ElasticArray.push_all_to_limit(&self, Type[] array)
@@ -135,7 +131,6 @@ fn sz ElasticArray.push_all_to_limit(&self, Type[] array)
 
 <*
  Add the values of an array to this list.
-
  @param [in] array
  @require array.len + self.size <= MAX_SIZE : `Size would exceed max.`
  @ensure self.size >= array.len
@@ -169,10 +164,10 @@ macro Type[] ElasticArray.to_array(&self, Allocator allocator)
 fn Type[] ElasticArray.to_tarray(&self)
 {
 	$if type_is_overaligned():
-	return self.to_aligned_array(tmem);
+		return self.to_aligned_array(tmem);
 	$else
-	return self.to_array(tmem);
-	$endif;
+		return self.to_array(tmem);
+	$endif
 }
 
 <*
@@ -366,7 +361,6 @@ fn bool ElasticArray.equals(&self, ElasticArray other_list) @if(ELEMENT_IS_EQUAT
 
 <*
  Check for presence of a value in a list.
-
  @param [&in] self : "the list to find elements in"
  @param value : "The value to search for"
  @return "True if the value is found, false otherwise"
@@ -411,7 +405,6 @@ fn sz ElasticArray.remove_item(&self, Type value) @if(ELEMENT_IS_EQUATABLE)
 }
 
 
-
 fn void ElasticArray.remove_all_from(&self, ElasticArray* other_list) @if(ELEMENT_IS_EQUATABLE)
 {
 	if (!other_list.size) return;
@@ -433,4 +426,3 @@ fn sz ElasticArray.compact(&self) @if(ELEMENT_IS_POINTER)
 {
 	return list_common::list_compact(self);
 }
-

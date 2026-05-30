@@ -22,14 +22,13 @@ const String[*] FILES = {
 
 fn void bench() @benchmark
 {
-	log::set_logger(&&(NullLogger) {});
+	log::set_logger(&&(NullLogger) { });
 	Workspace ws;
 	ws.init();
 
 	$foreach $file : FILES:
-	parser::parse_file(&ws, @sprintf("bench/std/%s", $file))!!;
+		parser::parse_file(&ws, @sprintf("bench/std/%s", $file))!!;
 	$endforeach
-
 }
 
 // fn void bench_compiler() @benchmark
@@ -37,9 +36,9 @@ fn void bench() @benchmark
 //   log::set_logger(&&(NullLogger) {});
 //   Workspace ws;
 //   ws.init();
-//
+// 
 //   $foreach $file : FILES:
 //     process::run({"c3c8", "-E", "compile", @sprintf("bench/std/%s", $file)})!!;
 //   $endforeach
 // }
-//
+// 

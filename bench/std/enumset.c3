@@ -25,7 +25,7 @@ fn void EnumSet.add(&self, Enum v)
 
 fn void EnumSet.clear(&self)
 {
-	*self = {};
+	*self = { };
 }
 
 fn bool EnumSet.remove(&self, Enum v)
@@ -155,4 +155,3 @@ macro typeid type_for_enum_elements(sz $elements) @local
 			return char;
 	$endswitch
 }
-

@@ -3,7 +3,7 @@ import lexer;
 
 import std::collections::list;
 
-struct ErrorNode 
+struct ErrorNode
 {
 	NodeArray inner;
 }

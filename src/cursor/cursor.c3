@@ -25,7 +25,7 @@ faultdef
 fn String? Cursor.spelling(&self, Allocator allocator) => @pool()
 {
 	StringPool* pool = &self.section.source_file.ast.string_pool;
-	
+
 	switch (self.node.kind)
 	{
 		case PARAM_DECL:
@@ -42,7 +42,7 @@ fn String? Cursor.spelling(&self, Allocator allocator) => @pool()
 				if (type_data.unresolved.path != null)
 				{
 					PathExpr* prefix_path = type_data.unresolved.path.as(PATH_EXPR);
-					String prefix_str = prefix_path.full_path(pool, tmem)!;
+					String prefix_str     = prefix_path.full_path(pool, tmem)!;
 					return prefix_str.tconcat(type_name).copy(allocator);
 				}
 				return type_name;

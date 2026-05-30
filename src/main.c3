@@ -29,7 +29,7 @@ fn int main(String[] args) => @pool()
 
 	if (cli.verbose) log::set_priority_all(LogPriority.VERBOSE);
 
-	if (cli.quiet) log::set_logger(&&(NullLogger) {});
+	if (cli.quiet) log::set_logger(&&(NullLogger) { });
 
 	log::debug("Init...");
 
@@ -54,9 +54,8 @@ fn int main(String[] args) => @pool()
 	{
 		ws.modules.@each(; name, mod)
 		{
-			foreach (section : mod.sections) 
+			foreach (section : mod.sections)
 			{
-				
 			}
 		};
 	}

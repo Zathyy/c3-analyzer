@@ -169,4 +169,3 @@ macro int128 int128.fshl(hi, int128 lo, int128 shift) => $$fshl(hi, lo, shift);
 macro int128 int128.fshr(hi, int128 lo, int128 shift) => $$fshr(hi, lo, shift);
 macro int128 int128.rotl(self, int128 shift) => $$fshl(self, self, shift);
 macro int128 int128.rotr(self, int128 shift) => $$fshr(self, self, shift);
-

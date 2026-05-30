@@ -65,7 +65,7 @@ fn void? AstPool.release(&self, Ast* ast)
 
 fn void AstPool.free(&self)
 {
-	foreach(member : self.pool)
+	foreach (member : self.pool)
 	{
 		member.ast.free();
 	}

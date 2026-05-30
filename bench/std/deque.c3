@@ -88,8 +88,7 @@ fn void Deque.push_front_all(&self, Type[] elements)
 
 <*
  Pop an element from the back of the deque.
-
- @return? NO_MORE_ELEMENT : "If size is 0"
+ @return ? NO_MORE_ELEMENT : "If size is 0"
 *>
 fn Type? Deque.pop(&self)
 {
@@ -101,8 +100,7 @@ fn Type? Deque.pop(&self)
 
 <*
  Pop an element from the front of the deque.
-
- @return? NO_MORE_ELEMENT : "If size is 0"
+ @return ? NO_MORE_ELEMENT : "If size is 0"
 *>
 fn Type? Deque.pop_first(&self)
 {
@@ -133,7 +131,6 @@ fn Type[] Deque.pop_first_into(&self, Type[] target)
  Pop multiple elements from the back of the deque into 'target'.
  Count of the popped elements calculated by taking the 'min'
  on the 'target' length and deque's internal length
-
 *>
 fn Type[] Deque.pop_into(&self, Type[] target)
 {
@@ -148,7 +145,6 @@ fn Type[] Deque.pop_into(&self, Type[] target)
 
 <*
  Reserve enough space in the queue for at least the specified value.
-
  @param added : "Specifies how many extra capacity is required at least"
 *>
 fn void Deque.reserve(&self, sz added)
@@ -170,7 +166,6 @@ fn void Deque.reserve(&self, sz added)
 
 <*
  Makes deque's internal buffer contiguous and sets the 'capacity' to 'size'.
-
  @require self.capacity > self.size : "Capacity should be bigger than size"
 *>
 fn void Deque.shrink(&self)
@@ -203,7 +198,6 @@ fn void Deque.normalize(&self)
 		self.entries[after_start:self.start] = tbuf[..];
 		self.start = 0;
 	};
-
 }
 
 <*
@@ -252,7 +246,6 @@ fn void Deque.swap(&self, sz i, sz j)
 
 <*
  Get an element at the front of the deque.
-
  @require self.size > 0 : "Size should be greater than 0"
 *>
 fn Type Deque.first(&self) @inline
@@ -262,7 +255,6 @@ fn Type Deque.first(&self) @inline
 
 <*
  Get a reference to an element at the front of the deque.
-
  @require self.size > 0 : "Size should be greater than 0"
 *>
 fn Type* Deque.first_ref(&self) @inline
@@ -272,7 +264,6 @@ fn Type* Deque.first_ref(&self) @inline
 
 <*
  Get an element at the back of the deque.
-
  @require self.size > 0 : "Size should be greater than 0"
 *>
 fn Type Deque.last(&self) @inline
@@ -282,7 +273,6 @@ fn Type Deque.last(&self) @inline
 
 <*
  Get a reference to an element at the back of the deque.
-
  @require self.size > 0 : "Size should be greater than 0"
 *>
 fn Type* Deque.last_ref(&self) @inline
@@ -329,7 +319,7 @@ fn sz? Deque.to_format(&self, Formatter* fmt) @dynamic
 		return fmt.print("[]");
 	}
 
-	sz total = fmt.printf("[%s", self.entries[self.start])!;
+	sz total    = fmt.printf("[%s", self.entries[self.start])!;
 	sz curr_idx = wrap_inc(self.start, self.capacity);
 
 	for (sz i = 0; i < self.size - 1; ++i)
@@ -374,7 +364,6 @@ fn sz next_front_idx(Deque* self) @inline @private
 
 <*
  More optimized version of 'pop_back', when we know that the size is not 0.
-
  @require self.size > 0 : "Size should be greater than 0"
 *>
 fn Type _pop_back(Deque* self) @private
@@ -386,7 +375,6 @@ fn Type _pop_back(Deque* self) @private
 
 <*
  More optimized version of 'pop_front', when we know that the size is not 0.
-
  @require self.size > 0 : "Size should be greater than 0"
 *>
 fn Type _pop_front(Deque* self) @private
@@ -414,4 +402,3 @@ macro wrap_add(sz val, sz add, sz boundary) @local
 {
 	return (val + add) % boundary;
 }
-

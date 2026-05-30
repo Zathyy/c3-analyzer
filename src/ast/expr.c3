@@ -10,7 +10,7 @@ struct BinaryExpr
 	OperatorKind op;
 }
 
-struct IdentExpr 
+struct IdentExpr
 {
 	StringID ident;
 }
@@ -19,7 +19,7 @@ fn String? IdentExpr.get_ident(&self, StringPool* pool) => pool.get(self.ident);
 
 struct PathExpr
 {
-    StringID[] segments;
+	StringID[] segments;
 	bool is_prefix;
 }
 
@@ -43,36 +43,36 @@ fn String? PathExpr.full_path(&self, StringPool* pool, Allocator allocator) => @
 	}
 
 	return result.copy(allocator);
-}	
+}
 
 struct TypeExpr
 {
 	TypeKind kind;
-    union
-    {
-        struct unresolved
+	union
+	{
+		struct unresolved
 		{
 			StringID name;
-            Node* path;
-        }
+			Node* path;
+		}
 
-        struct modify
+		struct modify
 		{
-            Node* base;
-        }
+			Node* base;
+		}
 
-        struct array
+		struct array
 		{
-            Node* base;
-            Node* len_expr;
-        }
+			Node* base;
+			Node* len_expr;
+		}
 
-        struct generic
+		struct generic
 		{
-            Node* base;
-            Node*[] params;
-        }
-    }
+			Node* base;
+			Node*[] params;
+		}
+	}
 }
 
 struct CallExpr
@@ -81,7 +81,7 @@ struct CallExpr
 	NodeArray args;
 }
 
-struct ContractExpr 
+struct ContractExpr
 {
 	Node* exprs;
 	StringID comment;
@@ -90,12 +90,12 @@ struct ContractExpr
 
 fn String? ContractExpr.get_comment(&self, StringPool* pool) => pool.get(self.comment);
 
-struct ExprList 
+struct ExprList
 {
 	NodeArray exprs;
 }
 
-enum LiteralKind : char 
+enum LiteralKind : char
 {
 	INT_LITERAL,
 	STRING_LITERAL,
@@ -108,8 +108,8 @@ enum LiteralKind : char
 struct LiteralExpr
 {
 	LiteralKind kind;
-	
-	union 
+
+	union
 	{
 		long integer;
 		double real;
@@ -119,7 +119,7 @@ struct LiteralExpr
 	}
 }
 
-struct UnaryExpr 
+struct UnaryExpr
 {
 	UnaryOpKind operator;
 	Node* expr;

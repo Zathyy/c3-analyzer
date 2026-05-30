@@ -17,7 +17,8 @@ fn void type_ident()
 		module hello; 
 		fn void greet(int foo, Bar baz) {}
 	`;
-	Workspace ws; ws.init();
+	Workspace ws;
+	ws.init();
 	defer ws.free();
 	ParseResult res = parser::parse(&ws, "type_ident", text)!!;
 
@@ -44,7 +45,7 @@ fn void global_array_pointer()
 	StringPool* pool = &s.source_file.ast.string_pool;
 
 	Node* target_node = s.nodes[1];
-	VarDecl* decl = target_node.as(VAR_DECL);
+	VarDecl* decl     = target_node.as(VAR_DECL);
 	test::eq(pool.get(decl.name)!!, "FOO");
 	test::eq(decl.kind, VarDeclKind.VAR_GLOBAL);
 	test::eq(decl.type.kind, NodeKind.TYPE_EXPR);
@@ -56,13 +57,13 @@ fn void global_array_pointer()
 			test::ne(type_data.modify.base, null);
 			TypeExpr* inner_type = type_data.modify.base.as(TYPE_EXPR);
 			test::eq(inner_type.kind, TypeKind.TYPE_ARRAY);
-			
+
 			switch (inner_type.kind)
 			{
 				case TYPE_ARRAY:
 					test::ne(inner_type.array.base, null);
 					test::ne(inner_type.array.len_expr, null);
-					
+
 					test::eq(inner_type.array.base.as(TYPE_EXPR).kind, TypeKind.TYPE_IDENTIFIER);
 					test::eq(inner_type.array.len_expr.kind, NodeKind.LITERAL_EXPR);
 					break;
@@ -97,7 +98,7 @@ fn void global_inferred_array_pointer()
 	StringPool* pool = &s.source_file.ast.string_pool;
 
 	Node* target_node = s.nodes[1];
-	VarDecl* decl = target_node.as(VAR_DECL);
+	VarDecl* decl     = target_node.as(VAR_DECL);
 	test::eq(pool.get(decl.name)!!, "FOO");
 	test::eq(decl.kind, VarDeclKind.VAR_GLOBAL);
 	test::eq(decl.type.kind, NodeKind.TYPE_EXPR);
@@ -109,7 +110,7 @@ fn void global_inferred_array_pointer()
 			test::ne(type_data.modify.base, null);
 			TypeExpr* inner_type = type_data.modify.base.as(TYPE_EXPR);
 			test::eq(inner_type.kind, TypeKind.TYPE_ARRAY);
-			
+
 			switch (inner_type.kind)
 			{
 				case TYPE_ARRAY:
@@ -128,7 +129,7 @@ fn void global_inferred_array_pointer()
 
 fn void global_generic()
 {
-    String text = `
+	String text = `
 		module hello;
 		
 		const List{String} CHANNELS = null;
@@ -153,15 +154,15 @@ fn void global_generic()
 
 	switch (type_data.kind)
 	{
-		case TYPE_GENERIC:			
+		case TYPE_GENERIC:
 			test::ne(type_data.generic.base, null);
 			test::eq(type_data.generic.base.as(TYPE_EXPR).kind, TypeKind.TYPE_IDENTIFIER);
 			test::eq(type_data.generic.params.len, 1);
-			
+
 			Node* first_param_node = type_data.generic.params[0];
 			test::ne(first_param_node, null);
 			test::eq(first_param_node.kind, NodeKind.TYPE_EXPR);
-			
+
 			TypeExpr* param_type = first_param_node.as(TYPE_EXPR);
 			switch (param_type.kind)
 			{

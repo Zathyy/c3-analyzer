@@ -343,7 +343,10 @@ fn ParseResult? parse(Workspace* ws, String uri, String src) => @pool()
 			synchronize(&ctx)!;
 			// If synchronize made no progress (stuck on an unhandled keyword),
 			// force-advance one token to guarantee the loop terminates.
-			if (ctx.pos == before && !ctx.eof()) { advance(&ctx)!!; }
+			if (ctx.pos == before && !ctx.eof())
+			{
+				advance(&ctx)!!;
+			}
 			continue;
 		}
 	}
@@ -458,10 +461,10 @@ fn void? parse_top_level(ParseContext* ctx, Workspace* ws)
 			// node = parse_enum(ctx, flags)!;
 			// case ENUM:
 			// node = parse_enum(ctx, flags)!;
-			case CONST:
-				flags.is_const = true;
-				advance(ctx)!;
-				node = parse_var_decl(ctx, flags)!;
+		case CONST:
+			flags.is_const = true;
+			advance(ctx)!;
+			node = parse_var_decl(ctx, flags)!;
 			// case CT_EXPAND:
 			// node = parse_expand_decl(ctx)!;
 			// case CT_ASSERT:

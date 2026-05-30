@@ -8,7 +8,7 @@
 module std::collections::bitset <SIZE>;
 
 const BITS = uint::size * 8;
-const SZ = (SIZE + BITS - 1) / BITS;
+const SZ   = (SIZE + BITS - 1) / BITS;
 
 struct BitSet
 {
@@ -30,21 +30,18 @@ fn sz BitSet.cardinality(&self)
 
 <*
  Set a bit in the bitset.
-
  @param i : "The index to set"
-
  @require i < SIZE && i >= 0 : "Index was out of range"
 *>
 fn void BitSet.set(&self, sz i)
 {
-	sz q = i / BITS;
+	sz q   = i / BITS;
 	uint r = (uint)(i % BITS);
 	self.data[q] |= 1u << r;
 }
 
 <*
  Perform xor over all bits, mutating itself
-
  @param set : "The bit set to xor with"
  @return "The resulting bit set"
 *>
@@ -56,7 +53,6 @@ macro BitSet BitSet.xor_self(&self, BitSet set) @operator(^=)
 
 <*
  Perform xor over all bits, returning a new bit set.
-
  @param set : "The bit set to xor with"
  @return "The resulting bit set"
 *>
@@ -69,7 +65,6 @@ fn BitSet BitSet.xor(&self, BitSet set) @operator(^)
 
 <*
  Perform or over all bits, returning a new bit set.
-
  @param set : "The bit set to or with"
  @return "The resulting bit set"
 *>
@@ -82,7 +77,6 @@ fn BitSet BitSet.or(&self, BitSet set) @operator(|)
 
 <*
  Perform or over all bits, mutating itself
-
  @param set : "The bit set to or with"
  @return "The resulting bit set"
 *>
@@ -94,7 +88,6 @@ macro BitSet BitSet.or_self(&self, BitSet set) @operator(|=)
 
 <*
  Perform & over all bits, returning a new bit set.
-
  @param set : "The bit set to & with"
  @return "The resulting bit set"
 *>
@@ -107,7 +100,6 @@ fn BitSet BitSet.and(&self, BitSet set) @operator(&)
 
 <*
  Perform & over all bits, mutating itself.
-
  @param set : "The bit set to & with"
  @return "The resulting bit set"
 *>
@@ -119,36 +111,31 @@ macro BitSet BitSet.and_self(&self, BitSet set) @operator(&=)
 
 <*
  Unset (clear) a bit in the bitset.
-
  @param i : "The index to set"
-
  @require i < SIZE && i >= 0 : "Index was out of range"
 *>
 fn void BitSet.unset(&self, sz i)
 {
-	sz q = i / BITS;
+	sz q   = i / BITS;
 	uint r = (uint)(i % BITS);
 	self.data[q] &= ~(1u << r);
 }
 
 <*
  Get a particular bit in the bitset
-
  @param i : "The index of the bit"
-
  @require i < SIZE && i >= 0 : "Index was out of range"
  @pure
 *>
 fn bool BitSet.get(&self, sz i) @operator([]) @inline
 {
-	sz q = i / BITS;
+	sz q   = i / BITS;
 	uint r = (uint)(i % BITS);
 	return self.data[q] & (1u << r) != 0;
 }
 
 <*
  Return the number of bits.
-
  @pure
 *>
 fn sz BitSet.len(&self) @operator(len) @inline
@@ -158,10 +145,8 @@ fn sz BitSet.len(&self) @operator(len) @inline
 
 <*
  Change a particular bit in the bitset
-
  @param i : "The index of the bit"
  @param value : "The value to set the bit to"
-
  @require i < SIZE && i >= 0 : "Index was out of range"
 *>
 fn void BitSet.set_bool(&self, sz i, bool value) @operator([]=) @inline
@@ -188,7 +173,6 @@ struct GrowableBitSet
 <*
  @param initial_capacity : "The initial capcity of the underlying list"
  @param [&inout] allocator : "The allocator to use"
-
  @require initial_capacity > 0 : "The initial capacity must be at least 1"
 *>
 fn GrowableBitSet* GrowableBitSet.init(&self, Allocator allocator, sz initial_capacity = 1)
@@ -199,7 +183,6 @@ fn GrowableBitSet* GrowableBitSet.init(&self, Allocator allocator, sz initial_ca
 
 <*
  @param initial_capacity : "The initial capcity of the underlying list"
-
  @require initial_capacity > 0 : "The initial capacity must be at least 1"
 *>
 fn GrowableBitSet* GrowableBitSet.tinit(&self, sz initial_capacity = 1)
@@ -227,15 +210,13 @@ fn sz GrowableBitSet.cardinality(&self)
 
 <*
  Set a bit in the bitset.
-
  @param i : "The index to set"
-
  @require i >= 0 : "Index was out of range"
 *>
 fn void GrowableBitSet.set(&self, sz i)
 {
-	sz q = i / BITS;
-	uint r = (uint)(i % BITS);
+	sz q           = i / BITS;
+	uint r         = (uint)(i % BITS);
 	sz current_len = self.data.len();
 	while (q >= current_len)
 	{
@@ -247,22 +228,20 @@ fn void GrowableBitSet.set(&self, sz i)
 
 <*
  Clear a bit in the bitset.
-
  @param i : "The index to clear"
-
  @require i >= 0 : "Index was out of range"
 *>
 fn void GrowableBitSet.unset(&self, sz i)
 {
-	sz q = i / BITS;
+	sz q   = i / BITS;
 	uint r = (uint)(i % BITS);
 	if (q >= self.data.len()) return;
-	self.data.set(q, self.data[q] &~ (1u << r));
+	self.data.set(q, self.data[q] & ~(1u << r));
 }
 
 fn bool GrowableBitSet.get(&self, sz i) @operator([]) @inline
 {
-	sz q = i / BITS;
+	sz q   = i / BITS;
 	uint r = (uint)(i % BITS);
 	if (q >= self.data.len()) return false;
 	return self.data[q] & (1u << r) != 0;
@@ -280,4 +259,3 @@ fn void GrowableBitSet.set_bool(&self, sz i, bool value) @operator([]=) @inline
 	if (value) return self.set(i);
 	self.unset(i);
 }
-

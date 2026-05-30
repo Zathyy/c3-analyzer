@@ -5,7 +5,7 @@ import std::io;
 import std::collections::list;
 import std::collections::map;
 
-struct StringPool 
+struct StringPool
 {
 	Allocator allocator;
 	List{String} stable_strings;

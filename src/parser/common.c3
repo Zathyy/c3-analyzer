@@ -6,18 +6,18 @@ import parser::constants;
 
 import std::collections::list;
 
-struct ParseResult 
+struct ParseResult
 {
-    List{ParserError} errors;
+	List{ParserError} errors;
 	String path;
 	bool success;
 }
 
 fn void ParseResult.free(&self)
 {
-    $if $feature(PARSER_LIB):
-        self.errors.free();
-    $endif
+	$if $feature(PARSER_LIB):
+		self.errors.free();
+	$endif
 }
 
 bitstruct ParseFlags : ulong

@@ -1,5 +1,5 @@
 <*
-	0 based line-map
+ 0 based line-map
 *>
 module line_map;
 
@@ -16,8 +16,8 @@ fn void LineMap.init(LineMap* map, Allocator alloc = mem)
 {
 	map.line_offsets.init(alloc);
 }
- 
-fn void LineMap.free(LineMap* map) 
+
+fn void LineMap.free(LineMap* map)
 {
 	map.line_offsets.free();
 }
@@ -39,20 +39,20 @@ fn void LineMap.build(LineMap* self, String src)
 		{
 			// The NEXT line starts at i + 1
 			self.line_offsets.push(i + 1);
-		}   
+		}
 	}
 }
 
 <*
-	returns the Location as 1 based
-	@require pos >= 0
+ returns the Location as 1 based
+ @require pos >= 0
 *>
 fn Location LineMap.resolve(LineMap* self, sz pos)
 {
 	// Binary search for the line index
 	sz line_idx = 0;
-	sz low = 0;
-	sz high = self.line_offsets.len() - 1;
+	sz low      = 0;
+	sz high     = self.line_offsets.len() - 1;
 
 	while (low <= high)
 	{

@@ -1,5 +1,5 @@
 <*
- 	Pratt parsing using Binding power
+ Pratt parsing using Binding power
 	
 	Resources for Binding power pratt parsing:
 	- https://matklad.github.io/2020/04/13/simple-but-powerful-pratt-parsing.html
@@ -10,31 +10,31 @@ import std::collections;
 import parser::ast;
 
 <*
-	Should be aligned to C3C
+ Should be aligned to C3C
 	According to: https://c3-lang.org/language-rules/precedence/
 *>
 constdef Precedence : inline int
 {
 	NONE           = -1,
-	LOWEST         = 0,
-	ASSIGNMENT     = 10, // =, *=, /=, %=, +=, etc
-	TERNARY        = 20, // ?:
-	OR             = 30, // || |||
-	AND            = 40, // && &&&
-	RELATIONAL     = 50, // < > <= >= == !=
-	ADDITIVE       = 60, // + - +++
-	ORELSE         = 70, // ?: ??
-	BIT            = 80, // ^ | &
-	SHIFT          = 90, // << >>
-	MULTIPLICATIVE = 100, // * / %
-	UNARY          = 110, // ! - + ~ * & prefix ++/--
-	CALL           = 120, // . () [] postfix ++ -- !! ! ~
-  	HIGHEST        = 130,
+	LOWEST         =  0,
+	ASSIGNMENT     =  10, // =, *=, /=, %=, +=, etc
+	TERNARY        =  20, // ?:
+	OR             =  30, // || |||
+	AND            =  40, // && &&&
+	RELATIONAL     =  50, // < > <= >= == !=
+	ADDITIVE       =  60, // + - +++
+	ORELSE         =  70, // ?: ??
+	BIT            =  80, // ^ | &
+	SHIFT          =  90, // << >>
+	MULTIPLICATIVE =  100, // * / %
+	UNARY          =  110, // ! - + ~ * & prefix ++/--
+	CALL           =  120, // . () [] postfix ++ -- !! ! ~
+	HIGHEST        =  130,
 }
 
 <*
-	@param [&inout] lbp : "How strongly the operator pulls on the expression to its left."
-	@param [&inout] rbp : "How strongly it pulls on the expression to its right."
+ @param [&inout] lbp : "How strongly the operator pulls on the expression to its left."
+ @param [&inout] rbp : "How strongly it pulls on the expression to its right."
 *>
 fn void get_binding_power(TokenKind type, int* lbp, int* rbp)
 {
@@ -130,7 +130,7 @@ fn void get_binding_power(TokenKind type, int* lbp, int* rbp)
 		case LBRACE:
 		case LBRACKET:
 			*lbp = Precedence.CALL;
-			*rbp = Precedence.CALL; //TODO: CALL or None?
+			*rbp = Precedence.CALL; // TODO: CALL or None?
 			break;
 		case BANGBANG:
 		case PLUSPLUS:
@@ -149,10 +149,10 @@ fn void get_binding_power(TokenKind type, int* lbp, int* rbp)
 }
 
 <*
-	parse expressions recursively with Pratt parsing
+ parse expressions recursively with Pratt parsing
 	using Binding power.
-	@param [&inout] ctx
-	@param min_bp : "Starting binding power"
+ @param [&inout] ctx
+ @param min_bp : "Starting binding power"
 *>
 fn Node*? parse_expr(ParseContext* ctx, Precedence min_bp = LOWEST)
 {
@@ -167,26 +167,26 @@ fn Node*? parse_expr(ParseContext* ctx, Precedence min_bp = LOWEST)
 		log::debug("Current Token: %s, LBP: %d, MinBP: %d", ctx.current().kind, lbp, min_bp);
 
 		// BREAK if:
-        // 1. Token is not an infix operator (lbp is -1)
-        // 2. Token precedence is lower than current min_bp
-        if (lbp == Precedence.NONE || lbp < (int)min_bp) 
-        {
-            break;
-        }
+		// 1. Token is not an infix operator (lbp is -1)
+		// 2. Token precedence is lower than current min_bp
+		if (lbp == Precedence.NONE || lbp < (int)min_bp)
+		{
+			break;
+		}
 
 		left = parse_infix(ctx, left, (Precedence)rbp)!;
 	}
 
 	if (min_bp == 0 && ctx.is(AT_IDENT))
 	{
-		//TODO:
+		// TODO:
 	}
 
 	return left;
 }
 
 <*
- 	parse_prefix (Nud) 
+ parse_prefix (Nud)
 	Handles tokens that start an expression (e.g., -5, (expr), !true)
 	It has no "left" side to worry about.
 *>
@@ -243,8 +243,8 @@ fn Node*? parse_prefix_expr(ParseContext* ctx)
 			log::error(
 				"parse_prefix_expr - Expected expression for token: ((%s) %s - %s)",
 				ctx.token_text(ctx.current()),
-				ctx.current().kind
-			);
+				ctx.current()
+				.kind);
 			ctx.error("Expected expression");
 			return EXPECTED_EXPRESSION~;
 	}
@@ -253,7 +253,7 @@ fn Node*? parse_prefix_expr(ParseContext* ctx)
 fn Node*? parse_compound_literal(ParseContext* ctx) => @pool()
 {
 	int start_pos = ctx.current().pos;
-	advance(ctx)!;  // consume '{'
+	advance(ctx)!; // consume '{'
 
 	Node* node = ctx.ast.alloc_node(EXPR_LIST, start_pos);
 	defer node.end_token = ctx.peek(0).pos;
@@ -266,7 +266,10 @@ fn Node*? parse_compound_literal(ParseContext* ctx) => @pool()
 		exprs.push(parse_expr(ctx)!);
 		if (ctx.eof() || !consume(ctx, COMMA)!) break;
 	}
-	if (!expect(ctx, RBRACE)!) { node.kind = MISSING; }
+	if (!expect(ctx, RBRACE)!)
+	{
+		node.kind = MISSING;
+	}
 	expr_list.exprs = alloc::clone_slice(ctx.arena, exprs.array_view());
 
 	return node;
@@ -274,7 +277,7 @@ fn Node*? parse_compound_literal(ParseContext* ctx) => @pool()
 
 fn Node*? parse_call_expr(ParseContext* ctx, Node* callee) => @pool()
 {
-	advance(ctx)!;  // consume '('
+	advance(ctx)!; // consume '('
 
 	Node* node = ctx.ast.alloc_node(CALL_EXPR, callee.start_token);
 	defer node.end_token = ctx.peek(0).pos;
@@ -288,14 +291,17 @@ fn Node*? parse_call_expr(ParseContext* ctx, Node* callee) => @pool()
 		args.push(parse_expr(ctx)!);
 		if (!consume(ctx, COMMA)!) break;
 	}
-	if (!expect(ctx, RPAREN)!) { node.kind = MISSING; }
+	if (!expect(ctx, RPAREN)!)
+	{
+		node.kind = MISSING;
+	}
 	call.args = alloc::clone_slice(ctx.arena, args.array_view());
 
 	return node;
 }
 
 <*
-	parse_infix (Led)
+ parse_infix (Led)
 	Handles tokens that connect expressions (e.g. 1 + 2, obj.prop, arr[0])
 	It takes a pre-parsed "left" node and attaches a "right" side to it.
 *>
@@ -350,7 +356,7 @@ fn Node*? parse_infix(ParseContext* ctx, Node* left, Precedence rbp)
 }
 
 <*
-	decl_or_expr ::= var_decl | expr
+ decl_or_expr ::= var_decl | expr
 *>
 fn Node*? parse_decl_or_expr(ParseContext* ctx)
 {

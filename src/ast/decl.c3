@@ -88,8 +88,8 @@ struct ParamDecl
 	StringID name;
 	TokenKind ident_kind;
 	bool is_variadic;
-    bool is_self;
-    bool is_self_by_ref;
+	bool is_self;
+	bool is_self_by_ref;
 }
 
 struct VarDecl

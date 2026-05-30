@@ -29,10 +29,10 @@ macro void ParseContext.error(&self, String fmt, ...)
 
 macro void ParseContext.error_at(&self, Token t, String fmt, ...)
 {
-    self.report(t, ERROR, ANSI_RED, fmt, ...$vaarg);
+	self.report(t, ERROR, ANSI_RED, fmt, ...$vaarg);
 }
 
-fn void ParseContext.report(ParseContext* self, Token token, LogPriority level, String color, String fmt, args ...)
+fn void ParseContext.report(ParseContext* self, Token token, LogPriority level, String color, String fmt, args...)
 {
 	Location loc = self.line_map.resolve(token.pos);
 	$if $feature(PARSER_LIB):
@@ -86,9 +86,7 @@ fn bool is_some_ident(TokenKind type)
 
 fn bool is_non_type_ident(TokenKind k)
 {
-    return k == IDENT || 
-           k == HASH_IDENT || 
-           k == CT_IDENT;
+	return k == IDENT || k == HASH_IDENT || k == CT_IDENT;
 }
 
 fn bool is_type(ParseContext* ctx)
@@ -99,9 +97,9 @@ fn bool is_type(ParseContext* ctx)
 	if (kind == TYPE_IDENT) return true;
 
 	if (kind == IDENT && ctx.peek(1).kind == SCOPE)
-    {
-        return true;
-    }
+	{
+		return true;
+	}
 
 	return false;
 }
@@ -207,29 +205,29 @@ fn OverloadKind get_overload_from_token(TokenKind kind)
 {
 	switch (kind)
 	{
-		case PLUS: return           OV_PLUS;
-		case PLUS_ASSIGN: return    OV_PLUS_ASSIGN;
-		case MINUS: return          OV_MINUS;
-		case MINUS_ASSIGN: return   OV_MINUS_ASSIGN;
-		case ASTERISK: return       OV_MULTIPLY;
-		case MULT_ASSIGN: return    OV_MULTIPLY_ASSIGN;
-		case DIV: return            OV_DIVIDE;
-		case DIV_ASSIGN: return     OV_DIVIDE_ASSIGN;
-		case MOD: return            OV_REMINDER;
-		case MOD_ASSIGN: return     OV_REMINDER_ASSIGN;
-		case AMP: return            OV_AND;
+		case PLUS: return OV_PLUS;
+		case PLUS_ASSIGN: return OV_PLUS_ASSIGN;
+		case MINUS: return OV_MINUS;
+		case MINUS_ASSIGN: return OV_MINUS_ASSIGN;
+		case ASTERISK: return OV_MULTIPLY;
+		case MULT_ASSIGN: return OV_MULTIPLY_ASSIGN;
+		case DIV: return OV_DIVIDE;
+		case DIV_ASSIGN: return OV_DIVIDE_ASSIGN;
+		case MOD: return OV_REMINDER;
+		case MOD_ASSIGN: return OV_REMINDER_ASSIGN;
+		case AMP: return OV_AND;
 		case BIT_AND_ASSIGN: return OV_AND_ASSIGN;
-		case BIT_OR: return         OV_OR;
-		case BIT_OR_ASSIGN: return  OV_OR_ASSIGN;
-		case BIT_XOR: return        OV_XOR;
+		case BIT_OR: return OV_OR;
+		case BIT_OR_ASSIGN: return OV_OR_ASSIGN;
+		case BIT_XOR: return OV_XOR;
 		case BIT_XOR_ASSIGN: return OV_XOR_ASSIGN;
-		case LSHIFT: return         OV_SHL;
-		case LSHIFT_ASSIGN: return  OV_SHL_ASSIGN;
-		case RSHIFT: return         OV_SHR;
-		case RSHIFT_ASSIGN: return  OV_SHR_ASSIGN;
-		case BIT_NOT: return        OV_NEGATE;
-		case EQEQ: return           OV_EQUAL;
-		case NOT_EQUAL: return      OV_NOT_EQUAL;
+		case LSHIFT: return OV_SHL;
+		case LSHIFT_ASSIGN: return OV_SHL_ASSIGN;
+		case RSHIFT: return OV_SHR;
+		case RSHIFT_ASSIGN: return OV_SHR_ASSIGN;
+		case BIT_NOT: return OV_NEGATE;
+		case EQEQ: return OV_EQUAL;
+		case NOT_EQUAL: return OV_NOT_EQUAL;
 		default:
 			unreachable();
 	}
@@ -240,9 +238,9 @@ fn bool is_declaration_followup(ParseContext* ctx)
 	int i;
 
 	while (ctx.peek(i).kind == IDENT && ctx.peek(i + 1).kind == SCOPE)
-    {
-        i += 2;
-    }
+	{
+		i += 2;
+	}
 
 	i++;
 
@@ -250,7 +248,8 @@ fn bool is_declaration_followup(ParseContext* ctx)
 	{
 		i++;
 		int depth = 1;
-		do {
+		do
+		{
 			if (ctx.peek(i).kind == LPAREN) depth++;
 			if (ctx.peek(i).kind == RPAREN) depth--;
 
@@ -263,17 +262,17 @@ fn bool is_declaration_followup(ParseContext* ctx)
 		TokenKind k = ctx.peek(i).kind;
 
 		// Skip over common type modifiers
-		if (k == ASTERISK || k == QUESTION) 
+		if (k == ASTERISK || k == QUESTION)
 		{
 			i++;
-		} 
-		else if (k == LBRACKET) 
+		}
+		else if (k == LBRACKET)
 		{
 			// Skip the entire [ ... ] block
 			i++;
 			while (ctx.peek(i).kind != RBRACKET && ctx.peek(i).kind != EOF) i++;
-			i++; 
-		} 
+			i++;
+		}
 		else if (k == LVEC)
 		{
 			// Skip the entire <* ... > block
@@ -281,7 +280,7 @@ fn bool is_declaration_followup(ParseContext* ctx)
 			while (ctx.peek(i).kind != RVEC && ctx.peek(i).kind != EOF) i++;
 			i++;
 		}
-		else 
+		else
 		{
 			break;
 		}
@@ -293,7 +292,7 @@ fn bool is_declaration_followup(ParseContext* ctx)
 }
 
 <*
-	@param [&in] n
+ @param [&in] n
 *>
 fn bool node_ends_with_block(ParseContext* ctx, Node* n)
 {
@@ -309,14 +308,14 @@ fn bool node_ends_with_block(ParseContext* ctx, Node* n)
 	}
 }
 
-fn bool can_start_expression(TokenKind kind) 
-{ 
+fn bool can_start_expression(TokenKind kind)
+{
 	if (is_keyword_ident(kind) || is_base_type(kind))
 	{
 		return true;
 	}
 
-	switch (kind) 
+	switch (kind)
 	{
 		case IDENT:
 		case AT_IDENT:

@@ -11,9 +11,9 @@ import std::io::file;
 import std::io::path;
 
 
-fn void contract_with_expr_checks() 
+fn void contract_with_expr_checks()
 {
-    String path = `
+	String path = `
 		module hello; 
 
 		<*
@@ -24,19 +24,20 @@ fn void contract_with_expr_checks()
 		*>
 		fn int foo(int a) {}
 	`;
-    Workspace ws; ws.init();
-    defer ws.free();
-    ParseResult res = parser::parse(&ws, "contract_with_expr_checks", path)!!;
+	Workspace ws;
+	ws.init();
+	defer ws.free();
+	ParseResult res = parser::parse(&ws, "contract_with_expr_checks", path)!!;
 	test::eq(res.success, true);
-    test::eq(ws.modules.len(), 1);
+	test::eq(ws.modules.len(), 1);
 
-    Module* mod = ws.modules.get("hello")!!;
+	Module* mod = ws.modules.get("hello")!!;
 	test::ne(mod, null);
 	io::printfn("%s", mod.name);
 	test::eq(mod.name, "hello");
 	test::eq(mod.sections.len(), 1);
 
-    ModuleSection* s = mod.sections[0];
+	ModuleSection* s = mod.sections[0];
 	StringPool* pool = &s.source_file.ast.string_pool;
 
 	test::eq(parser_tests::count_kind(s, MODULE_DECL), 1);
@@ -54,39 +55,46 @@ fn void contract_with_expr_checks()
 			test::eq(decl.requires.len, 1);
 			test::eq(decl.params.len, 1);
 
+
+
 			{
-				Node* req_expr = decl.requires[0];
+				Node* req_expr     = decl.requires[0];
 				ContractExpr* expr = req_expr.as(CONTRACT_EXPR);
-				ExprList* list = expr.exprs.as(EXPR_LIST);
-				BinaryExpr* bin = list.exprs[0].as(BINARY_EXPR);
+				ExprList* list     = expr.exprs.as(EXPR_LIST);
+				BinaryExpr* bin    = list.exprs[0].as(BINARY_EXPR);
 				test::eq(bin.left.as(IDENT_EXPR).get_ident(pool)!!, "a");
 				test::eq(bin.op, OperatorKind.OP_GT);
 				test::eq(bin.right.as(LITERAL_EXPR).integer, 0);
 			}
+
+
+
 			{
-				Node* req_expr = decl.ensures[0];
+				Node* req_expr     = decl.ensures[0];
 				ContractExpr* expr = req_expr.as(CONTRACT_EXPR);
-				ExprList* list = expr.exprs.as(EXPR_LIST);
-				BinaryExpr* bin = list.exprs[0].as(BINARY_EXPR);
+				ExprList* list     = expr.exprs.as(EXPR_LIST);
+				BinaryExpr* bin    = list.exprs[0].as(BINARY_EXPR);
 				test::eq(bin.left.as(IDENT_EXPR).get_ident(pool)!!, "return");
 				test::eq(bin.op, OperatorKind.OP_GT);
 				test::eq(bin.right.as(LITERAL_EXPR).integer, 0);
 			}
+
+
+
 			{
-				Node* param = decl.params[0];
+				Node* param         = decl.params[0];
 				ContractParam* expr = param.as(CONTRACT_PARAM);
 				test::eq(expr.name.as(IDENT_EXPR).get_ident(pool)!!, "a");
 				test::eq(expr.modifier, InOutModifier.IN);
 				test::eq(expr.get_description(pool)!!, "\"my param\"");
 			}
-			
 		}
 	}
 }
 
-fn void contract_with_deprecated() 
+fn void contract_with_deprecated()
 {
-    String path = `
+	String path = `
 		module hello; 
 
 		<*
@@ -99,19 +107,20 @@ fn void contract_with_deprecated()
 		*>
 		fn int foo(int a) {}
 	`;
-    Workspace ws; ws.init();
-    defer ws.free();
-    ParseResult res = parser::parse(&ws, "contract_with_deprecated", path)!!;
+	Workspace ws;
+	ws.init();
+	defer ws.free();
+	ParseResult res = parser::parse(&ws, "contract_with_deprecated", path)!!;
 	test::eq(res.success, true);
-    test::eq(ws.modules.len(), 1);
+	test::eq(ws.modules.len(), 1);
 
-    Module* mod = ws.modules.get("hello")!!;
+	Module* mod = ws.modules.get("hello")!!;
 	test::ne(mod, null);
 	io::printfn("%s", mod.name);
 	test::eq(mod.name, "hello");
 	test::eq(mod.sections.len(), 1);
 
-    ModuleSection* s = mod.sections[0];
+	ModuleSection* s = mod.sections[0];
 	StringPool* pool = &s.source_file.ast.string_pool;
 
 	test::eq(parser_tests::count_kind(s, MODULE_DECL), 1);
@@ -134,32 +143,39 @@ fn void contract_with_deprecated()
 			LiteralExpr* lit = attr.exprs[0].as(LITERAL_EXPR);
 			test::eq(pool.get(lit.string)!!, "This is deprecated!");
 
+
+
 			{
-				Node* req_expr = decl.requires[0];
+				Node* req_expr     = decl.requires[0];
 				ContractExpr* expr = req_expr.as(CONTRACT_EXPR);
-				ExprList* list = expr.exprs.as(EXPR_LIST);
-				BinaryExpr* bin = list.exprs[0].as(BINARY_EXPR);
+				ExprList* list     = expr.exprs.as(EXPR_LIST);
+				BinaryExpr* bin    = list.exprs[0].as(BINARY_EXPR);
 				test::eq(bin.left.as(IDENT_EXPR).get_ident(pool)!!, "a");
 				test::eq(bin.op, OperatorKind.OP_GT);
 				test::eq(bin.right.as(LITERAL_EXPR).integer, 0);
 			}
+
+
+
 			{
-				Node* req_expr = decl.ensures[0];
+				Node* req_expr     = decl.ensures[0];
 				ContractExpr* expr = req_expr.as(CONTRACT_EXPR);
-				ExprList* list = expr.exprs.as(EXPR_LIST);
-				BinaryExpr* bin = list.exprs[0].as(BINARY_EXPR);
+				ExprList* list     = expr.exprs.as(EXPR_LIST);
+				BinaryExpr* bin    = list.exprs[0].as(BINARY_EXPR);
 				test::eq(bin.left.as(IDENT_EXPR).get_ident(pool)!!, "return");
 				test::eq(bin.op, OperatorKind.OP_GT);
 				test::eq(bin.right.as(LITERAL_EXPR).integer, 0);
 			}
+
+
+
 			{
-				Node* param = decl.params[0];
+				Node* param         = decl.params[0];
 				ContractParam* expr = param.as(CONTRACT_PARAM);
 				test::eq(expr.name.as(IDENT_EXPR).get_ident(pool)!!, "a");
 				test::eq(expr.modifier, InOutModifier.IN);
 				test::eq(expr.get_description(pool)!!, "\"my param\"");
 			}
-			
 		}
 	}
 }
