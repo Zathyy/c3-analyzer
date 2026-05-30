@@ -101,7 +101,7 @@ One common setup is the `emeraldwalk.runonsave` extension:
     "commands": [
       {
         "match": "\\.c3i?$",
-        "cmd": "c3fmt --in-place ${file}"
+        "cmd": "tmp=$(mktemp) && c3fmt --stdin --stdout < \"${file}\" > \"$tmp\" && cp \"$tmp\" \"${file}\"; rc=$?; rm -f \"$tmp\"; exit $rc"
       }
     ]
   }
@@ -118,8 +118,7 @@ it to a key:
     {
       "label": "c3fmt current file",
       "type": "shell",
-      "command": "c3fmt",
-      "args": ["--in-place", "${file}"],
+      "command": "tmp=$(mktemp) && c3fmt --stdin --stdout < \"${file}\" > \"$tmp\" && cp \"$tmp\" \"${file}\"; rc=$?; rm -f \"$tmp\"; exit $rc",
       "problemMatcher": []
     }
   ]
@@ -187,9 +186,10 @@ This repository tracks Git hooks in `.githooks/`. Enable them once per clone:
 git config core.hooksPath .githooks
 ```
 
-The pre-commit hook runs `c3fmt --in-place .` before each commit. If formatting
-changes any tracked C3 source files, the hook re-stages those files so the
-commit includes the formatted code.
+The pre-commit hook formats each tracked C3 source file with the same
+stdin/stdout command used by the editor integrations above:
+`c3fmt --stdin --stdout`. If formatting changes any tracked C3 source files, the
+hook re-stages those files so the commit includes the formatted code.
 
 ## Test Before Sending Changes
 

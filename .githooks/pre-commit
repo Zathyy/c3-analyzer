@@ -12,7 +12,8 @@ cd "$repo_root"
 
 files=$(mktemp)
 formatted=$(mktemp)
-trap 'rm -f "$files" "$formatted"' EXIT
+tmpdir=$(mktemp -d)
+trap 'rm -f "$files" "$formatted"; rm -rf "$tmpdir"' EXIT
 
 git ls-files '*.c3' '*.c3i' > "$files"
 if [ ! -s "$files" ]; then
@@ -22,12 +23,15 @@ fi
 echo "Running c3fmt on tracked C3 files..."
 failed=0
 while IFS= read -r file; do
-	if c3fmt --in-place "$file"; then
+	tmp="$tmpdir/formatted"
+	if c3fmt --stdin --stdout < "$file" > "$tmp"; then
+		cp "$tmp" "$file"
 		printf '%s\n' "$file" >> "$formatted"
 	else
 		echo "warning: c3fmt failed while formatting $file; leaving it unchanged." >&2
 		failed=1
 	fi
+	rm -f "$tmp"
 done < "$files"
 
 # Include formatter edits in the commit. The file list comes from git ls-files,
