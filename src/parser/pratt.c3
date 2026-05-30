@@ -322,3 +322,25 @@ fn Node*? parse_decl_or_expr(ParseContext* ctx)
 
 	return parse_expr(ctx)!;
 }
+
+<*
+ "Shortcut" for when a left node has already been parsed (like an identifier) 
+ and want to continue building an expression from that specific point without starting over
+*>
+fn Node*? parse_expr_resuming_with_left(ParseContext* ctx, Node* left, Precedence min_bp)
+{
+	while (true)
+	{
+		int lbp, rbp;
+		get_binding_power(ctx.current().kind, &lbp, &rbp);
+		if (lbp < min_bp) break;
+
+		left = parse_infix(ctx, left, (Precedence)rbp)!;
+	}
+	return left;
+}
+
+fn Node*? parse_constant_expr(ParseContext* ctx)
+{
+	return parse_expr(ctx, ASSIGNMENT + 1)!;
+}
