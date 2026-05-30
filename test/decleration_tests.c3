@@ -166,3 +166,29 @@ fn void malformed_alias_declarations_are_missing()
 	test::eq(ast.top_level_nodes[2].kind, NodeKind.MISSING);
 	test::eq(ast.top_level_nodes[3].kind, NodeKind.MISSING);
 }
+
+
+fn void global_var()
+{
+	String text = `
+		module hello;
+		
+		const int[4]* FOO = null;
+	`;
+
+	Workspace ws;
+	ws.init();
+	defer ws.free();
+
+	ParseResult res = parser::parse(&ws, "var_decl", text)!!;
+	test::eq(res.success, true);
+
+	Module* mod      = ws.modules.get("hello")!!;
+	ModuleSection* s = mod.sections[0];
+
+    Node* target_node = s.nodes[1];
+    VarDecl* decl = target_node.as(VAR_DECL);
+	test::eq(decl.kind, VarDeclKind.VAR_GLOBAL);
+    test::eq(decl.type.kind, NodeKind.TYPE_EXPR);
+    TypeExpr* type_data = decl.type.as(TYPE_EXPR);
+}
