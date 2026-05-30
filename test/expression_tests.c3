@@ -14,10 +14,17 @@ fn void test_literals()
 {
 	String text = `
 		module test_module; 
-
+		
+		tlocal bool blocal = true;
+		
+		int [*] arr = {};
+		int [*] arr2 = {1};
+		
 		// Primitives & Numbers
+		void* ax = {};
 		void* a = null;
 		bool b = true;
+		bool bx = {};
 		bool c = false;
 		ulong d = 1_000_000ul;
 		uint e = 0xFF_AAu;
@@ -31,7 +38,9 @@ fn void test_literals()
 
 		// Strings
 		String k = "Hello";
+		String kx = {};
 		String l = "Raw string with structural text";
+		String lx = ``Raw string with structural text``;
 
 		// Bytes and Specialized Encodings (Emits TokenKind::BYTES)
 		char[*] m = x"4865 6c6c 6f20 776f 726c 6421";                  // Hex with interior spacing
@@ -64,10 +73,28 @@ fn void test_literals()
 		
 		test::ne(var_decl.init_expr, null);
 		Node* expr_node = var_decl.init_expr;
+
+		if (var_name == "blocal")
+		{
+			test::eq(var_decl.flags.is_thread_local, true);
+			test::eq(expr_node.kind, NodeKind.LITERAL_EXPR);
+			LiteralExpr* lit = expr_node.as(LITERAL_EXPR);
+			test::eq(lit.kind, LiteralKind.BOOL_LITERAL);
+			test::eq(lit.boolean, true);
+			continue;
+		}
+
+		// {} is a zero initializer — an empty compound literal
+		if (var_name == "ax" || var_name == "bx" || var_name == "kx" || var_name == "arr" || var_name == "arr2")
+		{
+			test::eq(expr_node.kind, NodeKind.EXPR_LIST);
+			ExprList* zl = expr_node.as(EXPR_LIST);
+			test::eq(zl.exprs.len, var_name == "arr2" ? 1 : 0);
+			continue;
+		}
+		
 		test::eq(expr_node.kind, NodeKind.LITERAL_EXPR);
-
 		LiteralExpr* lit = expr_node.as(LITERAL_EXPR);
-
 		if (var_name == "a")
 		{
 			test::eq(lit.kind, LiteralKind.NULL_LITERAL);
@@ -123,7 +150,7 @@ fn void test_literals()
 			test::eq(lit.kind, LiteralKind.STRING_LITERAL);
 			test::eq(pool.get(lit.string)!!, "Hello");
 		}
-		else if (var_name == "l")
+		else if (var_name == "l" || var_name == "lx")
 		{
 			test::eq(lit.kind, LiteralKind.STRING_LITERAL);
 			test::eq(pool.get(lit.string)!!, "Raw string with structural text");
@@ -152,6 +179,10 @@ fn void test_literals()
 			// "Hello World" decoded from Base64
 			test::eq((char)lit.bytes[0], 'H');
 			test::eq((char)lit.bytes[6], 'W');
+		}
+		else
+		{
+			unreachable("missing assertions for variable %s", var_name);
 		}
 	}
 }

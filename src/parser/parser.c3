@@ -339,7 +339,11 @@ fn ParseResult? parse(Workspace* ws, String uri, String src) => @pool()
 				break;
 			}
 
+			int before = ctx.pos;
 			synchronize(&ctx)!;
+			// If synchronize made no progress (stuck on an unhandled keyword),
+			// force-advance one token to guarantee the loop terminates.
+			if (ctx.pos == before && !ctx.eof()) { advance(&ctx)!!; }
 			continue;
 		}
 	}

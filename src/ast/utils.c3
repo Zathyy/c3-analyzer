@@ -24,3 +24,7 @@ macro String @str_to_lower(String $s) @const {
   return $final_s;
 }
 
+module parser::ast::utils @test;
+macro AttributeDecl* @attr(self, int idx) {
+	return self.attributes[idx].as(ATTRIBUTE_DECL) @inline;
+}

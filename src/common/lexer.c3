@@ -627,7 +627,7 @@ fn Token? Lexer.lex_identifier(Lexer* self, int start_pos)
 
 fn Token? Lexer.lex_number(Lexer* self, int start_pos)
 {
-	TokenKind kind;
+	TokenKind kind = INT_DECIMAL_LITERAL;
 
 	// Hex: 0x
 	if (self.peek() == '0' && (ascii::to_lower(self.peek_next()) == 'x'))

@@ -482,7 +482,7 @@ fn Node*? parse_expr_list(ParseContext* ctx) => @pool()
 	while (!ctx.eof())
 	{
 		exprs.push(parse_decl_or_expr(ctx)!);
-		if (!consume(ctx, COMMA)!) break;
+		if (ctx.eof() || !consume(ctx, COMMA)!) break;
 	}
 
 	list.exprs = alloc::clone_slice(ctx.arena, exprs.array_view());
@@ -501,7 +501,7 @@ fn Node*? parse_contract_expr(ParseContext* ctx)
 
 	expr.exprs = parse_expr_list(ctx)!;
 
-	if (consume(ctx, COLON)!)
+	if (!ctx.eof() && consume(ctx, COLON)!)
 	{
 		if (!ctx.is(STRING_LITERAL))
 		{
