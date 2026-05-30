@@ -167,7 +167,6 @@ fn void malformed_alias_declarations_are_missing()
 	test::eq(ast.top_level_nodes[3].kind, NodeKind.MISSING);
 }
 
-
 fn void global_var()
 {
 	String text = `
@@ -191,4 +190,46 @@ fn void global_var()
 	test::eq(decl.kind, VarDeclKind.VAR_GLOBAL);
     test::eq(decl.type.kind, NodeKind.TYPE_EXPR);
     TypeExpr* type_data = decl.type.as(TYPE_EXPR);
+}
+
+fn void global_var_multi_decl()
+{
+	String text = `
+		module hello;
+		
+		int foo, bar, z;
+	`;
+
+	Workspace ws;
+	ws.init();
+	defer ws.free();
+
+	ParseResult res = parser::parse(&ws, "var_decl", text)!!;
+	test::eq(res.success, true);
+
+	Module* mod      = ws.modules.get("hello")!!;
+	ModuleSection* s = mod.sections[0];
+	StringPool* pool = &s.source_file.ast.string_pool;
+
+    Node* target_node = s.nodes[1];
+    VarDecl* decl = target_node.as(VAR_DECL);
+	test::eq(decl.kind, VarDeclKind.VAR_GLOBAL);
+    test::eq(decl.type.kind, NodeKind.TYPE_EXPR);
+	test::eq(pool.get(decl.name)!!, "foo");
+	test::eq(decl.init_expr, null);
+	test::eq(pool.get(decl.type.as(TYPE_EXPR).unresolved.name)!!, "int");
+
+	test::ne(decl.next, null);
+	VarDecl* decl_2 = decl.next.as(VAR_DECL);
+	test::eq(pool.get(decl_2.name)!!, "bar");
+	test::eq(decl_2.init_expr, null);
+	test::eq(pool.get(decl_2.type.as(TYPE_EXPR).unresolved.name)!!, "int");
+
+	test::ne(decl_2.next, null);
+	VarDecl* decl_3 = decl_2.next.as(VAR_DECL);
+	test::eq(pool.get(decl_3.name)!!, "z");
+	test::eq(decl_3.next, null);
+	test::eq(decl_3.init_expr, null);
+	test::eq(pool.get(decl_3.type.as(TYPE_EXPR).unresolved.name)!!, "int");
+
 }
