@@ -470,7 +470,7 @@ fn Node*? parse_alias_decl(ParseContext* ctx)
 
 <*
  fn_decl ::= fn type_expr (type_expr '.')? ident '(' parameter_list? ')' attributes?
-	fn_body ::= ('=>' short_body) | compound_stmt
+ fn_body ::= ('=>' short_body) | compound_stmt
 *>
 fn Node*? parse_fn_decl(ParseContext* ctx, ParseFlags flags = { })
 {
@@ -506,7 +506,6 @@ fn Node*? parse_fn_decl(ParseContext* ctx, ParseFlags flags = { })
 		}!;
 
 		func.name = ctx.ast.string_pool.internalize(ctx.token_text(t));
-		advance(ctx)!;
 	}
 	else
 	{
@@ -567,7 +566,7 @@ fn Node*? parse_fn_decl(ParseContext* ctx, ParseFlags flags = { })
 }
 
 <*
- param_decl ::= type_expr ELLIPSIS? (non_type_ident ('=' expr))?
+ param_decl ::= '&'? 'self' | type_expr ELLIPSIS? (non_type_ident ('=' expr))?
                 | ELLIPSIS (CT_TYPE_IDENT | non_type_ident ('=' expr)?)?
  @param [&inout] ctx
 *>
@@ -578,6 +577,29 @@ fn Node*? parse_param_decl(ParseContext* ctx)
 	Node* node       = ctx.ast.alloc_node(PARAM_DECL, start_pos);
 	ParamDecl* param = node.as(PARAM_DECL);
 	defer node.end_token = ctx.peek(0).pos;
+
+	bool is_self_by_ref = consume(ctx, AMP)!;
+
+	if (ctx.is(IDENT) && ctx.current_text() == "self")
+    {
+        Token t = ctx.peek(0);
+        param.ident_kind = t.kind;
+        param.name = ctx.ast.string_pool.internalize("self");
+        advance(ctx)!;
+
+        param.is_self = true; 
+        param.is_self_by_ref = is_self_by_ref;
+        
+        param.type = ctx.ast.alloc_node(MISSING, t.pos); 
+
+        return node;
+    }
+    else if (is_self_by_ref)
+    {
+        // Found a '&' but it wasn't followed by 'self', rewind 
+        // so that parse_type_expr can parse it as a reference type modifier.
+        reverse(ctx, start_pos)!;
+    }
 
 	param.type = parse_type_expr(ctx)!;
 

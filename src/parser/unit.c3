@@ -18,7 +18,7 @@ fn NodeArray? parse_parameter_list(ParseContext* ctx) => @pool()
 
 	if (!expect(ctx, LPAREN)!)
 	{
-		return {ctx.ast.alloc_node(ERROR, start_pos)};
+		return {ctx.ast.error(start_pos)};
 	}
 
 	List{Node*} temp_params;
