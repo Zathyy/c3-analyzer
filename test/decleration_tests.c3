@@ -64,6 +64,29 @@ fn void function_with_params()
 	test::eq(parser_tests::count_kind(s, FN_DECL), 3);
 }
 
+
+fn void method_with_params()
+{
+	String path = `
+		module hello; 
+		fn void Foo.greet(&self, Bar baz) {}
+	`;
+	Workspace ws;
+	ws.init();
+	defer ws.free();
+	ParseResult res = parser::parse(&ws, "method_with_params", path)!!;
+	test::eq(res.success, true);
+
+	Module* mod      = ws.modules.get("hello")!!;
+	ModuleSection* s = mod.sections[0];
+
+	Node* node   = ws.lookup("hello", "greet")!!;
+	FnDecl* func = node.as(FN_DECL);
+
+	test::eq(parser_tests::count_kind(s, MODULE_DECL), 1);
+	test::eq(parser_tests::count_kind(s, FN_DECL), 1);
+}
+
 fn void alias_declarations_parse()
 {
 	String text = `module hello;
