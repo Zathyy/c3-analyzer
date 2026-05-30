@@ -329,7 +329,6 @@ fn ParseResult? parse(Workspace* ws, String uri, String src) => @pool()
 		mod_name.free(ctx.allocator);
 	}
 
-	bool success = true;
 	while (!ctx.eof())
 	{
 		if (catch err = parse_top_level(&ctx, ws))
@@ -340,8 +339,6 @@ fn ParseResult? parse(Workspace* ws, String uri, String src) => @pool()
 				break;
 			}
 
-			success = false;
-
 			synchronize(&ctx)!;
 			continue;
 		}
@@ -351,8 +348,15 @@ fn ParseResult? parse(Workspace* ws, String uri, String src) => @pool()
 	{
 		last_sec.nodes = ctx.ast.top_level_nodes.array_view();
 	}
-
-	log::info("Succesfully parsed: %s", uri);
+	bool success = ctx.ast.error_nodes.len() == 0;
+	if (success)
+	{
+		log::info("Succesfully parsed: %s", uri);
+	}
+	else
+	{
+		log::error("Failed to parsed: %s", uri);
+	}
 
 	$if $feature(PARSER_LIB):
 		log::info("Result: %s", ctx.errors.len());
