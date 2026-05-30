@@ -450,10 +450,10 @@ fn void? parse_top_level(ParseContext* ctx, Workspace* ws)
 			// node = parse_enum(ctx, flags)!;
 			// case ENUM:
 			// node = parse_enum(ctx, flags)!;
-			// case CONST:
-			// flags.is_const = true;
-			// advance(ctx)!;
-			// node = parse_var_decl(ctx, flags)!;
+			case CONST:
+				flags.is_const = true;
+				advance(ctx)!;
+				node = parse_var_decl(ctx, flags)!;
 			// case CT_EXPAND:
 			// node = parse_expand_decl(ctx)!;
 			// case CT_ASSERT:
