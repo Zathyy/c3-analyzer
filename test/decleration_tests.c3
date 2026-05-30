@@ -167,7 +167,7 @@ fn void malformed_alias_declarations_are_missing()
 	test::eq(ast.top_level_nodes[3].kind, NodeKind.MISSING);
 }
 
-fn void global_var()
+fn void global_var_const()
 {
 	String text = `
 		module hello;
@@ -232,4 +232,79 @@ fn void global_var_multi_decl()
 	test::eq(decl_3.init_expr, null);
 	test::eq(pool.get(decl_3.type.as(TYPE_EXPR).unresolved.name)!!, "int");
 
+}
+
+fn void global_var()
+{
+	String text = `
+		module hello;
+		
+		int[4] foo;
+	`;
+
+	Workspace ws;
+	ws.init();
+	defer ws.free();
+
+	ParseResult res = parser::parse(&ws, "var_decl", text)!!;
+	test::eq(res.success, true);
+
+	Module* mod      = ws.modules.get("hello")!!;
+	ModuleSection* s = mod.sections[0];
+
+    Node* target_node = s.nodes[1];
+    VarDecl* decl = target_node.as(VAR_DECL);
+	test::eq(decl.kind, VarDeclKind.VAR_GLOBAL);
+    test::eq(decl.type.kind, NodeKind.TYPE_EXPR);
+    TypeExpr* type_data = decl.type.as(TYPE_EXPR);
+}
+
+fn void global_var_tlocal()
+{
+	String text = `
+		module hello;
+		
+		tlocal int foo = 1;
+	`;
+
+	Workspace ws;
+	ws.init();
+	defer ws.free();
+
+	ParseResult res = parser::parse(&ws, "var_decl", text)!!;
+	test::eq(res.success, true);
+
+	Module* mod      = ws.modules.get("hello")!!;
+	ModuleSection* s = mod.sections[0];
+
+    Node* target_node = s.nodes[1];
+    VarDecl* decl = target_node.as(VAR_DECL);
+	test::eq(decl.kind, VarDeclKind.VAR_GLOBAL);
+    test::eq(decl.type.kind, NodeKind.TYPE_EXPR);
+    TypeExpr* type_data = decl.type.as(TYPE_EXPR);
+}
+
+fn void global_var_extern()
+{
+	String text = `
+		module hello;
+		
+		extern int foo;
+	`;
+
+	Workspace ws;
+	ws.init();
+	defer ws.free();
+
+	ParseResult res = parser::parse(&ws, "var_decl", text)!!;
+	test::eq(res.success, true);
+
+	Module* mod      = ws.modules.get("hello")!!;
+	ModuleSection* s = mod.sections[0];
+
+    Node* target_node = s.nodes[1];
+    VarDecl* decl = target_node.as(VAR_DECL);
+	test::eq(decl.kind, VarDeclKind.VAR_GLOBAL);
+    test::eq(decl.type.kind, NodeKind.TYPE_EXPR);
+    TypeExpr* type_data = decl.type.as(TYPE_EXPR);
 }
