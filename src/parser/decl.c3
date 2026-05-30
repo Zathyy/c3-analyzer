@@ -255,33 +255,6 @@ fn Node*? parse_import_decl(ParseContext* ctx) => @pool()
 	return node;
 }
 
-fn bool is_alias_name_kind(TokenKind kind)
-{
-	switch (kind)
-	{
-		case TYPE_IDENT:
-		case IDENT:
-		case CONST_IDENT:
-		case AT_IDENT:
-			return true;
-		default:
-			return false;
-	}
-}
-
-fn bool is_alias_source_name_kind(TokenKind kind)
-{
-	switch (kind)
-	{
-		case IDENT:
-		case CONST_IDENT:
-		case AT_IDENT:
-			return true;
-		default:
-			return false;
-	}
-}
-
 <*
  Parse the generic parameter list after an alias name.
  @param [&inout] ctx : "Parser context to consume tokens from."
