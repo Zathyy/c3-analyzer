@@ -51,54 +51,5 @@ fn bool visit(Cursor child, Cursor parent, CursorVisitor visitor, void* data)
 *>
 fn bool visit_children(Cursor parent, CursorVisitor visitor, void* data)
 {
-	if (parent.node.kind != TYPE_EXPR)
-    {
-        // TODO: Map out other AST types like PARAM_DECL, FUNCTION_DECL, etc.
-        return true; 
-    }
-
-    TypeExpr* type_data = parent.node.as(TYPE_EXPR);
-
-    switch (type_data.kind)
-    {
-        case TYPE_IDENTIFIER:
-            // Identifiers are leaf nodes or contain a single path expression node child
-            if (type_data.unresolved.path != null)
-            {
-                Cursor path_child = { .section = parent.section, .node = type_data.unresolved.path };
-                if (!visit(path_child, parent, visitor, data)) return false;
-            }
-            break;
-
-        case TYPE_POINTER:
-        case TYPE_SLICE:
-            // Dive straight down into the single wrapped modifier base
-            Cursor base_child = { .section = parent.section, .node = type_data.modify.base };
-            if (!visit(base_child, parent, visitor, data)) return false;
-            break;
-
-        case TYPE_ARRAY:
-            // Arrays contain two distinct children: the base type and the dimension size expression
-            Cursor base_child = { .section = parent.section, .node = type_data.array.base };
-            if (!visit(base_child, parent, visitor, data)) return false;
-
-            Cursor len_child = { .section = parent.section, .node = type_data.array.len_expr };
-            if (!visit(len_child, parent, visitor, data)) return false;
-            break;
-
-        case TYPE_GENERIC:
-            // First step down into the core generic template blueprint definition (e.g., List)
-            Cursor base_child = { .section = parent.section, .node = type_data.generic.base };
-            if (!visit(base_child, parent, visitor, data)) return false;
-
-            // Iterate across the compiled slice parameter expressions list
-            for (sz i = 0; i < type_data.generic.params.len; i++)
-            {
-                Cursor param_child = { .section = parent.section, .node = type_data.generic.params[i] };
-                if (!visit(param_child, parent, visitor, data)) return false;
-            }
-            break;
-    }
-
     return true;
 }
