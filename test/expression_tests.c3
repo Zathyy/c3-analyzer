@@ -156,11 +156,17 @@ fn void test_literals()
 	}
 }
 
-fn void unary_basic_test()
+fn void unary()
 {
 	String path = `
-		module hello; 
-		bool foo = !bar;
+		module hello;
+		bool x = !foo;
+        bool x = !!foo;
+        int x = -foo;
+        int x = ~foo;
+        void* x = &foo;
+        void* x = &&foo;
+        int x = *foo;
 	`;
 	Workspace ws; ws.init();
 	defer ws.free();
@@ -171,5 +177,5 @@ fn void unary_basic_test()
 	ModuleSection* s = mod.sections[0];
 
 	test::eq(parser_tests::count_kind(s, MODULE_DECL), 1);
-	test::eq(parser_tests::count_kind(s, VAR_DECL), 1);
+	test::eq(parser_tests::count_kind(s, VAR_DECL), 7);
 }
