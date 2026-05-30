@@ -155,3 +155,21 @@ fn void test_literals()
 		}
 	}
 }
+
+fn void unary_basic_test()
+{
+	String path = `
+		module hello; 
+		bool foo = !bar;
+	`;
+	Workspace ws; ws.init();
+	defer ws.free();
+	ParseResult res = parser::parse(&ws, "unary", path)!!;
+	test::eq(res.success, true);
+
+	Module* mod      = ws.modules.get("hello")!!;
+	ModuleSection* s = mod.sections[0];
+
+	test::eq(parser_tests::count_kind(s, MODULE_DECL), 1);
+	test::eq(parser_tests::count_kind(s, VAR_DECL), 1);
+}
