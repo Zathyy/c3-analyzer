@@ -46,3 +46,18 @@ bitstruct ParseFlags : ulong
 	bool no_generics; // dont allow type parsing to check for generics
 	bool skip_eos;
 }
+
+<*
+ Options for path parsing.
+
+ Fields:
+ - allow_const_final: Allow a CONST_IDENT only when it is the final segment.
+ - allow_attr_final: Allow an AT_IDENT only when it is the final segment.
+ - as_prefix: Parse as an optional prefix before another syntax node.
+*>
+struct PathExprOptions
+{
+	bool allow_const_final;
+	bool allow_attr_final;
+	bool as_prefix;
+}

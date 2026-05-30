@@ -133,6 +133,39 @@ fn bool is_alias_source_name_kind(TokenKind kind)
 	}
 }
 
+<*
+ Return whether kind may appear as a path's final segment with options.
+ @param kind : "Candidate token kind for the segment."
+ @param options : "Final-segment allowances used by the caller."
+*>
+fn bool is_path_final_kind(TokenKind kind, PathExprOptions options)
+{
+	if (kind == IDENT) return true;
+	if (options.allow_const_final && kind == CONST_IDENT) return true;
+	if (options.allow_attr_final && kind == AT_IDENT) return true;
+	return false;
+}
+
+fn void? skip_balanced_group(ParseContext* ctx, TokenKind open, TokenKind close)
+{
+	if (!expect(ctx, open)!) return;
+
+	int depth = 1;
+	while (!ctx.eof() && depth > 0)
+	{
+		if (ctx.is(open))
+		{
+			depth++;
+		}
+		else if (ctx.is(close))
+		{
+			depth--;
+		}
+
+		advance(ctx)!;
+	}
+}
+
 fn bool is_type_primitive(TokenKind kind)
 {
 	switch (kind)

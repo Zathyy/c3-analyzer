@@ -330,34 +330,6 @@ fn Node*? parse_literal_expr(ParseContext* ctx) => @pool()
 }
 
 <*
- Options for path parsing.
-
- Fields:
- - allow_const_final: Allow a CONST_IDENT only when it is the final segment.
- - allow_attr_final: Allow an AT_IDENT only when it is the final segment.
- - as_prefix: Parse as an optional prefix before another syntax node.
-*>
-struct PathExprOptions
-{
-	bool allow_const_final;
-	bool allow_attr_final;
-	bool as_prefix;
-}
-
-<*
- Return whether kind may appear as a path's final segment with options.
- @param kind : "Candidate token kind for the segment."
- @param options : "Final-segment allowances used by the caller."
-*>
-fn bool is_path_final_kind(TokenKind kind, PathExprOptions options)
-{
-	if (kind == IDENT) return true;
-	if (options.allow_const_final && kind == CONST_IDENT) return true;
-	if (options.allow_attr_final && kind == AT_IDENT) return true;
-	return false;
-}
-
-<*
  Parse a path expression and report the final segment's token kind.
 
  Normal paths only accept IDENT segments. Alias parsing may opt into a

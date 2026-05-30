@@ -303,26 +303,6 @@ fn StringID[]? parse_alias_generic_decl(ParseContext* ctx, bool* has_error) => @
 	return alloc::clone_slice(ctx.arena, temp_params.array_view());
 }
 
-fn void? skip_balanced_group(ParseContext* ctx, TokenKind open, TokenKind close)
-{
-	if (!expect(ctx, open)!) return;
-
-	int depth = 1;
-	while (!ctx.eof() && depth > 0)
-	{
-		if (ctx.is(open))
-		{
-			depth++;
-		}
-		else if (ctx.is(close))
-		{
-			depth--;
-		}
-
-		advance(ctx)!;
-	}
-}
-
 fn void? skip_alias_attributes(ParseContext* ctx)
 {
 	while (ctx.is(AT_IDENT) || ctx.is(AT_TYPE_IDENT) || ctx.is(AT_CONST_IDENT))
