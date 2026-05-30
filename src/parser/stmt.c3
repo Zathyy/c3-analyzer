@@ -8,7 +8,17 @@ import std::collections::list;
 
 fn Node*? parse_stmt(ParseContext* ctx)
 {
-	return UNEXPECTED_TOKEN~;
+	Token t = ctx.current();
+	switch (t.kind)
+	{
+		case LBRACE:
+			return parse_compound_stmt(ctx)!;
+		default:
+			break;
+	}
+
+	ctx.error("Unhandled statement (%s)", t.kind.description);
+	return ctx.ast.error(t.pos);
 }
 
 <*
