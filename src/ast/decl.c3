@@ -138,3 +138,9 @@ struct AttributeDecl
 	AttributeKind kind;
 	bool is_custom;
 }
+
+struct CtExpandDecl
+{
+	Node* expr;
+	NodeArray attributes;
+}

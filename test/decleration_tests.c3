@@ -489,3 +489,28 @@ fn void global_var_extern()
 	test::eq(decl.type.kind, NodeKind.TYPE_EXPR);
 	TypeExpr* type_data = decl.type.as(TYPE_EXPR);
 }
+
+fn void expand()
+{
+	String text = `
+		module hello;
+		
+		$expand("fn void foo();");
+	`;
+
+	Workspace ws;
+	ws.init();
+	defer ws.free();
+
+	ParseResult res = parser::parse(&ws, "expand", text)!!;
+	test::eq(res.success, true);
+
+	Module* mod      = ws.modules.get("hello")!!;
+	ModuleSection* s = mod.sections[0];
+	StringPool* pool = &s.source_file.ast.string_pool;
+
+	Node* target_node    = s.nodes[1];
+	CtExpandDecl* decl   = target_node.as(CT_EXPAND_DECL);
+	LiteralExpr* literal = decl.expr.as(LITERAL_EXPR);
+	test::eq(pool.get(literal.string)!!, "fn void foo();");
+}

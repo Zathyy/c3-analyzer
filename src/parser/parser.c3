@@ -465,8 +465,8 @@ fn void? parse_top_level(ParseContext* ctx, Workspace* ws)
 			flags.is_const = true;
 			advance(ctx)!;
 			node = parse_var_decl(ctx, null, flags)!;
-			// case CT_EXPAND:
-			// node = parse_expand_decl(ctx)!;
+		case CT_EXPAND:
+			node = parse_expand_decl(ctx)!;
 			// case CT_ASSERT:
 			// int start_pos = ctx.current_pos();
 			// Node stmt = parse_ct_assert(ctx)!;

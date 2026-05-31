@@ -17,6 +17,7 @@ enum NodeKind : char
 	TYPEDEF_DECL,
 	FN_DECL,
 	PARAM_DECL,
+	CT_EXPAND_DECL,
 
 	COMPOUND_STMT,
 	IF_STMT,
