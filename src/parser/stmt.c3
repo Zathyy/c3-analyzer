@@ -37,6 +37,10 @@ fn Node*? parse_stmt(ParseContext* ctx)
 	return parse_expr_stmt(ctx)!;
 }
 
+<*
+ parse a expression inside a statement
+	expr_stmt ::= expr ';'
+*>
 fn Node*? parse_expr_stmt(ParseContext* ctx)
 {
 	int start_pos = ctx.current().pos;
@@ -51,6 +55,10 @@ fn Node*? parse_expr_stmt(ParseContext* ctx)
 	return node;
 }
 
+<*
+ A decleration here will only be a VarDecl
+	decl_stmt ::= decl | stmt ';'
+*>
 fn Node*? parse_decl_stmt(ParseContext* ctx)
 {
 	int start_pos = ctx.current().pos;
@@ -159,6 +167,9 @@ fn bool? parse_switch_body(ParseContext* ctx, List{Node*}* cases)
 	return true;
 }
 
+<*
+ case_stmts ::= (compound_stmt, stmt*)
+*>
 fn Node*? parse_case_stmts(ParseContext* ctx, sz row) => @pool()
 {
 	if (token_type_ends_case(ctx.current().kind))
@@ -229,7 +240,7 @@ fn Node*? parse_case_stmt(ParseContext* ctx, ParseFlags flags = { }) => @pool()
 }
 
 <*
-
+ default_stmt ::= default | $default ':' case_stmts
 *>
 fn Node*? parse_default_stmt(ParseContext* ctx, ParseFlags flags = { })
 {
@@ -297,7 +308,7 @@ fn Node*? parse_nextcase_stmt(ParseContext* ctx)
 }
 
 <*
-
+ continue_break_stmt ::= continue | break LABEL? ';'
 *>
 fn Node*? parse_continue_break_stmt(ParseContext* ctx)
 {
@@ -327,7 +338,7 @@ fn Node*? parse_continue_break_stmt(ParseContext* ctx)
 }
 
 <*
- switch ::= switch label? ('(' cond ')')? switch_body
+ switch ::= switch LABEL? ('(' cond ')')? switch_body
 *>
 fn Node*? parse_switch_stmt(ParseContext* ctx) => @pool()
 {
