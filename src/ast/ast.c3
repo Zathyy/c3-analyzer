@@ -42,7 +42,13 @@ struct Node
 
 		// STMT
 		IfStmt if_stmt;
+		SwitchStmt switch_stmt;
+		CaseStmt case_stmt;
+		DefaultStmt default_stmt;
+		ContinueBreakStmt continue_break_stmt;
+		NextcaseStmt nextcase_stmt;
 		CompoundStmt compound_stmt;
+		ReturnStmt return_stmt;
 
 		// EXPR
 		LiteralExpr literal_expr;
@@ -54,6 +60,7 @@ struct Node
 		TypeExpr type_expr;
 		ExprList expr_list;
 		ContractExpr contract_expr;
+		CondExpr cond_expr;
 		// UNIT
 		ContractParam contract_param;
 	}

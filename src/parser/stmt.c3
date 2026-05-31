@@ -9,16 +9,57 @@ import std::collections::list;
 fn Node*? parse_stmt(ParseContext* ctx)
 {
 	Token t = ctx.current();
+
+	if (is_type(ctx) || t.kind == TLOCAL || t.kind == STATIC)
+	{
+		return parse_decl_stmt(ctx)!;
+	}
+
 	switch (t.kind)
 	{
 		case LBRACE:
 			return parse_compound_stmt(ctx)!;
+		case SWITCH:
+			return parse_switch_stmt(ctx)!;
+		case CONTINUE:
+		case BREAK:
+			return parse_continue_break_stmt(ctx)!;
+		case NEXTCASE:
+			return parse_nextcase_stmt(ctx)!;
+		case RETURN:
+			return parse_return_stmt(ctx)!;
 		default:
 			break;
 	}
 
 	ctx.error("Unhandled statement (%s)", t.kind.description);
+	advance(ctx)!;
 	return ctx.ast.error(t.pos);
+}
+
+fn Node*? parse_decl_stmt(ParseContext* ctx)
+{
+	int start_pos = ctx.current().pos;
+
+	ParseFlags flags;
+	flags.is_static = consume(ctx, STATIC)!;
+	flags.is_tlocal = consume(ctx, TLOCAL)!;
+
+	Node* type = parse_type_expr(ctx)!;
+	switch (ctx.current().kind)
+	{
+		case IDENT:
+		case CT_IDENT:
+			return parse_var_decl(ctx, type, flags);
+		default:
+	}
+
+	Node* expr = parse_expr_resuming_with_left(ctx, type, LOWEST)!;
+	@expect_else(ctx, EOS ; err)
+	{
+		return err;
+	}!;
+	return expr;
 }
 
 <*
@@ -64,6 +105,291 @@ fn Node*? parse_compound_stmt(ParseContext* ctx) => @pool()
 	}
 
 	block.statements = alloc::clone_slice(ctx.arena, temp_stmts.array_view());
+
+	return node;
+}
+
+<*
+ switch_body ::= '{' (case_stmt | nextcase_stmt | default_stmt)* '}'
+*>
+fn bool? parse_switch_body(ParseContext* ctx, List{Node*}* cases)
+{
+	int start_pos = ctx.peek(0).pos;
+	while (!ctx.eof() && !ctx.is(RBRACE))
+	{
+		if (ctx.eof())
+		{
+			ctx.error("Unexpected EOF, expected closing '}' for switch body");
+			return false;
+		}
+
+		Node* result   = null;
+		TokenKind kind = ctx.current().kind;
+
+		switch (kind)
+		{
+			case CASE:
+				result = parse_case_stmt(ctx)!;
+				if (result.kind == ERROR) return false;
+			case DEFAULT:
+				result = parse_default_stmt(ctx)!;
+				if (result.kind == ERROR) return false;
+			default:
+				ctx.error("Expected 'case' or 'default' inside switch body, got '%s'", kind.description);
+				return false;
+		}
+
+		cases.push(result);
+	}
+
+	return true;
+}
+
+fn Node*? parse_case_stmts(ParseContext* ctx, sz row) => @pool()
+{
+	if (token_type_ends_case(ctx.current().kind))
+	{
+		Location next_loc = ctx.line_map.resolve(ctx.current().pos);
+
+		if (next_loc.line > row + 1 && ctx.current().kind != RBRACE)
+		{
+			ctx.error(
+				"Fallthrough cases with empty rows or comments have unclear meaning, " "an explicit 'break' or 'nextcase' is needed (or remove the spacing)."
+			);
+			return ctx.ast.error(ctx.current().pos);
+		}
+	}
+
+	Node* compound_node    = ctx.ast.alloc_node(COMPOUND_STMT, ctx.current().pos);
+	CompoundStmt* compound = compound_node.as(COMPOUND_STMT);
+
+	List{Node*} stmts;
+	stmts.tinit();
+
+	while (!ctx.eof() && !token_type_ends_case(ctx.current().kind))
+	{
+		Node* child_stmt = parse_stmt(ctx)!;
+		if (child_stmt.kind == ERROR) return child_stmt;
+		stmts.push(child_stmt);
+	}
+
+	compound.statements = alloc::clone_slice(ctx.arena, stmts.array_view());
+	compound_node.end_token = ctx.peek(0).pos;
+
+	return compound_node;
+}
+
+<*
+ case_stmt ::= 'case' expr ('..' expr)? ':' stmt*
+
+*>
+fn Node*? parse_case_stmt(ParseContext* ctx) => @pool()
+{
+	int pos = ctx.current().pos;
+	@expect_else(ctx, CASE ; err)
+	{
+		return err;
+	}!;
+
+	Location loc = ctx.line_map.resolve((sz)pos);
+	sz case_row  = loc.line;
+
+	Node* node = ctx.ast.alloc_node(CASE_STMT, pos);
+	defer node.end_token = ctx.peek(0).pos;
+	CaseStmt* case_stmt = node.as(CASE_STMT);
+
+	case_stmt.expr = parse_expr(ctx)!;
+	if (consume(ctx, DOTDOT)!)
+	{
+		case_stmt.to_expr = parse_expr(ctx)!;
+	}
+	@expect_else(ctx, COLON ; err)
+	{
+		return err;
+	}!;
+
+	case_stmt.body = parse_case_stmts(ctx, case_row)!;
+
+	return node;
+}
+
+<*
+
+*>
+fn Node*? parse_default_stmt(ParseContext* ctx)
+{
+	int start_pos = ctx.peek(0).pos;
+	@expect_else(ctx, DEFAULT ; err)
+	{
+		return err;
+	}!;
+
+	@expect_else(ctx, COLON ; err)
+	{
+		return err;
+	}!;
+
+	Node* node      = ctx.ast.alloc_node(DEFAULT_STMT, start_pos);
+	DefaultStmt* sw = node.as(DEFAULT_STMT);
+	defer node.end_token = ctx.peek(0).pos;
+
+	Location loc = ctx.line_map.resolve((sz)start_pos);
+	sz row       = loc.line;
+
+	sw.body = parse_case_stmts(ctx, row)!;
+
+	return node;
+}
+
+<*
+ nextcase_stmt ::= NEXTCASE ((CONST_IDENT ':')? expression)? ';'
+*>
+fn Node*? parse_nextcase_stmt(ParseContext* ctx)
+{
+	int start_pos = ctx.peek(0).pos;
+	@expect_else(ctx, NEXTCASE ; err)
+	{
+		return err;
+	}!;
+
+	Node* node       = ctx.ast.alloc_node(NEXTCASE_STMT, start_pos);
+	NextcaseStmt* nc = node.as(NEXTCASE_STMT);
+	defer node.end_token = ctx.peek(0).pos;
+
+	if (consume(ctx, EOS)!)
+	{
+		return node;
+	}
+	if (ctx.is(CONST_IDENT) && ctx.peek(1).kind == COLON)
+	{
+		nc.label = ctx.ast.string_pool.internalize(ctx.current_text());
+		advance(ctx)!;
+		@expect_else(ctx, COLON ; err)
+		{
+			return err;
+		}!;
+	}
+	if (consume(ctx, DEFAULT)!)
+	{
+		nc.is_default = true;
+	}
+	else
+	{
+		nc.expr = parse_expr(ctx)!;
+	}
+	return node;
+}
+
+<*
+
+*>
+fn Node*? parse_continue_break_stmt(ParseContext* ctx)
+{
+	int start_pos    = ctx.peek(0).pos;
+	bool is_continue = consume(ctx, CONTINUE)!;
+	if (!is_continue) consume(ctx, BREAK)!;
+
+	Node* node            = ctx.ast.alloc_node(CONTINUE_BREAK_STMT, start_pos);
+	ContinueBreakStmt* cb = node.as(CONTINUE_BREAK_STMT);
+	defer node.end_token = ctx.peek(0).pos;
+
+	cb.is_continue = is_continue;
+	cb.label = -1;
+
+	if (ctx.is(CONST_IDENT))
+	{
+		cb.label = ctx.ast.string_pool.internalize(ctx.current_text());
+		advance(ctx)!;
+	}
+
+	@expect_else(ctx, EOS ; err)
+	{
+		return err;
+	}!;
+
+	return node;
+}
+
+<*
+ switch ::= switch label? ('(' cond ')')? switch_body
+*>
+fn Node*? parse_switch_stmt(ParseContext* ctx) => @pool()
+{
+	int start_pos = ctx.peek(0).pos;
+	@expect_else(ctx, SWITCH ; err)
+	{
+		return err;
+	}!;
+
+	Node* node     = ctx.ast.alloc_node(SWITCH_STMT, start_pos);
+	SwitchStmt* sw = node.as(SWITCH_STMT);
+	defer node.end_token = ctx.peek(0).pos;
+
+	if (ctx.is(CONST_IDENT))
+	{
+		Token label_tok = ctx.peek(0);
+		sw.label = ctx.ast.string_pool.internalize(ctx.token_text(label_tok));
+		advance(ctx)!;
+		if (!expect(ctx, COLON)!)
+		{
+			return ctx.ast.error(label_tok.pos);
+		}
+	}
+
+	if (consume(ctx, LPAREN)!)
+	{
+		sw.cond = parse_cond_expr(ctx)!;
+		@expect_else(ctx, RPAREN ; err)
+		{
+			return err;
+		}!;
+	}
+
+	@expect_else(ctx, LBRACE ; err)
+	{
+		return err;
+	}!;
+
+	List{Node*} bodies;
+	bodies.tinit();
+	bool success = parse_switch_body(ctx, &bodies)!;
+	if (!success)
+	{
+		ctx.skip_until({ RBRACE, EOF })!;
+	}
+	@expect_else(ctx, RBRACE ; err)
+	{
+		return err;
+	}!;
+
+	sw.cases = alloc::clone_slice(ctx.arena, bodies.array_view());
+	return node;
+}
+
+<*
+ return_stmt ::= return expression | return ';'
+*>
+fn Node*? parse_return_stmt(ParseContext* ctx)
+{
+	int start_pos = ctx.peek(0).pos;
+	@expect_else(ctx, RETURN ; err)
+	{
+		return err;
+	}!;
+
+	Node* node      = ctx.ast.alloc_node(RETURN_STMT, start_pos);
+	ReturnStmt* ret = node.as(RETURN_STMT);
+	defer node.end_token = ctx.peek(0).pos;
+
+	if (!ctx.is(EOS))
+	{
+		ret.expr = parse_expr(ctx)!;
+	}
+
+	@expect_else(ctx, EOS ; err)
+	{
+		return err;
+	}!;
 
 	return node;
 }

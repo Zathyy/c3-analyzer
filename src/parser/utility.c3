@@ -417,14 +417,7 @@ fn bool can_start_expression(TokenKind kind)
 	}
 }
 
-fn bool is_integer(TokenKind kind)
+fn bool token_type_ends_case(TokenKind type)
 {
-	switch (kind)
-	{
-		case INT_BIN_LITERAL:
-		case INT_DECIMAL_LITERAL:
-		case INT_HEX_LITERAL:
-			return true;
-		default: return false;
-	}
+	return type == CASE || type == DEFAULT || type == RBRACE;
 }

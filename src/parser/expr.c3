@@ -521,7 +521,7 @@ fn Node*? parse_unary_expr(ParseContext* ctx)
 	int start_pos = ctx.current().pos;
 	if (ctx.is(MINUS))
 	{
-		if (is_integer(ctx.peek(1).kind))
+		if (ctx.peek(1).kind.is_int_literal())
 		{
 			advance(ctx)!;
 			return parse_expr(ctx)!;
@@ -648,5 +648,36 @@ fn Node*? parse_call_expr(ParseContext* ctx, Node* callee) => @pool()
 	}
 	call.args = alloc::clone_slice(ctx.arena, args.array_view());
 
+	return node;
+}
+
+<*
+ cond_list ::= ((expr | decl-expr) COMMA)* (expr | decl-expr | try_unwrap_chain | catch_unwrap )
+*>
+fn Node*? parse_cond_expr(ParseContext* ctx) => @pool()
+{
+	Node* node = ctx.ast.alloc_node(COND_EXPR, ctx.current().pos);
+	defer node.end_token = ctx.peek(0).pos;
+	CondExpr* cond = node.as(COND_EXPR);
+
+	List{Node*} exprs;
+	exprs.tinit();
+
+	while (!ctx.eof())
+	{
+		if (ctx.is(TRY))
+		{
+			// TODO!
+		}
+		if (ctx.is(CATCH))
+		{
+			// TODO!
+		}
+
+		exprs.push(parse_decl_or_expr(ctx)!);
+		if (!consume(ctx, COMMA)!) break;
+	}
+
+	cond.exprs = alloc::clone_slice(ctx.arena, exprs.array_view());
 	return node;
 }

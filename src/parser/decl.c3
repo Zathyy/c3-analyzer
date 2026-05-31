@@ -733,7 +733,7 @@ fn Node*? parse_param_decl(ParseContext* ctx)
 <*
  var_decl ::= ('var' | type_expr) decl_element (',' decl_element)* ';'
 *>
-fn Node*? parse_var_decl(ParseContext* ctx, ParseFlags flags = { })
+fn Node*? parse_var_decl(ParseContext* ctx, Node* type = null, ParseFlags flags = { })
 {
 	int start_pos = ctx.peek(0).pos;
 
@@ -751,21 +751,24 @@ fn Node*? parse_var_decl(ParseContext* ctx, ParseFlags flags = { })
 		}
 	}
 
-	Node* type_node;
+	Node* type_node = type;
 
-	if (flags.is_var)
+	if (!type_node)
 	{
-		advance(ctx)!; // Consume 'var'
-	}
-	else if (is_type_primitive(ctx.peek(0).kind) || ctx.is(IDENT) || ctx.is(TYPE_IDENT))
-	{
-		type_node = parse_type_expr(ctx, flags)!;
-		if (type_node.kind == ERROR) return type_node;
-	}
-	else if (!flags.is_const)
-	{
-		ctx.error("Expected a valid type signature or 'var'");
-		return ctx.ast.alloc_node(ERROR, start_pos);
+		if (flags.is_var)
+		{
+			advance(ctx)!; // Consume 'var'
+		}
+		else if (is_type_primitive(ctx.peek(0).kind) || ctx.is(IDENT) || ctx.is(TYPE_IDENT))
+		{
+			type_node = parse_type_expr(ctx, flags)!;
+			if (type_node.kind == ERROR) return type_node;
+		}
+		else if (!flags.is_const)
+		{
+			ctx.error("Expected a valid type signature or 'var'");
+			return ctx.ast.alloc_node(ERROR, start_pos);
+		}
 	}
 
 	Node* head_node;

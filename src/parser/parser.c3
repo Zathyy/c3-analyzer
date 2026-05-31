@@ -423,7 +423,7 @@ fn void? parse_top_level(ParseContext* ctx, Workspace* ws)
 
 	if (is_type(ctx))
 	{
-		node = parse_var_decl(ctx, flags)!;
+		node = parse_var_decl(ctx, null, flags)!;
 		ctx.ast.top_level_nodes.push(node);
 		return;
 	}
@@ -464,7 +464,7 @@ fn void? parse_top_level(ParseContext* ctx, Workspace* ws)
 		case CONST:
 			flags.is_const = true;
 			advance(ctx)!;
-			node = parse_var_decl(ctx, flags)!;
+			node = parse_var_decl(ctx, null, flags)!;
 			// case CT_EXPAND:
 			// node = parse_expand_decl(ctx)!;
 			// case CT_ASSERT:

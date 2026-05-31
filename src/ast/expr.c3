@@ -141,3 +141,8 @@ struct UnaryExpr
 	UnaryOpKind operator;
 	Node* expr;
 }
+
+struct CondExpr
+{
+	NodeArray exprs;
+}

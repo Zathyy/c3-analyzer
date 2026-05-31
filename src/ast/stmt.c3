@@ -14,3 +14,48 @@ struct CompoundStmt
 {
 	NodeArray statements;
 }
+
+struct SwitchStmt
+{
+	NodeArray cases;
+	Node* cond;
+	StringID label;
+}
+
+<*
+ - expr: 
+ - to_expr: 
+ - body: compound_stmt
+*>
+struct CaseStmt
+{
+	Node* expr;
+	Node* to_expr;
+	Node* body;
+}
+
+<*
+ -body: compound_stmt
+*>
+struct DefaultStmt
+{
+	Node* body;
+}
+
+struct NextcaseStmt
+{
+	Node* expr;
+	StringID label;
+	bool is_default;
+}
+
+struct ContinueBreakStmt
+{
+	StringID label;
+	bool is_continue;
+}
+
+struct ReturnStmt
+{
+	Node* expr;
+}
