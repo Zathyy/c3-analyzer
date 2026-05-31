@@ -30,6 +30,8 @@ fn Node*? parse_stmt(ParseContext* ctx)
 			return parse_return_stmt(ctx)!;
 		case CT_SWITCH:
 			return parse_ct_switch_stmt(ctx)!;
+		case IF:
+			return parse_if_stmt(ctx)!;
 		case HASH_IDENT:
 		case IDENT:
 		case CONST_IDENT:
@@ -527,5 +529,56 @@ fn Node*? parse_ct_switch_stmt(ParseContext* ctx) => @pool()
 	}!;
 
 	cs.cases = alloc::clone_slice(ctx.arena, stmts.array_view());
+	return node;
+}
+
+<*
+ if_stmt ::= IF LABEL? '(' cond_expr ')' compound_stmt (ELSE compound_stmt)?
+	| IF LABEL? '(' cond_expr ')' statement
+*>
+fn Node*? parse_if_stmt(ParseContext* ctx)
+{
+	int start_pos = ctx.peek(0).pos;
+	@expect_else(ctx, IF ; err)
+	{
+		return err;
+	}!;
+
+	Node* node      = ctx.ast.alloc_node(IF_STMT, start_pos);
+	IfStmt* if_stmt = node.as(IF_STMT);
+	defer node.end_token = ctx.peek(0).pos;
+
+	if (ctx.is(CONST_IDENT))
+	{
+		if_stmt.label = ctx.ast.string_pool.internalize(ctx.current_text());
+		advance(ctx)!;
+		@expect_else(ctx, COLON ; err)
+		{
+			ctx.skip_until({ EOS, EOF, RBRACE })!;
+			return err;
+		}!;
+	}
+
+	@expect_else(ctx, LPAREN ; err)
+	{
+		ctx.skip_until({ EOS, EOF, RBRACE })!;
+		return err;
+	}!;
+
+	if_stmt.condition = parse_cond_expr(ctx)!;
+
+	@expect_else(ctx, RPAREN ; err)
+	{
+		ctx.skip_until({ EOS, EOF, RBRACE })!;
+		return err;
+	}!;
+
+	if_stmt.then_body = parse_stmt(ctx)!;
+
+	if (consume(ctx, ELSE)!)
+	{
+		if_stmt.else_body = parse_stmt(ctx)!;
+	}
+
 	return node;
 }

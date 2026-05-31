@@ -6,8 +6,9 @@ import std::collections::list;
 struct IfStmt
 {
 	Node* condition;
-	Node* then_block;
-	Node* else_block;
+	Node* then_body;
+	Node* else_body;
+	StringID label;
 }
 
 struct CompoundStmt

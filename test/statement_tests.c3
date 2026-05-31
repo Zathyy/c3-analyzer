@@ -106,3 +106,47 @@ fn void ct_switch_stmt()
 	test::eq(parser_tests::count_kind(s, MODULE_DECL), 1);
 	test::eq(parser_tests::count_kind(s, FN_DECL), 1);
 }
+
+fn void if_elseif_else()
+{
+	// uses a function just to get a compound
+	String path = `
+		module hello; 
+		fn void foo(int a) 
+		{
+			if LABEL: (a > 0 && a < 10)
+			{
+			}
+			else if (a == 5)
+			{
+			}
+			else
+			{
+			}
+		}
+	`;
+
+	Workspace ws;
+	ws.init();
+	defer ws.free();
+	ParseResult res = parser::parse(&ws, "if_elseif_else", path)!!;
+	test::eq(res.success, true);
+
+	Module* mod      = ws.modules.get("hello")!!;
+	ModuleSection* s = mod.sections[0];
+	StringPool* pool = &s.source_file.ast.string_pool;
+
+	Node* node            = ws.lookup("hello", "foo")!!;
+	FnDecl* func          = node.as(FN_DECL);
+	CompoundStmt* fn_comp = func.body.as(COMPOUND_STMT);
+	IfStmt* if_stmt       = fn_comp.statements[0].as(IF_STMT);
+	IfStmt* if_stmt_2     = if_stmt.else_body.as(IF_STMT);
+	test::eq(if_stmt_2.then_body.kind, NodeKind.COMPOUND_STMT);
+	test::eq(if_stmt_2.else_body.kind, NodeKind.COMPOUND_STMT);
+	test::eq(if_stmt.then_body.kind, NodeKind.COMPOUND_STMT);
+	test::ne(if_stmt.else_body, null);
+	test::eq(pool.get(if_stmt.label)!!, "LABEL");
+	test::eq(fn_comp.statements.len, 1);
+	test::eq(parser_tests::count_kind(s, MODULE_DECL), 1);
+	test::eq(parser_tests::count_kind(s, FN_DECL), 1);
+}
