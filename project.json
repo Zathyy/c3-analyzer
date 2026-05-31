@@ -6,8 +6,6 @@
   // Directories where C3 library files may be found.
   "dependency-search-paths": [ "lib" ],
   // Libraries to use for all targets.
-  "dependencies": [ "dessert", "seali" ],
-  // Authors, optionally with email.
   "authors": [ "John Doe <john.doe@example.com>" ],
   // Version using semantic versioning.
   "version": "0.1.0",
@@ -32,6 +30,7 @@
     "c3_parser": {
       "type": "executable",
 			"features": [ "PARSER_CLI" ],
+      "dependencies": [ "seali" ]
     },
     "c3_parser_lib": {
       "type": "static-lib",
