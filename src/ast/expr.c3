@@ -142,6 +142,11 @@ struct UnaryExpr
 	Node* expr;
 }
 
+struct PostUnaryExpr
+{
+	inline UnaryExpr unary;
+}
+
 struct CondExpr
 {
 	NodeArray exprs;

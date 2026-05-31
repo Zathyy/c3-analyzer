@@ -299,6 +299,11 @@ fn Node*? parse_infix(ParseContext* ctx, Node* left, Precedence rbp)
 		case CT_AND_OP:
 		case CT_OR_OP:
 			return parse_binary_expr(ctx, left, rbp)!;
+		case PLUSPLUS:
+		case MINUSMINUS:
+		case BANG:
+		case BANGBANG:
+			return parse_post_unary_expr(ctx, left, rbp)!;
 		default:
 			ctx.error("Unexpected infix token: %s", t.kind);
 			return UNEXPECTED_TOKEN~;

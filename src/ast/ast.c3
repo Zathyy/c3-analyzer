@@ -52,12 +52,14 @@ struct Node
 		NextcaseStmt nextcase_stmt;
 		CompoundStmt compound_stmt;
 		ReturnStmt return_stmt;
+		ForStmt for_stmt;
 		ExprStmt expr_stmt;
 
 		// EXPR
 		LiteralExpr literal_expr;
 		BinaryExpr binary_expr;
 		UnaryExpr unary_expr;
+		PostUnaryExpr post_unary_expr;
 		CallExpr call_expr;
 		IdentExpr ident_expr;
 		PathExpr path_expr;

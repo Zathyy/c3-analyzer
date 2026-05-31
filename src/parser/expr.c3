@@ -550,6 +550,24 @@ fn Node*? parse_unary_expr(ParseContext* ctx)
 	return node;
 }
 
+fn Node*? parse_post_unary_expr(ParseContext* ctx, Node* left, Precedence bp)
+{
+	int start_pos = ctx.current().pos;
+	Node* node    = ctx.ast.alloc_node(POST_UNARY_EXPR, start_pos);
+	defer node.end_token = ctx.current().pos;
+	PostUnaryExpr* unary = node.as(POST_UNARY_EXPR);
+	UnaryOpKind? op      = parser::unaryop_from_token(ctx.current().kind);
+	if (catch op)
+	{
+		ctx.error("Not a unary operator (%s)", ctx.current().kind);
+		return ctx.ast.error(ctx.current().pos);
+	}
+	unary.operator = op;
+	unary.expr = left;
+	advance(ctx)!;
+	return node;
+}
+
 <*
  expr_list ::= decl_or_expr*
 

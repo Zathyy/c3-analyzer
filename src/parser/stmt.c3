@@ -34,6 +34,8 @@ fn Node*? parse_stmt(ParseContext* ctx)
 			return parse_if_stmt(ctx)!;
 		case CT_IF:
 			return parse_ct_if_stmt(ctx)!;
+		case FOR:
+			return parse_for_stmt(ctx)!;
 		case HASH_IDENT:
 		case IDENT:
 		case CONST_IDENT:
@@ -630,6 +632,77 @@ fn Node*? parse_ct_if_stmt(ParseContext* ctx) => @pool()
 	{
 		return err;
 	}!;
+
+	return node;
+}
+
+<*
+ for_stmt ::= 'if' LABEL? '(' expression_list? ';' cond? ';' expression_list? ')' statement
+*>
+fn Node*? parse_for_stmt(ParseContext* ctx)
+{
+	int start_pos = ctx.peek(0).pos;
+	@expect_else(ctx, FOR ; err)
+	{
+		return err;
+	}!;
+
+	Node* node        = ctx.ast.alloc_node(FOR_STMT, start_pos);
+	ForStmt* for_stmt = node.as(FOR_STMT);
+	defer node.end_token = ctx.peek(0).pos;
+
+	if (ctx.is(CONST_IDENT))
+	{
+		for_stmt.label = ctx.ast.string_pool.internalize(ctx.current_text());
+		advance(ctx)!;
+		@expect_else(ctx, COLON ; err)
+		{
+			ctx.skip_until({ EOS, EOF })!;
+			return err;
+		}!;
+	}
+
+	@expect_else(ctx, LPAREN ; err)
+	{
+		ctx.skip_until({ RPAREN, EOS, EOF })!;
+		return err;
+	}!;
+
+	if (!consume(ctx, EOS)!)
+	{
+		for_stmt.init = parse_expr_list(ctx)!;
+		@expect_else(ctx, EOS ; err)
+		{
+			return err;
+		}!;
+	}
+
+	if (!consume(ctx, EOS)!)
+	{
+		for_stmt.cond = parse_cond_expr(ctx)!;
+		@expect_else(ctx, EOS ; err)
+		{
+			return err;
+		}!;
+	}
+
+	if (!consume(ctx, RPAREN)!)
+	{
+		for_stmt.incr = parse_expr_list(ctx)!;
+		@expect_else(ctx, RPAREN ; err)
+		{
+			return err;
+		}!;
+	}
+
+	Location prev_loc = ctx.line_map.resolve((sz)ctx.current().pos);
+	for_stmt.body = parse_stmt(ctx)!;
+	Location body_loc = ctx.line_map.resolve((sz)for_stmt.body.start_token);
+	if (for_stmt.body.kind != COMPOUND_STMT && prev_loc.line != body_loc.line)
+	{
+		ctx.error("A single statement after 'for' must be placed on the same line, or be enclosed in {}");
+		return ctx.ast.error(ctx.current().pos);
+	}
 
 	return node;
 }

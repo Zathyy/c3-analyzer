@@ -78,3 +78,19 @@ struct ExprStmt
 {
 	Node* expr_stmt;
 }
+
+<*
+ - init: expr_list?
+ - cond: cond_expr?
+ - incr: cond_ist?
+ - body: stmt
+ - label: optional label
+*>
+struct ForStmt
+{
+	Node* init;
+	Node* cond;
+	Node* incr;
+	Node* body;
+	StringID label;
+}

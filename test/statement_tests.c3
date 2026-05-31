@@ -188,3 +188,42 @@ fn void ct_if_else()
 	test::eq(parser_tests::count_kind(s, MODULE_DECL), 1);
 	test::eq(parser_tests::count_kind(s, FN_DECL), 1);
 }
+
+fn void for_stmt()
+{
+	// uses a function just to get a compound
+	String path = `
+		module hello; 
+		fn void foo(int a) 
+		{
+			for (;;)
+			{
+			}
+
+			for (sz i = 0; i < 10; i++)
+			{
+			}
+
+			for (sz i = 0; i < 10;)
+			{
+			}
+		}
+	`;
+
+	Workspace ws;
+	ws.init();
+	defer ws.free();
+	ParseResult res = parser::parse(&ws, "if_elseif_else", path)!!;
+	test::eq(res.success, true);
+
+	Module* mod      = ws.modules.get("hello")!!;
+	ModuleSection* s = mod.sections[0];
+	StringPool* pool = &s.source_file.ast.string_pool;
+
+	Node* node            = ws.lookup("hello", "foo")!!;
+	FnDecl* func          = node.as(FN_DECL);
+	CompoundStmt* fn_comp = func.body.as(COMPOUND_STMT);
+
+	test::eq(parser_tests::count_kind(s, MODULE_DECL), 1);
+	test::eq(parser_tests::count_kind(s, FN_DECL), 1);
+}
