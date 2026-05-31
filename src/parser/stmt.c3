@@ -30,11 +30,62 @@ fn Node*? parse_stmt(ParseContext* ctx)
 			return parse_return_stmt(ctx)!;
 		case CT_SWITCH:
 			return parse_ct_switch_stmt(ctx)!;
+		case HASH_IDENT:
+		case IDENT:
+		case CONST_IDENT:
+		case AMP:
+		case AT_CONST_IDENT:
+		case AT_IDENT:
+		case AT_TYPE_IDENT:
+		case BANG:
+		case BIT_NOT:
+		case BIT_OR:
+		case BIT_XOR:
+		case BUILTIN:
+		case BYTES_LITERAL:
+		case CHAR_LITERAL:
+		case CT_AND_OP:
+		case CT_CONCAT_OP:
+		case CT_CONCAT_ASSIGN:
+		case CT_CONST_IDENT:
+		case CT_DEFINED:
+		case CT_EMBED:
+		case CT_EVAL:
+		case CT_FEATURE:
+		case CT_IDENT:
+		case CT_OR_OP:
+		case CT_REFLECT:
+		case CT_STRINGIFY:
+		case CT_TERNARY:
+		case CT_VAARG:
+		case FALSE:
+		case INT_DECIMAL_LITERAL:
+		case INT_BIN_LITERAL:
+		case INT_HEX_LITERAL:
+		case INT_OCTAL_LITERAL:
+		case LENGTHOF:
+		case LPAREN:
+		case MINUS:
+		case MINUSMINUS:
+		case NULL:
+		case OR:
+		case PLUS:
+		case PLUSPLUS:
+		case FLOAT_DECIMAL_LITERAL:
+		case FLOAT_HEX_LITERAL:
+		case ASTERISK:
+		case STRING_LITERAL:
+		case TRUE:
+			return parse_expr_stmt(ctx)!;
+		case EOS:
+			return ctx.ast.alloc_node(NOP_STMT, t.pos);
 		default:
 			break;
 	}
 
-	return parse_expr_stmt(ctx)!;
+	ctx.error("Unexpected '%s' found when expecting a statement", t.kind.description);
+	advance(ctx)!;
+	return ctx.ast.error(t.pos);
 }
 
 <*
@@ -56,8 +107,7 @@ fn Node*? parse_expr_stmt(ParseContext* ctx)
 }
 
 <*
- A decleration here will only be a VarDecl
-	decl_stmt ::= decl | stmt ';'
+ decl_stmt ::= expr ';' | decl
 *>
 fn Node*? parse_decl_stmt(ParseContext* ctx)
 {

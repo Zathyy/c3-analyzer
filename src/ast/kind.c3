@@ -28,6 +28,7 @@ enum NodeKind : char
 	DEFAULT_STMT,
 	RETURN_STMT,
 	EXPR_STMT,
+	NOP_STMT,
 
 	CALL_EXPR,
 	BINARY_EXPR,
