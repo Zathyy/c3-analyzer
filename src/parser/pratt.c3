@@ -169,7 +169,7 @@ fn Node*? parse_expr(ParseContext* ctx, Precedence min_bp = LOWEST)
 		// BREAK if:
 		// 1. Token is not an infix operator (lbp is -1)
 		// 2. Token precedence is lower than current min_bp
-		if (lbp == Precedence.NONE || lbp < (int)min_bp)
+		if (lbp == Precedence.NONE || lbp < min_bp)
 		{
 			break;
 		}

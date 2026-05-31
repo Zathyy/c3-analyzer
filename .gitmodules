@@ -1,6 +1,3 @@
-[submodule "lib/dessert.c3l"]
-	path = lib/dessert.c3l
-	url = https://github.com/Ecoral360/dessert.c3l.git
 [submodule "lib/seali.c3l"]
 	path = lib/seali.c3l
 	url = https://github.com/Ecoral360/seali.c3l
