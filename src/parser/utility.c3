@@ -417,7 +417,8 @@ fn bool can_start_expression(TokenKind kind)
 	}
 }
 
-fn bool token_type_ends_case(TokenKind type)
+fn bool token_type_ends_case(TokenKind kind)
 {
-	return type == CASE || type == DEFAULT || type == RBRACE;
+	return kind == CASE || kind == DEFAULT || kind == CT_DEFAULT || kind == RBRACE || kind == CT_CASE
+		|| kind == CT_ENDSWITCH;
 }

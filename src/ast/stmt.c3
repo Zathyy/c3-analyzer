@@ -59,3 +59,14 @@ struct ReturnStmt
 {
 	Node* expr;
 }
+
+struct CtSwitchStmt
+{
+	Node* cond;
+	NodeArray cases;
+}
+
+struct ExprStmt
+{
+	Node* expr_stmt;
+}

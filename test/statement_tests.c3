@@ -66,3 +66,43 @@ fn void switch_stmt()
 	test::eq(parser_tests::count_kind(s, MODULE_DECL), 1);
 	test::eq(parser_tests::count_kind(s, FN_DECL), 1);
 }
+
+fn void ct_switch_stmt()
+{
+	// uses a function just to get a compound
+	String path = `
+		module hello; 
+		fn void foo() 
+		{
+			$switch $x:
+				$case 1:
+					#y += $x * $x;
+				$case 2:
+					#y += $x;
+				$case 3:
+					#y *= $x;
+				$default:
+					#y -= $x;
+			$endswitch
+		}
+	`;
+	Workspace ws;
+	ws.init();
+	defer ws.free();
+	ParseResult res = parser::parse(&ws, "ct_switch_stmt", path)!!;
+	test::eq(res.success, true);
+
+	Module* mod      = ws.modules.get("hello")!!;
+	ModuleSection* s = mod.sections[0];
+	StringPool* pool = &s.source_file.ast.string_pool;
+
+	Node* node            = ws.lookup("hello", "foo")!!;
+	FnDecl* func          = node.as(FN_DECL);
+	CompoundStmt* fn_comp = func.body.as(COMPOUND_STMT);
+	CtSwitchStmt* sw      = fn_comp.statements[0].as(CT_SWITCH_STMT);
+	test::eq(sw.cases.len, 4);
+	test::eq(sw.cond[0].as(IDENT_EXPR).get_ident(pool)!!, "$x");
+
+	test::eq(parser_tests::count_kind(s, MODULE_DECL), 1);
+	test::eq(parser_tests::count_kind(s, FN_DECL), 1);
+}

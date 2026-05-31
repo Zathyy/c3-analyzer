@@ -43,12 +43,14 @@ struct Node
 		// STMT
 		IfStmt if_stmt;
 		SwitchStmt switch_stmt;
+		CtSwitchStmt ct_switch_stmt;
 		CaseStmt case_stmt;
 		DefaultStmt default_stmt;
 		ContinueBreakStmt continue_break_stmt;
 		NextcaseStmt nextcase_stmt;
 		CompoundStmt compound_stmt;
 		ReturnStmt return_stmt;
+		ExprStmt expr_stmt;
 
 		// EXPR
 		LiteralExpr literal_expr;

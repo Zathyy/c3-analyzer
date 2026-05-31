@@ -1,26 +1,14 @@
 module hello;
-
-fn void greet()
+fn void foo()
 {
-	int a = 5;
-	switch LABEL: (a)
-	{
-		case 1:
-			break;
-		case 2:
-
-			{
-			}
-		case 3:
-
-			{
-			}
-			nextcase;
-		case 4:
-			nextcase;
-		case 5:
-			return 1;
-		default:
-			break;
-	}
+	$switch $x:
+		$case 1:
+			#y += $x * $x;
+		$case 2:
+			#y += $x;
+		$case 3:
+			#y *= $x;
+		$default:
+			#y -= $x;
+	$endswitch
 }

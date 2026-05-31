@@ -28,13 +28,27 @@ fn Node*? parse_stmt(ParseContext* ctx)
 			return parse_nextcase_stmt(ctx)!;
 		case RETURN:
 			return parse_return_stmt(ctx)!;
+		case CT_SWITCH:
+			return parse_ct_switch_stmt(ctx)!;
 		default:
 			break;
 	}
 
-	ctx.error("Unhandled statement (%s)", t.kind.description);
-	advance(ctx)!;
-	return ctx.ast.error(t.pos);
+	return parse_expr_stmt(ctx)!;
+}
+
+fn Node*? parse_expr_stmt(ParseContext* ctx)
+{
+	int start_pos = ctx.current().pos;
+	Node* node    = ctx.ast.alloc_node(EXPR_STMT, start_pos);
+	ExprStmt* es  = node.as(EXPR_STMT);
+	defer node.end_token = ctx.peek(0).pos;
+	es.expr_stmt = parse_expr(ctx)!;
+	@expect_else(ctx, EOS ; err)
+	{
+		return err;
+	}!;
+	return node;
 }
 
 fn Node*? parse_decl_stmt(ParseContext* ctx)
@@ -183,10 +197,11 @@ fn Node*? parse_case_stmts(ParseContext* ctx, sz row) => @pool()
  case_stmt ::= 'case' expr ('..' expr)? ':' stmt*
 
 *>
-fn Node*? parse_case_stmt(ParseContext* ctx) => @pool()
+fn Node*? parse_case_stmt(ParseContext* ctx, ParseFlags flags = { }) => @pool()
 {
-	int pos = ctx.current().pos;
-	@expect_else(ctx, CASE ; err)
+	int pos            = ctx.current().pos;
+	TokenKind expected = flags.is_comptime ? CT_CASE : CASE;
+	@expect_else(ctx, expected ; err)
 	{
 		return err;
 	}!;
@@ -216,10 +231,11 @@ fn Node*? parse_case_stmt(ParseContext* ctx) => @pool()
 <*
 
 *>
-fn Node*? parse_default_stmt(ParseContext* ctx)
+fn Node*? parse_default_stmt(ParseContext* ctx, ParseFlags flags = { })
 {
-	int start_pos = ctx.peek(0).pos;
-	@expect_else(ctx, DEFAULT ; err)
+	int start_pos      = ctx.peek(0).pos;
+	TokenKind expected = flags.is_comptime ? CT_DEFAULT : DEFAULT;
+	@expect_else(ctx, expected ; err)
 	{
 		return err;
 	}!;
@@ -391,5 +407,64 @@ fn Node*? parse_return_stmt(ParseContext* ctx)
 		return err;
 	}!;
 
+	return node;
+}
+
+<*
+ ct_switch_stmt ::= CT_SWITCH const_expr? ':' ct_case_statement* CT_ENDSWITCH
+ ct_case_statement ::= (CT_CASE constant_expr | CT_DEFAULT) ':' opt_stmt_list
+*>
+fn Node*? parse_ct_switch_stmt(ParseContext* ctx) => @pool()
+{
+	int start_pos = ctx.peek(0).pos;
+	@expect_else(ctx, CT_SWITCH ; err)
+	{
+		return err;
+	}!;
+
+	Node* node       = ctx.ast.alloc_node(CT_SWITCH_STMT, start_pos);
+	CtSwitchStmt* cs = node.as(CT_SWITCH_STMT);
+	defer node.end_token = ctx.peek(0).pos;
+
+	if (!ctx.is(COLON))
+	{
+		if (ctx.is(CT_CASE))
+		{
+			ctx.error("Expected ':' after $switch");
+			return ctx.ast.error(ctx.current().pos);
+		}
+
+		cs.cond = parse_constant_expr(ctx)!;
+	}
+
+	@expect_else(ctx, COLON ; err)
+	{
+		return err;
+	}!;
+
+	List{Node*} stmts;
+	stmts.tinit();
+	while (!ctx.eof() && !ctx.is(CT_ENDSWITCH))
+	{
+		TokenKind kind = ctx.current().kind;
+		log::debug("parse_ct_switch_stmt - kind: %s", kind.description);
+		switch (kind)
+		{
+			case CT_CASE:
+				stmts.push(parse_case_stmt(ctx, { .is_comptime = true })!);
+			case CT_DEFAULT:
+				stmts.push(parse_default_stmt(ctx, { .is_comptime = true })!);
+			default:
+				ctx.error("'$case' or '$default' expected");
+				return ctx.ast.error(ctx.current().pos);
+		}
+	}
+
+	@expect_else(ctx, CT_ENDSWITCH ; err)
+	{
+		return err;
+	}!;
+
+	cs.cases = alloc::clone_slice(ctx.arena, stmts.array_view());
 	return node;
 }
