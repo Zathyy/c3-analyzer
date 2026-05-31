@@ -11,34 +11,29 @@ repo_root=$(git rev-parse --show-toplevel)
 cd "$repo_root"
 
 files=$(mktemp)
-formatted=$(mktemp)
 tmpdir=$(mktemp -d)
-trap 'rm -f "$files" "$formatted"; rm -rf "$tmpdir"' EXIT
+trap 'rm -f "$files"; rm -rf "$tmpdir"' EXIT
 
-git ls-files '*.c3' '*.c3i' > "$files"
+git diff --cached --name-only --diff-filter=AM -- '*.c3' '*.c3i' '*.c3l' > "$files"
 if [ ! -s "$files" ]; then
 	exit 0
 fi
 
-echo "Running c3fmt on tracked C3 files..."
+echo "Running c3fmt on staged C3 files..."
 failed=0
 while IFS= read -r file; do
-	tmp="$tmpdir/formatted"
-	if c3fmt --stdin --stdout < "$file" > "$tmp"; then
-		cp "$tmp" "$file"
-		printf '%s\n' "$file" >> "$formatted"
+	input="$tmpdir/input"
+	output="$tmpdir/formatted"
+	if git show ":$file" > "$input" && c3fmt --stdin --stdout < "$input" > "$output"; then
+		mode=$(git ls-files -s -- "$file" | awk 'NR == 1 { print $1 }')
+		blob=$(git hash-object -w "$output")
+		git update-index --cacheinfo "$mode" "$blob" "$file"
 	else
 		echo "warning: c3fmt failed while formatting $file; leaving it unchanged." >&2
 		failed=1
 	fi
-	rm -f "$tmp"
+	rm -f "$input" "$output"
 done < "$files"
-
-# Include formatter edits in the commit. The file list comes from git ls-files,
-# so this does not add untracked files or recurse into submodule contents.
-if [ -s "$formatted" ]; then
-	xargs git add -- < "$formatted"
-fi
 
 if [ "$failed" -ne 0 ]; then
 	echo "warning: c3fmt had failures; continuing so the commit is not blocked." >&2
