@@ -43,6 +43,7 @@ struct Node
 
 		// STMT
 		IfStmt if_stmt;
+		CtIfStmt ct_if_stmt;
 		SwitchStmt switch_stmt;
 		CtSwitchStmt ct_switch_stmt;
 		CaseStmt case_stmt;

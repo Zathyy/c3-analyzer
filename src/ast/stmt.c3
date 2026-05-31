@@ -11,6 +11,13 @@ struct IfStmt
 	StringID label;
 }
 
+struct CtIfStmt
+{
+	Node* expr;
+	NodeArray then_stmts;
+	NodeArray else_stmts;
+}
+
 struct CompoundStmt
 {
 	NodeArray statements;

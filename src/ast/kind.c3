@@ -21,6 +21,7 @@ enum NodeKind : char
 
 	COMPOUND_STMT,
 	IF_STMT,
+	CT_IF_STMT,
 	SWITCH_STMT,
 	CT_SWITCH_STMT,
 	CASE_STMT,
