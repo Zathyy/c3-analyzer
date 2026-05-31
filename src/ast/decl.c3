@@ -30,6 +30,7 @@ fn String? ContractDecl.get_comment(&self, StringPool* pool) => pool.get(self.co
 struct ModuleDecl
 {
 	Node* path;
+	Node* contract;
 	NodeArray attributes;
 }
 
@@ -96,6 +97,7 @@ struct FnDecl
 	Node* associated_type;
 	Node* ret_type;
 	Node* body;
+	Node* contract;
 	NodeArray params;
 	NodeArray attributes;
 }

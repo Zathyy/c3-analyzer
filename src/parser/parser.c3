@@ -471,19 +471,35 @@ fn void? parse_top_level(ParseContext* ctx, Workspace* ws)
 			// int start_pos = ctx.current_pos();
 			// Node stmt = parse_ct_assert(ctx)!;
 			// node = ctx.ast.add_node(CT_ASSERT_DECL, start_pos, ctx.current_pos(), stmt);
-			// case EOS:
-			// ctx.error("<EOS> appeared in parse_top_level");
-			// advance(ctx)!;
-			// return UNEXPECTED_EOS~;
 		default:
 			ctx.error("Couldn't find any matching top level declaration: %s", string::from_struct(tmem, ctx.current()));
 			return UNEXPECTED_TOKEN~;
 	}
 
 	ctx.ast.top_level_nodes.push(node);
-	// if (ctx.contract.is_valid())
-	// {
-	// 	attach_contract(ctx, node, ctx.contract);
-	// }
-	ctx.contract = { };
+	if (ctx.contract)
+	{
+		attach_contract(ctx, node, ctx.contract);
+	}
+	ctx.contract = null;
+}
+
+<*
+ @param [&in] ctx
+ @param [&inout] node
+ @param [&in] contract
+*>
+fn void attach_contract(ParseContext* ctx, Node* node, Node* contract)
+{
+	switch (node.kind)
+	{
+		case MODULE_DECL:
+			ModuleDecl* mod = node.as(MODULE_DECL);
+			mod.contract = contract;
+		case FN_DECL:
+			FnDecl* func = node.as(FN_DECL);
+			func.contract = contract;
+		default:
+			break;
+	}
 }
