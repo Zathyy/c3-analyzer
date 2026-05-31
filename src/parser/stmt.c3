@@ -38,6 +38,8 @@ fn Node*? parse_stmt(ParseContext* ctx)
 			return parse_for_stmt(ctx)!;
 		case CT_ASSERT:
 			return parse_ct_assert_stmt(ctx)!;
+		case CT_ERROR:
+			return parse_ct_error_stmt(ctx)!;
 		case HASH_IDENT:
 		case IDENT:
 		case CONST_IDENT:
@@ -738,3 +740,27 @@ fn Node*? parse_ct_assert_stmt(ParseContext* ctx) => @pool()
 	return node;
 }
 
+<*
+ ct_error_stmt ::= '$error' constant_expression ";"
+*>
+fn Node*? parse_ct_error_stmt(ParseContext* ctx) => @pool()
+{
+	int start_pos = ctx.peek(0).pos;
+	@expect_else(ctx, CT_ERROR ; err)
+	{
+		return err;
+	}!;
+
+	Node* node        = ctx.ast.alloc_node(CT_ERROR_STMT, start_pos);
+	CtErrorStmt* ct_assert_stmt = node.as(CT_ERROR_STMT);
+	defer node.end_token = ctx.peek(0).pos;
+
+	ct_assert_stmt.expr = parse_constant_expr(ctx)!;
+
+	@expect_else(ctx, EOS ; err)
+	{
+		return err;
+	}!;
+
+	return node;
+}

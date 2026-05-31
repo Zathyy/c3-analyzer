@@ -33,6 +33,7 @@ enum NodeKind : char
 	EXPR_STMT,
 	NOP_STMT,
 	CT_ASSERT_STMT,
+	CT_ERROR_STMT,
 
 	CALL_EXPR,
 	BINARY_EXPR,

@@ -100,3 +100,8 @@ struct CtAssertStmt
 	Node* expr;
 	Node* msg_expr;
 }
+
+struct CtErrorStmt
+{
+	Node* expr;
+}
