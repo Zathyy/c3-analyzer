@@ -94,3 +94,9 @@ struct ForStmt
 	Node* body;
 	StringID label;
 }
+
+struct CtAssertStmt
+{
+	Node* expr;
+	Node* msg_expr;
+}

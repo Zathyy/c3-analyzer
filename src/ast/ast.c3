@@ -54,6 +54,7 @@ struct Node
 		ReturnStmt return_stmt;
 		ForStmt for_stmt;
 		ExprStmt expr_stmt;
+		CtAssertStmt ct_assert_stmt;
 
 		// EXPR
 		LiteralExpr literal_expr;
