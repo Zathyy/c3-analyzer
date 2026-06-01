@@ -349,3 +349,11 @@ fn Node*? parse_constant_expr(ParseContext* ctx)
 {
 	return parse_expr(ctx, ASSIGNMENT + 1)!;
 }
+
+<*
+ @ensure return != null
+*>
+fn Node*? parse_try_chain_expr(ParseContext* ctx)
+{
+	return parse_expr(ctx, RELATIONAL + 1)!;
+}

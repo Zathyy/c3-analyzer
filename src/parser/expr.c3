@@ -670,6 +670,92 @@ fn Node*? parse_call_expr(ParseContext* ctx, Node* callee) => @pool()
 }
 
 <*
+ catch_unwrap ::= 'catch' (IDENT | type_expr? IDENT '=' catch_chain) | catch_chain
+	catch_chain ::= parse_try_chain_expr (',' parse_try_chain_expr)*
+
+*>
+fn Node*? parse_catch_expr(ParseContext* ctx) => @pool()
+{
+	@expect_else(ctx, CATCH ; err)
+	{
+		return err;
+	}!;
+
+	Node* node = ctx.ast.alloc_node(CATCH_EXPR, ctx.current().pos);
+	defer node.end_token = ctx.peek(0).pos;
+	CatchExpr* catch_expr = node.as(CATCH_EXPR);
+
+	Node* sub_expr = parse_try_chain_expr(ctx)!;
+	if (sub_expr.kind == ERROR)
+	{
+		ctx.skip_until({ EOS, RPAREN, EOF })!;
+		return sub_expr;
+	}
+	List{Node*} exprs;
+	exprs.tinit();
+	if (consume(ctx, COMMA)!)
+	{
+		exprs.push(sub_expr);
+		do
+		{
+			sub_expr = parse_try_chain_expr(ctx)!;
+			if (sub_expr.kind == ERROR)
+			{
+				ctx.skip_until({ EOS, RPAREN, EOF })!;
+				return sub_expr;
+			}
+			exprs.push(sub_expr);
+		} while (consume(ctx, COMMA)!);
+		catch_expr.exprs = alloc::clone_slice(ctx.arena, exprs.array_view());
+		return node;
+	}
+
+	if (sub_expr.kind == TYPE_EXPR)
+	{
+		catch_expr.type = sub_expr;
+		Node* variable = parse_try_chain_expr(ctx)!;
+		if (variable.kind == ERROR)
+		{
+			ctx.skip_until({ EOS, RPAREN, EOF })!;
+			return variable;
+		}
+		catch_expr.variable = variable;
+	}
+	else
+	{
+		catch_expr.type = null;
+		catch_expr.variable = sub_expr;
+	}
+
+	if (!consume(ctx, EQ)!)
+	{
+		if (catch_expr.type)
+		{
+			ctx.error("Expected '=' here");
+			return ctx.ast.error(ctx.current().pos);
+		}
+
+		exprs.push(catch_expr.variable);
+		catch_expr.variable = null;
+		return node;
+	}
+
+	do
+	{
+		sub_expr = parse_try_chain_expr(ctx)!;
+		if (sub_expr.kind == ERROR)
+		{
+			return sub_expr;
+		}
+		exprs.push(sub_expr);
+	} while (consume(ctx, COMMA)!);
+
+	catch_expr.exprs = alloc::clone_slice(ctx.arena, exprs.array_view());
+
+	return node;
+}
+
+<*
  cond_list ::= ((expr | decl-expr) COMMA)* (expr | decl-expr | try_unwrap_chain | catch_unwrap )
 *>
 fn Node*? parse_cond_expr(ParseContext* ctx) => @pool()
@@ -685,11 +771,23 @@ fn Node*? parse_cond_expr(ParseContext* ctx) => @pool()
 	{
 		if (ctx.is(TRY))
 		{
-			// TODO!
+			exprs.push(parse_try_unwrap_chain_expr(ctx)!);
+			if (ctx.is(COMMA))
+			{
+				ctx.error("'try' must be placed last");
+				return ctx.ast.error(ctx.current().pos);
+			}
+			break;
 		}
 		if (ctx.is(CATCH))
 		{
-			// TODO!
+			exprs.push(parse_catch_expr(ctx)!);
+			if (ctx.is(COMMA))
+			{
+				ctx.error("'catch' must be placed last");
+				return ctx.ast.error(ctx.current().pos);
+			}
+			break;
 		}
 
 		exprs.push(parse_decl_or_expr(ctx)!);
@@ -698,4 +796,77 @@ fn Node*? parse_cond_expr(ParseContext* ctx) => @pool()
 
 	cond.exprs = alloc::clone_slice(ctx.arena, exprs.array_view());
 	return node;
+}
+
+fn Node*? parse_try_expr(ParseContext* ctx)
+{
+	@expect_else(ctx, TRY ; err)
+	{
+		return err;
+	}!;
+
+	Node* node = ctx.ast.alloc_node(TRY_EXPR, ctx.current().pos);
+	defer node.end_token = ctx.peek(0).pos;
+	TryExpr* try_expr = node.as(TRY_EXPR);
+
+	Node* lhs = parse_try_chain_expr(ctx)!;
+
+	if (lhs.kind == TYPE_EXPR)
+	{
+		try_expr.type = lhs;
+		try_expr.variable = parse_try_chain_expr(ctx)!;
+	}
+	else
+	{
+		try_expr.variable = lhs;
+	}
+
+	if (lhs.kind == TYPE_EXPR && try_expr.variable.kind != IDENT_EXPR)
+	{
+		ctx.error("A new variable was expected");
+		return ctx.ast.error(lhs.start_token);
+	}
+	if (consume(ctx, EQ)!)
+	{
+		try_expr.init = parse_try_chain_expr(ctx)!;
+	}
+	return node;
+}
+
+<*
+ try_unwrap_chain ::= try ('&&' (try_unwrap | try_chain_expr))*
+
+*>
+fn Node*? parse_try_unwrap_chain_expr(ParseContext* ctx)
+{
+	Node* first_try      = parse_try_expr(ctx)!;
+	Node* current        = first_try;
+	TryExpr* current_try = current.as(TRY_EXPR);
+
+	while (consume(ctx, AND)!)
+	{
+		Node* next_expr = null;
+
+		if (ctx.is(TRY))
+		{
+			next_expr = parse_try_expr(ctx)!;
+		}
+		else
+		{
+			next_expr = parse_try_chain_expr(ctx)!;
+		}
+
+		if (current.kind == NodeKind.TRY_EXPR)
+		{
+			current.as(TRY_EXPR).next = next_expr;
+		}
+		else
+		{
+			current_try.next = next_expr;
+		}
+
+		current = next_expr;
+	}
+
+	return first_try;
 }

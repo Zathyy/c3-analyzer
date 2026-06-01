@@ -151,3 +151,26 @@ struct CondExpr
 {
 	NodeArray exprs;
 }
+
+<*
+ - variable: 
+ - type: type_expr | missing
+ - exprs:
+*>
+struct CatchExpr
+{
+	Node* variable;
+	Node* type;
+	NodeArray exprs;
+}
+
+<*
+ - next: null | points to the next TryExpr
+*>
+struct TryExpr
+{
+	Node* variable;
+	Node* type;
+	Node* init;
+	Node* next;
+}

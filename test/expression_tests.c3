@@ -212,3 +212,41 @@ fn void unary()
 	test::eq(parser_tests::count_kind(s, MODULE_DECL), 1);
 	test::eq(parser_tests::count_kind(s, VAR_DECL), 7);
 }
+
+fn void try_catch()
+{
+	String path = `
+		module hello;
+
+		fn void hello()
+		{
+			if (try foo)
+			{
+			}
+
+			if (try val = foo)
+			{
+			}
+
+			if (catch err = foo)
+			{
+			}
+
+			if (catch foo)
+			{
+			}
+		}
+	`;
+
+	Workspace ws;
+	ws.init();
+	defer ws.free();
+	ParseResult res = parser::parse(&ws, "try_catch", path)!!;
+	test::eq(res.success, true);
+
+	Module* mod      = ws.modules.get("hello")!!;
+	ModuleSection* s = mod.sections[0];
+
+	test::eq(parser_tests::count_kind(s, MODULE_DECL), 1);
+	test::eq(parser_tests::count_kind(s, FN_DECL), 1);
+}

@@ -71,6 +71,8 @@ struct Node
 		ExprList expr_list;
 		ContractExpr contract_expr;
 		CondExpr cond_expr;
+		TryExpr try_expr;
+		CatchExpr catch_expr;
 		// UNIT
 		ContractParam contract_param;
 	}
