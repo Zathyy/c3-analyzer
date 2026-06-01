@@ -304,6 +304,9 @@ fn Node*? parse_infix(ParseContext* ctx, Node* left, Precedence rbp)
 		case BANG:
 		case BANGBANG:
 			return parse_post_unary_expr(ctx, left, rbp)!;
+		case QUESTION:
+		case CT_TERNARY:
+			return parse_ternary_expr(ctx, left)!;
 		default:
 			ctx.error("Unexpected infix token: %s", t.kind);
 			return UNEXPECTED_TOKEN~;

@@ -220,6 +220,7 @@ fn void try_catch()
 
 		fn void hello()
 		{
+			int? a = bar();
 			if (try foo)
 			{
 			}

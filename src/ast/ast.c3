@@ -73,6 +73,7 @@ struct Node
 		CondExpr cond_expr;
 		TryExpr try_expr;
 		CatchExpr catch_expr;
+		TernaryExpr ternary_expr;
 		// UNIT
 		ContractParam contract_param;
 	}

@@ -59,6 +59,8 @@ fn String? PathExpr.full_path(&self, StringPool* pool, Allocator allocator) => @
 struct TypeExpr
 {
 	TypeKind kind;
+	bool optional;
+
 	union
 	{
 		struct unresolved
@@ -173,4 +175,16 @@ struct TryExpr
 	Node* type;
 	Node* init;
 	Node* next;
+}
+
+<*
+ - then_expr: may be null for elvis
+*>
+struct TernaryExpr
+{
+	Node* cond;
+	Node* then_expr;
+	Node* else_expr;
+	bool is_grouped;
+	bool is_const;
 }

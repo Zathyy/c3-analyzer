@@ -119,6 +119,13 @@ fn Node*? parse_type_expr(ParseContext* ctx, ParseFlags parse_flags = { })
 	{
 		Token t = ctx.peek(0);
 
+		if (t.kind == QUESTION)
+		{
+			advance(ctx)!;
+			data.optional = true;
+			continue;
+		}
+
 		if (t.kind == ASTERISK)
 		{
 			advance(ctx)!;
@@ -869,4 +876,31 @@ fn Node*? parse_try_unwrap_chain_expr(ParseContext* ctx)
 	}
 
 	return first_try;
+}
+
+<*
+ ternary_optional_expr ::= expr? | ternary_expr
+ optional_expr ::= <left> '?' '!'?
+ ternary_expr ::= <left> '?' expr ':' ternary_prec_expr
+*>
+fn Node*? parse_ternary_expr(ParseContext* ctx, Node* left)
+{
+	Node* node = ctx.ast.alloc_node(TERNARY_EXPR, ctx.current().pos);
+	defer node.end_token = ctx.peek(0).pos;
+	TernaryExpr* tern = node.as(TERNARY_EXPR);
+
+	tern.is_const = ctx.is(CT_TERNARY);
+	advance(ctx)!;
+	tern.cond = left;
+
+	tern.then_expr = parse_expr(ctx)!;
+
+	@expect_else(ctx, COLON ; err)
+	{
+		return err;
+	}!;
+
+	tern.else_expr = parse_expr(ctx, TERNARY)!;
+
+	return node;
 }
