@@ -235,6 +235,10 @@ fn void try_catch()
 			if (catch foo)
 			{
 			}
+
+			if (try a = func() && try b = func())
+			{
+			}
 		}
 	`;
 
