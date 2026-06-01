@@ -422,3 +422,33 @@ fn bool token_type_ends_case(TokenKind kind)
 	return kind == CASE || kind == DEFAULT || kind == CT_DEFAULT || kind == RBRACE || kind == CT_CASE
 		|| kind == CT_ENDSWITCH;
 }
+
+fn bool check_if_typed_parameter(ParseContext* ctx)
+{
+	TokenKind first  = ctx.peek(0).kind;
+	TokenKind second = ctx.peek(1).kind;
+
+	if (is_type_primitive(first) || first == TYPE_IDENT)
+	{
+		if (second == COMMA || second == RPAREN || second == EQ)
+		{
+			return false;
+		}
+		return true;
+	}
+	return false;
+}
+
+fn Node* alloc_any_type_expr(ParseContext* ctx)
+{
+	int pos = ctx.peek(0).pos;
+
+	Node* type_node = ctx.ast.alloc_node(TYPE_EXPR, pos, pos);
+	TypeExpr* data  = type_node.as(TYPE_EXPR);
+
+	data.kind = TypeKind.TYPE_IDENTIFIER;
+	data.unresolved.name = ctx.ast.string_pool.internalize("any");
+	data.unresolved.path = ctx.ast.alloc_node(MISSING, pos);
+
+	return type_node;
+}

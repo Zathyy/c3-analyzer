@@ -167,6 +167,12 @@ bitstruct VarDeclFlags : uint
 	bool is_thread_local;
 	bool is_inline;
 	bool is_static;
+
+	// for params
+	bool is_self;
+	bool is_self_by_ref;
+	bool is_variadic;
+	bool is_macro_optional_ellipsis; // For `param = ...`
 }
 
 bitstruct ContractFlags : uint

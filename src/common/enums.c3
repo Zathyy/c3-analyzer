@@ -106,7 +106,10 @@ enum VarDeclKind
 	VAR_LOCAL,
 	VAR_GLOBAL,
 	VAR_FIELD,
-	VAR_PARAM
+	VAR_PARAM, // Regular parameter (foo)
+	VAR_PARAM_CT, // Compile-time parameter ($foo)
+	VAR_PARAM_EXPR, // Expression parameter (#foo)
+	VAR_PARAM_CT_TYPE, // Compile-time type parameter ($Type)
 }
 
 enum UnaryOpKind

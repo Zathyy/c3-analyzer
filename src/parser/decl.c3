@@ -662,7 +662,7 @@ fn Node*? parse_macro_decl(ParseContext* ctx, ParseFlags flags = { })
 
 	log::debug("parse_macro");
 
-	Node* node   = ctx.ast.alloc_node(MACRO_DECL, start_pos);
+	Node* node     = ctx.ast.alloc_node(MACRO_DECL, start_pos);
 	MacroDecl* mac = node.as(MACRO_DECL);
 	defer node.end_token = ctx.peek(0).pos;
 
@@ -768,82 +768,155 @@ fn Node*? parse_macro_decl(ParseContext* ctx, ParseFlags flags = { })
 }
 
 <*
- param_decl ::= '&'? 'self' | type_expr ELLIPSIS? (non_type_ident ('=' expr))?
-                | ELLIPSIS (CT_TYPE_IDENT | non_type_ident ('=' expr)?)?
+ parameter_decl ::= parameter (("=" "...") | ("=" expression))?
+ parameter      ::= type_expr ("..."? IDENTIFIER attributes?
+					| "..."? CT_IDENT
+					| (HASH_IDENT | "&" IDENTIFIER) attributes?
+					| attributes?)
+					| "..."
+					| HASH_IDENT attributes?
+					| "&" IDENTIFIER attributes?
+					| IDENTIFIER "..."? attributes?
+					| CT_IDENT
+					| CT_IDENT "..."
  @param [&inout] ctx
 *>
 fn Node*? parse_param_decl(ParseContext* ctx)
 {
 	int start_pos = ctx.peek(0).pos;
 
-	Node* node       = ctx.ast.alloc_node(PARAM_DECL, start_pos);
-	ParamDecl* param = node.as(PARAM_DECL);
+	Node* node     = ctx.ast.alloc_node(VAR_DECL, start_pos);
+	VarDecl* param = node.as(VAR_DECL);
 	defer node.end_token = ctx.peek(0).pos;
 
-	bool is_self_by_ref = consume(ctx, AMP)!;
-
-	if (ctx.is(IDENT) && ctx.current_text() == "self")
-	{
-		Token t = ctx.peek(0);
-		param.ident_kind = t.kind;
-		param.name = ctx.ast.string_pool.internalize("self");
-		advance(ctx)!;
-
-		param.is_self = true;
-		param.is_self_by_ref = is_self_by_ref;
-
-		param.type = ctx.ast.alloc_node(MISSING, t.pos);
-
-		return node;
-	}
-	else if (is_self_by_ref)
-	{
-		// Found a '&' but it wasn't followed by 'self', rewind
-		// so that parse_type_expr can parse it as a reference type modifier.
-		reverse(ctx, start_pos)!;
-	}
-
-	param.type = parse_type_expr(ctx)!;
-
 	if (consume(ctx, ELLIPSIS)!)
 	{
-		param.is_variadic = true;
+		param.kind = VAR_PARAM;
+		param.flags.is_variadic = true;
+		param.type = ctx.ast.alloc_node(MISSING, start_pos);
+		return node;
+	}
 
-		// Check if a compile-time type or identifier follows: (CT_TYPE_IDENT | non_type_ident)
-		if (ctx.is(CT_TYPE_IDENT) || is_non_type_ident(ctx.current().kind))
+	bool is_ref                  = consume(ctx, AMP)!;
+	Node* parsed_type            = null;
+	bool has_ellipsis_after_type = false;
+
+	if (!is_ref && check_if_typed_parameter(ctx))
+	{
+		parsed_type = parse_type_expr(ctx)!;
+		if (parsed_type.kind == ERROR) return parsed_type;
+		if (parsed_type.as(TYPE_EXPR).optional)
 		{
-			Token t = ctx.peek(0);
-			param.ident_kind = t.kind;
-			param.name = ctx.ast.string_pool.internalize(ctx.token_text(t));
-			advance(ctx)!;
-
-			// Handle optional default value assignment ('=' expr)
-			if (consume(ctx, EQ)!)
-			{
-				param.default_value = parse_expr(ctx)!;
-			}
+			ctx.error("Parameters may not be optional");
+			return ctx.ast.error(start_pos);
 		}
 
-		return node;
-	}
-
-	// Check for optional trailing ellipsis (e.g., "int... values")
-	if (consume(ctx, ELLIPSIS)!)
-	{
-		param.is_variadic = true;
-	}
-
-	if (is_non_type_ident(ctx.current().kind))
-	{
-		Token t = ctx.peek(0);
-		param.ident_kind = t.kind;
-		param.name = ctx.ast.string_pool.internalize(ctx.token_text(t));
-		advance(ctx)!;
-
-		// Handle optional default value assignment ('=' expr)
-		if (consume(ctx, EQ)!)
+		if (consume(ctx, ELLIPSIS)!)
 		{
-			param.default_value = parse_expr(ctx)!;
+			has_ellipsis_after_type = true;
+			param.flags.is_variadic = true;
+		}
+	}
+
+	param.type = parsed_type ? parsed_type : ctx.ast.alloc_node(MISSING, ctx.peek(0).pos);
+
+	Token t = ctx.peek(0);
+	switch (t.kind)
+	{
+		case CT_CONST_IDENT:
+			ctx.error("Parameter names may not be all uppercase.");
+			ctx.skip_until({ EOF, EOS, RPAREN, RBRACE })!;
+			return ctx.ast.error(start_pos);
+		case CT_IDENT:
+			param.name = ctx.ast.string_pool.internalize(ctx.token_text(t));
+			param.kind = VAR_PARAM_CT;
+			advance(ctx)!;
+			if (consume(ctx, ELLIPSIS)!)
+			{
+				ctx.error("Untyped constant vaargs are not supported.");
+				ctx.skip_until({ EOF, EOS, RPAREN, RBRACE })!;
+				return ctx.ast.error(start_pos);
+			}
+			break;
+		case IDENT:
+			String token_text = ctx.current_text();
+			param.name = ctx.ast.string_pool.internalize(token_text);
+			param.kind = VAR_PARAM;
+			advance(ctx)!;
+
+			if (token_text == "self")
+			{
+				param.flags.is_self = true;
+				param.flags.is_self_by_ref = is_ref;
+			}
+
+			if (consume(ctx, ELLIPSIS)!)
+			{
+				if (has_ellipsis_after_type)
+				{
+					ctx.error("Duplicate '...' variadic marker encountered.");
+					ctx.skip_until({ EOF, EOS, RPAREN, RBRACE })!;
+					return ctx.ast.error(start_pos);
+				}
+				if (parsed_type.kind != MISSING)
+				{
+					ctx.error("For typed variadic parameters, '...' must follow the type expression, not the name.");
+					ctx.skip_until({ EOF, EOS, RPAREN, RBRACE })!;
+					return ctx.ast.error(start_pos);
+				}
+				param.flags.is_variadic = true;
+				param.type = alloc_any_type_expr(ctx);
+			}
+			break;
+		case HASH_IDENT:
+			if (is_ref || has_ellipsis_after_type)
+			{
+				ctx.error("Expression and Type parameters cannot be variadic or references.");
+				ctx.skip_until({ EOF, EOS, RPAREN, RBRACE })!;
+				return ctx.ast.error(start_pos);
+			}
+			param.name = ctx.ast.string_pool.internalize(ctx.token_text(t));
+			param.kind = VAR_PARAM_EXPR;
+			advance(ctx)!;
+			break;
+		case CT_TYPE_IDENT:
+			if (is_ref || has_ellipsis_after_type)
+			{
+				ctx.error("Expression and Type parameters cannot be variadic or references.");
+				ctx.skip_until({ EOF, EOS, RPAREN, RBRACE })!;
+				return ctx.ast.error(start_pos);
+			}
+			param.name = ctx.ast.string_pool.internalize(ctx.token_text(t));
+			param.kind = (parsed_type && parsed_type.kind != MISSING) ? VAR_PARAM : VAR_PARAM_CT_TYPE;
+			advance(ctx)!;
+			break;
+		case COMMA:
+		case RPAREN:
+			if (parsed_type == null)
+			{
+				ctx.error("Expected a parameter name or type specification.");
+				ctx.skip_until({ EOF, EOS, RPAREN, RBRACE })!;
+				return ctx.ast.error(start_pos);
+			}
+			param.name = -1;
+			param.kind = VAR_PARAM;
+			break;
+
+		default:
+			ctx.error("Expected a valid parameter definition.");
+			ctx.skip_until({ EOF, EOS, RPAREN, RBRACE })!;
+			return ctx.ast.error(start_pos);
+	}
+
+	if (consume(ctx, EQ)!)
+	{
+		if (consume(ctx, ELLIPSIS)!)
+		{
+			param.flags.is_macro_optional_ellipsis = true;
+		}
+		else
+		{
+			param.init_expr = parse_expr(ctx)!;
 		}
 	}
 

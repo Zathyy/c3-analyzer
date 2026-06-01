@@ -28,9 +28,9 @@ fn String? Cursor.spelling(&self, Allocator allocator) => @pool()
 
 	switch (self.node.kind)
 	{
-		case PARAM_DECL:
-			ParamDecl* param = self.node.as(PARAM_DECL);
-			return pool.get(param.name)!;
+		case VAR_DECL:
+			VarDecl* v = self.node.as(VAR_DECL);
+			return pool.get(v.name)!;
 		case FN_DECL:
 			FnDecl* func = self.node.as(FN_DECL);
 			return pool.get(func.name)!;

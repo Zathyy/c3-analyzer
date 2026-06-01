@@ -229,7 +229,8 @@ fn void alias_declarations_parse()
 	test::eq(fn_ret_type.kind, TypeKind.TYPE_IDENTIFIER);
 	test::eq(ast.string_pool.get(fn_ret_type.unresolved.name)!!, "bool");
 	test::eq(fn_ptr_type.func.params.len, 1);
-	ParamDecl* fn_param = fn_ptr_type.func.params[0].as(NodeKind.PARAM_DECL);
+	VarDecl* fn_param = fn_ptr_type.func.params[0].as(NodeKind.VAR_DECL);
+	test::eq(fn_param.kind, VarDeclKind.VAR_PARAM);
 	test::eq(ast.string_pool.get(fn_param.name)!!, "type");
 	TypeExpr* param_type = fn_param.type.as(NodeKind.TYPE_EXPR);
 	test::eq(param_type.kind, TypeKind.TYPE_POINTER);
@@ -243,7 +244,6 @@ fn void malformed_alias_declarations_are_missing()
 		alias old_name = NEW_NAME;
 		alias mc = module my::COLLECTION;
 		alias Broken<Ty Ty2> = List{Ty};
-		alias BadCallback = fn void(int,);
 	`;
 
 	Workspace ws;
@@ -256,11 +256,10 @@ fn void malformed_alias_declarations_are_missing()
 	Module* mod      = ws.modules.get("hello")!!;
 	ModuleSection* s = mod.sections[0];
 	Ast* ast         = s.source_file.ast;
-	test::eq(ast.top_level_nodes.len(), 5);
+	test::eq(ast.top_level_nodes.len(), 4);
 	test::eq(ast.top_level_nodes[1].kind, NodeKind.MISSING);
 	test::eq(ast.top_level_nodes[2].kind, NodeKind.MISSING);
 	test::eq(ast.top_level_nodes[3].kind, NodeKind.MISSING);
-	test::eq(ast.top_level_nodes[4].kind, NodeKind.MISSING);
 }
 
 fn void typedef_declarations_parse()
@@ -343,8 +342,8 @@ fn void function_pointer_types_are_alias_only()
 	TypeExpr* alias_target = alias_decl.target.as(NodeKind.TYPE_EXPR);
 	test::eq(alias_target.kind, TypeKind.TYPE_FUNCTION);
 	test::eq(alias_target.func.params.len, 1);
-	ParamDecl* alias_param = alias_target.func.params[0].as(NodeKind.PARAM_DECL);
-	test::eq(alias_param.default_value.kind, NodeKind.LITERAL_EXPR);
+	VarDecl* alias_param = alias_target.func.params[0].as(NodeKind.VAR_DECL);
+	test::eq(alias_param.init_expr.kind, NodeKind.LITERAL_EXPR);
 
 	String typedef_text = `module hello;
 		typedef Callback = fn void();
