@@ -199,6 +199,19 @@ macro @expect_else(ParseContext* ctx, TokenKind kind; @body(err))
 }
 
 <*
+ a helper function that expect else skips
+ @param [&inout] ctx
+*>
+fn Token? expect_else_skip(ParseContext* ctx, TokenKind kind, TokenKind[] targets)
+{
+	return @expect_else(ctx, kind; err)
+	{
+		ctx.skip_until(targets)!;
+		err.end_token = ctx.current().pos;
+	};
+}
+
+<*
  a macro just so that it logs where it happened
  @param [&inout] ctx
 *>

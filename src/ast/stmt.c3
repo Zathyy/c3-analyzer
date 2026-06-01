@@ -88,11 +88,11 @@ struct ExprStmt
 *>
 struct ForStmt
 {
-	Node* init;
-	Node* cond;
-	Node* incr;
+	Option{Node} init;
+	Option{Node} cond;
+	Option{Node} incr;
 	Node* body;
-	StringID label;
+	OptStringID label;
 }
 
 struct WhileStmt

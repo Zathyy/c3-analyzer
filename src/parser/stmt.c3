@@ -676,7 +676,7 @@ fn Node*? parse_for_stmt(ParseContext* ctx)
 
 	if (!consume(ctx, EOS)!)
 	{
-		for_stmt.init = parse_expr_list(ctx)!;
+		for_stmt.init.set(parse_expr_list(ctx))!;
 		@expect_else(ctx, EOS ; err)
 		{
 			return err;
@@ -685,7 +685,7 @@ fn Node*? parse_for_stmt(ParseContext* ctx)
 
 	if (!consume(ctx, EOS)!)
 	{
-		for_stmt.cond = parse_cond_expr(ctx)!;
+		for_stmt.cond.set(parse_cond_expr(ctx))!;
 		@expect_else(ctx, EOS ; err)
 		{
 			return err;
@@ -694,7 +694,7 @@ fn Node*? parse_for_stmt(ParseContext* ctx)
 
 	if (!consume(ctx, RPAREN)!)
 	{
-		for_stmt.incr = parse_expr_list(ctx)!;
+		for_stmt.incr.set(parse_expr_list(ctx))!;
 		@expect_else(ctx, RPAREN ; err)
 		{
 			return err;

@@ -13,6 +13,8 @@ struct StringPool
 }
 alias StringID = sz;
 
+alias OptStringID = OptionLit{StringID, -1};
+
 fn void StringPool.init(&self, Allocator allocator, int capacity)
 {
 	self.allocator = allocator;
