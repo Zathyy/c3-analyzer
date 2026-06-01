@@ -122,7 +122,8 @@ fn Node*? parse_type_expr(ParseContext* ctx, ParseFlags parse_flags = { })
 		if (t.kind == QUESTION)
 		{
 			advance(ctx)!;
-			data.optional = true;
+			log::debug("set type to optional");
+			current_type.as(TYPE_EXPR).optional = true;
 			continue;
 		}
 

@@ -77,6 +77,49 @@ fn void global_array_pointer()
 	}
 }
 
+fn void optional()
+{
+	String text = `
+		module hello;
+		
+		int? foo;
+		int*? foo;
+		int[4]? foo = bar();
+	`;
+
+	Workspace ws;
+	ws.init();
+	defer ws.free();
+
+	ParseResult res = parser::parse(&ws, "global_array_pointer_optional", text)!!;
+	test::eq(res.success, true);
+
+	Module* mod      = ws.modules.get("hello")!!;
+	ModuleSection* s = mod.sections[0];
+	StringPool* pool = &s.source_file.ast.string_pool;
+
+	Node* target_node = s.nodes[1];
+	VarDecl* decl     = target_node.as(VAR_DECL);
+	test::eq(decl.kind, VarDeclKind.VAR_GLOBAL);
+	test::eq(decl.type.kind, NodeKind.TYPE_EXPR);
+	TypeExpr* type_data = decl.type.as(TYPE_EXPR);
+	test::eq(type_data.optional, true);
+
+	Node* target_node_2 = s.nodes[2];
+	VarDecl* decl_2     = target_node_2.as(VAR_DECL);
+	test::eq(decl_2.kind, VarDeclKind.VAR_GLOBAL);
+	test::eq(decl_2.type.kind, NodeKind.TYPE_EXPR);
+	TypeExpr* type_data_2 = decl_2.type.as(TYPE_EXPR);
+	test::eq(type_data_2.optional, true);
+
+	Node* target_node_3 = s.nodes[3];
+	VarDecl* decl_3     = target_node_3.as(VAR_DECL);
+	test::eq(decl_3.kind, VarDeclKind.VAR_GLOBAL);
+	test::eq(decl_3.type.kind, NodeKind.TYPE_EXPR);
+	TypeExpr* type_data_3 = decl_3.type.as(TYPE_EXPR);
+	test::eq(type_data_3.optional, true);
+}
+
 
 fn void global_inferred_array_pointer()
 {
