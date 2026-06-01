@@ -667,6 +667,10 @@ fn Node*? parse_for_stmt(ParseContext* ctx)
 			return err;
 		}!;
 	}
+	else
+	{
+		for_stmt.label = -1;
+	}
 
 	@expect_else(ctx, LPAREN ; err)
 	{

@@ -224,6 +224,11 @@ fn void for_stmt()
 	FnDecl* func          = node.as(FN_DECL);
 	CompoundStmt* fn_comp = func.body.as(COMPOUND_STMT);
 
+	if (try label = fn_comp.statements[0].as(FOR_STMT).label.get())
+	{
+		assert(false, "label should not be defined");
+	}
+
 	test::eq(parser_tests::count_kind(s, MODULE_DECL), 1);
 	test::eq(parser_tests::count_kind(s, FN_DECL), 1);
 }
