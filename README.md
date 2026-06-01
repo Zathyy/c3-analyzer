@@ -59,10 +59,8 @@ editor integration, and the repository pre-commit hook.
 
 The parser currently distinguishes these recovery node meanings:
 
-- `ERROR`: an incorrect node is present and parsing cannot confidently continue
-  from that exact shape.
-- `MISSING`: parsing proceeds as if a missing node exists, and the rest of the
-  surrounding construct can still be valid.
+- `ERROR`: Cannot guess the intent from the current shape (names, types, expressions). Skips to a safe structural pillar.
+- `MISSING`: Omitted syntax (punctuation, keywords).
 
 ## Contributing
 
