@@ -34,6 +34,9 @@ fn String? Cursor.spelling(&self, Allocator allocator) => @pool()
 		case FN_DECL:
 			FnDecl* func = self.node.as(FN_DECL);
 			return pool.get(func.name)!;
+		case MACRO_DECL:
+			MacroDecl* mac = self.node.as(MACRO_DECL);
+			return pool.get(mac.name)!;
 		case TYPE_EXPR:
 			TypeExpr* type_data = self.node.as(TYPE_EXPR);
 			if (type_data.kind == TYPE_IDENTIFIER)

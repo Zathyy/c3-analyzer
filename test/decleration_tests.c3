@@ -104,13 +104,13 @@ fn void macro_with_params()
 	Module* mod      = ws.modules.get("hello")!!;
 	ModuleSection* s = mod.sections[0];
 
-	Node* node   = ws.lookup("hello", "greet")!!;
+	Node* node      = ws.lookup("hello", "greet")!!;
 	MacroDecl* func = node.as(MACRO_DECL);
 
-	Node* node_2   = ws.lookup("hello", "foo")!!;
+	Node* node_2      = ws.lookup("hello", "foo")!!;
 	MacroDecl* func_2 = node_2.as(MACRO_DECL);
 
-	Node* node_3   = ws.lookup("hello", "bar")!!;
+	Node* node_3      = ws.lookup("hello", "bar")!!;
 	MacroDecl* func_3 = node_3.as(MACRO_DECL);
 
 	test::eq(parser_tests::count_kind(s, MODULE_DECL), 1);
@@ -134,11 +134,11 @@ fn void macro_method_with_params()
 	Module* mod      = ws.modules.get("hello")!!;
 	ModuleSection* s = mod.sections[0];
 
-	Node* node   = ws.lookup("hello", "greet")!!;
+	Node* node     = ws.lookup("hello", "greet")!!;
 	MacroDecl* mac = node.as(MACRO_DECL);
 
 	test::eq(parser_tests::count_kind(s, MODULE_DECL), 1);
-	test::eq(parser_tests::count_kind(s, FN_DECL), 1);
+	test::eq(parser_tests::count_kind(s, MACRO_DECL), 2);
 }
 
 fn void alias_declarations_parse()
