@@ -147,7 +147,7 @@ fn Node*? parse_contract_decl(ParseContext* ctx) => @pool()
 				Node* n = ctx.ast.alloc_node(ATTRIBUTE_DECL, ctx.current().pos);
 				contract.deprecated = n;
 				AttributeDecl* attribute = n.as(ATTRIBUTE_DECL);
-				attribute.path = ctx.ast.alloc_node(MISSING, ctx.current().pos);
+				attribute.path.set(ctx.ast.alloc_node(MISSING, ctx.current().pos));
 				attribute.name = constants::KW_AT_DEPRECATED;
 				attribute.kind = DEPRECATED;
 				if (ctx.can_peek(1) && ctx.peek(0).kind == EOS && ctx.peek(1).kind == STRING_LITERAL)

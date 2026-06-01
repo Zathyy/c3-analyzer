@@ -204,7 +204,7 @@ macro @expect_else(ParseContext* ctx, TokenKind kind; @body(err))
 *>
 fn Token? expect_else_skip(ParseContext* ctx, TokenKind kind, TokenKind[] targets)
 {
-	return @expect_else(ctx, kind; err)
+	return @expect_else(ctx, kind ; err)
 	{
 		ctx.skip_until(targets)!;
 		err.end_token = ctx.current().pos;
@@ -508,7 +508,7 @@ fn void attach_contract(ParseContext* ctx, Node* node, Node* contract)
 	{
 		case MODULE_DECL:
 			ModuleDecl* mod = node.as(MODULE_DECL);
-			mod.contract = contract;
+			mod.contract.set(contract);
 		case FN_DECL:
 			FnDecl* func = node.as(FN_DECL);
 			func.contract = contract;

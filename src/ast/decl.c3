@@ -30,7 +30,7 @@ fn String? ContractDecl.get_comment(&self, StringPool* pool) => pool.get(self.co
 struct ModuleDecl
 {
 	Node* path;
-	Node* contract;
+	Option{Node} contract;
 	NodeArray attributes;
 }
 
@@ -132,7 +132,7 @@ struct VarDecl
 
 struct AttributeDecl
 {
-	Node* path;
+	Option{Node} path;
 	String name;
 	NodeArray exprs;
 	AttributeKind kind;
