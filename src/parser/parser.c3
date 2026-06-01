@@ -443,8 +443,8 @@ fn void? parse_top_level(ParseContext* ctx, Workspace* ws)
 			// node = parse_faultdef_decl(ctx)!;
 		case FN:
 			node = parse_fn_decl(ctx, flags)!;
-			// case MACRO:
-			// node = parse_macro_decl(ctx)!;
+		case MACRO:
+			node = parse_macro_decl(ctx, flags)!;
 		case ALIAS:
 			node = parse_alias_decl(ctx)!;
 		case TYPEDEF:

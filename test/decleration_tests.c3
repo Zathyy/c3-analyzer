@@ -87,6 +87,60 @@ fn void method_with_params()
 	test::eq(parser_tests::count_kind(s, FN_DECL), 1);
 }
 
+fn void macro_with_params()
+{
+	String path = `
+		module hello; 
+		macro void greet(int foo, Bar baz) {}
+		macro foo(int foo, Bar baz) {}
+		macro bar(int foo, Bar baz) => 2;
+	`;
+	Workspace ws;
+	ws.init();
+	defer ws.free();
+	ParseResult res = parser::parse(&ws, "function_with_params", path)!!;
+	test::eq(res.success, true);
+
+	Module* mod      = ws.modules.get("hello")!!;
+	ModuleSection* s = mod.sections[0];
+
+	Node* node   = ws.lookup("hello", "greet")!!;
+	MacroDecl* func = node.as(MACRO_DECL);
+
+	Node* node_2   = ws.lookup("hello", "foo")!!;
+	MacroDecl* func_2 = node_2.as(MACRO_DECL);
+
+	Node* node_3   = ws.lookup("hello", "bar")!!;
+	MacroDecl* func_3 = node_3.as(MACRO_DECL);
+
+	test::eq(parser_tests::count_kind(s, MODULE_DECL), 1);
+	test::eq(parser_tests::count_kind(s, MACRO_DECL), 3);
+}
+
+
+fn void macro_method_with_params()
+{
+	String path = `
+		module hello; 
+		macro void Foo.greet(&self, Bar baz) {}
+		macro Foo.wow(&self, Bar bar) {}
+	`;
+	Workspace ws;
+	ws.init();
+	defer ws.free();
+	ParseResult res = parser::parse(&ws, "method_with_params", path)!!;
+	test::eq(res.success, true);
+
+	Module* mod      = ws.modules.get("hello")!!;
+	ModuleSection* s = mod.sections[0];
+
+	Node* node   = ws.lookup("hello", "greet")!!;
+	FnDecl* func = node.as(FN_DECL);
+
+	test::eq(parser_tests::count_kind(s, MODULE_DECL), 1);
+	test::eq(parser_tests::count_kind(s, FN_DECL), 1);
+}
+
 fn void alias_declarations_parse()
 {
 	String text = `module hello;

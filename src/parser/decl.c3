@@ -648,6 +648,130 @@ fn Node*? parse_fn_decl(ParseContext* ctx, ParseFlags flags = { })
 }
 
 <*
+ macro_decl ::= macro type_expr? (type_expr '.')? ident '(' parameter_list? ')' attributes?
+ fn_body ::= ('=>' short_body) | compound_stmt
+*>
+fn Node*? parse_macro_decl(ParseContext* ctx, ParseFlags flags = { })
+{
+	int start_pos = ctx.peek(0).pos;
+
+	@expect_else(ctx, MACRO ; err)
+	{
+		return err;
+	}!;
+
+	log::debug("parse_macro");
+
+	Node* node   = ctx.ast.alloc_node(MACRO_DECL, start_pos);
+	MacroDecl* mac = node.as(MACRO_DECL);
+	defer node.end_token = ctx.peek(0).pos;
+
+	if (is_type(ctx) && ctx.peek(1).kind != DOT)
+	{
+		mac.ret_type = parse_type_expr(ctx)!;
+	}
+
+	if (is_type(ctx))
+	{
+		mac.associated_type = parse_type_expr(ctx)!;
+
+		if (!expect(ctx, DOT)!)
+		{
+			node.kind = MISSING;
+		}
+
+		Token t;
+		if (ctx.is(AT_IDENT))
+		{
+			t = ctx.peek(0);
+			advance(ctx)!;
+		}
+		else
+		{
+			t = @expect_else(ctx, IDENT ; err)
+			{
+				ctx.error("Expected member function name identifier");
+				mac.name = -1;
+				return err;
+			}!;
+		}
+
+
+		mac.name = ctx.ast.string_pool.internalize(ctx.token_text(t));
+	}
+	else
+	{
+		// Standalone Function: No associated type prefix
+		Token t;
+		if (ctx.is(AT_IDENT))
+		{
+			t = ctx.peek(0);
+			advance(ctx)!;
+		}
+		else
+		{
+			t = @expect_else(ctx, IDENT ; err)
+			{
+				ctx.error("Expected member function name identifier");
+				mac.name = -1;
+				return err;
+			}!;
+		}
+
+		mac.associated_type = null;
+
+		mac.name = ctx.ast.string_pool.internalize(ctx.token_text(t));
+		advance(ctx)!;
+	}
+
+	mac.params = parse_parameter_list(ctx)!;
+
+	if (ctx.is(AT_IDENT))
+	{
+		mac.attributes = parse_attributes(ctx, node)!;
+	}
+
+	if (ctx.is(LBRACE))
+	{
+		if (flags.is_extern)
+		{
+			ctx.error("Extern functions cannot have a structural block body");
+			return ctx.ast.error(start_pos);
+		}
+		mac.body = parse_compound_stmt(ctx)!;
+	}
+	else if (consume(ctx, IMPLIES)!)
+	{
+		if (flags.is_extern)
+		{
+			ctx.error("Extern functions cannot have an expression body");
+			return ctx.ast.error(start_pos);
+		}
+
+		mac.body = parse_expr(ctx)!;
+
+		// Clean statement ending validation
+		if (!node_ends_with_block(ctx, mac.body))
+		{
+			if (!expect(ctx, EOS)!)
+			{
+				node.kind = MISSING;
+			}
+		}
+	}
+	else
+	{
+		// No body provided
+		if (!expect(ctx, EOS)!)
+		{
+			node.kind = MISSING;
+		}
+	}
+
+	return node;
+}
+
+<*
  param_decl ::= '&'? 'self' | type_expr ELLIPSIS? (non_type_ident ('=' expr))?
                 | ELLIPSIS (CT_TYPE_IDENT | non_type_ident ('=' expr)?)?
  @param [&inout] ctx

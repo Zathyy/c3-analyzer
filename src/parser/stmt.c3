@@ -764,3 +764,4 @@ fn Node*? parse_ct_error_stmt(ParseContext* ctx) => @pool()
 
 	return node;
 }
+

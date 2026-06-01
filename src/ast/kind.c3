@@ -16,6 +16,7 @@ enum NodeKind : char
 	ALIAS_DECL,
 	TYPEDEF_DECL,
 	FN_DECL,
+	MACRO_DECL,
 	PARAM_DECL,
 	CT_EXPAND_DECL,
 

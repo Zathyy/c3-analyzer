@@ -113,6 +113,17 @@ struct ParamDecl
 	bool is_self_by_ref;
 }
 
+struct MacroDecl
+{
+	StringID name;
+	Node* associated_type;
+	Node* ret_type;
+	Node* body;
+	Node* contract;
+	NodeArray params;
+	NodeArray attributes;
+}
+
 <*
  VarDecl: represents (Global, Local, Field) variables
 - type: type_expr if has type
