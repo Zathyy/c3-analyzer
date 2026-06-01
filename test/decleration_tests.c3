@@ -98,7 +98,7 @@ fn void macro_with_params()
 	Workspace ws;
 	ws.init();
 	defer ws.free();
-	ParseResult res = parser::parse(&ws, "function_with_params", path)!!;
+	ParseResult res = parser::parse(&ws, "macro_with_params", path)!!;
 	test::eq(res.success, true);
 
 	Module* mod      = ws.modules.get("hello")!!;
@@ -135,7 +135,7 @@ fn void macro_method_with_params()
 	ModuleSection* s = mod.sections[0];
 
 	Node* node   = ws.lookup("hello", "greet")!!;
-	FnDecl* func = node.as(FN_DECL);
+	MacroDecl* mac = node.as(MACRO_DECL);
 
 	test::eq(parser_tests::count_kind(s, MODULE_DECL), 1);
 	test::eq(parser_tests::count_kind(s, FN_DECL), 1);

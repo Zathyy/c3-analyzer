@@ -703,19 +703,15 @@ fn Node*? parse_macro_decl(ParseContext* ctx, ParseFlags flags = { })
 	{
 		// Standalone Function: No associated type prefix
 		Token t;
-		if (ctx.is(AT_IDENT))
+		if (ctx.is(AT_IDENT) || ctx.is(IDENT))
 		{
 			t = ctx.peek(0);
-			advance(ctx)!;
 		}
 		else
 		{
-			t = @expect_else(ctx, IDENT ; err)
-			{
-				ctx.error("Expected member function name identifier");
-				mac.name = -1;
-				return err;
-			}!;
+			ctx.error("Expected member function name identifier");
+			mac.name = -1;
+			return ctx.ast.error(start_pos);
 		}
 
 		mac.associated_type = null;
