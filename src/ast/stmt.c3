@@ -95,6 +95,13 @@ struct ForStmt
 	StringID label;
 }
 
+struct WhileStmt
+{
+	Node* cond;
+	Node* body;
+	StringID label;
+}
+
 struct CtAssertStmt
 {
 	Node* expr;

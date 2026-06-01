@@ -54,6 +54,7 @@ struct Node
 		CompoundStmt compound_stmt;
 		ReturnStmt return_stmt;
 		ForStmt for_stmt;
+		WhileStmt while_stmt;
 		ExprStmt expr_stmt;
 		CtAssertStmt ct_assert_stmt;
 		CtErrorStmt ct_error_stmt;

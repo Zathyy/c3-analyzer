@@ -36,6 +36,8 @@ fn Node*? parse_stmt(ParseContext* ctx)
 			return parse_ct_if_stmt(ctx)!;
 		case FOR:
 			return parse_for_stmt(ctx)!;
+		case WHILE:
+			return parse_while_stmt(ctx)!;
 		case CT_ASSERT:
 			return parse_ct_assert_stmt(ctx)!;
 		case CT_ERROR:
@@ -712,6 +714,53 @@ fn Node*? parse_for_stmt(ParseContext* ctx)
 }
 
 <*
+ while_stmt ::= 'while' LABEL? '(' cond_expr ')' statement
+*>
+fn Node*? parse_while_stmt(ParseContext* ctx)
+{
+	int start_pos = ctx.peek(0).pos;
+	@expect_else(ctx, WHILE ; err)
+	{
+		return err;
+	}!;
+
+	Node* node            = ctx.ast.alloc_node(WHILE_STMT, start_pos);
+	WhileStmt* while_stmt = node.as(WHILE_STMT);
+	defer node.end_token = ctx.peek(0).pos;
+
+	if (ctx.is(CONST_IDENT))
+	{
+		while_stmt.label = ctx.ast.string_pool.internalize(ctx.current_text());
+		advance(ctx)!;
+		@expect_else(ctx, COLON ; err)
+		{
+			ctx.skip_until({ EOS, EOF })!;
+			return err;
+		}!;
+	}
+	@expect_else(ctx, LPAREN ; err)
+	{
+		return err;
+	}!;
+	while_stmt.cond = parse_cond_expr(ctx)!;
+	@expect_else(ctx, RPAREN ; err)
+	{
+		return err;
+	}!;
+
+	Location prev_loc = ctx.line_map.resolve((sz)ctx.current().pos);
+	while_stmt.body = parse_stmt(ctx)!;
+	Location body_loc = ctx.line_map.resolve((sz)while_stmt.body.start_token);
+	if (while_stmt.body.kind != COMPOUND_STMT && prev_loc.line != body_loc.line)
+	{
+		ctx.error("A single statement after 'while' must be placed on the same line, or be enclosed in {}.");
+		return ctx.ast.error(ctx.current().pos);
+	}
+
+	return node;
+}
+
+<*
  ct_assert_stmt ::= '$assert' constant_expression (":" constant_expression)? ";"
 *>
 fn Node*? parse_ct_assert_stmt(ParseContext* ctx) => @pool()
@@ -722,7 +771,7 @@ fn Node*? parse_ct_assert_stmt(ParseContext* ctx) => @pool()
 		return err;
 	}!;
 
-	Node* node        = ctx.ast.alloc_node(CT_ASSERT_STMT, start_pos);
+	Node* node                   = ctx.ast.alloc_node(CT_ASSERT_STMT, start_pos);
 	CtAssertStmt* ct_assert_stmt = node.as(CT_ASSERT_STMT);
 	defer node.end_token = ctx.peek(0).pos;
 
@@ -730,7 +779,7 @@ fn Node*? parse_ct_assert_stmt(ParseContext* ctx) => @pool()
 	if (consume(ctx, COLON)!)
 	{
 		ct_assert_stmt.msg_expr = parse_constant_expr(ctx)!;
-	};
+	}
 
 	@expect_else(ctx, EOS ; err)
 	{
@@ -751,7 +800,7 @@ fn Node*? parse_ct_error_stmt(ParseContext* ctx) => @pool()
 		return err;
 	}!;
 
-	Node* node        = ctx.ast.alloc_node(CT_ERROR_STMT, start_pos);
+	Node* node                  = ctx.ast.alloc_node(CT_ERROR_STMT, start_pos);
 	CtErrorStmt* ct_assert_stmt = node.as(CT_ERROR_STMT);
 	defer node.end_token = ctx.peek(0).pos;
 
@@ -764,4 +813,3 @@ fn Node*? parse_ct_error_stmt(ParseContext* ctx) => @pool()
 
 	return node;
 }
-
