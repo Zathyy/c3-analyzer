@@ -187,7 +187,7 @@ macro @expect_else(ParseContext* ctx, TokenKind kind; @body(err))
 		$if $feature(PARSER_LIB):
 			log::error("Error happened here");
 		$endif
-		@body(ctx.ast.error(ctx.current().pos));
+		@body(ctx.ast.missing(ctx.current().pos));
 
 		return ctx.peek();
 	}
@@ -202,12 +202,14 @@ macro @expect_else(ParseContext* ctx, TokenKind kind; @body(err))
  a helper function that expect else skips
  @param [&inout] ctx
 *>
-fn Token? expect_else_skip(ParseContext* ctx, TokenKind kind, TokenKind[] targets)
+macro @expect_else_skip(ParseContext* ctx, TokenKind kind, TokenKind[] targets; @body(err))
 {
 	return @expect_else(ctx, kind ; err)
 	{
 		ctx.skip_until(targets)!;
+		err.kind = ERROR;
 		err.end_token = ctx.current().pos;
+		@body(err);
 	};
 }
 
