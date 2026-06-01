@@ -102,17 +102,6 @@ struct FnDecl
 	NodeArray attributes;
 }
 
-struct ParamDecl
-{
-	Node* type;
-	Node* default_value;
-	StringID name;
-	TokenKind ident_kind;
-	bool is_variadic;
-	bool is_self;
-	bool is_self_by_ref;
-}
-
 struct MacroDecl
 {
 	StringID name;

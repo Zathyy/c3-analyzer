@@ -39,7 +39,6 @@ struct Node
 		TypedefDecl typedef_decl;
 		FnDecl fn_decl;
 		MacroDecl macro_decl;
-		ParamDecl param_decl;
 		CtExpandDecl ct_expand_decl;
 
 		// STMT
