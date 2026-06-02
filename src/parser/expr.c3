@@ -176,12 +176,7 @@ fn Node*? parse_type_expr(ParseContext* ctx, ParseFlags parse_flags = { })
 				arr_data.kind = TYPE_ARRAY;
 				arr_data.array.base = current_type;
 				arr_data.array.len_expr = parse_expr(ctx)!;
-
-				if (!consume(ctx, RBRACKET)!)
-				{
-					ctx.error("Expected a closing ']'");
-					return ctx.ast.error(start);
-				}
+				expect(ctx, RBRACKET)!;
 			}
 
 			arr_node.end_token = ctx.peek(0).pos;

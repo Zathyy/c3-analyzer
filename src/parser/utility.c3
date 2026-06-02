@@ -178,7 +178,7 @@ fn void? parse_attributes_into(ParseContext* ctx, Node* parent_node, List{Node*}
  interface_type_list ::= '(' type_expr (',' type_expr)* ')' | empty
  @param [&inout] ctx : "Parser context positioned at '(' when present."
 *>
-fn NodeArray? parse_interface_type_list(ParseContext* ctx) => @pool()
+fn NodeArray? parse_interface_type_list(ParseContext* ctx, ParseFlags flags = { }) => @pool()
 {
 	List{Node*} interfaces;
 	interfaces.init(tmem, 4);
@@ -190,7 +190,7 @@ fn NodeArray? parse_interface_type_list(ParseContext* ctx) => @pool()
 
 	while (!ctx.eof() && !ctx.is(RPAREN))
 	{
-		Node* interface_type = parse_type_expr(ctx)!;
+		Node* interface_type = parse_type_expr(ctx, flags)!;
 		interfaces.push(interface_type);
 
 		if (!consume(ctx, COMMA)!) break;

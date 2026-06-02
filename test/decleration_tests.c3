@@ -505,6 +505,13 @@ fn void struct_decl()
 					int faf;
 				}
 			}
+			
+			bitstruct bits
+			{
+				bool a;
+				bool b;
+				bool c;
+			}
 		}
 	`;
 
@@ -525,6 +532,41 @@ fn void struct_decl()
 	test::eq(parser_tests::count_kind(s, STRUCT_DECL), 1);
 }
 
+fn void bitstruct_decl()
+{
+	String text = `
+		module hello;
+		
+		<*
+		*>
+		bitstruct Foo : char[4] @bigendian 
+		{ 
+			ushort v : 0..15; 
+		}
+
+		bitstruct Bar : short
+		{
+			int a : 0..2; // Exact bit ranges, bits 0-2
+			uint b : 3..6;
+			MyEnum c : 7..13;
+		}
+	`;
+
+	Workspace ws;
+	ws.init();
+	defer ws.free();
+
+	ParseResult res = parser::parse(&ws, "expand", text)!!;
+	test::eq(res.success, true);
+
+	Module* mod       = ws.modules.get("hello")!!;
+	ModuleSection* s  = mod.sections[0];
+	StringPool* pool  = &s.source_file.ast.string_pool;
+	Node* target_node = s.nodes[2];
+	StructDecl* head  = target_node.as(STRUCT_DECL);
+	test::eq(parser_tests::count_kind(s, MODULE_DECL), 1);
+	test::eq(parser_tests::count_kind(s, STRUCT_DECL), 2);
+}
 
 fn void union_decl()
 {

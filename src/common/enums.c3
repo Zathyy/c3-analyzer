@@ -106,6 +106,7 @@ enum VarDeclKind
 	VAR_LOCAL,
 	VAR_GLOBAL,
 	VAR_FIELD,
+	VAR_BITFIELD, // bitstruct field
 	VAR_PARAM, // Regular parameter (foo)
 	VAR_PARAM_CT, // Compile-time parameter ($foo)
 	VAR_PARAM_EXPR, // Expression parameter (#foo)

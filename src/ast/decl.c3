@@ -109,7 +109,8 @@ struct MacroDecl
 <*
  VarDecl: represents (Global, Local, Field) variables
 - type: type_expr if has type
-- init_expr: if has initializer
+- init_expr: if has initializer or if `VAR_BITFIELD` might be range start
+- bit_end: for `VAR_BITFIELD` end bit range
 - next: Var_decl if chained (e.g. int a, b, c; )
 *>
 struct VarDecl
@@ -120,6 +121,7 @@ struct VarDecl
 	Option{Node} contract;
 	Node* type;
 	Node* init_expr;
+	Node* bit_end;
 	NodeArray attributes;
 	Node* next;
 }
@@ -146,9 +148,11 @@ struct StructDecl
 {
 	Option{Node} contract;
 	NodeArray interfaces;
-	NodeArray fields;
 	NodeArray attributes;
+	NodeArray fields;
+	Node* type;
 	Node* next;
 	StringID name;
 	bool is_union;
+	bool is_bitstruct;
 }

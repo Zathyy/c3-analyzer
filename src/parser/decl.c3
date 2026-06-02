@@ -901,7 +901,7 @@ fn Node*? parse_var_decl(ParseContext* ctx, Node* type = null, ParseFlags flags 
 
 		Node* init_expr = null;
 
-		if (ctx.is(EQ))
+		if EQ_LABEL: (ctx.is(EQ))
 		{
 			advance(ctx)!;
 
@@ -913,6 +913,11 @@ fn Node*? parse_var_decl(ParseContext* ctx, Node* type = null, ParseFlags flags 
 			if (flags.is_extern)
 			{
 				ctx.error("An extern declaration cannot contain an initial value assignment expression");
+				return ctx.ast.alloc_node(ERROR, ctx.peek(0).pos);
+			}
+			if (flags.is_struct)
+			{
+				ctx.error("Fields cannot have an initializer");
 				return ctx.ast.alloc_node(ERROR, ctx.peek(0).pos);
 			}
 
@@ -1091,9 +1096,19 @@ fn Node*? parse_struct_union_decl(ParseContext* ctx) => @pool()
 
 	while (!ctx.is(RBRACE) && !ctx.is(EOF))
 	{
-		if (ctx.is(STRUCT) || ctx.is(UNION))
+		if (ctx.is(STRUCT) || ctx.is(UNION) || ctx.is(BITSTRUCT))
 		{
-			Node* sub_decl = parse_struct_union_decl(ctx)!;
+			Node* sub_decl;
+
+			if (ctx.is(BITSTRUCT))
+			{
+				sub_decl = parse_bitstruct_decl(ctx, true)!;
+			}
+			else
+			{
+				sub_decl = parse_struct_union_decl(ctx)!;
+			}
+
 			if (sub_decl && sub_decl.kind != ERROR)
 			{
 				tail_node.as(STRUCT_DECL).next = sub_decl;
@@ -1116,6 +1131,85 @@ fn Node*? parse_struct_union_decl(ParseContext* ctx) => @pool()
 
 	expect(ctx, RBRACE)!;
 
+	struct_decl.fields = alloc::clone_slice(ctx.arena, fields.array_view());
+	return node;
+}
+
+<*
+ bitstruct_decl ::= "bitstruct" TYPE_IDENT ("(" type ("," type)* ")")? ":" type attributes? "{" bitstruct_body "}"
+*>
+fn Node*? parse_bitstruct_decl(ParseContext* ctx, bool is_nested = false) => @pool()
+{
+	int start_pos = ctx.peek(0).pos;
+	expect(ctx, BITSTRUCT)!;
+	Node* node              = ctx.ast.alloc_node(STRUCT_DECL, start_pos);
+	StructDecl* struct_decl = node.as(STRUCT_DECL);
+	defer node.end_token = ctx.peek(0).pos;
+
+	if COND: (true)
+	{
+		Token t = @expect_some_else(ctx, { IDENT, TYPE_IDENT } ; err)
+		{
+			ctx.error("Bitstructs must have a name identifier");
+			struct_decl.name = -1;
+			break COND;
+		}!;
+
+		struct_decl.name = ctx.ast.string_pool.internalize(ctx.token_text(t));
+	}
+
+	struct_decl.interfaces = parse_interface_type_list(ctx, { .no_generics = true })!;
+
+	if (consume(ctx, COLON)!)
+	{
+		struct_decl.type = parse_type_expr(ctx, { .no_generics = true })!;
+		struct_decl.attributes = parse_attributes(ctx, node)!;
+	}
+
+	@expect_else_skip(ctx, LBRACE, { RBRACE } ; brace_err)
+	{
+		return brace_err;
+	}!;
+
+	List{Node*} fields;
+	fields.tinit();
+
+	while (!ctx.is(RBRACE) && !ctx.is(EOF))
+	{
+		int field_start  = ctx.peek(0).pos;
+		Node* field_node = ctx.ast.alloc_node(VAR_DECL, field_start);
+		VarDecl* field   = field_node.as(VAR_DECL);
+		field.kind = VAR_BITFIELD;
+
+		if (ctx.is(CONTRACT)) field.contract.set(parse_contract_decl(ctx)!);
+		field.type = parse_type_expr(ctx)!;
+		field.attributes = parse_attributes(ctx, field_node)!;
+
+		if IF_IDENT: (true)
+		{
+			Token t = @expect_else_skip(ctx, IDENT, { COLON, EOS, RBRACE } ; name_err)
+			{
+				field.name = -1;
+				break IF_IDENT;
+			}!;
+
+			field.name = ctx.ast.string_pool.internalize(ctx.token_text(t));
+		}
+
+		if (consume(ctx, COLON)!)
+		{
+			field.init_expr = parse_constant_expr(ctx)!;
+			if (consume(ctx, DOTDOT)!)
+			{
+				field.bit_end = parse_constant_expr(ctx)!;
+			}
+		}
+		expect(ctx, EOS)!;
+		field_node.end_token = ctx.peek(0).pos;
+		fields.push(field_node);
+	}
+
+	expect(ctx, RBRACE)!;
 	struct_decl.fields = alloc::clone_slice(ctx.arena, fields.array_view());
 	return node;
 }
