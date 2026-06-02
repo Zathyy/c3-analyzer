@@ -143,3 +143,10 @@ fn UnaryOpKind? unaryop_from_token(TokenKind kind)
 		default: return parser::UNEXPECTED_TOKEN~;
 	}
 }
+
+enum AliasDeclKind : char
+{
+	TYPE_ALIAS,
+	MODULE_ALIAS,
+	IDENT_ALIAS,
+}

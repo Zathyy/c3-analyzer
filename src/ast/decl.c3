@@ -40,13 +40,6 @@ struct ImportDecl
 	NodeArray attributes;
 }
 
-enum AliasDeclKind : char
-{
-	TYPE_ALIAS,
-	MODULE_ALIAS,
-	IDENT_ALIAS,
-}
-
 <*
  AliasDecl represents the three C3 alias forms:
 - TYPE_ALIAS: a TYPE_IDENT name with a type expression target.
