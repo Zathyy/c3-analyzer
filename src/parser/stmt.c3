@@ -152,12 +152,7 @@ fn Node*? parse_decl_stmt(ParseContext* ctx)
 fn Node*? parse_compound_stmt(ParseContext* ctx) => @pool()
 {
 	int start_pos = ctx.peek(0).pos;
-	if (!expect(ctx, LBRACE)!)
-	{
-		ctx.error("Expected opening '{'");
-		return ctx.ast.error(start_pos);
-	}
-
+	expect(ctx, LBRACE)!;
 	Node* node          = ctx.ast.alloc_node(COMPOUND_STMT, start_pos);
 	CompoundStmt* block = node.as(COMPOUND_STMT);
 	defer node.end_token = ctx.peek(0).pos;
@@ -183,10 +178,7 @@ fn Node*? parse_compound_stmt(ParseContext* ctx) => @pool()
 		}
 	}
 
-	if (!expect(ctx, RBRACE)!)
-	{
-		node.kind = MISSING;
-	}
+	expect(ctx, RBRACE)!;
 
 	block.statements = alloc::clone_slice(ctx.arena, temp_stmts.array_view());
 
@@ -419,10 +411,7 @@ fn Node*? parse_switch_stmt(ParseContext* ctx) => @pool()
 		Token label_tok = ctx.peek(0);
 		sw.label = ctx.ast.string_pool.internalize(ctx.token_text(label_tok));
 		advance(ctx)!;
-		if (!expect(ctx, COLON)!)
-		{
-			return ctx.ast.error(label_tok.pos);
-		}
+		expect(ctx, COLON)!;
 	}
 
 	if (consume(ctx, LPAREN)!)
@@ -770,9 +759,9 @@ fn Node*? parse_while_stmt(ParseContext* ctx)
 fn Node*? parse_ct_assert_stmt(ParseContext* ctx) => @pool()
 {
 	int start_pos = ctx.peek(0).pos;
-	@expect_else(ctx, CT_ASSERT ; err)
+	@expect_else_skip(ctx, CT_ASSERT, { EOS } ; missing)
 	{
-		return err;
+		return missing;
 	}!;
 
 	Node* node                   = ctx.ast.alloc_node(CT_ASSERT_STMT, start_pos);
@@ -782,13 +771,10 @@ fn Node*? parse_ct_assert_stmt(ParseContext* ctx) => @pool()
 	ct_assert_stmt.expr = parse_constant_expr(ctx)!;
 	if (consume(ctx, COLON)!)
 	{
-		ct_assert_stmt.msg_expr = parse_constant_expr(ctx)!;
+		ct_assert_stmt.msg_expr.set(parse_constant_expr(ctx)!);
 	}
 
-	@expect_else(ctx, EOS ; err)
-	{
-		return err;
-	}!;
+	expect(ctx, EOS)!;
 
 	return node;
 }

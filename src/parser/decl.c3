@@ -13,11 +13,10 @@ import std::io;
 fn Node*? parse_module_decl(ParseContext* ctx, Workspace* ws)
 {
 	int start_pos = ctx.peek(0).pos;
-	if (!expect(ctx, MODULE)!)
+	@expect_else_skip(ctx, MODULE, { EOS } ; err)
 	{
-		ctx.error("Expected a starting 'module'");
-		return ctx.ast.error(start_pos);
-	}
+		return err;
+	}!;
 
 	log::debug("parse_mod");
 
@@ -32,10 +31,7 @@ fn Node*? parse_module_decl(ParseContext* ctx, Workspace* ws)
 		mod_decl.attributes = parse_attributes(ctx, node)!;
 	}
 
-	if (!expect(ctx, EOS)!)
-	{
-		node.kind = MISSING;
-	}
+	expect(ctx, EOS)!;
 
 	PathExpr* path  = mod_decl.path.as(PATH_EXPR);
 	String mod_name = path.full_path(&ctx.ast.string_pool, ctx.allocator)!;
@@ -212,12 +208,7 @@ fn Node*? parse_contract_decl(ParseContext* ctx) => @pool()
 fn Node*? parse_import_decl(ParseContext* ctx) => @pool()
 {
 	int start_pos = ctx.peek(0).pos;
-
-	@expect_else(ctx, IMPORT ; err)
-	{
-		return err;
-	}!;
-
+	expect(ctx, IMPORT)!;
 	Node* node      = ctx.ast.alloc_node(IMPORT_DECL, start_pos);
 	ImportDecl* imp = node.as(IMPORT_DECL);
 	defer node.end_token = ctx.peek(0).pos;
@@ -233,8 +224,7 @@ fn Node*? parse_import_decl(ParseContext* ctx) => @pool()
 		if (!consume(ctx, COMMA)!) break;
 		if (ctx.is(EOS))
 		{
-			ctx.error("Expected an import path after ','");
-			temp_paths.push(ctx.ast.alloc_node(MISSING, ctx.peek(0).pos));
+			temp_paths.push(unexpected(ctx, "Expected an import path after ','")!);
 			break;
 		}
 	}
@@ -246,10 +236,7 @@ fn Node*? parse_import_decl(ParseContext* ctx) => @pool()
 		imp.attributes = parse_attributes(ctx, node)!;
 	}
 
-	if (!expect(ctx, EOS)!)
-	{
-		node.kind = MISSING;
-	}
+	expect(ctx, EOS)!;
 
 	return node;
 }
@@ -265,11 +252,11 @@ fn StringID[]? parse_alias_generic_decl(ParseContext* ctx, bool* has_error) => @
 	temp_params.init(tmem, 4);
 	*has_error = false;
 
-	if (!expect(ctx, LESS)!)
+	@expect_else(ctx, LESS ; err)
 	{
 		*has_error = true;
 		return alloc::clone_slice(ctx.arena, temp_params.array_view());
-	}
+	}!;
 
 	while (!ctx.eof() && !ctx.is(GREATER))
 	{
@@ -293,11 +280,11 @@ fn StringID[]? parse_alias_generic_decl(ParseContext* ctx, bool* has_error) => @
 		}
 	}
 
-	if (!expect(ctx, GREATER)!)
+	@expect_else(ctx, GREATER ; err)
 	{
 		*has_error = true;
 		return alloc::clone_slice(ctx.arena, temp_params.array_view());
-	}
+	}!;
 
 	return alloc::clone_slice(ctx.arena, temp_params.array_view());
 }
@@ -358,11 +345,7 @@ fn Node*? parse_alias_ident_target_path(ParseContext* ctx, TokenKind* source_kin
 fn Node*? parse_alias_decl(ParseContext* ctx)
 {
 	int start_pos = ctx.peek(0).pos;
-	if (!expect(ctx, ALIAS)!)
-	{
-		return ctx.ast.alloc_node(ERROR, start_pos);
-	}
-
+	expect(ctx, ALIAS)!;
 	Node* node            = ctx.ast.alloc_node(ALIAS_DECL, start_pos);
 	AliasDecl* alias_decl = node.as(ALIAS_DECL);
 	defer node.end_token = ctx.peek(0).pos;
@@ -392,30 +375,18 @@ fn Node*? parse_alias_decl(ParseContext* ctx)
 
 	skip_alias_attributes(ctx)!;
 
-	if (!expect(ctx, EQ)!)
-	{
-		node.kind = MISSING;
-		return node;
-	}
+	expect(ctx, EQ)!;
 
 	if (ctx.is(MODULE))
 	{
 		alias_decl.alias_kind = MODULE_ALIAS;
 		advance(ctx)!;
 		alias_decl.target = parse_alias_module_path(ctx)!;
-		if (is_error_or_missing_node(alias_decl.target))
-		{
-			node.kind = MISSING;
-		}
 	}
 	else if (alias_decl.name_kind == TYPE_IDENT)
 	{
 		alias_decl.alias_kind = TYPE_ALIAS;
 		alias_decl.target = parse_alias_type_target(ctx)!;
-		if (is_error_or_missing_node(alias_decl.target))
-		{
-			node.kind = MISSING;
-		}
 	}
 	else
 	{
@@ -438,12 +409,7 @@ fn Node*? parse_alias_decl(ParseContext* ctx)
 			skip_balanced_group(ctx, LBRACE, RBRACE)!;
 		}
 	}
-
-	if (!expect(ctx, EOS)!)
-	{
-		node.kind = MISSING;
-	}
-
+	expect(ctx, EOS)!;
 	return node;
 }
 
@@ -459,11 +425,7 @@ fn Node*? parse_alias_decl(ParseContext* ctx)
 fn Node*? parse_typedef_decl(ParseContext* ctx, ParseFlags flags = { })
 {
 	int start_pos = ctx.peek(0).pos;
-	if (!expect(ctx, TYPEDEF)!)
-	{
-		return ctx.ast.alloc_node(ERROR, start_pos);
-	}
-
+	expect(ctx, TYPEDEF)!;
 	Node* node                = ctx.ast.alloc_node(TYPEDEF_DECL, start_pos);
 	TypedefDecl* typedef_decl = node.as(TYPEDEF_DECL);
 	defer node.end_token = ctx.peek(0).pos;
@@ -503,12 +465,7 @@ fn Node*? parse_typedef_decl(ParseContext* ctx, ParseFlags flags = { })
 	attributes.init(tmem, 4);
 	parse_attributes_into(ctx, node, &attributes)!;
 
-	if (!expect(ctx, EQ)!)
-	{
-		node.kind = MISSING;
-		typedef_decl.attributes = alloc::clone_slice(ctx.arena, attributes.array_view());
-		return node;
-	}
+	expect(ctx, EQ)!;
 
 	if (consume(ctx, INLINE)!)
 	{
@@ -517,31 +474,16 @@ fn Node*? parse_typedef_decl(ParseContext* ctx, ParseFlags flags = { })
 
 	if (ctx.is(FN))
 	{
-		ctx.error("cannot define a new function type");
-		parse_fn_type_expr(ctx)!;
-		if (!expect(ctx, EOS)!)
-		{
-			node.kind = MISSING;
-		}
-		return ctx.ast.error(start_pos);
+		unexpected(ctx, "Cannot define a new function type")!;
 	}
 	else
 	{
 		typedef_decl.base_type = parse_type_expr(ctx)!;
-		if (is_error_or_missing_node(typedef_decl.base_type))
-		{
-			node.kind = MISSING;
-		}
 	}
 
 	parse_attributes_into(ctx, node, &attributes)!;
 	typedef_decl.attributes = alloc::clone_slice(ctx.arena, attributes.array_view());
-
-	if (!expect(ctx, EOS)!)
-	{
-		node.kind = MISSING;
-	}
-
+	expect(ctx, EOS)!;
 	return node;
 }
 
@@ -553,10 +495,7 @@ fn Node*? parse_fn_decl(ParseContext* ctx, ParseFlags flags = { })
 {
 	int start_pos = ctx.peek(0).pos;
 
-	@expect_else(ctx, FN ; err)
-	{
-		return err;
-	}!;
+	expect(ctx, FN)!;
 
 	log::debug("parse_fn");
 
@@ -566,38 +505,31 @@ fn Node*? parse_fn_decl(ParseContext* ctx, ParseFlags flags = { })
 
 	func.ret_type = parse_type_expr(ctx)!;
 
-	if (is_type(ctx))
+	if IS_TYPE: (is_type(ctx))
 	{
 		func.associated_type = parse_type_expr(ctx)!;
 
-		if (!expect(ctx, DOT)!)
-		{
-			node.kind = MISSING;
-		}
+		expect(ctx, DOT)!;
 
-		Token t = @expect_else(ctx, IDENT ; err)
+		Token t = @expect_else_skip(ctx, IDENT, { EOS } ; err)
 		{
 			ctx.error("Expected member function name identifier");
 			func.name = -1;
 			return err;
 		}!;
-
 		func.name = ctx.ast.string_pool.internalize(ctx.token_text(t));
 	}
 	else
 	{
 		// Standalone Function: No associated type prefix
 		func.associated_type = null;
-
-		if (!ctx.is(IDENT))
+		Token t = @expect_else_skip(ctx, IDENT, { EOS } ; err)
 		{
 			ctx.error("Expected function name identifier");
-			return ctx.ast.error(start_pos);
-		}
-
-		Token t = ctx.peek(0);
+			func.name = -1;
+			break IS_TYPE;
+		}!;
 		func.name = ctx.ast.string_pool.internalize(ctx.token_text(t));
-		advance(ctx)!;
 	}
 
 	func.params = parse_parameter_list(ctx)!;
@@ -629,19 +561,13 @@ fn Node*? parse_fn_decl(ParseContext* ctx, ParseFlags flags = { })
 		// Clean statement ending validation
 		if (!node_ends_with_block(ctx, func.body))
 		{
-			if (!expect(ctx, EOS)!)
-			{
-				node.kind = MISSING;
-			}
+			expect(ctx, EOS)!;
 		}
 	}
 	else
 	{
 		// No body provided
-		if (!expect(ctx, EOS)!)
-		{
-			node.kind = MISSING;
-		}
+		expect(ctx, EOS)!;
 	}
 
 	return node;
@@ -655,10 +581,7 @@ fn Node*? parse_macro_decl(ParseContext* ctx, ParseFlags flags = { })
 {
 	int start_pos = ctx.peek(0).pos;
 
-	@expect_else(ctx, MACRO ; err)
-	{
-		return err;
-	}!;
+	expect(ctx, MACRO)!;
 
 	log::debug("parse_macro");
 
@@ -671,14 +594,11 @@ fn Node*? parse_macro_decl(ParseContext* ctx, ParseFlags flags = { })
 		mac.ret_type = parse_type_expr(ctx)!;
 	}
 
-	if (is_type(ctx))
+	if IS_TYPE: (is_type(ctx))
 	{
 		mac.associated_type = parse_type_expr(ctx)!;
 
-		if (!expect(ctx, DOT)!)
-		{
-			node.kind = MISSING;
-		}
+		expect(ctx, DOT)!;
 
 		Token t;
 		if (ctx.is(AT_IDENT))
@@ -688,36 +608,28 @@ fn Node*? parse_macro_decl(ParseContext* ctx, ParseFlags flags = { })
 		}
 		else
 		{
-			t = @expect_else(ctx, IDENT ; err)
+			t = @expect_else_skip(ctx, IDENT, { EOS, LPAREN } ; err)
 			{
 				ctx.error("Expected member function name identifier");
 				mac.name = -1;
-				return err;
+				break IS_TYPE;
 			}!;
 		}
-
 
 		mac.name = ctx.ast.string_pool.internalize(ctx.token_text(t));
 	}
 	else
 	{
 		// Standalone Function: No associated type prefix
-		Token t;
-		if (ctx.is(AT_IDENT) || ctx.is(IDENT))
-		{
-			t = ctx.peek(0);
-		}
-		else
+		Token t = @expect_some_else(ctx, { AT_IDENT, IDENT } ; err)
 		{
 			ctx.error("Expected member function name identifier");
 			mac.name = -1;
-			return ctx.ast.error(start_pos);
-		}
+			break IS_TYPE;
+		}!;
 
 		mac.associated_type = null;
-
 		mac.name = ctx.ast.string_pool.internalize(ctx.token_text(t));
-		advance(ctx)!;
 	}
 
 	mac.params = parse_parameter_list(ctx)!;
@@ -749,19 +661,13 @@ fn Node*? parse_macro_decl(ParseContext* ctx, ParseFlags flags = { })
 		// Clean statement ending validation
 		if (!node_ends_with_block(ctx, mac.body))
 		{
-			if (!expect(ctx, EOS)!)
-			{
-				node.kind = MISSING;
-			}
+			expect(ctx, EOS)!;
 		}
 	}
 	else
 	{
 		// No body provided
-		if (!expect(ctx, EOS)!)
-		{
-			node.kind = MISSING;
-		}
+		expect(ctx, EOS)!;
 	}
 
 	return node;
@@ -1112,10 +1018,7 @@ fn NodeArray? parse_attributes(ParseContext* ctx, Node* parent_node) => @pool()
 				exprs.push(parse_expr(ctx)!);
 				if (!consume(ctx, COMMA)!) break;
 			}
-			if (!expect(ctx, RPAREN)!)
-			{
-				attr_node.kind = MISSING;
-			}
+			expect(ctx, RPAREN)!;
 			attr.exprs = alloc::clone_slice(&ctx.ast.arena, exprs.array_view());
 		}
 

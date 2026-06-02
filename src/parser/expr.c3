@@ -24,11 +24,7 @@ import std::encoding;
 fn Node*? parse_fn_type_expr(ParseContext* ctx) => @pool()
 {
 	int start = ctx.peek(0).pos;
-	if (!expect(ctx, FN)!)
-	{
-		return ctx.ast.error(start);
-	}
-
+	expect(ctx, FN)!;
 	Node* node        = ctx.ast.alloc_node(TYPE_EXPR, start);
 	TypeExpr* fn_type = node.as(TYPE_EXPR);
 	defer node.end_token = ctx.peek(0).pos;
@@ -85,7 +81,7 @@ fn Node*? parse_type_expr(ParseContext* ctx, ParseFlags parse_flags = { })
 	TypeExpr* data     = current_type.as(TYPE_EXPR);
 
 	// Check for built-in primitive keywords (int, void, double, etc.)
-	if (is_type_primitive(ctx.peek(0).kind))
+	if IS_PRIM: (is_type_primitive(ctx.peek(0).kind))
 	{
 		Token t = ctx.peek(0);
 		advance(ctx)!;
@@ -97,17 +93,10 @@ fn Node*? parse_type_expr(ParseContext* ctx, ParseFlags parse_flags = { })
 	else
 	{
 		Node* path = parse_path_expr(ctx, true)!;
-		if (path.kind == ERROR) return path;
-
-		if (!ctx.is(TYPE_IDENT))
+		Token t = @expect_else_skip(ctx, TYPE_IDENT, { EOS, ASTERISK, LBRACE, QUESTION, LVEC } ; err)
 		{
-			ctx.error("Expected TypeIdent, got %s", ctx.current_text());
-			return ctx.ast.error(ctx.current().pos);
-		}
-
-		Token t = ctx.peek(0);
-		advance(ctx)!;
-
+			break IS_PRIM;
+		}!;
 		data.kind = TYPE_IDENTIFIER;
 		data.unresolved.name = ctx.ast.string_pool.internalize(ctx.token_text(t));
 		data.unresolved.path = path;
@@ -153,10 +142,7 @@ fn Node*? parse_type_expr(ParseContext* ctx, ParseFlags parse_flags = { })
 			vec_data.array.base = current_type;
 			vec_data.array.len_expr = parse_expr(ctx, ADDITIVE)!;
 
-			if (!expect(ctx, RVEC)!)
-			{
-				return ctx.ast.error(start);
-			}
+			expect(ctx, RVEC)!;
 
 			vec_node.end_token = ctx.peek(0).pos;
 			current_type = vec_node;
@@ -643,10 +629,7 @@ fn Node*? parse_compound_literal(ParseContext* ctx) => @pool()
 		exprs.push(parse_expr(ctx)!);
 		if (ctx.eof() || !consume(ctx, COMMA)!) break;
 	}
-	if (!expect(ctx, RBRACE)!)
-	{
-		node.kind = MISSING;
-	}
+	expect(ctx, RBRACE)!;
 	expr_list.exprs = alloc::clone_slice(ctx.arena, exprs.array_view());
 
 	return node;
@@ -668,10 +651,7 @@ fn Node*? parse_call_expr(ParseContext* ctx, Node* callee) => @pool()
 		args.push(parse_expr(ctx)!);
 		if (!consume(ctx, COMMA)!) break;
 	}
-	if (!expect(ctx, RPAREN)!)
-	{
-		node.kind = MISSING;
-	}
+	expect(ctx, RPAREN)!;
 	call.args = alloc::clone_slice(ctx.arena, args.array_view());
 
 	return node;

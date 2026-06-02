@@ -110,6 +110,7 @@ macro Node* Ast.error(&self, int start, int end = -1)
 
 	return node;
 }
+
 macro Node* Ast.missing(&self, int start, int end = -1)
 {
 	Node* node = self.alloc_node(MISSING, start, end);

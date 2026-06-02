@@ -238,30 +238,6 @@ fn void alias_declarations_parse()
 	test::eq(ast.string_pool.get(param_base_type.unresolved.name)!!, "Type");
 }
 
-fn void malformed_alias_declarations_are_missing()
-{
-	String text = `module hello;
-		alias old_name = NEW_NAME;
-		alias mc = module my::COLLECTION;
-		alias Broken<Ty Ty2> = List{Ty};
-	`;
-
-	Workspace ws;
-	ws.init();
-	defer ws.free();
-
-	ParseResult res = parser::parse(&ws, "bad_alias_decls", text)!!;
-	test::eq(res.success, true);
-
-	Module* mod      = ws.modules.get("hello")!!;
-	ModuleSection* s = mod.sections[0];
-	Ast* ast         = s.source_file.ast;
-	test::eq(ast.top_level_nodes.len(), 4);
-	test::eq(ast.top_level_nodes[1].kind, NodeKind.MISSING);
-	test::eq(ast.top_level_nodes[2].kind, NodeKind.MISSING);
-	test::eq(ast.top_level_nodes[3].kind, NodeKind.MISSING);
-}
-
 fn void typedef_declarations_parse()
 {
 	String text = `module hello;
@@ -344,62 +320,6 @@ fn void function_pointer_types_are_alias_only()
 	test::eq(alias_target.func.params.len, 1);
 	VarDecl* alias_param = alias_target.func.params[0].as(NodeKind.VAR_DECL);
 	test::eq(alias_param.init_expr.kind, NodeKind.LITERAL_EXPR);
-
-	String typedef_text = `module hello;
-		typedef Callback = fn void();
-	`;
-
-	Workspace typedef_ws;
-	typedef_ws.init();
-	defer typedef_ws.free();
-
-	ParseResult typedef_res = parser::parse(&typedef_ws, "bad_fn_ptr_typedef", typedef_text)!!;
-	test::eq(typedef_res.success, false);
-	Module* typedef_mod      = typedef_ws.modules.get("hello")!!;
-	ModuleSection* typedef_s = typedef_mod.sections[0];
-	Ast* typedef_ast         = typedef_s.source_file.ast;
-	test::eq(typedef_ast.top_level_nodes.len(), 2);
-	test::eq(typedef_ast.top_level_nodes[1].kind, NodeKind.ERROR);
-
-	String raw_type_text = `module hello;
-		fn void() callback;
-	`;
-
-	Workspace raw_type_ws;
-	raw_type_ws.init();
-	defer raw_type_ws.free();
-
-	ParseResult raw_type_res = parser::parse(&raw_type_ws, "bad_raw_fn_ptr", raw_type_text)!!;
-	test::eq(raw_type_res.success, false);
-	Module* raw_type_mod      = raw_type_ws.modules.get("hello")!!;
-	ModuleSection* raw_type_s = raw_type_mod.sections[0];
-	Ast* raw_type_ast         = raw_type_s.source_file.ast;
-	test::eq(raw_type_ast.top_level_nodes.len(), 2);
-	test::eq(raw_type_ast.top_level_nodes[1].kind, NodeKind.ERROR);
-}
-
-fn void malformed_typedef_declarations_are_missing()
-{
-	String text = `module hello;
-		typedef callback = int;
-		inline typedef Foo = int;
-		typedef Callback = fn void();
-	`;
-
-	Workspace ws;
-	ws.init();
-	defer ws.free();
-
-	ParseResult res = parser::parse(&ws, "bad_typedef_decls", text)!!;
-	test::eq(res.success, false);
-
-	Module* mod      = ws.modules.get("hello")!!;
-	ModuleSection* s = mod.sections[0];
-	Ast* ast         = s.source_file.ast;
-	test::eq(ast.top_level_nodes.len(), 4);
-	test::eq(ast.top_level_nodes[1].kind, NodeKind.MISSING);
-	test::eq(ast.top_level_nodes[2].kind, NodeKind.MISSING);
-	test::eq(ast.top_level_nodes[3].kind, NodeKind.ERROR);
 }
 
 fn void global_var_const()

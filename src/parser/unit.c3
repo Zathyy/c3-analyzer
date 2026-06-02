@@ -16,10 +16,7 @@ fn NodeArray? parse_parameter_list(ParseContext* ctx) => @pool()
 {
 	int start_pos = ctx.peek(0).pos;
 
-	if (!expect(ctx, LPAREN)!)
-	{
-		return { ctx.ast.error(start_pos) };
-	}
+	expect(ctx, LPAREN)!;
 
 	List{Node*} temp_params;
 	temp_params.init(tmem, 4);
@@ -39,17 +36,11 @@ fn NodeArray? parse_parameter_list(ParseContext* ctx) => @pool()
 
 		if (ctx.is(RPAREN))
 		{
-			ctx.error("Expected parameter declaration after ','");
-			temp_params.push(ctx.ast.alloc_node(MISSING, ctx.peek(0).pos));
+			temp_params.push(unexpected(ctx, "Expected parameter declaration after ','")!);
 			break;
 		}
 	}
-
-	if (!expect(ctx, RPAREN)!)
-	{
-		// TODO!
-	}
-
+	expect(ctx, RPAREN)!;
 	return alloc::clone_slice(ctx.arena, temp_params.array_view());
 }
 

@@ -196,16 +196,15 @@ fn NodeArray? parse_interface_type_list(ParseContext* ctx) => @pool()
 		if (!consume(ctx, COMMA)!) break;
 		if (ctx.is(RPAREN))
 		{
-			ctx.error("Expected interface name after ',' in interface type list");
-			interfaces.push(ctx.ast.alloc_node(MISSING, ctx.peek(0).pos));
+			interfaces.push(unexpected(ctx, "Expected interface name after ',' in interface type list")!);
 			break;
 		}
 	}
 
-	if (!expect(ctx, RPAREN)!)
+	@expect_else(ctx, RPAREN ; err)
 	{
-		interfaces.push(ctx.ast.alloc_node(MISSING, ctx.peek(0).pos));
-	}
+		interfaces.push(err);
+	}!;
 
 	return alloc::clone_slice(ctx.arena, interfaces.array_view());
 }
@@ -217,7 +216,7 @@ fn bool is_error_or_missing_node(Node* node)
 
 fn void? skip_balanced_group(ParseContext* ctx, TokenKind open, TokenKind close)
 {
-	if (!expect(ctx, open)!) return;
+	expect(ctx, open)!;
 
 	int depth = 1;
 	while (!ctx.eof() && depth > 0)

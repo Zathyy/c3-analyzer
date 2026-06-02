@@ -105,7 +105,7 @@ struct WhileStmt
 struct CtAssertStmt
 {
 	Node* expr;
-	Node* msg_expr;
+	Option{Node} msg_expr;
 }
 
 struct CtErrorStmt
