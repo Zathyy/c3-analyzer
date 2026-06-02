@@ -199,6 +199,28 @@ macro @expect_else(ParseContext* ctx, TokenKind kind; @body(err))
 }
 
 <*
+ @param [&inout] ctx
+*>
+macro @expect_some_else(ParseContext* ctx, TokenKind[] kind; @body(err))
+{
+	foreach (k : kind)
+	{
+		if (ctx.is(k))
+		{
+			advance(ctx)!;
+			return ctx.peek(-1);
+		}
+	}
+
+	ctx.error("Expected any of '%s' got '%s'", kind, ctx.current().kind.description);
+	$if $feature(PARSER_LIB):
+		log::error("Error happened here");
+	$endif
+	@body(ctx.ast.missing(ctx.current().pos));
+	return ctx.peek();
+}
+
+<*
  a helper function that expect else skips
  @param [&inout] ctx
 *>
@@ -217,7 +239,7 @@ macro @expect_else_skip(ParseContext* ctx, TokenKind kind, TokenKind[] targets; 
  a macro just so that it logs where it happened
  @param [&inout] ctx
 *>
-macro bool? expect(ParseContext* ctx, TokenKind kind)
+macro Token? expect(ParseContext* ctx, TokenKind kind) @maydiscard
 {
 	if (!ctx.is(kind))
 	{
@@ -225,11 +247,26 @@ macro bool? expect(ParseContext* ctx, TokenKind kind)
 		$if $feature(PARSER_LIB):
 			log::error("Error happened here");
 		$endif
-		return false;
+		ctx.ast.missing(ctx.current().pos);
+		return ctx.peek();
 	}
+	else
+	{
+		advance(ctx)!;
+		return ctx.peek(-1);
+	}
+}
 
-	advance(ctx)!;
-	return true;
+<*
+
+*>
+macro Node*? unexpected(ParseContext* ctx, String fmt, ...) @maydiscard
+{
+	ctx.error(fmt, ...$vaarg);
+	$if $feature(PARSER_LIB):
+		log::error("Error happened here");
+	$endif
+	return ctx.ast.missing(ctx.peek(0).pos);
 }
 
 <*
