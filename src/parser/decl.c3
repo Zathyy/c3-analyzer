@@ -13,13 +13,8 @@ import std::io;
 fn Node*? parse_module_decl(ParseContext* ctx, Workspace* ws)
 {
 	int start_pos = ctx.peek(0).pos;
-	@expect_else_skip(ctx, MODULE, { EOS } ; err)
-	{
-		return err;
-	}!;
-
+	expect(ctx, MODULE)!;
 	log::debug("parse_mod");
-
 	Node* node           = ctx.ast.alloc_node(MODULE_DECL, start_pos);
 	ModuleDecl* mod_decl = node.as(MODULE_DECL);
 	defer node.end_token = ctx.peek(0).pos;
@@ -54,12 +49,9 @@ fn Node*? parse_contract_decl(ParseContext* ctx) => @pool()
 		ctx.error("Expected contract here");
 		return ctx.ast.error(start_pos);
 	}
-
 	Token contract_token = ctx.current();
 	int global_offset    = contract_token.pos;
-
-	String slice = ctx.token_text(contract_token);
-
+	String slice         = ctx.token_text(contract_token);
 	advance(ctx)!; // skip over contract
 
 	// store the "normal" tokens and index temporarly since
@@ -252,11 +244,7 @@ fn StringID[]? parse_alias_generic_decl(ParseContext* ctx, bool* has_error) => @
 	temp_params.init(tmem, 4);
 	*has_error = false;
 
-	@expect_else(ctx, LESS ; err)
-	{
-		*has_error = true;
-		return alloc::clone_slice(ctx.arena, temp_params.array_view());
-	}!;
+	expect(ctx, LESS)!;
 
 	while (!ctx.eof() && !ctx.is(GREATER))
 	{
@@ -279,13 +267,7 @@ fn StringID[]? parse_alias_generic_decl(ParseContext* ctx, bool* has_error) => @
 			*has_error = true;
 		}
 	}
-
-	@expect_else(ctx, GREATER ; err)
-	{
-		*has_error = true;
-		return alloc::clone_slice(ctx.arena, temp_params.array_view());
-	}!;
-
+	expect(ctx, GREATER)!;
 	return alloc::clone_slice(ctx.arena, temp_params.array_view());
 }
 
