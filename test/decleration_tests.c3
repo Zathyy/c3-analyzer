@@ -39,8 +39,11 @@ fn void function_with_params()
 	String path = `
 		module hello; 
 		fn void greet(int foo, Bar baz) {}
-		fn void foo(int foo, Bar baz) {}
-		fn void bar(int foo, Bar baz) {}
+		fn void foo(Type... name) {}
+		fn void default_value(Type name = 15) {}
+		fn void untyped_variadic(...) {}
+		fn void with_attributes(Type name @noalias) {}
+		fn void untyped(args...) {}
 	`;
 	Workspace ws;
 	ws.init();
@@ -51,25 +54,16 @@ fn void function_with_params()
 	Module* mod      = ws.modules.get("hello")!!;
 	ModuleSection* s = mod.sections[0];
 
-	Node* node   = ws.lookup("hello", "greet")!!;
-	FnDecl* func = node.as(FN_DECL);
-
-	Node* node_2   = ws.lookup("hello", "foo")!!;
-	FnDecl* func_2 = node_2.as(FN_DECL);
-
-	Node* node_3   = ws.lookup("hello", "bar")!!;
-	FnDecl* func_3 = node_3.as(FN_DECL);
-
 	test::eq(parser_tests::count_kind(s, MODULE_DECL), 1);
-	test::eq(parser_tests::count_kind(s, FN_DECL), 3);
+	test::eq(parser_tests::count_kind(s, FN_DECL), 6);
 }
-
 
 fn void method_with_params()
 {
 	String path = `
 		module hello; 
 		fn void Foo.greet(&self, Bar baz) {}
+		fn void Foo.greet(self, Bar baz) {}
 	`;
 	Workspace ws;
 	ws.init();
@@ -84,7 +78,7 @@ fn void method_with_params()
 	FnDecl* func = node.as(FN_DECL);
 
 	test::eq(parser_tests::count_kind(s, MODULE_DECL), 1);
-	test::eq(parser_tests::count_kind(s, FN_DECL), 1);
+	test::eq(parser_tests::count_kind(s, FN_DECL), 2);
 }
 
 fn void macro_with_params()
@@ -116,7 +110,6 @@ fn void macro_with_params()
 	test::eq(parser_tests::count_kind(s, MODULE_DECL), 1);
 	test::eq(parser_tests::count_kind(s, MACRO_DECL), 3);
 }
-
 
 fn void macro_method_with_params()
 {

@@ -703,7 +703,7 @@ fn Node*? parse_param_decl(ParseContext* ctx)
 		}
 	}
 
-	param.type = parsed_type ? parsed_type : ctx.ast.alloc_node(MISSING, ctx.peek(0).pos);
+	param.type = parsed_type;
 
 	Token t = ctx.peek(0);
 	switch (t.kind)
@@ -743,7 +743,7 @@ fn Node*? parse_param_decl(ParseContext* ctx)
 					ctx.skip_until({ EOF, EOS, RPAREN, RBRACE })!;
 					return ctx.ast.error(start_pos);
 				}
-				if (parsed_type.kind != MISSING)
+				if (parsed_type)
 				{
 					ctx.error("For typed variadic parameters, '...' must follow the type expression, not the name.");
 					ctx.skip_until({ EOF, EOS, RPAREN, RBRACE })!;
@@ -791,6 +791,11 @@ fn Node*? parse_param_decl(ParseContext* ctx)
 			ctx.error("Expected a valid parameter definition.");
 			ctx.skip_until({ EOF, EOS, RPAREN, RBRACE })!;
 			return ctx.ast.error(start_pos);
+	}
+
+	if (ctx.is(AT_IDENT))
+	{
+		param.attributes = parse_attributes(ctx, node)!;
 	}
 
 	if (consume(ctx, EQ)!)
