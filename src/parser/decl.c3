@@ -493,11 +493,11 @@ fn Node*? parse_fn_decl(ParseContext* ctx, ParseFlags flags = { })
 
 		expect(ctx, DOT)!;
 
-		Token t = @expect_else_skip(ctx, IDENT, { EOS } ; err)
+		Token t = @expect_else_skip(ctx, IDENT, { EOS, LPAREN } ; err)
 		{
 			ctx.error("Expected member function name identifier");
 			func.name = -1;
-			return err;
+			break IS_TYPE;
 		}!;
 		func.name = ctx.ast.string_pool.internalize(ctx.token_text(t));
 	}
@@ -505,7 +505,7 @@ fn Node*? parse_fn_decl(ParseContext* ctx, ParseFlags flags = { })
 	{
 		// Standalone Function: No associated type prefix
 		func.associated_type = null;
-		Token t = @expect_else_skip(ctx, IDENT, { EOS } ; err)
+		Token t = @expect_else_skip(ctx, IDENT, { EOS, LPAREN } ; err)
 		{
 			ctx.error("Expected function name identifier");
 			func.name = -1;
