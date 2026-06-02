@@ -550,7 +550,7 @@ fn void attach_contract(ParseContext* ctx, Node* node, Node* contract)
 			mod.contract.set(contract);
 		case FN_DECL:
 			FnDecl* func = node.as(FN_DECL);
-			func.contract = contract;
+			func.contract.set(contract);
 		default:
 			break;
 	}

@@ -94,10 +94,10 @@ struct TypedefDecl
 struct FnDecl
 {
 	StringID name;
-	Node* associated_type;
+	Option{Node} associated_type;
 	Node* ret_type;
 	Node* body;
-	Node* contract;
+	Option{Node} contract;
 	NodeArray params;
 	NodeArray attributes;
 }
@@ -105,10 +105,10 @@ struct FnDecl
 struct MacroDecl
 {
 	StringID name;
-	Node* associated_type;
-	Node* ret_type;
+	Option{Node} associated_type;
+	Option{Node} ret_type;
 	Node* body;
-	Node* contract;
+	Option{Node} contract;
 	NodeArray params;
 	NodeArray attributes;
 }

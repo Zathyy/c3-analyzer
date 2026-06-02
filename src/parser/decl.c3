@@ -489,7 +489,7 @@ fn Node*? parse_fn_decl(ParseContext* ctx, ParseFlags flags = { })
 
 	if IS_TYPE: (is_type(ctx))
 	{
-		func.associated_type = parse_type_expr(ctx)!;
+		func.associated_type.set(parse_type_expr(ctx)!);
 
 		expect(ctx, DOT)!;
 
@@ -504,7 +504,6 @@ fn Node*? parse_fn_decl(ParseContext* ctx, ParseFlags flags = { })
 	else
 	{
 		// Standalone Function: No associated type prefix
-		func.associated_type = null;
 		Token t = @expect_else_skip(ctx, IDENT, { EOS, LPAREN } ; err)
 		{
 			ctx.error("Expected function name identifier");
@@ -573,12 +572,12 @@ fn Node*? parse_macro_decl(ParseContext* ctx, ParseFlags flags = { })
 
 	if (is_type(ctx) && ctx.peek(1).kind != DOT)
 	{
-		mac.ret_type = parse_type_expr(ctx)!;
+		mac.ret_type.set(parse_type_expr(ctx)!);
 	}
 
 	if IS_TYPE: (is_type(ctx))
 	{
-		mac.associated_type = parse_type_expr(ctx)!;
+		mac.associated_type.set(parse_type_expr(ctx)!);
 
 		expect(ctx, DOT)!;
 
@@ -609,8 +608,6 @@ fn Node*? parse_macro_decl(ParseContext* ctx, ParseFlags flags = { })
 			mac.name = -1;
 			break IS_TYPE;
 		}!;
-
-		mac.associated_type = null;
 		mac.name = ctx.ast.string_pool.internalize(ctx.token_text(t));
 	}
 
