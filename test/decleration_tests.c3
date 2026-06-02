@@ -488,7 +488,7 @@ fn void struct_decl()
 		
 		<*
 		*>
-		struct Foo
+		struct Foo (Printable) @local
 		{
 			<*
 				Comment

@@ -28,6 +28,9 @@ fn String? Cursor.spelling(&self, Allocator allocator) => @pool()
 
 	switch (self.node.kind)
 	{
+		case STRUCT_DECL:
+			StructDecl* s = self.node.as(STRUCT_DECL);
+			return pool.get(s.name);
 		case VAR_DECL:
 			VarDecl* v = self.node.as(VAR_DECL);
 			return pool.get(v.name)!;

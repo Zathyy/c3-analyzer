@@ -145,8 +145,10 @@ struct CtExpandDecl
 struct StructDecl
 {
 	Option{Node} contract;
-	StringID name;
+	NodeArray interfaces;
 	NodeArray fields;
+	NodeArray attributes;
 	Node* next;
+	StringID name;
 	bool is_union;
 }

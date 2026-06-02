@@ -1076,6 +1076,9 @@ fn Node*? parse_struct_union_decl(ParseContext* ctx) => @pool()
 		struct_decl.name = -1;
 	}!;
 
+	struct_decl.interfaces = parse_interface_type_list(ctx)!;
+	struct_decl.attributes = parse_attributes(ctx, node)!;
+
 	@expect_else_skip(ctx, LBRACE, { RBRACE } ; brace_err)
 	{
 		return brace_err;
