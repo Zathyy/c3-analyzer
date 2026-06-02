@@ -30,6 +30,7 @@ struct Node
 		ErrorNode error;
 
 		// DECL
+		StructDecl struct_decl;
 		VarDecl var_decl;
 		AttributeDecl attribute_decl;
 		ContractDecl contract_decl;

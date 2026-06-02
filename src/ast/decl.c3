@@ -117,6 +117,7 @@ struct VarDecl
 	VarDeclKind kind;
 	VarDeclFlags flags;
 	StringID name;
+	Option{Node} contract;
 	Node* type;
 	Node* init_expr;
 	NodeArray attributes;
@@ -136,4 +137,16 @@ struct CtExpandDecl
 {
 	Node* expr;
 	NodeArray attributes;
+}
+
+<*
+ StructDecl is both for structs & unions `is_union`
+*>
+struct StructDecl
+{
+	Option{Node} contract;
+	StringID name;
+	NodeArray fields;
+	Node* next;
+	bool is_union;
 }

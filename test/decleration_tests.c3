@@ -480,3 +480,77 @@ fn void expand()
 	LiteralExpr* literal = decl.expr.as(LITERAL_EXPR);
 	test::eq(pool.get(literal.string)!!, "fn void foo();");
 }
+
+fn void struct_decl()
+{
+	String text = `
+		module hello;
+		
+		<*
+		*>
+		struct Foo
+		{
+			<*
+				Comment
+			*>
+			int a;
+			inline Bar b;
+
+			struct sub
+			{
+				int sub_a;
+
+				union sub_union 
+				{
+					int faf;
+				}
+			}
+		}
+	`;
+
+	Workspace ws;
+	ws.init();
+	defer ws.free();
+
+	ParseResult res = parser::parse(&ws, "expand", text)!!;
+	test::eq(res.success, true);
+
+	Module* mod       = ws.modules.get("hello")!!;
+	ModuleSection* s  = mod.sections[0];
+	StringPool* pool  = &s.source_file.ast.string_pool;
+	Node* target_node = s.nodes[2];
+	StructDecl* head  = target_node.as(STRUCT_DECL);
+	test::ne(head.next, null);
+	test::eq(parser_tests::count_kind(s, MODULE_DECL), 1);
+	test::eq(parser_tests::count_kind(s, STRUCT_DECL), 1);
+}
+
+
+fn void union_decl()
+{
+	String text = `
+		module hello;
+		
+		union Foo
+		{
+			int a;
+			Foo b;
+		}
+	`;
+
+	Workspace ws;
+	ws.init();
+	defer ws.free();
+
+	ParseResult res = parser::parse(&ws, "expand", text)!!;
+	test::eq(res.success, true);
+
+	Module* mod      = ws.modules.get("hello")!!;
+	ModuleSection* s = mod.sections[0];
+	StringPool* pool = &s.source_file.ast.string_pool;
+
+	Node* target_node = s.nodes[1];
+
+	test::eq(parser_tests::count_kind(s, MODULE_DECL), 1);
+	test::eq(parser_tests::count_kind(s, STRUCT_DECL), 1);
+}

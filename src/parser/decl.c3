@@ -50,8 +50,13 @@ fn Node*? parse_contract_decl(ParseContext* ctx) => @pool()
 		return ctx.ast.error(start_pos);
 	}
 	Token contract_token = ctx.current();
-	int global_offset    = contract_token.pos;
-	String slice         = ctx.token_text(contract_token);
+	if (contract_token.len <= 4)
+	{
+		advance(ctx)!;
+		return ctx.ast.missing(contract_token.pos);
+	}
+	int global_offset = contract_token.pos;
+	String slice      = ctx.token_text(contract_token);
 	advance(ctx)!; // skip over contract
 
 	// store the "normal" tokens and index temporarly since
@@ -820,6 +825,12 @@ fn Node*? parse_var_decl(ParseContext* ctx, Node* type = null, ParseFlags flags 
 {
 	int start_pos = ctx.peek(0).pos;
 
+	Node* contract;
+	if (ctx.is(CONTRACT))
+	{
+		contract = parse_contract_decl(ctx)!;
+	}
+
 	if (flags.is_local)
 	{
 		if (flags.is_extern)
@@ -943,6 +954,10 @@ fn Node*? parse_var_decl(ParseContext* ctx, Node* type = null, ParseFlags flags 
 		if (head_node == null)
 		{
 			head_node = var_node;
+			if (contract)
+			{
+				head_node.as(VAR_DECL).contract.set(contract);
+			}
 		}
 		else
 		{
@@ -1032,5 +1047,72 @@ fn Node*? parse_expand_decl(ParseContext* ctx)
 		expand.attributes = parse_attributes(ctx, node)!;
 	}
 	expect(ctx, EOS)!;
+	return node;
+}
+
+<*
+ struct_decl ::= "struct | union" TYPE_IDENT ("(" type ("," type)* ")")? attributes? "{" struct_body "}"
+*>
+fn Node*? parse_struct_union_decl(ParseContext* ctx) => @pool()
+{
+	int start_pos  = ctx.peek(0).pos;
+	bool is_struct = ctx.is(STRUCT);
+	if (is_struct)
+	{
+		expect(ctx, STRUCT)!;
+	}
+	else
+	{
+		expect(ctx, UNION)!;
+	}
+	Node* node              = ctx.ast.alloc_node(STRUCT_DECL, start_pos);
+	StructDecl* struct_decl = node.as(STRUCT_DECL);
+	struct_decl.is_union = !is_struct;
+	defer node.end_token = ctx.peek(0).pos;
+
+	@expect_some_else(ctx, { IDENT, TYPE_IDENT } ; err)
+	{
+		ctx.error("Structs must have a 'Type identifier' or a 'ident' if a sub struct");
+		struct_decl.name = -1;
+	}!;
+
+	@expect_else_skip(ctx, LBRACE, { RBRACE } ; brace_err)
+	{
+		return brace_err;
+	}!;
+
+	List{Node*} fields;
+	fields.tinit();
+
+	Node* tail_node = node;
+
+	while (!ctx.is(RBRACE) && !ctx.is(EOF))
+	{
+		if (ctx.is(STRUCT) || ctx.is(UNION))
+		{
+			Node* sub_decl = parse_struct_union_decl(ctx)!;
+			if (sub_decl && sub_decl.kind != ERROR)
+			{
+				tail_node.as(STRUCT_DECL).next = sub_decl;
+				// Unroll the sub-decl chain if it has multiple items to find the true new tail
+				while (tail_node.as(STRUCT_DECL).next != null)
+				{
+					tail_node = tail_node.as(STRUCT_DECL).next;
+				}
+			}
+		}
+		else
+		{
+			ParseFlags flags;
+			flags.is_struct = true;
+			flags.is_inline = consume(ctx, INLINE)!;
+			Node* field = parse_var_decl(ctx, null, flags)!;
+			fields.push(field);
+		}
+	}
+
+	expect(ctx, RBRACE)!;
+
+	struct_decl.fields = alloc::clone_slice(ctx.arena, fields.array_view());
 	return node;
 }

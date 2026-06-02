@@ -503,9 +503,9 @@ fn void? parse_top_level(ParseContext* ctx, Workspace* ws)
 			node = parse_typedef_decl(ctx, flags)!;
 			// case ATTRDEF:
 			// node = parse_attrdef(ctx)!;
-			// case UNION:
-			// case STRUCT:
-			// node = parse_struct(ctx)!;
+		case UNION:
+		case STRUCT:
+			node = parse_struct_union_decl(ctx)!;
 			// case BITSTRUCT:
 			// node = parse_bitstruct_decl(ctx)!;
 			// case CONSTDEF:
