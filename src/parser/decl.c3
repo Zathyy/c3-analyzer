@@ -1036,34 +1036,17 @@ fn NodeArray? parse_attributes(ParseContext* ctx, Node* parent_node) => @pool()
 fn Node*? parse_expand_decl(ParseContext* ctx)
 {
 	int start_pos = ctx.peek(0).pos;
-	@expect_else(ctx, CT_EXPAND ; err)
-	{
-		return err;
-	}!;
-
+	expect(ctx, CT_EXPAND)!;
 	Node* node           = ctx.ast.alloc_node(CT_EXPAND_DECL, start_pos);
 	CtExpandDecl* expand = node.as(CT_EXPAND_DECL);
 	defer node.end_token = ctx.peek(0).pos;
-
-	@expect_else(ctx, LPAREN ; err)
-	{
-		return err;
-	}!;
+	expect(ctx, LPAREN)!;
 	expand.expr = parse_constant_expr(ctx)!;
-	@expect_else(ctx, RPAREN ; err)
-	{
-		return err;
-	}!;
-
+	expect(ctx, RPAREN)!;
 	if (ctx.is(AT_IDENT))
 	{
 		expand.attributes = parse_attributes(ctx, node)!;
 	}
-
-	@expect_else(ctx, EOS ; err)
-	{
-		return err;
-	}!;
-
+	expect(ctx, EOS)!;
 	return node;
 }
