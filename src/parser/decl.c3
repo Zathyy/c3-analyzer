@@ -685,7 +685,7 @@ fn Node*? parse_macro_decl(ParseContext* ctx, ParseFlags flags = { })
 					| CT_IDENT "..."
  @param [&inout] ctx
 *>
-fn Node*? parse_param_decl(ParseContext* ctx)
+fn Node*? parse_param_decl(ParseContext* ctx, ParamParseFlags flags)
 {
 	int start_pos = ctx.peek(0).pos;
 
@@ -1005,13 +1005,18 @@ fn Node*? parse_var_decl(ParseContext* ctx, Node* type = null, ParseFlags flags 
   attribute  ::= AT_IDENT ("(" expression_list? ")")?
  @param [&inout] ctx
 *>
-fn NodeArray? parse_attributes(ParseContext* ctx, Node* parent_node) => @pool()
+fn NodeArray? parse_attributes(ParseContext* ctx, Node* parent_node, AttributeParseFlags flags = { }) => @pool()
 {
 	List{Node*} nodes;
 	nodes.init(tmem, 4);
 
-	while (ctx.is(AT_IDENT))
+	while (ctx.is(AT_IDENT) || ctx.is(AT_TYPE_IDENT))
 	{
+		if (ctx.is(AT_TYPE_IDENT) && !flags.allow_type_ident)
+		{
+			unexpected(ctx, "Tried parsing a @TypeIdent when not allowed")!;
+		}
+
 		Token t = ctx.peek(0);
 		advance(ctx)!;
 
@@ -1041,6 +1046,11 @@ fn NodeArray? parse_attributes(ParseContext* ctx, Node* parent_node) => @pool()
 		}
 
 		nodes.push(attr_node);
+
+		if (flags.use_comma)
+		{
+			consume(ctx, COMMA)!;
+		}
 	}
 
 	parent_node.flags.has_attributes = nodes.len() > 0;
@@ -1331,6 +1341,47 @@ fn Node*? parse_interface_decl(ParseContext* ctx) => @pool()
 	inter.methods = alloc::clone_slice(ctx.arena, list.array_view());
 
 	expect(ctx, RBRACE)!;
+
+	return node;
+}
+
+<*
+ attrdef_decl ::= "attrdef" AT_IDENT ("(" parameter_list? ")")? ("=" attribute_list)? ";"
+*>
+fn Node*? parse_attrdef_decl(ParseContext* ctx) => @pool()
+{
+	int start_pos = ctx.peek(0).pos;
+	expect(ctx, ATTRDEF)!;
+	Node* node       = ctx.ast.alloc_node(ATTRDEF_DECL, start_pos);
+	AttrdefDecl* def = node.as(ATTRDEF_DECL);
+	defer node.end_token = ctx.peek(0).pos;
+
+	if CHECK_NAME: (true)
+	{
+		Token t = @expect_else_skip(ctx, AT_TYPE_IDENT, { EOS, EQ, LPAREN, RPAREN } ; err)
+		{
+			def.name = -1;
+			break CHECK_NAME;
+		}!;
+
+		def.name = ctx.ast.string_pool.internalize(ctx.token_text(t));
+	}
+
+	if (ctx.is(LPAREN))
+	{
+		def.params = parse_parameter_list(ctx, { .is_attrdef = true })!;
+	}
+
+	if (consume(ctx, EOS)!)
+	{
+		return node;
+	}
+
+	expect(ctx, EQ)!;
+
+	def.attributes = parse_attributes(ctx, node, { .use_comma = true })!;
+
+	expect(ctx, EOS)!;
 
 	return node;
 }

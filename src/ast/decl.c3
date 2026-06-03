@@ -181,3 +181,10 @@ struct InterfaceDecl
 	NodeArray methods;
 	StringID name;
 }
+
+struct AttrdefDecl
+{
+	StringID name;
+	NodeArray params;
+	NodeArray attributes;
+}

@@ -32,6 +32,7 @@ struct Node
 		// DECL
 		StructDecl struct_decl;
 		VarDecl var_decl;
+		AttrdefDecl attrdef_decl;
 		AttributeDecl attribute_decl;
 		ContractDecl contract_decl;
 		ModuleDecl module_decl;

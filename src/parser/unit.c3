@@ -12,7 +12,7 @@ import std::collections::list;
 <*
  parameter_list ::= (param_decl (',' param_decl)*)?
 *>
-fn NodeArray? parse_parameter_list(ParseContext* ctx) => @pool()
+fn NodeArray? parse_parameter_list(ParseContext* ctx, ParamParseFlags flags = { }) => @pool()
 {
 	int start_pos = ctx.peek(0).pos;
 
@@ -29,7 +29,7 @@ fn NodeArray? parse_parameter_list(ParseContext* ctx) => @pool()
 
 	while (true)
 	{
-		Node* param = parse_param_decl(ctx)!;
+		Node* param = parse_param_decl(ctx, flags)!;
 		temp_params.push(param);
 
 		if (!consume(ctx, COMMA)!) break;

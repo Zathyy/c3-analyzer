@@ -501,8 +501,8 @@ fn void? parse_top_level(ParseContext* ctx, Workspace* ws)
 			node = parse_alias_decl(ctx)!;
 		case TYPEDEF:
 			node = parse_typedef_decl(ctx, flags)!;
-			// case ATTRDEF:
-			// node = parse_attrdef(ctx)!;
+		case ATTRDEF:
+			node = parse_attrdef_decl(ctx)!;
 		case UNION:
 		case STRUCT:
 			node = parse_struct_union_decl(ctx)!;

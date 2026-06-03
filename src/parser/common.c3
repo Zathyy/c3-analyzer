@@ -47,6 +47,17 @@ bitstruct ParseFlags : ulong
 	bool skip_eos;
 }
 
+bitstruct ParamParseFlags : uint
+{
+	bool is_attrdef;
+}
+
+bitstruct AttributeParseFlags : uint
+{
+	bool use_comma;
+	bool allow_type_ident;
+}
+
 <*
  Options for path parsing.
 
