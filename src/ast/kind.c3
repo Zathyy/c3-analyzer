@@ -55,6 +55,7 @@ enum NodeKind : char
 	TRY_EXPR,
 	CATCH_EXPR,
 	TERNARY_EXPR,
+	MACRO_BODY_EXPR,
 
 	CONTRACT_PARAM,
 }

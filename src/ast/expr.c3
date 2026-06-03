@@ -97,7 +97,9 @@ struct TypeExpr
 struct CallExpr
 {
 	Node* callee;
+	Node* macro_body_expr;
 	NodeArray args;
+	NodeArray attributes;
 }
 
 struct ContractExpr
@@ -187,4 +189,10 @@ struct TernaryExpr
 	Node* else_expr;
 	bool is_grouped;
 	bool is_const;
+}
+
+struct MacroBodyExpr
+{
+	Node* body;
+	NodeArray args;
 }

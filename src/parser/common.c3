@@ -50,6 +50,7 @@ bitstruct ParseFlags : ulong
 bitstruct ParamParseFlags : uint
 {
 	bool is_attrdef;
+	bool is_call;
 }
 
 bitstruct AttributeParseFlags : uint

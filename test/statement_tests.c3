@@ -151,7 +151,6 @@ fn void if_elseif_else()
 	test::eq(parser_tests::count_kind(s, FN_DECL), 1);
 }
 
-
 fn void ct_if_else()
 {
 	// uses a function just to get a compound

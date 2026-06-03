@@ -244,7 +244,7 @@ macro Token? expect(ParseContext* ctx, TokenKind kind) @maydiscard
 	if (!ctx.is(kind))
 	{
 		ctx.error("Expected '%s' got '%s'", kind.description, ctx.current().kind.description);
-		$if $feature(PARSER_LIB):
+		$if $feature(PARSER_CLI):
 			log::error("Error happened here");
 		$endif
 		ctx.ast.missing(ctx.current().pos);
@@ -263,7 +263,16 @@ macro Token? expect(ParseContext* ctx, TokenKind kind) @maydiscard
 macro Node*? unexpected(ParseContext* ctx, String fmt, ...) @maydiscard
 {
 	ctx.error(fmt, ...$vaarg);
-	$if $feature(PARSER_LIB):
+	$if $feature(PARSER_CLI):
+		log::error("Error happened here");
+	$endif
+	return ctx.ast.missing(ctx.peek(0).pos);
+}
+
+macro Node*? unexpected_at(ParseContext* ctx, Token t, String fmt, ...) @maydiscard
+{
+	ctx.error_at(t, fmt, ...$vaarg);
+	$if $feature(PARSER_CLI):
 		log::error("Error happened here");
 	$endif
 	return ctx.ast.missing(ctx.peek(0).pos);

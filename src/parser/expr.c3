@@ -632,8 +632,8 @@ fn Node*? parse_compound_literal(ParseContext* ctx) => @pool()
 
 fn Node*? parse_call_expr(ParseContext* ctx, Node* callee) => @pool()
 {
+	int start_pos = ctx.current().pos;
 	advance(ctx)!; // consume '('
-
 	Node* node = ctx.ast.alloc_node(CALL_EXPR, callee.start_token);
 	defer node.end_token = ctx.peek(0).pos;
 	CallExpr* call = node.as(CALL_EXPR);
@@ -646,8 +646,51 @@ fn Node*? parse_call_expr(ParseContext* ctx, Node* callee) => @pool()
 		args.push(parse_expr(ctx)!);
 		if (!consume(ctx, COMMA)!) break;
 	}
-	expect(ctx, RPAREN)!;
+
 	call.args = alloc::clone_slice(ctx.arena, args.array_view());
+	NodeArray body_args;
+	if (consume(ctx, EOS)!)
+	{
+		body_args = parse_parameter_list(ctx, { .is_call = true })!;
+	}
+
+	expect(ctx, RPAREN)!;
+
+	if (ctx.is(AT_IDENT))
+	{
+		Token t = ctx.current();
+		call.attributes = parse_attributes(ctx, node)!;
+
+		foreach (attr : call.attributes)
+		{
+			AttributeDecl* attr_decl = attr.as(ATTRIBUTE_DECL);
+			switch (attr_decl.kind)
+			{
+				case AttributeKind.INLINE:
+				case AttributeKind.PURE:
+				case AttributeKind.NOINLINE:
+					// Set flags?
+					break;
+				default:
+					unexpected_at(ctx, t, "Only '@pure', '@inline' and '@noinline' are valid attributes for calls")!;
+			}
+		}
+	}
+	Node* body;
+	if (ctx.is(LBRACE))
+	{
+		body = parse_compound_stmt(ctx)!;
+	}
+
+	if (body || body_args)
+	{
+		Node* body_node          = ctx.ast.alloc_node(MACRO_BODY_EXPR, start_pos);
+		MacroBodyExpr* body_expr = body_node.as(MACRO_BODY_EXPR);
+		body_expr.args = body_args;
+		body_expr.body = body;
+		body_node.end_token = ctx.peek(0).pos;
+		call.macro_body_expr = body_node;
+	}
 
 	return node;
 }

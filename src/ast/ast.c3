@@ -78,6 +78,7 @@ struct Node
 		TryExpr try_expr;
 		CatchExpr catch_expr;
 		TernaryExpr ternary_expr;
+		MacroBodyExpr macro_body_expr;
 		// UNIT
 		ContractParam contract_param;
 	}

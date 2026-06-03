@@ -255,3 +255,34 @@ fn void try_catch()
 	test::eq(parser_tests::count_kind(s, MODULE_DECL), 1);
 	test::eq(parser_tests::count_kind(s, FN_DECL), 1);
 }
+
+fn void call()
+{
+	String path = `
+		module hello;
+
+		fn void hello()
+		{
+			int a = foo() @inline;
+			int b = bar() @noinline;
+			int c = bar() @pure;
+
+			int a = baz(a, b, c; err)
+			{
+				Foo foo;
+			};
+		}
+	`;
+
+	Workspace ws;
+	ws.init();
+	defer ws.free();
+	ParseResult res = parser::parse(&ws, "call", path)!!;
+	test::eq(res.success, true);
+
+	Module* mod      = ws.modules.get("hello")!!;
+	ModuleSection* s = mod.sections[0];
+
+	test::eq(parser_tests::count_kind(s, MODULE_DECL), 1);
+	test::eq(parser_tests::count_kind(s, FN_DECL), 1);
+}

@@ -38,7 +38,7 @@ fn void function_with_params()
 {
 	String path = `
 		module hello; 
-		fn void greet(int foo, Bar baz) {}
+		fn void greet(int foo, Bar baz) => @pool() {}
 		fn void foo(Type... name) {}
 		fn void default_value(Type name = 15) {}
 		fn void untyped_variadic(...) {}

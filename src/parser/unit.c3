@@ -16,7 +16,10 @@ fn NodeArray? parse_parameter_list(ParseContext* ctx, ParamParseFlags flags = { 
 {
 	int start_pos = ctx.peek(0).pos;
 
-	expect(ctx, LPAREN)!;
+	if (!flags.is_call)
+	{
+		expect(ctx, LPAREN)!;
+	}
 
 	List{Node*} temp_params;
 	temp_params.init(tmem, 4);
@@ -36,11 +39,14 @@ fn NodeArray? parse_parameter_list(ParseContext* ctx, ParamParseFlags flags = { 
 
 		if (ctx.is(RPAREN))
 		{
-			temp_params.push(unexpected(ctx, "Expected parameter declaration after ','")!);
+			temp_params.push(unexpected_at(ctx, ctx.current(), "Expected parameter declaration after ','")!);
 			break;
 		}
 	}
-	expect(ctx, RPAREN)!;
+	if (!flags.is_call)
+	{
+		expect(ctx, RPAREN)!;
+	}
 	return alloc::clone_slice(ctx.arena, temp_params.array_view());
 }
 
