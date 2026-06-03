@@ -630,7 +630,7 @@ fn Node*? parse_compound_literal(ParseContext* ctx) => @pool()
 	return node;
 }
 
-fn Node*? parse_call_expr(ParseContext* ctx, Node* callee) => @pool()
+fn Node*? parse_call_expr(ParseContext* ctx, Node* callee)
 {
 	int start_pos = ctx.current().pos;
 	advance(ctx)!; // consume '('
@@ -639,15 +639,14 @@ fn Node*? parse_call_expr(ParseContext* ctx, Node* callee) => @pool()
 	CallExpr* call = node.as(CALL_EXPR);
 	call.callee = callee;
 
-	List{Node*} args;
-	args.init(tmem, 4);
-	while (!ctx.is(RPAREN) && !ctx.eof())
+	log::debug("call_expr");
+
+	if (!ctx.is(RPAREN) && !ctx.eof())
 	{
-		args.push(parse_expr(ctx)!);
-		if (!consume(ctx, COMMA)!) break;
+		log::debug("call_expr - args");
+		call.args = parse_arg_list(ctx)!;
 	}
 
-	call.args = alloc::clone_slice(ctx.arena, args.array_view());
 	NodeArray body_args;
 	if (consume(ctx, EOS)!)
 	{
@@ -920,6 +919,99 @@ fn Node*? parse_ternary_expr(ParseContext* ctx, Node* left)
 	}!;
 
 	tern.else_expr = parse_expr(ctx, TERNARY)!;
+
+	return node;
+}
+
+<*
+ builtin_expr ::= '$$' IDENT
+ compiler_const_expr ::= '$$' CONST_IDENT
+*>
+fn Node*? parse_builtin_expr(ParseContext* ctx)
+{
+	expect(ctx, BUILTIN)!;
+
+	StringID name;
+	BuiltinFunction builtin;
+
+	log::debug("builtin");
+
+	do COND:
+	{
+		Token t = @expect_some_else(ctx, { IDENT, CONST_IDENT, TYPE_IDENT } ; err)
+		{
+			name = -1;
+			break COND;
+		}!;
+
+		name = ctx.ast.string_pool.internalize(ctx.token_text(t));
+
+		if (t.kind == CONST_IDENT)
+		{
+			Node* node             = ctx.ast.alloc_node(COMPILER_CONST_EXPR, ctx.current().pos);
+			CompilerConstExpr* cce = node.as(COMPILER_CONST_EXPR);
+
+			cce.name = name;
+
+			return node;
+		}
+	};
+
+	Node* node         = ctx.ast.alloc_node(BUILTIN_EXPR, ctx.current().pos);
+	BuiltinExpr* built = node.as(BUILTIN_EXPR);
+
+	built.name = name;
+
+	return node;
+}
+
+<*
+ splat_expr ::= '...' expr
+*>
+fn Node*? parse_splat_expr(ParseContext* ctx)
+{
+	Node* node = ctx.ast.alloc_node(SPLAT_EXPR, ctx.current().pos);
+	defer node.end_token = ctx.peek(0).pos;
+	SplatExpr* spl = node.as(SPLAT_EXPR);
+
+	expect(ctx, ELLIPSIS)!;
+
+	spl.inner = parse_expr(ctx)!;
+
+	return node;
+}
+
+fn Node*? parse_vasplat_expr(ParseContext* ctx)
+{
+	int start_pos = ctx.current().pos;
+	Node* node    = ctx.ast.alloc_node(VASPLAT_EXPR, start_pos);
+	defer node.end_token = ctx.current().pos;
+	VasplatExpr* eval_named = node.as(VASPLAT_EXPR);
+
+	expect(ctx, ELLIPSIS)!;
+	expect(ctx, CT_VAARG)!;
+
+	if (consume(ctx, LBRACKET)!)
+	{
+		ctx.warn("Not implemented!");
+		log::warn("This is not implemented!");
+		advance(ctx)!;
+	}
+
+	return node;
+}
+
+fn Node*? parse_ct_eval_expr(ParseContext* ctx)
+{
+	int start_pos = ctx.current().pos;
+	Node* node    = ctx.ast.alloc_node(CT_EVAL_EXPR, start_pos);
+	defer node.end_token = ctx.current().pos;
+	CtEvalExpr* eval = node.as(CT_EVAL_EXPR);
+
+	expect(ctx, CT_EVAL)!;
+	expect(ctx, LPAREN)!;
+	eval.inner_expr = parse_expr(ctx)!;
+	expect(ctx, RPAREN)!;
 
 	return node;
 }

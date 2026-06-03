@@ -146,3 +146,58 @@ fn Node*? parse_contract_param(ParseContext* ctx)
 
 	return node;
 }
+
+<*
+ param_list ::= ('...' arg | arg (',' arg)*)?
+ parameter ::= ((param_path '=')? expr) | param_path
+*>
+fn NodeArray? parse_arg_list(ParseContext* ctx) => @pool()
+{
+	List{Node*} args;
+	args.tinit();
+
+	while (true)
+	{
+		Node* expr    = null;
+		int start_pos = ctx.peek(0).pos;
+
+		if (ctx.is(ELLIPSIS) && ctx.can_peek(1) && ctx.peek(1).kind == CT_VAARG)
+		{
+			expr = parse_vasplat_expr(ctx)!;
+		}
+		else
+		{
+			expr = parse_expr(ctx)!;
+
+			if (expr.kind == IDENT_EXPR && consume(ctx, COLON)!)
+			{
+				IdentExpr* ident  = expr.as(IDENT_EXPR);
+				StringID arg_name = ident.ident;
+
+				expr = ctx.ast.alloc_node(NAMED_ARG_EXPR, start_pos);
+				NamedArgExpr* named = expr.as(NAMED_ARG_EXPR);
+				named.name = arg_name;
+
+				named.value = parse_expr(ctx)!;
+				expr.end_token = ctx.peek(0).pos;
+			}
+			else if (expr.kind == CT_EVAL_EXPR && consume(ctx, COLON)!)
+			{
+				Node* inner = expr;
+				expr = ctx.ast.alloc_node(EVAL_NAMED_ARG_EXPR, start_pos);
+				EvalNamedArgExpr* eval_named = expr.as(EVAL_NAMED_ARG_EXPR);
+
+				eval_named.name = inner;
+				eval_named.value = parse_expr(ctx)!;
+				expr.end_token = ctx.peek(0).pos;
+			}
+		}
+
+		args.push(expr);
+
+		if (!consume(ctx, COMMA)!) break;
+		if (ctx.is(RPAREN)) break;
+	}
+
+	return alloc::clone_slice(ctx.arena, args.array_view());
+}

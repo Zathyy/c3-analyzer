@@ -201,6 +201,12 @@ fn Node*? parse_prefix_expr(ParseContext* ctx)
 
 	switch (t.kind)
 	{
+		case CT_EVAL:
+			return parse_ct_eval_expr(ctx)!;
+		case ELLIPSIS:
+			return parse_splat_expr(ctx)!;
+		case BUILTIN:
+			return parse_builtin_expr(ctx)!;
 		case CT_FEATURE:
 		case CT_DEFINED:
 		case AT_IDENT:

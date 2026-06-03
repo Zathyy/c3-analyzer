@@ -79,6 +79,14 @@ struct Node
 		CatchExpr catch_expr;
 		TernaryExpr ternary_expr;
 		MacroBodyExpr macro_body_expr;
+		BuiltinExpr builtin_expr;
+		CompilerConstExpr compiler_const_expr;
+		SplatExpr splat_expr;
+		VasplatExpr vasplat_expr;
+		NamedArgExpr named_arg_expr;
+		EvalNamedArgExpr eval_named_arg_expr;
+		CtEvalExpr ct_eval_expr;
+
 		// UNIT
 		ContractParam contract_param;
 	}

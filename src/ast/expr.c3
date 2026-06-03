@@ -196,3 +196,41 @@ struct MacroBodyExpr
 	Node* body;
 	NodeArray args;
 }
+
+struct BuiltinExpr
+{
+	BuiltinFunction builtin;
+	StringID name;
+}
+
+struct CompilerConstExpr
+{
+	inline BuiltinExpr expr;
+}
+
+struct SplatExpr
+{
+	Node* inner;
+}
+
+struct VasplatExpr
+{
+	Node* range_expr;
+}
+
+struct NamedArgExpr
+{
+	StringID name;
+	Node* value;
+}
+
+struct EvalNamedArgExpr
+{
+	Node* name;
+	Node* value;
+}
+
+struct CtEvalExpr
+{
+	Node* inner_expr;
+}
