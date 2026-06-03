@@ -54,7 +54,7 @@ fn String? PathExpr.full_path(&self, StringPool* pool, Allocator allocator) => @
 - array: TYPE_ARRAY and TYPE_VECTOR base type plus length expression.
   `len_expr` is null for inferred arrays such as `Type[*]`.
 - generic: TYPE_GENERIC base type and generic argument expressions.
-- func: TYPE_FUNCTION return type and PARAM_DECL parameter nodes.
+- func: TYPE_FUNCTION return type and VAR_DECL parameter nodes.
 *>
 struct TypeExpr
 {

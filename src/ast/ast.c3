@@ -45,6 +45,7 @@ struct Node
 		FaultDecl fault_decl;
 		InterfaceDecl interface_decl;
 		CtExpandDecl ct_expand_decl;
+		EnumDecl enum_decl;
 
 		// STMT
 		IfStmt if_stmt;

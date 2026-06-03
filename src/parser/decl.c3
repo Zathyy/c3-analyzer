@@ -1053,7 +1053,7 @@ fn NodeArray? parse_attributes(ParseContext* ctx, Node* parent_node, AttributePa
 		}
 	}
 
-	parent_node.flags.has_attributes = nodes.len() > 0;
+	if (parent_node) parent_node.flags.has_attributes = nodes.len() > 0;
 
 	return alloc::clone_slice(&ctx.ast.arena, nodes.array_view());
 }
@@ -1382,6 +1382,146 @@ fn Node*? parse_attrdef_decl(ParseContext* ctx) => @pool()
 	def.attributes = parse_attributes(ctx, node, { .use_comma = true })!;
 
 	expect(ctx, EOS)!;
+
+	return node;
+}
+
+<*
+    enum_decl ::= "enum" TYPE_IDENT ("(" type ("," type)* ")")? (":" type? enum_param_list?)? attributes? "{" enum_body "}"
+
+    constdef_decl ::= "constdef" TYPE_IDENT ("(" type ("," type)* ")")? (":" "inline"? type)? attributes? "{" constdef_body "}"
+
+    @param [&inout] ctx
+*>
+fn Node*? parse_enum_constdef_decl(ParseContext* ctx, ParseFlags flags) => @pool()
+{
+	int start_pos = ctx.peek(0).pos;
+
+	expect(ctx, flags.is_constdef ? CONSTDEF : ENUM )!;
+
+	Node* node = ctx.ast.alloc_node(ENUM_DECL, start_pos);
+	defer node.end_token = ctx.peek(0).pos;
+	EnumDecl* enum_decl = node.as(ENUM_DECL);
+
+	if CHECK_IDENT: (true)
+	{
+		Token t = @expect_else_skip(ctx, TYPE_IDENT, { COLON, LBRACE, EOS } ; err)
+		{
+			enum_decl.name = -1;
+			break CHECK_IDENT;
+		}!;
+
+		enum_decl.name = ctx.ast.string_pool.internalize(ctx.token_text(t));
+	}
+
+	enum_decl.interfaces = parse_interface_type_list(ctx)!;
+	foreach (interface_type : enum_decl.interfaces)
+	{
+		if (is_error_or_missing_node(interface_type))
+		{
+			node.kind = MISSING;
+		}
+	}
+
+	// Optional backing type and/or associated value parameters: ":" "inline"? type? enum_param_list?
+	if (consume(ctx, COLON)!)
+	{
+		enum_decl.is_inline_backing = consume(ctx, INLINE)!;
+
+		if (!ctx.is(LPAREN))
+		{
+			enum_decl.backing_type = parse_type_expr(ctx, { .no_generics = true })!;
+		}
+
+		if (consume(ctx, LPAREN)!)
+		{
+			List{Node*} assoc;
+			assoc.init(tmem, 4);
+			while (!ctx.is(RPAREN) && !ctx.eof())
+			{
+				Node* param = ctx.ast.alloc_node(VAR_DECL, ctx.peek(0).pos);
+				VarDecl* p  = param.as(VAR_DECL);
+				p.type = parse_type_expr(ctx)!;
+				if (is_non_type_ident(ctx.current().kind))
+				{
+					p.name = ctx.ast.string_pool.internalize(ctx.token_text(ctx.peek(0)));
+					advance(ctx)!;
+				}
+				if (ctx.is(AT_IDENT))
+				{
+					parse_attributes(ctx, param)!;
+				}
+				param.end_token = ctx.peek(0).pos;
+				assoc.push(param);
+				if (!consume(ctx, COMMA)!) break;
+			}
+			@expect_else(ctx, RPAREN ; err)
+			{
+				node.kind = MISSING;
+			}!;
+			enum_decl.assoc_params = alloc::clone_slice(ctx.arena, assoc.array_view());
+		}
+	}
+
+	if (ctx.is(AT_IDENT))
+	{
+		enum_decl.attributes = parse_attributes(ctx, node)!;
+	}
+
+	@expect_else(ctx, LBRACE ; err)
+	{
+		node.kind = MISSING;
+		return node;
+	}!;
+
+	List{Node*} variants;
+	variants.init(tmem, 4);
+	while ENUM_VARIANT: (!ctx.is(RBRACE) && !ctx.eof())
+	{
+		if (!ctx.is(CONST_IDENT))
+		{
+			variants.push(unexpected(ctx, "Expected enum variant name")!);
+			ctx.skip_until({ COMMA, RBRACE, EOS })!;
+			consume(ctx, COMMA)!;
+			continue;
+		}
+		
+		Node* variant = ctx.ast.alloc_node(VAR_DECL, ctx.peek(0).pos);
+		VarDecl* v    = variant.as(VAR_DECL);
+		v.kind = VAR_GLOBAL;
+		v.flags.is_const = true;
+		v.name = ctx.ast.string_pool.internalize(ctx.token_text(ctx.peek(0)));
+		advance(ctx)!;
+
+		// Optional per-variant attributes: @attr ...  (come before = and {})
+		if (ctx.is(AT_IDENT))
+		{
+			v.attributes = parse_attributes(ctx, variant)!;
+		}
+
+		// Optional ordinal: "=" expr
+		if (consume(ctx, EQ)!)
+		{
+			v.init_expr = parse_expr(ctx)!;
+		}
+
+		// Optional associated values: "{" expr ("," expr)* "}"
+		if (ctx.is(LBRACE))
+		{
+			v.assoc_values = parse_compound_literal(ctx)!;
+		}
+
+		variant.end_token = ctx.peek(0).pos;
+		variants.push(variant);
+
+		if (!consume(ctx, COMMA)!) break;
+	}
+
+	@expect_else(ctx, RBRACE ; err)
+	{
+		node.kind = MISSING;
+	}!;
+	enum_decl.variants = alloc::clone_slice(ctx.arena, variants.array_view());
 
 	return node;
 }

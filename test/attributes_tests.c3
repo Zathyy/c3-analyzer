@@ -31,14 +31,14 @@ fn void module_private_test_weak_if()
 	test::eq(module_decl.attributes.len, 4);
 
 	// @private
-	test::eq(utils::@attr(module_decl, 0).kind, AttributeKind.PRIVATE);
+	test::eq(parser_tests::@attr(module_decl, 0).kind, AttributeKind.PRIVATE);
 	// @weak
-	test::eq(utils::@attr(module_decl, 1).kind, AttributeKind.TEST);
+	test::eq(parser_tests::@attr(module_decl, 1).kind, AttributeKind.TEST);
 	// @test
-	test::eq(utils::@attr(module_decl, 2).kind, AttributeKind.WEAK);
+	test::eq(parser_tests::@attr(module_decl, 2).kind, AttributeKind.WEAK);
 
 	// @if(1 == 1 && 2 == 2)
-	AttributeDecl* attr = utils::@attr(module_decl, 3);
+	AttributeDecl* attr = parser_tests::@attr(module_decl, 3);
 	test::eq(attr.kind, AttributeKind.IF);
 	test::eq(attr.exprs.len, 1);
 
@@ -76,7 +76,7 @@ fn void module_tag_if()
 	test::eq(module_decl.attributes.len, 2);
 
 	// @tag("my_tag", "my_value")
-	AttributeDecl* attr = utils::@attr(module_decl, 0);
+	AttributeDecl* attr = parser_tests::@attr(module_decl, 0);
 	test::eq(attr.kind, AttributeKind.TAG);
 	test::eq(attr.exprs.len, 2);
 
@@ -90,7 +90,7 @@ fn void module_tag_if()
 	// end @tag()
 
 	// @if($feature(MY_FEATURE))
-	attr = utils::@attr(module_decl, 1);
+	attr = parser_tests::@attr(module_decl, 1);
 	test::eq(attr.kind, AttributeKind.IF);
 	test::eq(attr.exprs.len, 1);
 
@@ -130,7 +130,7 @@ fn void function_if()
 	test::eq(fn_decl.attributes.len, 2);
 
 	// @if($feature(MY_FEATURE))
-	AttributeDecl* attr = utils::@attr(fn_decl, 1);
+	AttributeDecl* attr = parser_tests::@attr(fn_decl, 1);
 	test::eq(attr.kind, AttributeKind.IF);
 	test::eq(attr.exprs.len, 1);
 
@@ -183,7 +183,7 @@ void* my_var @private @if($feature(MY_FEATURE)) = null;
 		}
 
 		// @if($feature(MY_FEATURE))
-		AttributeDecl* attr = utils::@attr(var_decl, 1);
+		AttributeDecl* attr = parser_tests::@attr(var_decl, 1);
 		test::eq(attr.kind, AttributeKind.IF);
 		test::eq(attr.exprs.len, 1);
 

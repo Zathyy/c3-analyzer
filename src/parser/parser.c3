@@ -517,11 +517,11 @@ fn void? parse_top_level(ParseContext* ctx, Workspace* ws)
 			node = parse_struct_union_decl(ctx)!;
 		case BITSTRUCT:
 			node = parse_bitstruct_decl(ctx)!;
-			// case CONSTDEF:
-			// flags.is_constdef = true;
-			// node = parse_enum(ctx, flags)!;
-			// case ENUM:
-			// node = parse_enum(ctx, flags)!;
+		case CONSTDEF:
+			flags.is_constdef = true;
+			node = parse_enum_constdef_decl(ctx, flags)!;
+		case ENUM:
+			node = parse_enum_constdef_decl(ctx, flags)!;
 		case CONST:
 			flags.is_const = true;
 			advance(ctx)!;
