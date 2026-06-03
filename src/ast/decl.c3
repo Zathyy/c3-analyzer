@@ -156,3 +156,16 @@ struct StructDecl
 	bool is_union;
 	bool is_bitstruct;
 }
+
+struct FaultDecl
+{
+	Option{Node} contract;
+	NodeArray attributes;
+	StringID name;
+}
+
+struct FaultdefDecl
+{
+	Option{Node} contract;
+	NodeArray faults;
+}

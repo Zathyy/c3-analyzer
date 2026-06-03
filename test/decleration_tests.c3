@@ -577,6 +577,18 @@ fn void union_decl()
 		{
 			int a;
 			Foo b;
+
+			struct bar 
+			{
+				int x;
+				int y;
+			}
+
+			struct baz 
+			{
+				int z;
+				int w;
+			}
 		}
 	`;
 
@@ -595,4 +607,32 @@ fn void union_decl()
 
 	test::eq(parser_tests::count_kind(s, MODULE_DECL), 1);
 	test::eq(parser_tests::count_kind(s, STRUCT_DECL), 1);
+}
+
+fn void faultdef_decl()
+{
+	String text = `
+		module hello;
+		
+		<*
+		 My Faultdef
+		*>
+		faultdef ERROR, FOO, BAR;
+	`;
+
+	Workspace ws;
+	ws.init();
+	defer ws.free();
+
+	ParseResult res = parser::parse(&ws, "expand", text)!!;
+	test::eq(res.success, true);
+
+	Module* mod      = ws.modules.get("hello")!!;
+	ModuleSection* s = mod.sections[0];
+	StringPool* pool = &s.source_file.ast.string_pool;
+
+	Node* target_node = s.nodes[1];
+
+	test::eq(parser_tests::count_kind(s, MODULE_DECL), 1);
+	test::eq(parser_tests::count_kind(s, FAULTDEF_DECL), 1);
 }

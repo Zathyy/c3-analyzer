@@ -1213,3 +1213,49 @@ fn Node*? parse_bitstruct_decl(ParseContext* ctx, bool is_nested = false) => @po
 	struct_decl.fields = alloc::clone_slice(ctx.arena, fields.array_view());
 	return node;
 }
+
+<*
+ faultdef_decl ::= FAULTDEF CONST_IDENT (',' CONST_IDENT)* ','? ';'
+*>
+fn Node*? parse_faultdef_decl(ParseContext* ctx) => @pool()
+{
+	int start_pos = ctx.peek(0).pos;
+	expect(ctx, FAULTDEF)!;
+	Node* node       = ctx.ast.alloc_node(FAULTDEF_DECL, start_pos);
+	FaultdefDecl* fd = node.as(FAULTDEF_DECL);
+	defer node.end_token = ctx.peek(0).pos;
+
+	List{Node*} faults;
+	faults.tinit();
+
+	while (!ctx.eof() && !ctx.is(EOS))
+	{
+		Node* fault_node      = ctx.ast.alloc_node(FAULT_DECL, ctx.current().pos);
+		FaultDecl* fault_decl = fault_node.as(FAULT_DECL);
+		if (ctx.is(AT_IDENT))
+		{
+			fault_decl.contract.set(parse_contract_decl(ctx)!);
+		}
+
+		if CHECK_IDENT: (true)
+		{
+			Token t = @expect_else(ctx, CONST_IDENT ; err)
+			{
+				fault_decl.name = -1;
+				break CHECK_IDENT;
+			}!;
+
+			fault_decl.name = ctx.ast.string_pool.internalize(ctx.token_text(t));
+		}
+
+		fault_decl.attributes = parse_attributes(ctx, node)!;
+
+		if (consume(ctx, COMMA)!) continue;
+		expect(ctx, EOS)!;
+		break;
+	}
+
+	fd.faults = alloc::clone_slice(ctx.arena, faults.array_view());
+
+	return node;
+}

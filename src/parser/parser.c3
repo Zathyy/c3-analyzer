@@ -491,8 +491,8 @@ fn void? parse_top_level(ParseContext* ctx, Workspace* ws)
 			node = parse_module_decl(ctx, ws)!;
 		case IMPORT:
 			node = parse_import_decl(ctx)!;
-			// case FAULTDEF:
-			// node = parse_faultdef_decl(ctx)!;
+		case FAULTDEF:
+			node = parse_faultdef_decl(ctx)!;
 		case FN:
 			node = parse_fn_decl(ctx, flags)!;
 		case MACRO:
@@ -551,6 +551,9 @@ fn void attach_contract(ParseContext* ctx, Node* node, Node* contract)
 		case FN_DECL:
 			FnDecl* func = node.as(FN_DECL);
 			func.contract.set(contract);
+		case FAULTDEF_DECL:
+			FaultdefDecl* fd = node.as(FAULTDEF_DECL);
+			fd.contract.set(contract);
 		default:
 			break;
 	}
