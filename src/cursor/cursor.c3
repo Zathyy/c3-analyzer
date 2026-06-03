@@ -58,3 +58,39 @@ fn String? Cursor.spelling(&self, Allocator allocator) => @pool()
 			return "";
 	}
 }
+
+<*
+ Checks if cursor has a specific attribute
+*>
+fn bool Cursor.has_attribute(&self, AttributeKind kind)
+{
+	NodeArray temp;
+	switch (self.node.kind)
+	{
+		case STRUCT_DECL:
+			StructDecl* s = self.node.as(STRUCT_DECL);
+			temp = s.attributes;
+			break;
+		case INTERFACE_DECL:
+			InterfaceDecl* inter = self.node.as(INTERFACE_DECL);
+			temp = inter.attributes;
+			break;
+		case FN_DECL:
+			FnDecl* func = self.node.as(FN_DECL);
+			temp = func.attributes;
+			break;
+		default:
+			return false;
+	}
+
+	foreach (attr : temp)
+	{
+		AttributeDecl* attr_decl = attr.as(ATTRIBUTE_DECL);
+		if (attr_decl.kind == kind)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
