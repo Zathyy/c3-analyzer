@@ -42,6 +42,7 @@ struct Node
 		MacroDecl macro_decl;
 		FaultdefDecl faultdef_decl;
 		FaultDecl fault_decl;
+		InterfaceDecl interface_decl;
 		CtExpandDecl ct_expand_decl;
 
 		// STMT

@@ -636,3 +636,36 @@ fn void faultdef_decl()
 	test::eq(parser_tests::count_kind(s, MODULE_DECL), 1);
 	test::eq(parser_tests::count_kind(s, FAULTDEF_DECL), 1);
 }
+
+
+fn void interface_decl()
+{
+	String text = `
+		module hello;
+		
+		<*
+		 My Faultdef
+		*>
+		interface MyInterface : Foo, Bar @local
+		{
+			fn void foo() @optional;
+			fn bool bar(int a);
+		}
+	`;
+
+	Workspace ws;
+	ws.init();
+	defer ws.free();
+
+	ParseResult res = parser::parse(&ws, "expand", text)!!;
+	test::eq(res.success, true);
+
+	Module* mod      = ws.modules.get("hello")!!;
+	ModuleSection* s = mod.sections[0];
+	StringPool* pool = &s.source_file.ast.string_pool;
+
+	Node* target_node = s.nodes[1];
+
+	test::eq(parser_tests::count_kind(s, MODULE_DECL), 1);
+	test::eq(parser_tests::count_kind(s, INTERFACE_DECL), 1);
+}

@@ -169,3 +169,15 @@ struct FaultdefDecl
 	Option{Node} contract;
 	NodeArray faults;
 }
+
+<*
+ - interfaces: parent interfaces
+*>
+struct InterfaceDecl
+{
+	Option{Node} contract;
+	NodeArray interfaces;
+	NodeArray attributes;
+	NodeArray methods;
+	StringID name;
+}

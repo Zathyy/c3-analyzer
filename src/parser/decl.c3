@@ -494,6 +494,13 @@ fn Node*? parse_fn_decl(ParseContext* ctx, ParseFlags flags = { })
 
 	if IS_TYPE: (is_type(ctx))
 	{
+		if (flags.is_interface)
+		{
+			unexpected(ctx, "Interfaces cant be methods");
+			advance(ctx)!;
+			break IS_TYPE;
+		}
+
 		func.associated_type.set(parse_type_expr(ctx)!);
 
 		expect(ctx, DOT)!;
@@ -532,6 +539,13 @@ fn Node*? parse_fn_decl(ParseContext* ctx, ParseFlags flags = { })
 			ctx.error("Extern functions cannot have a structural block body");
 			return ctx.ast.error(start_pos);
 		}
+
+		if (flags.is_interface)
+		{
+			ctx.error("Interface methods cannot have a body");
+			return ctx.ast.error(start_pos);
+		}
+
 		func.body = parse_compound_stmt(ctx)!;
 	}
 	else if (consume(ctx, IMPLIES)!)
@@ -1256,6 +1270,67 @@ fn Node*? parse_faultdef_decl(ParseContext* ctx) => @pool()
 	}
 
 	fd.faults = alloc::clone_slice(ctx.arena, faults.array_view());
+
+	return node;
+}
+
+<*
+ interface_decl ::= 'interface' TYPE_IDENT ':' (TYPE_IDENT (',' TYPE_IDENT) interface_body
+*>
+fn Node*? parse_interface_decl(ParseContext* ctx) => @pool()
+{
+	int start_pos = ctx.peek(0).pos;
+	expect(ctx, INTERFACE)!;
+	Node* node           = ctx.ast.alloc_node(INTERFACE_DECL, start_pos);
+	InterfaceDecl* inter = node.as(INTERFACE_DECL);
+	defer node.end_token = ctx.peek(0).pos;
+
+	if CHECK_NAME: (true)
+	{
+		Token t = @expect_else_skip(ctx, TYPE_IDENT, { EOS, AT_IDENT, COLON, LBRACE } ; err)
+		{
+			inter.name = -1;
+			break CHECK_NAME;
+		}!;
+
+		inter.name = ctx.ast.string_pool.internalize(ctx.token_text(t));
+	}
+
+	List{Node*} list;
+	list.tinit();
+
+	if (consume(ctx, COLON)!)
+	{
+		do
+		{
+			list.push(parse_type_expr(ctx, { .no_generics = true })!);
+		} while (consume(ctx, COMMA)!);
+	}
+
+	inter.interfaces = alloc::clone_slice(ctx.arena, list.array_view());
+	list.clear();
+	inter.attributes = parse_attributes(ctx, node)!;
+
+	expect(ctx, LBRACE)!;
+
+	while (!ctx.eof() && !ctx.is(RBRACE))
+	{
+		Node* contract;
+		if (ctx.is(CONTRACT))
+		{
+			contract = parse_contract_decl(ctx)!;
+		}
+		Node* func_node = parse_fn_decl(ctx, { .is_interface = true })!;
+		FnDecl* func    = func_node.as(FN_DECL);
+		if (contract)
+		{
+			func.contract.set(contract);
+		}
+	}
+
+	inter.methods = alloc::clone_slice(ctx.arena, list.array_view());
+
+	expect(ctx, RBRACE)!;
 
 	return node;
 }

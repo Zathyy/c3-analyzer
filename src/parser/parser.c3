@@ -485,8 +485,8 @@ fn void? parse_top_level(ParseContext* ctx, Workspace* ws)
 		case CONTRACT:
 			node = parse_contract_decl(ctx)!;
 			ctx.contract = node;
-			// case INTERFACE:
-			// node = parse_interface(ctx)!;
+		case INTERFACE:
+			node = parse_interface_decl(ctx)!;
 		case MODULE:
 			node = parse_module_decl(ctx, ws)!;
 		case IMPORT:
