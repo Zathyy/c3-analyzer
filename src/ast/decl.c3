@@ -123,7 +123,19 @@ struct VarDecl
 	Node* init_expr;
 	Node* bit_end;
 	NodeArray attributes;
+	Node* assoc_values; // enum variant associated values: VARIANT{expr, ...}
 	Node* next;
+}
+
+struct EnumDecl
+{
+	StringID name;
+	NodeArray interfaces; // optional implemented interfaces: "(" type ("," type)* ")"
+	bool is_inline_backing;
+	Node* backing_type; // optional: ":" type
+	NodeArray assoc_params; // optional enum_param_list inside ":"
+	NodeArray attributes;
+	NodeArray variants;
 }
 
 struct AttributeDecl

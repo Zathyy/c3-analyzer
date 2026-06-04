@@ -6,6 +6,11 @@ import parser::ast;
 import std::io;
 import std::collections::list;
 
+macro AttributeDecl* @attr(self, int idx)
+{
+	return self.attributes[idx].as(ATTRIBUTE_DECL) @inline;
+}
+
 <*
  Count how many top-level nodes inside this specific ModuleSection match a given kind.
 *>
