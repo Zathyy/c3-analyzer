@@ -330,3 +330,34 @@ fn void ct_error_stmt()
 	test::eq(parser_tests::count_kind(s, MODULE_DECL), 1);
 	test::eq(parser_tests::count_kind(s, FN_DECL), 1);
 }
+
+fn void var_decl_stmt()
+{
+	// uses a function just to get a compound
+	String path = `
+		module hello; 
+		fn void foo(int a) 
+		{
+			static bool boolean = true;
+			const String MY_STRING = "foo";
+			tlocal bool bar = false;
+		}
+	`;
+
+	Workspace ws;
+	ws.init();
+	defer ws.free();
+	ParseResult res = parser::parse(&ws, "var_decl_stmt", path)!!;
+	test::eq(res.success, true);
+
+	Module* mod      = ws.modules.get("hello")!!;
+	ModuleSection* s = mod.sections[0];
+	StringPool* pool = &s.source_file.ast.string_pool;
+
+	Node* node            = ws.lookup("hello", "foo")!!;
+	FnDecl* func          = node.as(FN_DECL);
+	CompoundStmt* fn_comp = func.body.as(COMPOUND_STMT);
+
+	test::eq(parser_tests::count_kind(s, MODULE_DECL), 1);
+	test::eq(parser_tests::count_kind(s, FN_DECL), 1);
+}
