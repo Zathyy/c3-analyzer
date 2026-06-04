@@ -528,10 +528,13 @@ fn void? parse_top_level(ParseContext* ctx, Workspace* ws)
 			node = parse_var_decl(ctx, null, flags)!;
 		case CT_EXPAND:
 			node = parse_expand_decl(ctx)!;
-			// case CT_ASSERT:
-			// int start_pos = ctx.current_pos();
-			// Node stmt = parse_ct_assert(ctx)!;
-			// node = ctx.ast.add_node(CT_ASSERT_DECL, start_pos, ctx.current_pos(), stmt);
+		case CT_ASSERT:
+			int start_pos = ctx.current().pos;
+			Node* stmt = parse_ct_assert_stmt(ctx)!;
+			node = ctx.ast.alloc_node(CT_ASSERT_DECL, start_pos);
+			node.end_token = ctx.current().pos;
+			CtAssertDecl* ctassert = node.as(CT_ASSERT_DECL);
+			ctassert.stmt = stmt;
 		default:
 			ctx.error("Couldn't find any matching top level declaration: %s", string::from_struct(tmem, ctx.current()));
 			return UNEXPECTED_TOKEN~;

@@ -188,3 +188,8 @@ struct AttrdefDecl
 	NodeArray params;
 	NodeArray attributes;
 }
+
+struct CtAssertDecl
+{
+	Node* stmt;
+}
