@@ -92,7 +92,7 @@ struct ForStmt
 	Option{Node} cond;
 	Option{Node} incr;
 	Node* body;
-	OptStringID label;
+	StringID label;
 }
 
 struct WhileStmt
@@ -100,6 +100,18 @@ struct WhileStmt
 	Node* cond;
 	Node* body;
 	StringID label;
+}
+
+struct ForeachStmt
+{
+	bool is_reverse;
+	StringID label;
+	bool index_by_ref;
+	bool value_by_ref;
+	Node* index;
+	Node* variable;
+	Node* enumeration;
+	Node* body;
 }
 
 struct CtAssertStmt

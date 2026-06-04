@@ -61,6 +61,7 @@ struct Node
 		ReturnStmt return_stmt;
 		ForStmt for_stmt;
 		WhileStmt while_stmt;
+		ForeachStmt foreach_stmt;
 		ExprStmt expr_stmt;
 		CtAssertStmt ct_assert_stmt;
 		CtErrorStmt ct_error_stmt;

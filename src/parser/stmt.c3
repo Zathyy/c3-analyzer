@@ -38,6 +38,9 @@ fn Node*? parse_stmt(ParseContext* ctx)
 			return parse_for_stmt(ctx)!;
 		case WHILE:
 			return parse_while_stmt(ctx)!;
+		case FOREACH:
+		case FOREACH_R:
+			return parse_foreach_stmt(ctx)!;
 		case CT_ASSERT:
 			return parse_ct_assert_stmt(ctx)!;
 		case CT_ERROR:
@@ -757,6 +760,115 @@ fn Node*? parse_while_stmt(ParseContext* ctx)
 		ctx.error("A single statement after 'while' must be placed on the same line, or be enclosed in {}.");
 		return ctx.ast.error(ctx.current().pos);
 	}
+
+	return node;
+}
+
+fn Node*? parse_foreach_var(ParseContext* ctx)
+{
+	int start_pos  = ctx.peek(0).pos;
+	Node* var_node = ctx.ast.alloc_node(VAR_DECL, start_pos);
+	defer var_node.end_token = ctx.peek(0).pos;
+	VarDecl* v = var_node.as(VAR_DECL);
+	v.kind = VAR_LOCAL;
+
+	// Parse optional type: if not a plain identifier or '&', a type is expected.
+	if (!ctx.is(IDENT) && !ctx.is(AMP))
+	{
+		v.type = parse_type_expr(ctx)!;
+	}
+
+	v.flags.is_ref = consume(ctx, AMP)!;
+
+	if (!ctx.is(IDENT))
+	{
+		if (v.type != null)
+		{
+			ctx.error("Expected an identifier after the type.");
+		}
+		else
+		{
+			ctx.error("Expected an identifier or type.");
+		}
+		ctx.ast.missing(ctx.peek(0).pos);
+		v.name = -1;
+		ctx.skip_until({ COMMA, COLON, RPAREN })!;
+		return var_node;
+	}
+
+	v.name = ctx.ast.string_pool.internalize(ctx.token_text(ctx.peek(0)));
+	advance(ctx)!;
+
+	return var_node;
+}
+
+<*
+ foreach_stmt ::= ("foreach" | "foreach_r") label? "(" foreach_vars ":" expression ")" statement
+ foreach_vars ::= foreach_var ("," foreach_var)?
+ foreach_var  ::= type? "&"? IDENTIFIER
+*>
+fn Node*? parse_foreach_stmt(ParseContext* ctx)
+{
+	int start_pos = ctx.peek(0).pos;
+	bool is_reverse = ctx.is(FOREACH_R);
+	advance(ctx)!;
+
+	Node* node = ctx.ast.alloc_node(FOREACH_STMT, start_pos);
+	ForeachStmt* foreach_stmt = node.as(FOREACH_STMT);
+	defer node.end_token = ctx.peek(0).pos;
+	foreach_stmt.is_reverse = is_reverse;
+
+	if (ctx.is(CONST_IDENT))
+	{
+		foreach_stmt.label = ctx.ast.string_pool.internalize(ctx.current_text());
+		advance(ctx)!;
+		@expect_else_skip(ctx, COLON, { EOS, EOF } ;err)
+		{
+			return err;
+		}!;
+	}
+	else
+	{
+		foreach_stmt.label = -1;
+	}
+
+	@expect_else_skip(ctx, LPAREN, { RPAREN, EOS, EOF }; err)
+	{
+		return err;
+	}!;
+
+	
+	Node* idx_or_variable = parse_foreach_var(ctx)!;
+	VarDecl* var_decl = idx_or_variable.as(VAR_DECL);
+
+	if (consume(ctx, COMMA)!)
+	{
+		foreach_stmt.index = idx_or_variable;
+		foreach_stmt.index_by_ref = var_decl.flags.is_ref;
+
+		foreach_stmt.variable = parse_foreach_var(ctx)!;
+		var_decl = foreach_stmt.variable.as(VAR_DECL);
+		foreach_stmt.value_by_ref = var_decl.flags.is_ref;
+	}
+	else
+	{
+		foreach_stmt.variable = idx_or_variable;
+		foreach_stmt.value_by_ref = var_decl.flags.is_ref;
+	}
+
+	@expect_else_skip(ctx, COLON, { RPAREN, EOS, EOF }; err)
+	{
+		return err;
+	}!;
+
+	foreach_stmt.enumeration = parse_expr(ctx)!;
+
+	@expect_else_skip(ctx, RPAREN, { EOS, EOF }; err)
+	{
+		return err;
+	}!;
+
+	foreach_stmt.body = parse_stmt(ctx)!;
 
 	return node;
 }

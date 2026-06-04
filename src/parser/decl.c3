@@ -697,6 +697,7 @@ fn Node*? parse_param_decl(ParseContext* ctx, ParamParseFlags flags)
 			String token_text = ctx.current_text();
 			param.name = ctx.ast.string_pool.internalize(token_text);
 			param.kind = VAR_PARAM;
+			param.flags.is_ref = is_ref;
 			advance(ctx)!;
 
 			if (token_text == "self")

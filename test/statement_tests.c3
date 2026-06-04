@@ -223,11 +223,7 @@ fn void for_stmt()
 	FnDecl* func          = node.as(FN_DECL);
 	CompoundStmt* fn_comp = func.body.as(COMPOUND_STMT);
 
-	if (try label = fn_comp.statements[0].as(FOR_STMT).label.get())
-	{
-		assert(false, "label should not be defined");
-	}
-
+	test::eq(fn_comp.statements[0].as(FOR_STMT).label, -1);
 	test::eq(parser_tests::count_kind(s, MODULE_DECL), 1);
 	test::eq(parser_tests::count_kind(s, FN_DECL), 1);
 }
@@ -360,4 +356,235 @@ fn void var_decl_stmt()
 
 	test::eq(parser_tests::count_kind(s, MODULE_DECL), 1);
 	test::eq(parser_tests::count_kind(s, FN_DECL), 1);
+}
+
+fn void foreach_stmt()
+{
+	String path = `
+		module hello;
+		fn void foo(int[] arr)
+		{
+			foreach LOOP: (x : arr) {}
+
+			foreach (x : arr) {}
+			foreach (int x : arr) {}
+			foreach (&x : arr) {}
+			foreach (i, x : arr) {}
+			foreach (i, &x : arr) {}
+
+			foreach_r LOOP_R: (x : arr) {}
+
+			foreach_r (x : arr) {}
+			foreach_r (int x : arr) {}
+			foreach_r (&x : arr) {}
+			foreach_r (i, x : arr) {}
+			foreach_r (i, &x : arr) {}
+		}
+	`;
+
+	Workspace ws;
+	ws.init();
+	defer ws.free();
+	ParseResult res = parser::parse(&ws, "foreach_stmt", path)!!;
+	test::eq(res.success, true);
+
+	Module* mod = ws.modules.get("hello")!!;
+	ModuleSection* s = mod.sections[0];
+	StringPool* pool = &s.source_file.ast.string_pool;
+
+	Node* fn_node = ws.lookup("hello", "foo")!!;
+	FnDecl* fn_decl = fn_node.as(FN_DECL);
+	CompoundStmt* body_stmt = fn_decl.body.as(COMPOUND_STMT);
+
+	// foreach LOOP: (x : arr) — labeled, no reverse,  no index, no type, no ref
+	ForeachStmt* foreach_stmt = body_stmt.statements[0].as(FOREACH_STMT);
+	test::eq(pool.get(foreach_stmt.label)!!, "LOOP");
+	test::eq(foreach_stmt.is_reverse, false);
+	test::eq(foreach_stmt.index, null);
+	VarDecl* var_decl = foreach_stmt.variable.as(VAR_DECL);
+	test::eq(var_decl.type, null);
+	test::eq(foreach_stmt.value_by_ref, false);
+	test::eq(pool.get(var_decl.name)!!, "x");
+
+	// foreach (x : arr) — no label, no reverse, no index, no type, no ref
+	foreach_stmt = body_stmt.statements[1].as(FOREACH_STMT);
+	test::eq(foreach_stmt.label, -1);
+	test::eq(foreach_stmt.is_reverse, false);
+	test::eq(foreach_stmt.index, null);
+	var_decl = foreach_stmt.variable.as(VAR_DECL);
+	test::eq(var_decl.type, null);
+	test::eq(foreach_stmt.value_by_ref, false);
+	test::eq(pool.get(var_decl.name)!!, "x");
+
+	// foreach (int x : arr) — typed value, no ref
+	foreach_stmt = body_stmt.statements[2].as(FOREACH_STMT);
+	var_decl = foreach_stmt.variable.as(VAR_DECL);
+	test::ne(var_decl.type, null);
+	TypeExpr* type_expr = var_decl.type.as(TYPE_EXPR);
+	test::eq(pool.get(type_expr.unresolved.name)!!, "int");
+	test::eq(foreach_stmt.value_by_ref, false);
+
+	// foreach (&x : arr) — ref value
+	foreach_stmt = body_stmt.statements[3].as(FOREACH_STMT);
+	var_decl = foreach_stmt.variable.as(VAR_DECL);
+	test::eq(var_decl.type == null, true);
+	test::eq(foreach_stmt.value_by_ref, true);
+	test::eq(var_decl.flags.is_ref, true);
+	test::eq(pool.get(var_decl.name)!!, "x");
+
+	// foreach (i, x : arr) — index + value, no ref on either
+	foreach_stmt = body_stmt.statements[4].as(FOREACH_STMT);
+	test::ne(foreach_stmt.index, null);
+	test::eq(foreach_stmt.index_by_ref, false);
+	test::eq(foreach_stmt.value_by_ref, false);
+	VarDecl* var_idx_decl = foreach_stmt.index.as(VAR_DECL);
+	test::eq(pool.get(var_idx_decl.name)!!, "i");
+	var_decl = foreach_stmt.variable.as(VAR_DECL);
+	test::eq(pool.get(var_decl.name)!!, "x");
+
+	// foreach (i, &x : arr) — index, ref value
+	foreach_stmt = body_stmt.statements[5].as(FOREACH_STMT);
+	test::ne(foreach_stmt.index, null);
+	test::eq(foreach_stmt.index_by_ref, false);
+	test::eq(foreach_stmt.value_by_ref, true);
+	var_decl = foreach_stmt.variable.as(VAR_DECL);
+	test::eq(var_decl.flags.is_ref, true);
+
+	// foreach_r LOOP_R: (x : arr) — reverse, label
+	foreach_stmt = body_stmt.statements[6].as(FOREACH_STMT);
+	test::eq(foreach_stmt.is_reverse, true);
+	test::eq(pool.get(foreach_stmt.label)!!, "LOOP_R");
+	var_decl = foreach_stmt.variable.as(VAR_DECL);
+	test::eq(pool.get(var_decl.name)!!, "x");
+
+	// foreach_r (x : arr) no index, no type, no ref
+	foreach_stmt = body_stmt.statements[7].as(FOREACH_STMT);
+	test::eq(foreach_stmt.is_reverse, true);
+	test::eq(foreach_stmt.index, null);
+	var_decl = foreach_stmt.variable.as(VAR_DECL);
+	test::eq(var_decl.type, null);
+	test::eq(foreach_stmt.value_by_ref, false);
+	test::eq(pool.get(var_decl.name)!!, "x");
+
+	// foreach_r (int x : arr) typed
+	foreach_stmt = body_stmt.statements[8].as(FOREACH_STMT);
+	test::eq(foreach_stmt.is_reverse, true);
+	var_decl = foreach_stmt.variable.as(VAR_DECL);
+	test::ne(var_decl.type, null);
+	type_expr = var_decl.type.as(TYPE_EXPR);
+	test::eq(pool.get(type_expr.unresolved.name)!!, "int");
+	test::eq(foreach_stmt.value_by_ref, false);
+	test::eq(pool.get(var_decl.name)!!, "x");
+
+	// foreach_r (&x : arr) no type, ref
+	foreach_stmt = body_stmt.statements[9].as(FOREACH_STMT);
+	test::eq(foreach_stmt.is_reverse, true);
+	var_decl = foreach_stmt.variable.as(VAR_DECL);
+	test::eq(var_decl.type == null, true);
+	test::eq(foreach_stmt.value_by_ref, true);
+	test::eq(var_decl.flags.is_ref, true);
+	test::eq(pool.get(var_decl.name)!!, "x");
+
+	// foreach_r (i, x : arr)
+	foreach_stmt = body_stmt.statements[10].as(FOREACH_STMT);
+	test::eq(foreach_stmt.is_reverse, true);
+	test::ne(foreach_stmt.index, null);
+	test::eq(foreach_stmt.index_by_ref, false);
+	test::eq(foreach_stmt.value_by_ref, false);
+	var_idx_decl = foreach_stmt.index.as(VAR_DECL);
+	test::eq(pool.get(var_idx_decl.name)!!, "i");
+	var_decl = foreach_stmt.variable.as(VAR_DECL);
+	test::eq(pool.get(var_decl.name)!!, "x");
+
+	// foreach_r (i, &x : arr)
+	foreach_stmt = body_stmt.statements[11].as(FOREACH_STMT);
+	test::eq(foreach_stmt.is_reverse, true);
+	test::ne(foreach_stmt.index, null);
+	test::eq(foreach_stmt.index_by_ref, false);
+	test::eq(foreach_stmt.value_by_ref, true);
+	var_decl = foreach_stmt.variable.as(VAR_DECL);
+	test::eq(var_decl.flags.is_ref, true);
+	test::eq(pool.get(var_decl.name)!!, "x");
+}
+
+fn void err_foreach_missing_name_after_type()
+{
+	String path = `
+		module hello;
+		fn void foo(int[] arr)
+		{
+			foreach (int : arr) {}
+		}
+	`;
+
+	Workspace ws;
+	ws.init();
+	defer ws.free();
+	ParseResult res = parser::parse(&ws, "err_foreach_missing_name_after_type", path)!!;
+	test::eq(res.success, false);
+
+	Node* fn_node = ws.lookup("hello", "foo")!!;
+	FnDecl* fn_decl = fn_node.as(FN_DECL);
+	CompoundStmt* body_stmt = fn_decl.body.as(COMPOUND_STMT);
+
+	// foreach still produces a FOREACH_STMT node; value has type but name = -1
+	ForeachStmt* foreach_stmt = body_stmt.statements[0].as(FOREACH_STMT);
+	VarDecl* var_decl = foreach_stmt.variable.as(VAR_DECL);
+	test::ne(var_decl.type, null);
+	test::eq(var_decl.name, -1);
+}
+
+fn void err_foreach_missing_name_no_type()
+{
+	// '& :' — AMP consumed but no IDENT follows, no type was parsed
+	String path = `
+		module hello;
+		fn void foo(int[] arr)
+		{
+			foreach (& : arr) {}
+		}
+	`;
+	
+	Workspace ws;
+	ws.init();
+	defer ws.free();
+	ParseResult res = parser::parse(&ws, "err_foreach_missing_name_no_type", path)!!;
+	test::eq(res.success, false);
+
+	Node* node = ws.lookup("hello", "foo")!!;
+	FnDecl* fn_decl = node.as(FN_DECL);
+	CompoundStmt* body_stmt = fn_decl.body.as(COMPOUND_STMT);
+
+	// value_by_ref set, no type, name = -1
+	ForeachStmt* foreach_stmt = body_stmt.statements[0].as(FOREACH_STMT);
+	VarDecl* var_decl = foreach_stmt.variable.as(VAR_DECL);
+	test::eq(var_decl.type == null, true);
+	test::eq(foreach_stmt.value_by_ref, true);
+	test::eq(var_decl.flags.is_ref, true);
+	test::eq(var_decl.name, -1);
+}
+
+fn void err_foreach_missing_colon()
+{
+	// missing ':' between vars and collection — foreach node becomes ERROR
+	String path = `
+		module hello;
+		fn void foo(int[] arr)
+		{
+			foreach (x arr) {}
+		}
+	`;
+
+	Workspace ws;
+	ws.init();
+	defer ws.free();
+	ParseResult res = parser::parse(&ws, "err_foreach_missing_colon", path)!!;
+	test::eq(res.success, false);
+
+	Node* node            = ws.lookup("hello", "foo")!!;
+	FnDecl* func          = node.as(FN_DECL);
+	CompoundStmt* body_stmt = func.body.as(COMPOUND_STMT);
+
+	// the foreach node has kind ERROR due to the missing colon
+	test::eq(body_stmt.statements[0].kind, NodeKind.ERROR);
 }
