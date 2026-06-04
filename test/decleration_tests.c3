@@ -694,3 +694,31 @@ fn void attrdef_decl()
 	test::eq(parser_tests::count_kind(s, MODULE_DECL), 1);
 	test::eq(parser_tests::count_kind(s, ATTRDEF_DECL), 4);
 }
+
+fn void ct_assert_decl()
+{
+	String text = `
+		module hello;
+		
+		$assert 2 == 2;
+		$assert @bar() == MY_CONST;
+		$assert 98 == -2 : "no no";
+		$assert 98 == -2 : @sprintf("no %s", @bar());
+	`;
+
+	Workspace ws;
+	ws.init();
+	defer ws.free();
+
+	ParseResult res = parser::parse(&ws, "expand", text)!!;
+	test::eq(res.success, true);
+
+	Module* mod      = ws.modules.get("hello")!!;
+	ModuleSection* s = mod.sections[0];
+	StringPool* pool = &s.source_file.ast.string_pool;
+
+	Node* target_node = s.nodes[1];
+
+	test::eq(parser_tests::count_kind(s, MODULE_DECL), 1);
+	test::eq(parser_tests::count_kind(s, CT_ASSERT_DECL), 4);
+}

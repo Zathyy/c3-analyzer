@@ -31,6 +31,7 @@ struct Node
 
 		// DECL
 		StructDecl struct_decl;
+    EnumDecl enum_decl;
 		VarDecl var_decl;
 		AttrdefDecl attrdef_decl;
 		AttributeDecl attribute_decl;
@@ -45,7 +46,7 @@ struct Node
 		FaultDecl fault_decl;
 		InterfaceDecl interface_decl;
 		CtExpandDecl ct_expand_decl;
-		EnumDecl enum_decl;
+    CtAssertDecl ct_assert_decl;
 
 		// STMT
 		IfStmt if_stmt;
