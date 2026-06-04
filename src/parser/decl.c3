@@ -19,7 +19,7 @@ fn Node*? parse_module_decl(ParseContext* ctx, Workspace* ws)
 	ModuleDecl* mod_decl = node.as(MODULE_DECL);
 	defer node.end_token = ctx.peek(0).pos;
 
-	mod_decl.path = parse_path_expr(ctx, false)!;
+	mod_decl.path = parse_path_expr(ctx)!;
 
 	if (ctx.is(AT_IDENT))
 	{
@@ -215,7 +215,7 @@ fn Node*? parse_import_decl(ParseContext* ctx) => @pool()
 
 	while (true)
 	{
-		Node* path_node = parse_path_expr(ctx, false)!;
+		Node* path_node = parse_path_expr(ctx)!;
 		temp_paths.push(path_node);
 
 		if (!consume(ctx, COMMA)!) break;
@@ -241,13 +241,11 @@ fn Node*? parse_import_decl(ParseContext* ctx) => @pool()
 <*
  Parse the generic parameter list after an alias name.
  @param [&inout] ctx : "Parser context to consume tokens from."
- @param [&out] has_error : "Set true when the list is malformed, even if parsing can recover."
 *>
-fn StringID[]? parse_alias_generic_decl(ParseContext* ctx, bool* has_error) => @pool()
+fn StringID[]? parse_alias_generic_decl(ParseContext* ctx) => @pool()
 {
 	List{StringID} temp_params;
 	temp_params.init(tmem, 4);
-	*has_error = false;
 
 	expect(ctx, LESS)!;
 
@@ -257,7 +255,6 @@ fn StringID[]? parse_alias_generic_decl(ParseContext* ctx, bool* has_error) => @
 		if (t.kind != TYPE_IDENT && t.kind != CONST_IDENT)
 		{
 			ctx.error("Expected generic alias parameter name");
-			*has_error = true;
 		}
 		else
 		{
@@ -269,7 +266,6 @@ fn StringID[]? parse_alias_generic_decl(ParseContext* ctx, bool* has_error) => @
 		if (!consume(ctx, COMMA)!)
 		{
 			ctx.error("Expected ',' or '>' in alias generic parameter list");
-			*has_error = true;
 		}
 	}
 	expect(ctx, GREATER)!;
@@ -286,35 +282,6 @@ fn void? skip_alias_attributes(ParseContext* ctx)
 			skip_balanced_group(ctx, LPAREN, RPAREN)!;
 		}
 	}
-}
-
-<*
- Parse the target of `alias name = module path;`.
- @param [&inout] ctx : "Parser context positioned at the first module path token."
-*>
-fn Node*? parse_alias_module_path(ParseContext* ctx) => @pool()
-{
-	TokenKind source_kind = INVALID;
-	Node* node            = parse_path_expr_with_options(ctx, &source_kind)!;
-	if (source_kind != IDENT)
-	{
-		ctx.error("Expected module path after 'module' in alias declaration");
-		node.kind = MISSING;
-	}
-	return node;
-}
-
-<*
- Parse an identifier-style alias target path.
-
- Allows CONST_IDENT or AT_IDENT only as the final path segment and reports the
- final token kind for alias-name/source-kind validation.
- @param [&inout] ctx : "Parser context positioned at the first target path token."
- @param [&out] source_kind : "Receives the target path's final token kind."
-*>
-fn Node*? parse_alias_ident_target_path(ParseContext* ctx, TokenKind* source_kind) => @pool()
-{
-	return parse_path_expr_with_options(ctx, source_kind, { .allow_const_final = true, .allow_attr_final = true });
 }
 
 <*
@@ -337,27 +304,22 @@ fn Node*? parse_alias_decl(ParseContext* ctx)
 	AliasDecl* alias_decl = node.as(ALIAS_DECL);
 	defer node.end_token = ctx.peek(0).pos;
 
-	Token name = ctx.peek(0);
-	if (!is_alias_name_kind(name.kind))
+	do CHECK_NAME:
 	{
-		ctx.error("Expected alias name identifier");
-		node.kind = MISSING;
-	}
-	else
-	{
-		alias_decl.name = ctx.ast.string_pool.internalize(ctx.token_text(name));
-		alias_decl.name_kind = name.kind;
-		advance(ctx)!;
-	}
+		Token t = @expect_some_else(ctx, { TYPE_IDENT, IDENT, CONST_IDENT, AT_IDENT } ; err)
+		{
+			ctx.error("Expected alias name identifier");
+			alias_decl.name = -1;
+			break CHECK_NAME;
+		}!;
+
+		alias_decl.name = ctx.ast.string_pool.internalize(ctx.token_text(t));
+		alias_decl.name_kind = t.kind;
+	};
 
 	if (ctx.is(LESS))
 	{
-		bool generic_parse_failed = false;
-		alias_decl.generic_params = parse_alias_generic_decl(ctx, &generic_parse_failed)!;
-		if (generic_parse_failed)
-		{
-			node.kind = MISSING;
-		}
+		alias_decl.generic_params = parse_alias_generic_decl(ctx)!;
 	}
 
 	skip_alias_attributes(ctx)!;
@@ -368,7 +330,7 @@ fn Node*? parse_alias_decl(ParseContext* ctx)
 	{
 		alias_decl.alias_kind = MODULE_ALIAS;
 		advance(ctx)!;
-		alias_decl.target = parse_alias_module_path(ctx)!;
+		alias_decl.target = parse_path_expr(ctx)!;
 	}
 	else if (alias_decl.name_kind == TYPE_IDENT)
 	{
@@ -378,18 +340,7 @@ fn Node*? parse_alias_decl(ParseContext* ctx)
 	else
 	{
 		alias_decl.alias_kind = IDENT_ALIAS;
-		TokenKind source_kind = INVALID;
-		alias_decl.target = parse_alias_ident_target_path(ctx, &source_kind)!;
-		if (!is_alias_source_name_kind(source_kind))
-		{
-			ctx.error("Expected identifier, constant identifier, or attribute identifier alias source");
-			node.kind = MISSING;
-		}
-		if (alias_decl.name_kind != source_kind)
-		{
-			ctx.error("Alias name kind must match alias source kind");
-			node.kind = MISSING;
-		}
+		alias_decl.target = parse_expr(ctx)!;
 		if (ctx.is(LBRACE))
 		{
 			// TODO: represent generic target arguments for identifier aliases.
@@ -1387,17 +1338,16 @@ fn Node*? parse_attrdef_decl(ParseContext* ctx) => @pool()
 }
 
 <*
-    enum_decl ::= "enum" TYPE_IDENT ("(" type ("," type)* ")")? (":" type? enum_param_list?)? attributes? "{" enum_body "}"
+ enum_decl ::= "enum" TYPE_IDENT ("(" type ("," type)* ")")? (":" type? enum_param_list?)? attributes? "{" enum_body "}"
 
     constdef_decl ::= "constdef" TYPE_IDENT ("(" type ("," type)* ")")? (":" "inline"? type)? attributes? "{" constdef_body "}"
-
-    @param [&inout] ctx
+ @param [&inout] ctx
 *>
 fn Node*? parse_enum_constdef_decl(ParseContext* ctx, ParseFlags flags) => @pool()
 {
 	int start_pos = ctx.peek(0).pos;
 
-	expect(ctx, flags.is_constdef ? CONSTDEF : ENUM )!;
+	expect(ctx, flags.is_constdef ? CONSTDEF : ENUM)!;
 
 	Node* node = ctx.ast.alloc_node(ENUM_DECL, start_pos);
 	defer node.end_token = ctx.peek(0).pos;
@@ -1471,7 +1421,7 @@ fn Node*? parse_enum_constdef_decl(ParseContext* ctx, ParseFlags flags) => @pool
 			consume(ctx, COMMA)!;
 			continue;
 		}
-		
+
 		Node* variant = ctx.ast.alloc_node(VAR_DECL, ctx.peek(0).pos);
 		VarDecl* v    = variant.as(VAR_DECL);
 		v.kind = VAR_GLOBAL;

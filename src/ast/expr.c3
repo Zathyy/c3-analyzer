@@ -234,3 +234,16 @@ struct CtEvalExpr
 {
 	Node* inner_expr;
 }
+
+struct LambdaExpr
+{
+	NodeArray attributes;
+	NodeArray params;
+	Node* return_type;
+	Node* body;
+}
+
+struct GenericIdentExpr
+{
+	NodeArray exprs;
+}

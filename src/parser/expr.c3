@@ -92,7 +92,7 @@ fn Node*? parse_type_expr(ParseContext* ctx, ParseFlags parse_flags = { })
 	}
 	else
 	{
-		Node* path = parse_path_expr(ctx, true)!;
+		Node* path = parse_path_expr(ctx, { .as_prefix = true })!;
 		Token t = @expect_else_skip(ctx, TYPE_IDENT, { EOS, ASTERISK, LBRACE, QUESTION, LVEC } ; err)
 		{
 			break IS_PRIM;
@@ -188,6 +188,7 @@ fn Node*? parse_type_expr(ParseContext* ctx, ParseFlags parse_flags = { })
 		if (t.kind == LBRACE)
 		{
 			if (parse_flags.no_generics) break;
+			if (parse_flags.type_as_expression) break;
 
 			Node* gen_node     = ctx.ast.alloc_node(TYPE_EXPR, start, ctx.peek().pos);
 			TypeExpr* gen_data = gen_node.as(TYPE_EXPR);
@@ -212,7 +213,7 @@ fn Node*? parse_ident_expr(ParseContext* ctx)
 	int start = ctx.peek(0).pos;
 	if (ctx.peek(1).kind == SCOPE)
 	{
-		return parse_path_expr(ctx, true)!;
+		return parse_path_expr(ctx, { .as_prefix = true })!;
 	}
 	Node* node       = ctx.ast.alloc_node(IDENT_EXPR, start, ctx.peek().pos);
 	IdentExpr* ident = node.as(IDENT_EXPR);
@@ -402,32 +403,21 @@ fn Node*? parse_literal_expr(ParseContext* ctx) => @pool()
 }
 
 <*
- Parse a path expression and report the final segment's token kind.
-
- Normal paths only accept IDENT segments. Alias parsing may opt into a
- CONST_IDENT or AT_IDENT final segment for targets such as
- `constants::NEW_CONST` or `@new`; intermediate path segments remain IDENT.
+ Parse a full path e.g. foo::bar::baz;
  @param [&inout] ctx : "Parser context to consume tokens from."
- @param [&out] final_kind : "Receives the token kind of the final parsed segment."
- @param options : "Path parsing mode and final-segment allowances."
 *>
-fn Node*? parse_path_expr_with_options(
-	ParseContext* ctx,
-	TokenKind* final_kind,
-	PathExprOptions options = { }
-) => @pool()
+fn Node*? parse_path_expr(ParseContext* ctx, PathExprOptions options = { }) => @pool()
 {
 	int start_pos = ctx.peek(0).pos;
-	*final_kind = INVALID;
+	log::debug("parse_path_expr");
 
-	bool first_is_final = ctx.peek(1).kind != SCOPE;
-	if (!ctx.is(IDENT) && !(first_is_final && is_path_final_kind(ctx.current().kind, options)))
+	if (!ctx.is(IDENT))
 	{
 		if (ctx.peek(1).kind != SCOPE)
 		{
 			if (options.as_prefix)
 			{
-				return ctx.ast.alloc_node(MISSING, start_pos);
+				return null;
 			}
 		}
 
@@ -444,28 +434,16 @@ fn Node*? parse_path_expr_with_options(
 
 	while (true)
 	{
-		Token t               = ctx.peek(0);
-		bool segment_is_final = ctx.peek(1).kind != SCOPE;
-		if (segment_is_final && !is_path_final_kind(t.kind, options))
-		{
-			temp_segments.push(-1);
-			node.kind = MISSING;
-			break;
-		}
-
-		*final_kind = t.kind;
+		Token t = ctx.peek(0);
 		temp_segments.push(ctx.ast.string_pool.internalize(ctx.token_text(t)));
 		advance(ctx)!;
 
 		if (!consume(ctx, SCOPE)!) break;
-
-		bool next_is_final = ctx.peek(1).kind != SCOPE;
-		if (!ctx.is(IDENT) && !(next_is_final && is_path_final_kind(ctx.current().kind, options)))
+		if (!is_some_ident(ctx.current().kind))
 		{
 			if (!options.as_prefix)
 			{
 				temp_segments.push(-1);
-				node.kind = MISSING;
 				advance(ctx)!;
 			}
 			break;
@@ -474,17 +452,6 @@ fn Node*? parse_path_expr_with_options(
 
 	path.segments = alloc::clone_slice(ctx.arena, temp_segments.array_view());
 	return node;
-}
-
-<*
- Parse a full path e.g. foo::bar::baz;
- @param [&inout] ctx : "Parser context to consume tokens from."
- @param as_prefix : "When true, missing prefix paths return MISSING without reporting a hard path error."
-*>
-fn Node*? parse_path_expr(ParseContext* ctx, bool as_prefix = false) => @pool()
-{
-	TokenKind final_kind;
-	return parse_path_expr_with_options(ctx, &final_kind, { .as_prefix = as_prefix });
 }
 
 fn Node*? parse_binary_expr(ParseContext* ctx, Node* left, Precedence prec)
@@ -633,7 +600,7 @@ fn Node*? parse_compound_literal(ParseContext* ctx) => @pool()
 fn Node*? parse_call_expr(ParseContext* ctx, Node* callee)
 {
 	int start_pos = ctx.current().pos;
-	advance(ctx)!; // consume '('
+	expect(ctx, LPAREN)!;
 	Node* node = ctx.ast.alloc_node(CALL_EXPR, callee.start_token);
 	defer node.end_token = ctx.peek(0).pos;
 	CallExpr* call = node.as(CALL_EXPR);
@@ -1013,5 +980,74 @@ fn Node*? parse_ct_eval_expr(ParseContext* ctx)
 	eval.inner_expr = parse_expr(ctx)!;
 	expect(ctx, RPAREN)!;
 
+	return node;
+}
+
+<*
+ lambda_expr ::= "fn" return_type? fn_parameter_list attributes? lambda_body
+ lambda_body ::= "{" statement* "}"
+				| "=>" expression
+*>
+fn Node*? parse_lambda_expr(ParseContext* ctx)
+{
+	int start_pos = ctx.current().pos;
+	Node* node    = ctx.ast.alloc_node(LAMBDA_EXPR, start_pos);
+	defer node.end_token = ctx.current().pos;
+	LambdaExpr* lambda = node.as(LAMBDA_EXPR);
+
+	node.visibility = LOCAL;
+
+	expect(ctx, FN)!;
+	if (!ctx.is(LPAREN))
+	{
+		lambda.return_type = parse_type_expr(ctx, { .no_generics = true })!;
+	}
+	lambda.params = parse_parameter_list(ctx)!;
+	if (ctx.is(AT_IDENT))
+	{
+		lambda.attributes = parse_attributes(ctx, node)!;
+	}
+
+	if (consume(ctx, IMPLIES)!)
+	{
+		lambda.body = parse_expr(ctx)!;
+
+		// Clean statement ending validation
+		// if (!node_ends_with_block(ctx, lambda.body))
+		// {
+		// 	expect(ctx, EOS)!;
+		// }
+	}
+	else if (ctx.is(LBRACE))
+	{
+		lambda.body = parse_compound_stmt(ctx)!;
+	}
+	else
+	{
+		unexpected(ctx, "Expected the beginning of a block or a shortbody")!;
+	}
+
+	return node;
+}
+
+fn Node*? parse_generic_expr(ParseContext* ctx) => @pool()
+{
+	int start_pos = ctx.current().pos;
+	Node* node    = ctx.ast.alloc_node(GENERIC_IDENT_EXPR, start_pos);
+	defer node.end_token = ctx.current().pos;
+	GenericIdentExpr* generic = node.as(GENERIC_IDENT_EXPR);
+	expect(ctx, LBRACE)!;
+	List{Node*} exprs;
+	exprs.tinit();
+	do
+	{
+		exprs.push(parse_expr(ctx)!);
+		if (!consume(ctx, COMMA)!)
+		{
+			expect(ctx, RBRACE)!;
+			break;
+		}
+	} while (!consume(ctx, RBRACE)!);
+	generic.exprs = alloc::clone_slice(ctx.arena, exprs.array_view());
 	return node;
 }

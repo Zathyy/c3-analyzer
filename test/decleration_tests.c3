@@ -208,10 +208,8 @@ fn void alias_declarations_parse()
 
 	AliasDecl* generic_target_alias = ast.top_level_nodes[7].as(NodeKind.ALIAS_DECL);
 	test::eq(generic_target_alias.alias_kind, AliasDeclKind.IDENT_ALIAS);
-	PathExpr* generic_target_path = generic_target_alias.target.as(NodeKind.PATH_EXPR);
-	test::eq(generic_target_path.segments.len, 2);
-	test::eq(ast.string_pool.get(generic_target_path.segments[0])!!, "map");
-	test::eq(ast.string_pool.get(generic_target_path.segments[1])!!, "new");
+	GenericIdentExpr* generic_target_path = generic_target_alias.target.as(NodeKind.GENERIC_IDENT_EXPR);
+	test::eq(generic_target_path.exprs.len, 2);
 
 	AliasDecl* fn_ptr_alias = ast.top_level_nodes[8].as(NodeKind.ALIAS_DECL);
 	test::eq(fn_ptr_alias.alias_kind, AliasDeclKind.TYPE_ALIAS);

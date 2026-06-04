@@ -31,7 +31,7 @@ struct Node
 
 		// DECL
 		StructDecl struct_decl;
-    EnumDecl enum_decl;
+		EnumDecl enum_decl;
 		VarDecl var_decl;
 		AttrdefDecl attrdef_decl;
 		AttributeDecl attribute_decl;
@@ -46,7 +46,7 @@ struct Node
 		FaultDecl fault_decl;
 		InterfaceDecl interface_decl;
 		CtExpandDecl ct_expand_decl;
-    CtAssertDecl ct_assert_decl;
+		CtAssertDecl ct_assert_decl;
 
 		// STMT
 		IfStmt if_stmt;
@@ -88,6 +88,8 @@ struct Node
 		NamedArgExpr named_arg_expr;
 		EvalNamedArgExpr eval_named_arg_expr;
 		CtEvalExpr ct_eval_expr;
+		LambdaExpr lambda_expr;
+		GenericIdentExpr generic_ident_expr;
 
 		// UNIT
 		ContractParam contract_param;

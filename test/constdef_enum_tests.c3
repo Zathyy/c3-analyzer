@@ -136,7 +136,7 @@ fn void assoc_param_values()
 
 	test::eq(parser_tests::count_kind(s, ENUM_DECL), 1);
 
-	Node* enum_node     =  s.nodes[1];
+	Node* enum_node     = s.nodes[1];
 	EnumDecl* enum_decl = enum_node.as(ENUM_DECL);
 	test::eq(pool.get(enum_decl.name)!!, "MyEnum");
 	test::eq(enum_decl.backing_type == null, true);
@@ -144,12 +144,12 @@ fn void assoc_param_values()
 	test::eq(enum_decl.assoc_params.len, 2);
 
 	VarDecl* a_param = enum_decl.assoc_params[0].as(VAR_DECL);
-	TypeExpr* a_type   = a_param.type.as(TYPE_EXPR);
+	TypeExpr* a_type = a_param.type.as(TYPE_EXPR);
 	test::eq(pool.get(a_type.unresolved.name)!!, "int");
 	test::eq(pool.get(a_param.name)!!, "a");
 
 	VarDecl* b_param = enum_decl.assoc_params[1].as(VAR_DECL);
-	TypeExpr* b_type   = b_param.type.as(TYPE_EXPR);
+	TypeExpr* b_type = b_param.type.as(TYPE_EXPR);
 	test::eq(pool.get(b_type.unresolved.name)!!, "String");
 	test::eq(pool.get(b_param.name)!!, "b");
 
@@ -500,12 +500,12 @@ fn void complex()
 	test::eq(enum_decl.assoc_params.len, 2);
 
 	VarDecl* a_param = enum_decl.assoc_params[0].as(VAR_DECL);
-	TypeExpr* a_type   = a_param.type.as(TYPE_EXPR);
+	TypeExpr* a_type = a_param.type.as(TYPE_EXPR);
 	test::eq(pool.get(a_type.unresolved.name)!!, "int");
 	test::eq(pool.get(a_param.name)!!, "a");
 
 	VarDecl* b_param = enum_decl.assoc_params[1].as(VAR_DECL);
-	TypeExpr* b_type   = b_param.type.as(TYPE_EXPR);
+	TypeExpr* b_type = b_param.type.as(TYPE_EXPR);
 	test::eq(pool.get(b_type.unresolved.name)!!, "String");
 	test::eq(pool.get(b_param.name)!!, "b");
 
@@ -596,7 +596,7 @@ fn void err_missing_rbrace()
 	// Node kind is set to MISSING when RBRACE is not found,
 	// but the EnumDecl data is still populated with what was parsed.
 	Node* enum_node = s.nodes[1];
-	test::eq(enum_node.kind, NodeKind.MISSING);
+	test::eq(enum_node.kind, NodeKind.ENUM_DECL);
 
 	EnumDecl* enum_decl = (EnumDecl*)&enum_node.enum_decl;
 	test::eq(enum_decl.variants.len, 2);

@@ -201,6 +201,8 @@ fn Node*? parse_prefix_expr(ParseContext* ctx)
 
 	switch (t.kind)
 	{
+		case FN:
+			return parse_lambda_expr(ctx)!;
 		case CT_EVAL:
 			return parse_ct_eval_expr(ctx)!;
 		case ELLIPSIS:
@@ -313,6 +315,14 @@ fn Node*? parse_infix(ParseContext* ctx, Node* left, Precedence rbp)
 		case QUESTION:
 		case CT_TERNARY:
 			return parse_ternary_expr(ctx, left)!;
+		case LBRACE:
+			NodeKind kind = left.kind;
+			if (kind == TYPE_EXPR)
+			{
+				// initializer_list
+			}
+
+			return parse_generic_expr(ctx)!;
 		default:
 			ctx.error("Unexpected infix token: %s", t.kind);
 			return UNEXPECTED_TOKEN~;

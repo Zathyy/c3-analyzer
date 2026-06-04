@@ -97,10 +97,10 @@ fn bool is_type(ParseContext* ctx)
 	if (is_type_primitive(kind)) return true;
 	if (kind == TYPE_IDENT) return true;
 
-	if (kind == IDENT && ctx.peek(1).kind == SCOPE)
-	{
-		return true;
-	}
+	// if (kind == IDENT && ctx.peek(1).kind == SCOPE)
+	// {
+	// 	return true;
+	// }
 
 	return false;
 }
@@ -429,10 +429,6 @@ fn bool check_if_typed_parameter(ParseContext* ctx)
 
 	if (is_type_primitive(first) || first == TYPE_IDENT)
 	{
-		if (second == COMMA || second == RPAREN || second == EQ)
-		{
-			return false;
-		}
 		return true;
 	}
 	return false;

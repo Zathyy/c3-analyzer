@@ -310,3 +310,34 @@ fn void builtin()
 	test::eq(parser_tests::count_kind(s, MODULE_DECL), 1);
 	test::eq(parser_tests::count_kind(s, FN_DECL), 1);
 }
+
+fn void lambda()
+{
+	String path = `
+		module hello;
+
+		alias IntTransform = fn int(int);
+		fn void apply(int[] arr, IntTransform t)
+		{
+		}
+		
+		fn void main()
+		{
+			int[] x = { 1, 2, 5 };
+			apply(x, fn (i) => i * i);
+			io::printfn("%s", x);
+		}
+	`;
+
+	Workspace ws;
+	ws.init();
+	defer ws.free();
+	ParseResult res = parser::parse(&ws, "call", path)!!;
+	test::eq(res.success, true);
+
+	Module* mod      = ws.modules.get("hello")!!;
+	ModuleSection* s = mod.sections[0];
+
+	test::eq(parser_tests::count_kind(s, MODULE_DECL), 1);
+	test::eq(parser_tests::count_kind(s, FN_DECL), 2);
+}
