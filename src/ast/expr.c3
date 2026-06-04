@@ -302,3 +302,15 @@ struct CompoundLiteralExpr
 	Node* initializer_expr;
 	Node* type_expr;
 }
+
+struct AccessExpr
+{
+	AccessKind kind;
+	Node* left;
+	Node* member;
+}
+
+struct MaybeDeferExpr
+{
+	Node* left;
+}

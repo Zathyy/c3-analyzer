@@ -77,6 +77,8 @@ fn Node*? parse_type_expr(ParseContext* ctx, ParseFlags parse_flags = { })
 {
 	int start = ctx.peek(0).pos;
 
+	log::debug("parse_type_expr");
+
 	Node* current_type = ctx.ast.alloc_node(TYPE_EXPR, start, ctx.peek().pos);
 	TypeExpr* data     = current_type.as(TYPE_EXPR);
 
@@ -410,6 +412,14 @@ fn Node*? parse_path_expr(ParseContext* ctx, PathExprOptions options = { }) => @
 {
 	int start_pos = ctx.peek(0).pos;
 	log::debug("parse_path_expr");
+
+	if (is_type(ctx))
+	{
+		if (options.as_prefix)
+		{
+			return null;
+		}
+	}
 
 	if (!ctx.is(IDENT))
 	{
@@ -1199,6 +1209,52 @@ fn Node*? parse_initializer_list_expr(ParseContext* ctx) => @pool()
 	}
 
 	init.exprs = alloc::clone_slice(ctx.arena, exprs.array_view());
+
+	return node;
+}
+
+fn Node*? parse_access_expr(ParseContext* ctx, Node* left)
+{
+	int start_pos          = ctx.current().pos;
+	TokenKind op_kind      = ctx.current().kind;
+	AccessKind access_kind = (op_kind == TokenKind.SCOPE) ? AccessKind.STATIC : AccessKind.INSTANCE;
+	advance(ctx)!;
+	Token member_token = ctx.current();
+
+	if (member_token.kind == LBRACKET)
+	{
+		advance(ctx)!;
+		Node* deref_node      = ctx.ast.alloc_node(MAYBE_DEREF_EXPR, member_token.pos, ctx.current().pos);
+		MaybeDeferExpr* deref = deref_node.as(MAYBE_DEREF_EXPR);
+		deref.left = left;
+		// TODO: parse range
+		return deref_node;
+	}
+
+	Node* node = ctx.ast.alloc_node(ACCESS_EXPR, start_pos);
+	defer node.end_token = ctx.current().pos;
+	AccessExpr* access = node.as(ACCESS_EXPR);
+
+	access.kind = access_kind;
+	access.left = left;
+
+	if EVAL: (member_token.kind == CT_EVAL)
+	{
+		advance(ctx)!;
+		@expect_else_skip(ctx, LPAREN, { RPAREN, EOS } ; err)
+		{
+			break EVAL;
+		}!;
+
+		access.member = parse_expr(ctx)!;
+
+		expect(ctx, RPAREN)!;
+	}
+	else
+	{
+		// HIGHEST bp to avoid consuming downstream infix operators.
+		access.member = parse_expr(ctx, HIGHEST)!;
+	}
 
 	return node;
 }

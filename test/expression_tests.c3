@@ -409,3 +409,38 @@ fn void initializers()
 	test::eq(parser_tests::count_kind(s, MODULE_DECL), 1);
 	test::eq(parser_tests::count_kind(s, FN_DECL), 1);
 }
+
+fn void access()
+{
+	String path = `
+		module hello;
+		
+		fn void foo(Bar bar)
+		{
+			int type = bar.type;
+			String name = Bar::name;
+		}
+	`;
+
+	Workspace ws;
+	ws.init();
+	defer ws.free();
+	ParseResult res = parser::parse(&ws, "access", path)!!;
+	test::eq(res.success, true);
+
+	Module* mod      = ws.modules.get("hello")!!;
+	ModuleSection* s = mod.sections[0];
+
+	FnDecl* func       = s.nodes[1].as(FN_DECL);
+	CompoundStmt* comp = func.body.as(COMPOUND_STMT);
+	VarDecl* type      = comp.statements[0].as(VAR_DECL);
+	VarDecl* name      = comp.statements[1].as(VAR_DECL);
+
+	AccessExpr* bar_type = type.init_expr.as(ACCESS_EXPR);
+	AccessExpr* bar_name = name.init_expr.as(ACCESS_EXPR);
+	test::eq(bar_type.kind, AccessKind.INSTANCE);
+	test::eq(bar_name.kind, AccessKind.STATIC);
+
+	test::eq(parser_tests::count_kind(s, MODULE_DECL), 1);
+	test::eq(parser_tests::count_kind(s, FN_DECL), 1);
+}

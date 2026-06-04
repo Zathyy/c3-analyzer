@@ -177,11 +177,6 @@ fn Node*? parse_expr(ParseContext* ctx, Precedence min_bp = LOWEST)
 		left = parse_infix(ctx, left, (Precedence)rbp)!;
 	}
 
-	if (min_bp == 0 && ctx.is(AT_IDENT))
-	{
-		// TODO:
-	}
-
 	return left;
 }
 
@@ -317,6 +312,9 @@ fn Node*? parse_infix(ParseContext* ctx, Node* left, Precedence rbp)
 		case QUESTION:
 		case CT_TERNARY:
 			return parse_ternary_expr(ctx, left)!;
+		case DOT:
+		case SCOPE:
+			return parse_access_expr(ctx, left)!;
 		case LBRACE:
 			NodeKind kind = left.kind;
 			if (kind == TYPE_EXPR)

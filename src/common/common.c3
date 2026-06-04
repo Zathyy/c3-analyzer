@@ -337,3 +337,9 @@ enum DesignatorKind : char
 	INDEX,
 	RANGE,
 }
+
+enum AccessKind
+{
+	INSTANCE, // field.
+	STATIC // Type::
+}

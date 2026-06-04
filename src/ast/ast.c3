@@ -97,6 +97,8 @@ struct Node
 		DesignatedInitializerExpr designated_initializer_expr;
 		InitializerListExpr initializer_list_expr;
 		CompoundLiteralExpr compound_literal_expr;
+		MaybeDeferExpr maybe_deref_expr;
+		AccessExpr access_expr;
 
 		// UNIT
 		ContractParam contract_param;

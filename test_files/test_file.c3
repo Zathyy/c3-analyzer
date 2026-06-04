@@ -1,7 +1,7 @@
 module hello;
 
-fn void foo(char[] value)
+fn void foo(Bar bar)
 {
-	String cast  = (String)value;
-	String group = ((String)value);
+	int type    = bar.type;
+	String name = Bar::name;
 }
