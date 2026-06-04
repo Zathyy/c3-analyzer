@@ -1415,13 +1415,6 @@ fn Node*? parse_enum_constdef_decl(ParseContext* ctx, ParseFlags flags) => @pool
 	}
 
 	enum_decl.interfaces = parse_interface_type_list(ctx)!;
-	foreach (interface_type : enum_decl.interfaces)
-	{
-		if (is_error_or_missing_node(interface_type))
-		{
-			node.kind = MISSING;
-		}
-	}
 
 	// Optional backing type and/or associated value parameters: ":" "inline"? type? enum_param_list?
 	if (consume(ctx, COLON)!)
@@ -1455,10 +1448,7 @@ fn Node*? parse_enum_constdef_decl(ParseContext* ctx, ParseFlags flags) => @pool
 				assoc.push(param);
 				if (!consume(ctx, COMMA)!) break;
 			}
-			@expect_else(ctx, RPAREN ; err)
-			{
-				node.kind = MISSING;
-			}!;
+			expect(ctx, RPAREN)!;
 			enum_decl.assoc_params = alloc::clone_slice(ctx.arena, assoc.array_view());
 		}
 	}
@@ -1468,11 +1458,7 @@ fn Node*? parse_enum_constdef_decl(ParseContext* ctx, ParseFlags flags) => @pool
 		enum_decl.attributes = parse_attributes(ctx, node)!;
 	}
 
-	@expect_else(ctx, LBRACE ; err)
-	{
-		node.kind = MISSING;
-		return node;
-	}!;
+	expect(ctx, LBRACE)!;
 
 	List{Node*} variants;
 	variants.init(tmem, 4);
@@ -1517,10 +1503,8 @@ fn Node*? parse_enum_constdef_decl(ParseContext* ctx, ParseFlags flags) => @pool
 		if (!consume(ctx, COMMA)!) break;
 	}
 
-	@expect_else(ctx, RBRACE ; err)
-	{
-		node.kind = MISSING;
-	}!;
+	expect(ctx, RBRACE)!;
+
 	enum_decl.variants = alloc::clone_slice(ctx.arena, variants.array_view());
 
 	return node;
