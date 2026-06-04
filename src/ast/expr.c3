@@ -247,3 +247,14 @@ struct GenericIdentExpr
 {
 	NodeArray exprs;
 }
+
+struct CastExpr
+{
+	Node* operand;
+	Node* inner;
+}
+
+struct GroupExpr
+{
+	Node* inner;
+}

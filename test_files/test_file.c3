@@ -1,3 +1,7 @@
 module hello;
 
-alias OLD_CONST = constants::NEW_CONST;
+fn void foo(char[] value)
+{
+	String cast  = (String)value;
+	String group = ((String)value);
+}

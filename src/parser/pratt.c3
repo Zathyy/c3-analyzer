@@ -247,6 +247,8 @@ fn Node*? parse_prefix_expr(ParseContext* ctx)
 			return parse_unary_expr(ctx)!;
 		case LBRACE:
 			return parse_compound_literal(ctx)!;
+		case LPAREN:
+			return parse_group_expr(ctx)!;
 		default:
 			log::error(
 				"parse_prefix_expr - Expected expression for token: ((%s) %s - %s)",

@@ -90,6 +90,8 @@ struct Node
 		CtEvalExpr ct_eval_expr;
 		LambdaExpr lambda_expr;
 		GenericIdentExpr generic_ident_expr;
+		GroupExpr group_expr;
+		CastExpr cast_expr;
 
 		// UNIT
 		ContractParam contract_param;

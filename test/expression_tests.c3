@@ -341,3 +341,43 @@ fn void lambda()
 	test::eq(parser_tests::count_kind(s, MODULE_DECL), 1);
 	test::eq(parser_tests::count_kind(s, FN_DECL), 2);
 }
+
+fn void group_and_cast()
+{
+	String path = `
+		module hello;
+		
+		fn void foo(char[] value)
+		{
+			String cast = (String)value;
+			String group = ((String)value);
+		}
+	`;
+
+	Workspace ws;
+	ws.init();
+	defer ws.free();
+	ParseResult res = parser::parse(&ws, "group_and_cast", path)!!;
+	test::eq(res.success, true);
+
+	Module* mod      = ws.modules.get("hello")!!;
+	ModuleSection* s = mod.sections[0];
+
+	FnDecl* func       = s.nodes[1].as(FN_DECL);
+	CompoundStmt* comp = func.body.as(COMPOUND_STMT);
+	VarDecl* cast_decl = comp.statements[0].as(VAR_DECL);
+	CastExpr* cast     = cast_decl.init_expr.as(CAST_EXPR);
+
+	test::eq(cast.inner.kind, NodeKind.TYPE_EXPR);
+	test::eq(cast.operand.kind, NodeKind.IDENT_EXPR);
+
+	VarDecl* group_decl  = comp.statements[1].as(VAR_DECL);
+	GroupExpr* group     = group_decl.init_expr.as(GROUP_EXPR);
+	CastExpr* group_cast = group.inner.as(CAST_EXPR);
+
+	test::eq(group_cast.inner.kind, NodeKind.TYPE_EXPR);
+	test::eq(group_cast.operand.kind, NodeKind.IDENT_EXPR);
+
+	test::eq(parser_tests::count_kind(s, MODULE_DECL), 1);
+	test::eq(parser_tests::count_kind(s, FN_DECL), 1);
+}

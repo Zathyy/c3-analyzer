@@ -1051,3 +1051,33 @@ fn Node*? parse_generic_expr(ParseContext* ctx) => @pool()
 	generic.exprs = alloc::clone_slice(ctx.arena, exprs.array_view());
 	return node;
 }
+
+fn Node*? parse_group_expr(ParseContext* ctx)
+{
+	int start_pos = ctx.current().pos;
+
+	expect(ctx, LPAREN)!;
+	Node* inner = parse_expr(ctx)!;
+	expect(ctx, RPAREN)!;
+
+	// can_start_expression might miss some cases
+	if (inner.kind == TYPE_EXPR && can_start_expression(ctx.current().kind))
+	{
+		Node* operand = parse_expr(ctx, UNARY)!;
+
+		Node* node = ctx.ast.alloc_node(CAST_EXPR, start_pos);
+		defer node.end_token = ctx.current().pos;
+		CastExpr* cast = node.as(CAST_EXPR);
+		cast.inner = inner;
+		cast.operand = operand;
+		return node;
+	}
+
+	Node* node = ctx.ast.alloc_node(GROUP_EXPR, start_pos);
+	defer node.end_token = ctx.current().pos;
+	GroupExpr* group = node.as(GROUP_EXPR);
+
+	group.inner = inner;
+
+	return node;
+}
