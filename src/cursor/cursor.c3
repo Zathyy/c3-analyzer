@@ -94,3 +94,43 @@ fn bool Cursor.has_attribute(&self, AttributeKind kind)
 
 	return false;
 }
+
+<*
+ use a binary-search to find wether any error node has
+ the byte offset / byte range of this cursor
+ Note: has not yet been tested
+*>
+fn bool Cursor.has_error(&self)
+{
+	NodeArray errors = self.section.source_file.ast.error_nodes.array_view();
+	sz len           = errors.len;
+	if (len == 0) return false;
+
+	sz node_start = self.node.start_token;
+	sz node_end   = self.node.end_token;
+
+	sz low  = 0;
+	sz high = len - 1;
+
+	while (low <= high)
+	{
+		sz mid    = low + (high - low) / 2;
+		Node* err = errors[mid];
+
+		if (node_start <= err.end_token && err.start_token <= node_end)
+		{
+			return true;
+		}
+
+		if (err.start_token > node_end)
+		{
+			high = mid - 1;
+		}
+		else
+		{
+			low = mid + 1;
+		}
+	}
+
+	return false;
+}
