@@ -575,28 +575,6 @@ fn Node*? parse_contract_expr(ParseContext* ctx)
 	return node;
 }
 
-fn Node*? parse_compound_literal(ParseContext* ctx) => @pool()
-{
-	int start_pos = ctx.current().pos;
-	advance(ctx)!; // consume '{'
-
-	Node* node = ctx.ast.alloc_node(EXPR_LIST, start_pos);
-	defer node.end_token = ctx.peek(0).pos;
-	ExprList* expr_list = node.as(EXPR_LIST);
-
-	List{Node*} exprs;
-	exprs.init(tmem, 4);
-	while (!ctx.is(RBRACE) && !ctx.eof())
-	{
-		exprs.push(parse_expr(ctx)!);
-		if (ctx.eof() || !consume(ctx, COMMA)!) break;
-	}
-	expect(ctx, RBRACE)!;
-	expr_list.exprs = alloc::clone_slice(ctx.arena, exprs.array_view());
-
-	return node;
-}
-
 fn Node*? parse_call_expr(ParseContext* ctx, Node* callee)
 {
 	int start_pos = ctx.current().pos;
@@ -1078,6 +1056,149 @@ fn Node*? parse_group_expr(ParseContext* ctx)
 	GroupExpr* group = node.as(GROUP_EXPR);
 
 	group.inner = inner;
+
+	return node;
+}
+
+<*
+ designator_expr ::= ('[' expr ']' | '.' IDENT)*
+
+*>
+fn Node*? parse_designator_expr(ParseContext* ctx)
+{
+	Node* path;
+
+	while (true)
+	{
+		if (ctx.is(DOT))
+		{
+			int start_pos = ctx.current().pos;
+			advance(ctx)!; // consume '.'
+
+			Node* field = parse_expr(ctx, HIGHEST)!;
+
+			Node* node = ctx.ast.alloc_node(DESIGNATOR_EXPR, start_pos);
+			node.end_token = ctx.current().pos;
+
+			DesignatorExpr* des = node.as(DESIGNATOR_EXPR);
+			des.kind = DesignatorKind.PERIOD;
+			des.path = path; // will be null if this is the very first component
+			des.field = field;
+
+			path = node;
+			continue;
+		}
+
+		if (ctx.is(LBRACKET))
+		{
+			int start_pos = ctx.current().pos;
+			advance(ctx)!; // consume '['
+
+			Node* start           = parse_expr(ctx)!;
+			Node* end;
+			DesignatorKind d_kind = DesignatorKind.INDEX;
+
+			if (ctx.is(DOTDOT) || ctx.is(COLON))
+			{
+				d_kind = DesignatorKind.RANGE;
+				advance(ctx)!; // consume '..' or ':'
+				end = parse_expr(ctx)!;
+			}
+
+			expect(ctx, RBRACKET)!;
+
+			Node* node = ctx.ast.alloc_node(DESIGNATOR_EXPR, start_pos);
+			node.end_token = ctx.current().pos;
+
+			DesignatorExpr* des = node.as(DESIGNATOR_EXPR);
+			des.kind = d_kind;
+			des.path = path;
+			des.range.start = start;
+			des.range.end = end;
+			path = node;
+			continue;
+		}
+
+		break;
+	}
+
+	return path;
+}
+
+<*
+ initializer_list_expr ::= '{' ('...' expr | expr (',' expr)*)? '}'
+*>
+fn Node*? parse_initializer_list_expr(ParseContext* ctx) => @pool()
+{
+	expect(ctx, LBRACE)!;
+
+	int start_pos = ctx.current().pos;
+	Node* node    = ctx.ast.alloc_node(INITIALIZER_LIST_EXPR, start_pos);
+	defer node.end_token = ctx.current().pos;
+	InitializerListExpr* init = node.as(INITIALIZER_LIST_EXPR);
+
+	// Handle empty initializer {}
+	if (consume(ctx, RBRACE)!)
+	{
+		return node;
+	}
+
+	List{Node*} exprs;
+	exprs.tinit();
+
+	while (!ctx.eof())
+	{
+		Node* expr;
+
+		if (ctx.is(ELLIPSIS))
+		{
+			expr = parse_vasplat_expr(ctx)!;
+		}
+		if (ctx.is(DOT) || ctx.is(LBRACKET))
+		{
+			Token path_token = ctx.current();
+			Node* des_expr   = parse_designator_expr(ctx)!;
+
+			if (consume(ctx, EQ)!)
+			{
+				Node* val           = parse_expr(ctx)!;
+				Node* des_init_node = ctx.ast.alloc_node(DESIGNATED_INITIALIZER_EXPR, path_token.pos);
+				des_init_node.end_token = ctx.current().pos;
+
+				DesignatedInitializerExpr* des_init = des_init_node.as(DESIGNATED_INITIALIZER_EXPR);
+				des_init.path = des_expr;
+				des_init.value = val;
+
+				expr = des_init_node;
+			}
+			else
+			{
+				// Implicit assignment shortcut: .member
+				expr = des_expr;
+			}
+		}
+		else if (ctx.is(LBRACE))
+		{
+			// Nested initializers like { {1, 2}, {3, 4} }
+			expr = parse_initializer_list_expr(ctx)!;
+		}
+		else
+		{
+			expr = parse_expr(ctx)!;
+		}
+
+		exprs.push(expr);
+
+		if (consume(ctx, RBRACE)!) break;
+		expect(ctx, COMMA)!;
+		if (ctx.is(RBRACE))
+		{
+			advance(ctx)!;
+			break;
+		}
+	}
+
+	init.exprs = alloc::clone_slice(ctx.arena, exprs.array_view());
 
 	return node;
 }

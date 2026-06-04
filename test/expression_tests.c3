@@ -86,12 +86,12 @@ fn void test_literals()
 			continue;
 		}
 
-		// {} is a zero initializer — an empty compound literal
+		// {} is a zero initializer
 		if (var_name == "ax" || var_name == "bx" || var_name == "kx" || var_name == "arr" || var_name == "arr2")
 		{
-			test::eq(expr_node.kind, NodeKind.EXPR_LIST);
-			ExprList* zl = expr_node.as(EXPR_LIST);
-			test::eq(zl.exprs.len, var_name == "arr2" ? 1 : 0);
+			test::eq(expr_node.kind, NodeKind.INITIALIZER_LIST_EXPR);
+			InitializerListExpr* init = expr_node.as(INITIALIZER_LIST_EXPR);
+			test::eq(init.exprs.len, var_name == "arr2" ? 1 : 0);
 			continue;
 		}
 
@@ -377,6 +377,34 @@ fn void group_and_cast()
 
 	test::eq(group_cast.inner.kind, NodeKind.TYPE_EXPR);
 	test::eq(group_cast.operand.kind, NodeKind.IDENT_EXPR);
+
+	test::eq(parser_tests::count_kind(s, MODULE_DECL), 1);
+	test::eq(parser_tests::count_kind(s, FN_DECL), 1);
+}
+
+fn void initializers()
+{
+	String path = `
+		module hello;
+		
+		fn void foo()
+		{
+			String[*] strings = { "Foo", "Bar" };
+			Foo foo = { .foo = "fafsfaf", .bar = "rfasfafa" };
+		}
+	`;
+
+	Workspace ws;
+	ws.init();
+	defer ws.free();
+	ParseResult res = parser::parse(&ws, "initializers", path)!!;
+	test::eq(res.success, true);
+
+	Module* mod      = ws.modules.get("hello")!!;
+	ModuleSection* s = mod.sections[0];
+
+	FnDecl* func       = s.nodes[1].as(FN_DECL);
+	CompoundStmt* comp = func.body.as(COMPOUND_STMT);
 
 	test::eq(parser_tests::count_kind(s, MODULE_DECL), 1);
 	test::eq(parser_tests::count_kind(s, FN_DECL), 1);

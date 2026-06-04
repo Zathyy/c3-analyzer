@@ -258,3 +258,47 @@ struct GroupExpr
 {
 	Node* inner;
 }
+
+struct InitializerListExpr
+{
+	NodeArray exprs;
+}
+
+<*
+ - `path`:  Left-hand side part of the path (null if it's the start)
+ - `field`: Valid if kind == PERIOD (.field)
+ - `start`: Valid if kind == INDEX or RANGE ([start])
+ - `end`:   Valid if kind is RANGE ([start .. end])
+*>
+struct DesignatorExpr
+{
+	DesignatorKind kind;
+	Node* path;
+
+	union
+	{
+		Node* field;
+
+		struct range
+		{
+			Node* start;
+			Node* end;
+		}
+	}
+}
+
+<*
+ - `path`: DESIGNATOR_EXPR node chain (.foo.bar)
+ - `value`: assigned expression node (= 42)
+*>
+struct DesignatedInitializerExpr
+{
+	Node* path;
+	Node* value;
+}
+
+struct CompoundLiteralExpr
+{
+	Node* initializer_expr;
+	Node* type_expr;
+}

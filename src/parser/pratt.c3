@@ -246,7 +246,7 @@ fn Node*? parse_prefix_expr(ParseContext* ctx)
 		case ASTERISK:
 			return parse_unary_expr(ctx)!;
 		case LBRACE:
-			return parse_compound_literal(ctx)!;
+			return parse_initializer_list_expr(ctx)!;
 		case LPAREN:
 			return parse_group_expr(ctx)!;
 		default:
@@ -321,7 +321,17 @@ fn Node*? parse_infix(ParseContext* ctx, Node* left, Precedence rbp)
 			NodeKind kind = left.kind;
 			if (kind == TYPE_EXPR)
 			{
-				// initializer_list
+				int start_pos = left.start_token;
+				Node* init    = parse_initializer_list_expr(ctx)!;
+
+				Node* node = ctx.ast.alloc_node(COMPOUND_LITERAL_EXPR, start_pos);
+				node.end_token = ctx.current().pos;
+
+				CompoundLiteralExpr* comp = node.as(COMPOUND_LITERAL_EXPR);
+				comp.type_expr = left;
+				comp.initializer_expr = init;
+
+				return node;
 			}
 
 			return parse_generic_expr(ctx)!;

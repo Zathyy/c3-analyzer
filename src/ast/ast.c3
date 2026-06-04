@@ -93,6 +93,10 @@ struct Node
 		GenericIdentExpr generic_ident_expr;
 		GroupExpr group_expr;
 		CastExpr cast_expr;
+		DesignatorExpr designator_expr;
+		DesignatedInitializerExpr designated_initializer_expr;
+		InitializerListExpr initializer_list_expr;
+		CompoundLiteralExpr compound_literal_expr;
 
 		// UNIT
 		ContractParam contract_param;

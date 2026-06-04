@@ -1445,7 +1445,7 @@ fn Node*? parse_enum_constdef_decl(ParseContext* ctx, ParseFlags flags) => @pool
 		// Optional associated values: "{" expr ("," expr)* "}"
 		if (ctx.is(LBRACE))
 		{
-			v.assoc_values = parse_compound_literal(ctx)!;
+			v.assoc_values = parse_expr(ctx)!;
 		}
 
 		variant.end_token = ctx.peek(0).pos;

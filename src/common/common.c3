@@ -330,3 +330,10 @@ enum TypeKind : int
 	TYPE_GENERIC,
 	TYPE_FUNCTION
 }
+
+enum DesignatorKind : char
+{
+	PERIOD,
+	INDEX,
+	RANGE,
+}

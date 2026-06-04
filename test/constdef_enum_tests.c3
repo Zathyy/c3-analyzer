@@ -160,8 +160,7 @@ fn void assoc_param_values()
 		VarDecl* variant_decl      = variant.as(VAR_DECL);
 		String variant_description = pool.get(variant_decl.name)!!;
 		assert(variant_description == "AAA" || variant_description == "BBB", "Failed to parse variant description");
-
-		ExprList* assoc_values = variant_decl.assoc_values.as(EXPR_LIST);
+		InitializerListExpr* assoc_values = variant_decl.assoc_values.as(INITIALIZER_LIST_EXPR);
 		test::eq(assoc_values.exprs.len, 2);
 
 		foreach (expr : assoc_values.exprs)
