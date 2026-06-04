@@ -168,6 +168,8 @@ bitstruct VarDeclFlags : uint
 	bool is_inline;
 	bool is_static;
 
+	bool is_ref;
+
 	// for params
 	bool is_self;
 	bool is_self_by_ref;
