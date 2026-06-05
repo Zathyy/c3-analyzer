@@ -17,7 +17,7 @@ struct Range
 	sz end;
 }
 
-enum AttributeKind
+enum AttributeKind : char
 {
 	ALIGN,
 	ALLOW_DEPRECATED,
@@ -177,23 +177,23 @@ bitstruct VarDeclFlags : uint
 	bool is_macro_optional_ellipsis; // For `param = ...`
 }
 
-bitstruct ContractFlags : uint
+bitstruct ContractFlags : char
 {
 	bool is_pure;
 }
 
-bitstruct ContractParamFlags : uint
+bitstruct ContractParamFlags : char
 {
 	bool is_ref;
 }
 
-bitstruct AsmFlags : uint
+bitstruct AsmFlags : char
 {
 	bool is_volatile;
 	bool is_string_style;
 }
 
-enum AsmArgKind : uint
+enum AsmArgKind : char
 {
 	ARG_REG, // A register
 	ARG_ADDR, // [...]
@@ -204,7 +204,7 @@ enum AsmArgKind : uint
 	ARG_INT, // Converted from VALUE
 }
 
-enum AsmOffsetKind : uint
+enum AsmOffsetKind : char
 {
 	SCALE_1, // *
 	SCALE_2,
@@ -232,7 +232,7 @@ bitstruct AsmArgBits : uint
 	bool arg_bits_20;
 }
 
-enum AsmRegisterKind : uint
+enum AsmRegisterKind : char
 {
 	REG_INT,
 	REG_FLOAT,
@@ -240,7 +240,7 @@ enum AsmRegisterKind : uint
 	REF_FVEC,
 }
 
-enum DeferKind : uint
+enum DeferKind : char
 {
 	NORMAL,
 	// defer ...
@@ -262,7 +262,7 @@ enum DeferKind : uint
 
 }
 
-enum OverloadKind : uint
+enum OverloadKind : char
 {
 	OV_ELEMENT_AT,
 	OV_ELEMENT_REF,
@@ -295,7 +295,7 @@ enum OverloadKind : uint
 	OV_SHR_ASSIGN,
 }
 
-enum InOutModifier
+enum InOutModifier : char
 {
 	ANY,
 	IN,
@@ -303,7 +303,7 @@ enum InOutModifier
 	INOUT,
 }
 
-enum Visibility
+enum Visibility : char
 {
 	PUBLIC,
 	PRIVATE,
@@ -320,7 +320,7 @@ enum Visibility
 - TYPE_GENERIC: TypeExpr.generic
 - TYPE_FUNCTION: TypeExpr.func
 *>
-enum TypeKind : int
+enum TypeKind : char
 {
 	TYPE_IDENTIFIER,
 	TYPE_POINTER,
@@ -338,7 +338,7 @@ enum DesignatorKind : char
 	RANGE,
 }
 
-enum AccessKind
+enum AccessKind : char
 {
 	INSTANCE, // field.
 	STATIC // Type::
