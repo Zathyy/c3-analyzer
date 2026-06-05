@@ -20,6 +20,7 @@ fn Node*? parse_module_decl(ParseContext* ctx, Workspace* ws)
 	defer node.end_token = ctx.peek(0).pos;
 
 	mod_decl.path = parse_path_expr(ctx)!;
+	mod_decl.generics = parse_generic_decl(ctx)!;
 
 	if (ctx.is(AT_IDENT))
 	{
@@ -1058,6 +1059,7 @@ fn Node*? parse_struct_union_decl(ParseContext* ctx) => @pool()
 	}!;
 
 	struct_decl.interfaces = parse_interface_type_list(ctx)!;
+	struct_decl.generics = parse_generic_decl(ctx)!;
 	struct_decl.attributes = parse_attributes(ctx, node)!;
 
 	@expect_else_skip(ctx, LBRACE, { RBRACE } ; brace_err)
@@ -1458,5 +1460,50 @@ fn Node*? parse_enum_constdef_decl(ParseContext* ctx, ParseFlags flags) => @pool
 
 	enum_decl.variants = alloc::clone_slice(ctx.arena, variants.array_view());
 
+	return node;
+}
+
+<*
+ generic_decl ::= '<' (type_expr | ident_expr)* '>'
+ @return "null if no generics are present"
+*>
+fn Node*? parse_generic_decl(ParseContext* ctx) => @pool()
+{
+	if (!ctx.is(LESS))
+	{
+		return null;
+	}
+	if (ctx.is(GREATER))
+	{
+		unexpected(ctx, "At least one parameter is required")!;
+		return null;
+	}
+
+	expect(ctx, LESS)!;
+
+	int start_pos = ctx.peek(0).pos;
+	Node* node    = ctx.ast.alloc_node(GENERIC_DECL, start_pos);
+	defer node.end_token = ctx.peek(0).pos;
+	GenericDecl* gen = node.as(GENERIC_DECL);
+	List{Node*} params;
+	params.tinit();
+	while (!ctx.eof())
+	{
+		switch (ctx.current().kind)
+		{
+			case TYPE_IDENT:
+			case CONST_IDENT:
+				break;
+			default:
+				params.push(unexpected(ctx, "Expected either 'Type' or 'CONST_IDENT'")!);
+				advance(ctx)!;
+		}
+
+		// so it only parses the prefix
+		params.push(parse_expr(ctx, HIGHEST)!);
+		if (!consume(ctx, COMMA)!) break;
+	}
+	expect(ctx, GREATER)!;
+	gen.params = alloc::clone_slice(ctx.arena, params.array_view());
 	return node;
 }

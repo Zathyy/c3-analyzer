@@ -13,7 +13,11 @@ import std::io::path;
 
 fn void basic_module()
 {
-	String text = `module hello; fn void greet() {}`;
+	String text = `
+		module hello <Type, Second> @local;
+		
+		fn void greet() {}
+	`;
 	Workspace ws;
 	ws.init();
 	defer ws.free();
@@ -486,7 +490,7 @@ fn void struct_decl()
 		
 		<*
 		*>
-		struct Foo (Printable) @local
+		struct Foo (Printable) <Type> @local
 		{
 			<*
 				Comment

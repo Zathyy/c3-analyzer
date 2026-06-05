@@ -44,6 +44,7 @@ struct Node
 		MacroDecl macro_decl;
 		FaultdefDecl faultdef_decl;
 		FaultDecl fault_decl;
+		GenericDecl generic_decl;
 		InterfaceDecl interface_decl;
 		CtExpandDecl ct_expand_decl;
 		CtAssertDecl ct_assert_decl;

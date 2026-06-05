@@ -97,7 +97,7 @@ fn OperatorKind binaryop_from_token(TokenKind kind)
 		case RSHIFT_ASSIGN: return OP_SHR_ASSIGN;
 		case LSHIFT_ASSIGN: return OP_SHL_ASSIGN;
 		default:
-			unreachable("unknown binaryop kind");
+			unreachable("unknown binaryop kind: %s", kind);
 	}
 }
 

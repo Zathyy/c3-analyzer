@@ -27,11 +27,15 @@ struct ContractDecl
 
 fn String? ContractDecl.get_comment(&self, StringPool* pool) => pool.get(self.comment);
 
+<*
+ - `generics`: generic_decl | null
+*>
 struct ModuleDecl
 {
 	Node* path;
 	Option{Node} contract;
 	NodeArray attributes;
+	Node* generics;
 }
 
 struct ImportDecl
@@ -155,6 +159,7 @@ struct CtExpandDecl
 
 <*
  StructDecl is both for structs & unions `is_union`
+ - `generics`: generic_decl | null
 *>
 struct StructDecl
 {
@@ -162,6 +167,7 @@ struct StructDecl
 	NodeArray interfaces;
 	NodeArray attributes;
 	NodeArray fields;
+	Node* generics;
 	Node* type;
 	Node* next;
 	StringID name;
@@ -204,4 +210,9 @@ struct AttrdefDecl
 struct CtAssertDecl
 {
 	Node* stmt;
+}
+
+struct GenericDecl
+{
+	NodeArray params;
 }
