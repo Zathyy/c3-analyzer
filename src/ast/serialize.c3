@@ -41,15 +41,7 @@ macro void serialize(JsonOutput* output, item, StringPool spool, int indent, int
 					output.ser_entry($m.name, item.$m, spool, indent, depth + 1);
 				$endif
 			$endforeach
-			if (output.char_at(output.len() - 2) != ',')
-			{
-				output.chop(output.len() - 1);
-				output.append('}');
-			}
-			else
-			{
-				output.end_obj(indent, depth);
-			}
+			output.end_obj(indent, depth);
 
 		$case $Typeof(item)::kind == STRUCT:
 			output.start_obj(indent);
@@ -60,6 +52,7 @@ macro void serialize(JsonOutput* output, item, StringPool spool, int indent, int
 
 		$case $Typeof(item) == StringID:
 			output.appendf(`"%s" /* id: %d */`, spool.get(item)!!, item);
+			// output.appendf(`"%s"`, spool.get(item)!!, item);
 
 		$case $defined(item[0]) &&& $defined(lengthof(item)):
 			sz l_len = lengthof(item);
@@ -114,10 +107,18 @@ fn void JsonOutput.start_obj(&self, int indent)
 }
 fn void JsonOutput.end_obj(&self, int indent, int depth)
 {
-	self.chop(self.len() - 2);
-	push_newline(self, indent, or: " ");
-	push_indent(self, indent, depth);
-	self.append_char('}');
+	if (self.char_at(self.len() - 2) != ',')
+	{
+		if (indent != -1) self.chop(self.len() - 1);
+		self.append('}');
+	}
+	else
+	{
+		self.chop(self.len() - 2);
+		push_newline(self, indent, or: " ");
+		push_indent(self, indent, depth);
+		self.append_char('}');
+	}
 }
 
 fn void node_serialize(Node* self, JsonOutput* output, StringPool spool, int indent, int depth) @local
