@@ -27,6 +27,9 @@ macro void serialize(JsonOutput* output, item, StringPool spool, int indent, int
 		$case $Typeof(item) == Node*:
 			node_serialize(item, output, spool, indent, depth);
 
+		$case $defined(Option{Node} x = item):
+			node_serialize((Node*) item, output, spool, indent, depth);
+
 		// $case $Typeof(item) == TypeExpr:
 
 		$case $Typeof(item)::kind == BITSTRUCT:
@@ -80,7 +83,7 @@ macro void serialize(JsonOutput* output, item, StringPool spool, int indent, int
 		$case $defined(item.get()) &&& $defined(item.get()!) &&& $defined(Maybe{$Typeof(item.get()!!)} x = item):
 			if (try v = item.get())
 			{
-				serialize(v, spool, indent, depth);
+				serialize(output, v, spool, indent, depth);
 			}
 			else
 			{
