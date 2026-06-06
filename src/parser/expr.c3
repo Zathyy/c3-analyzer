@@ -453,7 +453,7 @@ fn Node*? parse_path_expr(ParseContext* ctx, PathExprOptions options = { }) => @
 		{
 			if (!options.as_prefix)
 			{
-				temp_segments.push(-1);
+				temp_segments.push(ast::EMPTY_STR);
 				advance(ctx)!;
 			}
 			break;
@@ -895,7 +895,7 @@ fn Node*? parse_builtin_expr(ParseContext* ctx)
 	{
 		Token t = @expect_some_else(ctx, { IDENT, CONST_IDENT, TYPE_IDENT } ; err)
 		{
-			name = -1;
+			name = ast::EMPTY_STR;
 			break COND;
 		}!;
 

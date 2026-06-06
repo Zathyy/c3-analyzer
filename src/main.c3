@@ -60,6 +60,17 @@ fn int main(String[] args) => @pool()
 		};
 	}
 
+	if (cli.json)
+	{
+		ws.source_files.@each(; name, sf)
+		{
+			foreach (node : sf.ast.top_level_nodes)
+			{
+				io::printn(node.serialize(sf.ast.string_pool, ws.allocator, indent: 2));
+			}
+		};
+	}
+
 	if (!cli.no_dump)
 	{
 	}

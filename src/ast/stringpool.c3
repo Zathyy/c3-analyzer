@@ -11,9 +11,11 @@ struct StringPool
 	List{String} stable_strings;
 	HashMap{String, sz} lookup_map;
 }
-alias StringID = sz;
+typedef StringID = sz;
 
-alias OptStringID = OptionLit{StringID, -1};
+const StringID EMPTY_STR = (StringID) -1;
+
+alias OptStringID = OptionLit{StringID, EMPTY_STR};
 
 fn void StringPool.init(&self, Allocator allocator, int capacity)
 {
@@ -38,14 +40,14 @@ fn StringID StringPool.internalize(&self, String s)
 {
 	if (try idx = self.lookup_map.get(s))
 	{
-		return idx;
+		return (StringID) idx;
 	}
 
 	String c_s = s.copy(self.allocator);
 
 	self.stable_strings.push(c_s);
 	self.lookup_map.set(c_s, self.stable_strings.len() - 1);
-	return self.stable_strings.len() - 1;
+	return (StringID) (self.stable_strings.len() - 1);
 }
 
-fn String? StringPool.get(&self, StringID id) => self.stable_strings.get(id);
+fn String? StringPool.get(&self, StringID id) => self.stable_strings.get((sz) id);

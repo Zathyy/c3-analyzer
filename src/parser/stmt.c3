@@ -386,7 +386,7 @@ fn Node*? parse_continue_break_stmt(ParseContext* ctx)
 	defer node.end_token = ctx.peek(0).pos;
 
 	cb.is_continue = is_continue;
-	cb.label = -1;
+	cb.label = ast::EMPTY_STR;
 
 	if (ctx.is(CONST_IDENT))
 	{
@@ -669,7 +669,7 @@ fn Node*? parse_for_stmt(ParseContext* ctx)
 	}
 	else
 	{
-		for_stmt.label = -1;
+		for_stmt.label = ast::EMPTY_STR;
 	}
 
 	@expect_else(ctx, LPAREN ; err)
@@ -791,7 +791,7 @@ fn Node*? parse_foreach_var(ParseContext* ctx)
 			ctx.error("Expected an identifier or type.");
 		}
 		ctx.ast.missing(ctx.peek(0).pos);
-		v.name = -1;
+		v.name = ast::EMPTY_STR;
 		ctx.skip_until({ COMMA, COLON, RPAREN })!;
 		return var_node;
 	}
@@ -829,7 +829,7 @@ fn Node*? parse_foreach_stmt(ParseContext* ctx)
 	}
 	else
 	{
-		foreach_stmt.label = -1;
+		foreach_stmt.label = ast::EMPTY_STR;
 	}
 
 	@expect_else_skip(ctx, LPAREN, { RPAREN, EOS, EOF }; err)
