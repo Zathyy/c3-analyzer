@@ -3,8 +3,7 @@ module parser::ast::serialize @if($feature(PARSER_CLI));
 import parser::ast;
 import std::collections::maybe;
 
-alias fmt = string::format;
-alias tfmt = string::tformat;
+alias JsonOutput @local = DString;
 
 fn void push_indent(JsonOutput* output, int indent, int depth)
 {
@@ -22,15 +21,12 @@ fn void push_newline(JsonOutput* output, int indent, String or = "")
 	}
 }
 
-macro void serialize(JsonOutput* output, item, StringPool spool, int indent, int depth) @local {
+macro void serialize(JsonOutput* output, item, StringPool spool, int indent, int depth) @local 
+{
 	$switch:
-		$case $Typeof(item) == Node*:
-			node_serialize(item, output, spool, indent, depth);
-
 		$case $defined(Option{Node} x = item):
+		$case $Typeof(item) == Node*:
 			node_serialize((Node*) item, output, spool, indent, depth);
-
-		// $case $Typeof(item) == TypeExpr:
 
 		$case $Typeof(item)::kind == BITSTRUCT:
 			output.start_obj(indent);
@@ -88,8 +84,6 @@ macro void serialize(JsonOutput* output, item, StringPool spool, int indent, int
 
 	$endswitch
 }
-
-alias JsonOutput @local = DString;
 
 macro void JsonOutput.ser_entry(&self, String key, item, StringPool spool, int indent, int depth)
 {
@@ -155,4 +149,3 @@ fn String Node.serialize(&self, StringPool spool, Allocator allocator = tmem, in
 	node_serialize(self, &output, spool, indent, 0);
 	return output.str_view();
 }
-
