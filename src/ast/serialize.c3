@@ -32,9 +32,21 @@ macro void serialize(JsonOutput* output, item, StringPool spool, int indent, int
 		$case $Typeof(item)::kind == BITSTRUCT:
 			output.start_obj(indent);
 			$foreach $m : $Typeof(item)::members:
-				output.ser_entry($m.name, item.$m, spool, indent, depth + 1);
+				$if $Typeof(item.$m) == bool:
+					if (item.$m) output.ser_entry($m.name, item.$m, spool, indent, depth + 1);
+				$else
+					output.ser_entry($m.name, item.$m, spool, indent, depth + 1);
+				$endif
 			$endforeach
-			output.end_obj(indent, depth);
+			if (output.char_at(output.len() - 2) != ',')
+			{
+				output.chop(output.len() - 1);
+				output.append('}');
+			}
+			else
+			{
+				output.end_obj(indent, depth);
+			}
 
 		$case $Typeof(item)::kind == STRUCT:
 			output.start_obj(indent);
