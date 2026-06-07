@@ -64,10 +64,10 @@ fn int main(String[] args) => @pool()
 	{
 		ws.source_files.@each(; name, sf)
 		{
-			foreach (node : sf.ast.top_level_nodes)
+			foreach (node : sf.ast.top_level_nodes) @pool()
 			{
-				io::printn(node.serialize(sf.ast.string_pool, ws.allocator, indent: 2));
-			}
+				io::printn(node.serialize(sf.ast.string_pool, indent: 2));
+			};
 		};
 	}
 

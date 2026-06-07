@@ -1,6 +1,7 @@
 module parser::ast::serialize @if($feature(PARSER_CLI));
 
 import parser::ast;
+import std::io;
 import std::collections::maybe;
 
 alias JsonOutput @local = DString;
@@ -62,7 +63,11 @@ macro void serialize(JsonOutput* output, item, StringPool spool, int indent, int
 
       foreach (i, el : item) {
 				push_indent(output, indent, depth + 1);
-        serialize(output, el, spool, indent, depth + 1);
+				$if $Typeof(el) == Node*:
+					node_serialize(el, output, spool, indent, depth);
+				$else
+					serialize(output, el, spool, indent, depth + 1);
+				$endif
         if (i < l_len - 1) output.append_char(',');
         push_newline(output, indent, or: " ");
       }
@@ -144,7 +149,7 @@ fn void node_serialize(Node* self, JsonOutput* output, StringPool spool, int ind
 fn String Node.serialize(&self, StringPool spool, Allocator allocator = tmem, int indent = -1)
 {
 	JsonOutput output;
-	output.init(allocator);
+	output = output.init(allocator);
 
 	node_serialize(self, &output, spool, indent, 0);
 	return output.str_view();
