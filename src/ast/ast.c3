@@ -66,6 +66,7 @@ struct Node
 		ExprStmt expr_stmt;
 		CtAssertStmt ct_assert_stmt;
 		CtErrorStmt ct_error_stmt;
+		CtEchoStmt ct_echo_stmt;
 
 		// EXPR
 		LiteralExpr literal_expr;

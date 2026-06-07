@@ -45,6 +45,8 @@ fn Node*? parse_stmt(ParseContext* ctx)
 			return parse_ct_assert_stmt(ctx)!;
 		case CT_ERROR:
 			return parse_ct_error_stmt(ctx)!;
+		case CT_ECHO:
+			return parse_ct_echo_stmt(ctx)!;
 		case VAR:
 			return parse_var_decl(ctx, null, { .is_var = true, .is_local = true });
 		case CONST:
@@ -910,11 +912,36 @@ fn Node*? parse_ct_error_stmt(ParseContext* ctx) => @pool()
 		return err;
 	}!;
 
-	Node* node                  = ctx.ast.alloc_node(CT_ERROR_STMT, start_pos);
-	CtErrorStmt* ct_assert_stmt = node.as(CT_ERROR_STMT);
+	Node* node                 = ctx.ast.alloc_node(CT_ERROR_STMT, start_pos);
+	CtErrorStmt* ct_error_stmt = node.as(CT_ERROR_STMT);
 	defer node.end_token = ctx.peek(0).pos;
 
-	ct_assert_stmt.expr = parse_constant_expr(ctx)!;
+	ct_error_stmt.expr = parse_constant_expr(ctx)!;
+
+	@expect_else(ctx, EOS ; err)
+	{
+		return err;
+	}!;
+
+	return node;
+}
+
+<*
+ ct_echo_stmt ::= '$echo' constant_expression ";"
+*>
+fn Node*? parse_ct_echo_stmt(ParseContext* ctx) => @pool()
+{
+	int start_pos = ctx.peek(0).pos;
+	@expect_else(ctx, CT_ECHO ; err)
+	{
+		return err;
+	}!;
+
+	Node* node               = ctx.ast.alloc_node(CT_ECHO_STMT, start_pos);
+	CtEchoStmt* ct_echo_stmt = node.as(CT_ECHO_STMT);
+	defer node.end_token = ctx.peek(0).pos;
+
+	ct_echo_stmt.expr = parse_constant_expr(ctx)!;
 
 	@expect_else(ctx, EOS ; err)
 	{

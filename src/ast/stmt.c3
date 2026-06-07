@@ -124,3 +124,8 @@ struct CtErrorStmt
 {
 	Node* expr;
 }
+
+struct CtEchoStmt
+{
+	Node* expr;
+}

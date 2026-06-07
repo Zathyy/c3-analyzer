@@ -44,6 +44,7 @@ enum NodeKind : char
 	NOP_STMT,
 	CT_ASSERT_STMT,
 	CT_ERROR_STMT,
+	CT_ECHO_STMT,
 
 	CALL_EXPR,
 	BINARY_EXPR,
