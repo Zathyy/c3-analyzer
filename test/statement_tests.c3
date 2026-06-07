@@ -223,7 +223,7 @@ fn void for_stmt()
 	FnDecl* func          = node.as(FN_DECL);
 	CompoundStmt* fn_comp = func.body.as(COMPOUND_STMT);
 
-	test::eq(fn_comp.statements[0].as(FOR_STMT).label, -1);
+	test::eq(fn_comp.statements[0].as(FOR_STMT).label, ast::EMPTY_STR);
 	test::eq(parser_tests::count_kind(s, MODULE_DECL), 1);
 	test::eq(parser_tests::count_kind(s, FN_DECL), 1);
 }
@@ -408,7 +408,7 @@ fn void foreach_stmt()
 
 	// foreach (x : arr) — no label, no reverse, no index, no type, no ref
 	foreach_stmt = body_stmt.statements[1].as(FOREACH_STMT);
-	test::eq(foreach_stmt.label, -1);
+	test::eq(foreach_stmt.label, ast::EMPTY_STR);
 	test::eq(foreach_stmt.is_reverse, false);
 	test::eq(foreach_stmt.index, null);
 	var_decl = foreach_stmt.variable.as(VAR_DECL);
@@ -527,11 +527,11 @@ fn void err_foreach_missing_name_after_type()
 	FnDecl* fn_decl = fn_node.as(FN_DECL);
 	CompoundStmt* body_stmt = fn_decl.body.as(COMPOUND_STMT);
 
-	// foreach still produces a FOREACH_STMT node; value has type but name = -1
+	// foreach still produces a FOREACH_STMT node; value has type but name = ast::EMPTY_STR
 	ForeachStmt* foreach_stmt = body_stmt.statements[0].as(FOREACH_STMT);
 	VarDecl* var_decl = foreach_stmt.variable.as(VAR_DECL);
 	test::ne(var_decl.type, null);
-	test::eq(var_decl.name, -1);
+	test::eq(var_decl.name, ast::EMPTY_STR);
 }
 
 fn void err_foreach_missing_name_no_type()
@@ -555,13 +555,13 @@ fn void err_foreach_missing_name_no_type()
 	FnDecl* fn_decl = node.as(FN_DECL);
 	CompoundStmt* body_stmt = fn_decl.body.as(COMPOUND_STMT);
 
-	// value_by_ref set, no type, name = -1
+	// value_by_ref set, no type, name = ast::EMPTY_STR
 	ForeachStmt* foreach_stmt = body_stmt.statements[0].as(FOREACH_STMT);
 	VarDecl* var_decl = foreach_stmt.variable.as(VAR_DECL);
 	test::eq(var_decl.type == null, true);
 	test::eq(foreach_stmt.value_by_ref, true);
 	test::eq(var_decl.flags.is_ref, true);
-	test::eq(var_decl.name, -1);
+	test::eq(var_decl.name, ast::EMPTY_STR);
 }
 
 fn void err_foreach_missing_colon()
