@@ -105,6 +105,7 @@ fn SourceFile* Workspace.reset_source_file(&self, PathString path)
 	SourceFile* sf = alloc::new(self.allocator, SourceFile);
 	sf.file_path = path;
 	sf.sections.init(self.allocator, 4);
+	sf.line_map.init(self.allocator);
 
 	sf.ast = self.ast_pool.obtain();
 
