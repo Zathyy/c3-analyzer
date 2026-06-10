@@ -40,6 +40,23 @@ macro void serialize(JsonOutput* output, item, StringPool spool, int indent, int
 			$endforeach
 			output.end_obj(indent, depth);
 
+		$case $Typeof(item) == TypeExpr:
+			$if TypeExpr::members.len != 3:
+				$error "UPDATE THIS CODE HERE";
+			$endif
+			output.start_obj(indent);
+
+			output.ser_entry("kind", item.kind, spool, indent, depth + 1);
+			output.ser_entry("optional", item.optional, spool, indent, depth + 1);
+			var $sw = "switch (item.kind.ordinal) {";
+			$foreach $i, $m : TypeExpr::members[^1].members:
+				$sw +++= @sprintf(`case %s: output.ser_entry("%s", item.$eval("%s"), spool, indent, depth + 1);`, $i, $m.name, $m.name);
+			$endforeach
+			$sw +++= "default: }";
+			$expand($sw);
+			
+			output.end_obj(indent, depth);
+
 		$case $Typeof(item)::kind == STRUCT:
 			output.start_obj(indent);
 			$foreach $m : $Typeof(item)::members:
@@ -49,7 +66,7 @@ macro void serialize(JsonOutput* output, item, StringPool spool, int indent, int
 
 		$case $Typeof(item) == StringID:
 			output.appendf(`"%s" /* id: %d */`, spool.get(item)!!, item);
-			// output.appendf(`"%s"`, spool.get(item)!!, item);
+			// output.appendf(`{ "stringid": %s, "value": "%s" }`, item, spool.get(item)!!);
 
 		$case $defined(item[0]) &&& $defined(lengthof(item)):
 			sz l_len = lengthof(item);
