@@ -1,6 +1,7 @@
 module lexer;
 
 import std::io;
+import parser::plog;
 
 faultdef
 	INVALID, UNEVEN_HEXADECIMAL, CONTRACT_NOT_CLOSED, INVALID_CONTRACT
