@@ -251,7 +251,7 @@ fn void while_stmt()
 	Workspace ws;
 	ws.init();
 	defer ws.free();
-	ParseResult res = parser::parse(&ws, "if_elseif_else", path)!!;
+	ParseResult res = parser::parse(&ws, "while_stmt", path)!!;
 	test::eq(res.success, true);
 
 	Module* mod      = ws.modules.get("hello")!!;
@@ -264,6 +264,12 @@ fn void while_stmt()
 
 	test::eq(parser_tests::count_kind(s, MODULE_DECL), 1);
 	test::eq(parser_tests::count_kind(s, FN_DECL), 1);
+	
+	WhileStmt* while_stmt = fn_comp.statements[0].as(WHILE_STMT);
+	test::eq(pool.get(while_stmt.label)!!, "FOO");
+
+	while_stmt = fn_comp.statements[1].as(WHILE_STMT);
+	test::eq(while_stmt.label, ast::EMPTY_STR);
 }
 
 fn void ct_assert_stmt()
@@ -588,4 +594,61 @@ fn void err_foreach_missing_colon()
 
 	// the foreach node has kind ERROR due to the missing colon
 	test::eq(body_stmt.statements[0].kind, NodeKind.ERROR);
+}
+
+fn void do_while_stmt()
+{
+	String path = `
+		module hello;
+		fn void foo(int a)
+		{
+			do
+			{
+				a++;
+			} while (a < 10);
+
+			do FOO:
+			{
+				a--;
+			} while (a > 0);
+
+			do
+			{
+				a = 0;
+			};
+		}
+	`;
+
+	Workspace ws;
+	ws.init();
+	defer ws.free();
+	ParseResult res = parser::parse(&ws, "do_while_stmt", path)!!;
+	test::eq(res.success, true);
+
+	Module* mod      = ws.modules.get("hello")!!;
+	ModuleSection* s = mod.sections[0];
+	StringPool* pool = &s.source_file.ast.string_pool;
+
+	test::eq(parser_tests::count_kind(s, MODULE_DECL), 1);
+	test::eq(parser_tests::count_kind(s, FN_DECL), 1);
+	
+	Node* node            = ws.lookup("hello", "foo")!!;
+	FnDecl* fn_decl          = node.as(FN_DECL);
+	CompoundStmt* func_body = fn_decl.body.as(COMPOUND_STMT);
+	test::eq(func_body.statements.len, 3);
+
+	// do { ... } while (cond); — has cond, no label
+	DoWhileStmt* do_while_stmt = func_body.statements[0].as(DO_WHILE_STMT);
+	test::eq(do_while_stmt.body.kind, NodeKind.COMPOUND_STMT);
+	test::eq(do_while_stmt.label, ast::EMPTY_STR);
+
+	// do LABEL: { ... } while (cond); — has cond and label
+	do_while_stmt = func_body.statements[1].as(DO_WHILE_STMT);
+	test::eq(do_while_stmt.body.kind, NodeKind.COMPOUND_STMT);
+	test::eq(pool.get(do_while_stmt.label)!!, "FOO");
+
+	// do { ... }; — no while clause, parses successfully
+	do_while_stmt = func_body.statements[2].as(DO_WHILE_STMT);
+	test::eq(do_while_stmt.body.kind, NodeKind.COMPOUND_STMT);
+	test::eq(do_while_stmt.label, ast::EMPTY_STR);
 }

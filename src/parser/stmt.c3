@@ -38,6 +38,8 @@ fn Node*? parse_stmt(ParseContext* ctx)
 			return parse_for_stmt(ctx)!;
 		case WHILE:
 			return parse_while_stmt(ctx)!;
+		case DO:
+			return parse_do_while_stmt(ctx)!;
 		case FOREACH:
 		case FOREACH_R:
 			return parse_foreach_stmt(ctx)!;
@@ -743,6 +745,10 @@ fn Node*? parse_while_stmt(ParseContext* ctx)
 			return err;
 		}!;
 	}
+	else
+	{
+		while_stmt.label = ast::EMPTY_STR;
+	}
 	@expect_else(ctx, LPAREN ; err)
 	{
 		return err;
@@ -761,6 +767,59 @@ fn Node*? parse_while_stmt(ParseContext* ctx)
 		ctx.error("A single statement after 'while' must be placed on the same line, or be enclosed in {}.");
 		return ctx.ast.error(ctx.current().pos);
 	}
+
+	return node;
+}
+
+<*
+ do_while_stmt ::= 'do' LABEL? compound_stmt ('while' '(' cond_expr ')')? ';'
+*>
+fn Node*? parse_do_while_stmt(ParseContext* ctx)
+{
+	int start_pos = ctx.peek(0).pos;
+	@expect_else(ctx, DO ; err)
+	{
+		return err;
+	}!;
+
+	Node* node                 = ctx.ast.alloc_node(DO_WHILE_STMT, start_pos);
+	defer node.end_token = ctx.peek(0).pos;
+	DoWhileStmt* do_while_stmt = node.as(DO_WHILE_STMT);
+
+	if (ctx.is(CONST_IDENT))
+	{
+		do_while_stmt.label = ctx.ast.string_pool.internalize(ctx.current_text());
+		advance(ctx)!;
+		@expect_else(ctx, COLON ; err)
+		{
+			ctx.skip_until({ EOS, EOF })!;
+			return err;
+		}!;
+	}
+	else
+	{
+		do_while_stmt.label = ast::EMPTY_STR;
+	}
+
+	do_while_stmt.body = parse_compound_stmt(ctx)!;
+
+	if (consume(ctx, WHILE)!)
+	{
+		@expect_else(ctx, LPAREN ; err)
+		{
+			return err;
+		}!;
+		do_while_stmt.cond.set(parse_cond_expr(ctx)!);
+		@expect_else(ctx, RPAREN ; err)
+		{
+			return err;
+		}!;
+	}
+
+	@expect_else(ctx, EOS ; err)
+	{
+		return err;
+	}!;
 
 	return node;
 }

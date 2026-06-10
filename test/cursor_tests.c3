@@ -48,6 +48,6 @@ fn void basic_cursor_test()
 	}
 
 	Cursor hello_cursor = ws.find_at_location("hello.c3", { .line = 4, .column = 10 });
-	test::eq(hello_cursor.node, null);
+	test::ne(hello_cursor.node, null);
 	test::eq(hello_cursor.node.kind, NodeKind.FN_DECL);
 }
