@@ -2,6 +2,7 @@ module parser::cursor;
 
 import parser::workspace;
 import parser::ast;
+import parser::plog;
 
 import std::io;
 
@@ -12,15 +13,12 @@ enum ChildVisitResult : int
 	// Terminate the entire walk
 
 
-
 	CONTINUE,
 	// Continue to the next sibling
 
 
-
 	RECURSE
 	// Dive into the children of the current node
-
 }
 
 alias CursorVisitor = fn ChildVisitResult(Cursor cursor, Cursor parent, void* user_data, args...);

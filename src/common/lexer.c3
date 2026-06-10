@@ -1,6 +1,7 @@
 module lexer;
 
 import std::io;
+import parser::plog;
 
 faultdef
 	INVALID, UNEVEN_HEXADECIMAL, CONTRACT_NOT_CLOSED, INVALID_CONTRACT
@@ -12,111 +13,89 @@ enum TokenKind : ushort
 	// Invalid
 
 
-
 	// Operators
 	AMP,
 	// &
-
 
 
 	BIT_OR,
 	// |
 
 
-
 	BIT_XOR,
 	// ^
-
 
 
 	BIT_NOT,
 	// ~
 
 
-
 	BANG,
 	// !
-
 
 
 	PLUS,
 	// +
 
 
-
 	MINUS,
 	// -
-
 
 
 	ASTERISK,
 	// *
 
 
-
 	DIV,
 	// /
-
 
 
 	MOD,
 	// %
 
 
-
 	QUESTION,
 	// ?
-
 
 
 	QUESTQUEST,
 	// ??
 
 
-
 	ELVIS,
 	// ?:
-
 
 
 	BANGBANG,
 	// !!
 
 
-
 	BUILTIN,
 	// $$
-
 
 
 	RSHIFT,
 	// >>
 
 
-
 	LSHIFT,
 	// <<
-
 
 
 	PLUSPLUS,
 	// ++
 
 
-
 	MINUSMINUS,
 	// --
-
 
 
 	CT_CONCAT_OP,
 	// +++
 
 
-
 	CT_TERNARY,
 	// ???
-
 
 
 	// Assignment
@@ -124,60 +103,48 @@ enum TokenKind : ushort
 	// =
 
 
-
 	RSHIFT_ASSIGN,
 	// >>=
-
 
 
 	LSHIFT_ASSIGN,
 	// <<=
 
 
-
 	PLUS_ASSIGN,
 	// +=
-
 
 
 	MINUS_ASSIGN,
 	// -=
 
 
-
 	MULT_ASSIGN,
 	// *=
-
 
 
 	DIV_ASSIGN,
 	// /=
 
 
-
 	MOD_ASSIGN,
 	// %=
-
 
 
 	BIT_AND_ASSIGN,
 	// &=
 
 
-
 	BIT_XOR_ASSIGN,
 	// ^=
-
 
 
 	BIT_OR_ASSIGN,
 	// |=
 
 
-
 	CT_CONCAT_ASSIGN,
 	// +++=
-
 
 
 	// Comparison
@@ -185,50 +152,40 @@ enum TokenKind : ushort
 	// <
 
 
-
 	GREATER,
 	// >
-
 
 
 	AND,
 	// &&
 
 
-
 	OR,
 	// ||
-
 
 
 	LESS_EQ,
 	// <=
 
 
-
 	GREATER_EQ,
 	// >=
-
 
 
 	EQEQ,
 	// ==
 
 
-
 	NOT_EQUAL,
 	// !=
-
 
 
 	CT_AND_OP,
 	// &&&
 
 
-
 	CT_OR_OP,
 	// |||
-
 
 
 	// Punctuation
@@ -236,35 +193,28 @@ enum TokenKind : ushort
 	// ;
 
 
-
 	COLON,
 	// :
-
 
 
 	SCOPE,
 	// ::
 
 
-
 	COMMA,
 	// ,
-
 
 
 	DOT,
 	// .
 
 
-
 	DOTDOT,
 	// ..
 
 
-
 	ELLIPSIS,
 	// ...
-
 
 
 	// Structure
@@ -272,50 +222,40 @@ enum TokenKind : ushort
 	// {
 
 
-
 	RBRACE,
 	// }
-
 
 
 	LBRACKET,
 	// [
 
 
-
 	RBRACKET,
 	// ]
-
 
 
 	LPAREN,
 	// (
 
 
-
 	RPAREN,
 	// )
-
 
 
 	ARROW,
 	// ->
 
 
-
 	IMPLIES,
 	// =>
-
 
 
 	LVEC,
 	// [<
 
 
-
 	RVEC,
 	// >]
-
 
 
 	// Comments and Contracts
@@ -323,46 +263,43 @@ enum TokenKind : ushort
 	// <*
 
 
-
 	LINE_COMMENT,
 	// //
-
 
 
 	BLOCK_COMMENT,
 	// /*
 
 
-
 	// Literals (Identifiers and Strings)
 
 	STRING_LITERAL, // STRING
 
-	CHAR_LITERAL, // 'a' 'FO' 'BARS' '\u1232'
+	CHAR_LITERAL,  // 'a' 'FO' 'BARS' '\u1232'
 	BYTES_LITERAL, // Base64 or Hex
 
 	INT_DECIMAL_LITERAL, // 123
-	INT_HEX_LITERAL, // 0x23
-	INT_OCTAL_LITERAL, // 0o327
-	INT_BIN_LITERAL, // 0b10010
+	INT_HEX_LITERAL,     // 0x23
+	INT_OCTAL_LITERAL,   // 0o327
+	INT_BIN_LITERAL,     // 0b10010
 
 	FLOAT_DECIMAL_LITERAL, // 43.23e23
-	FLOAT_HEX_LITERAL, // 0x23.2p-2a
+	FLOAT_HEX_LITERAL,     // 0x23.2p-2a
 
 	<* foo *>
 	IDENT,
 
-	TYPE_IDENT, // Foo,
-	CONST_IDENT, // FOO
-	AT_IDENT, // @foo
-	AT_TYPE_IDENT, // @Foo
-	AT_CONST_IDENT, // @FOO
-	HASH_IDENT, // #foo,
-	HASH_TYPE_IDENT, // #Type
+	TYPE_IDENT,       // Foo,
+	CONST_IDENT,      // FOO
+	AT_IDENT,         // @foo
+	AT_TYPE_IDENT,    // @Foo
+	AT_CONST_IDENT,   // @FOO
+	HASH_IDENT,       // #foo,
+	HASH_TYPE_IDENT,  // #Type
 	HASH_CONST_IDENT, // #CONST_IDENT
-	CT_IDENT, // $foo
-	CT_TYPE_IDENT, // $Foo,
-	CT_CONST_IDENT, // $FOO,
+	CT_IDENT,         // $foo
+	CT_TYPE_IDENT,    // $Foo,
+	CT_CONST_IDENT,   // $FOO,
 
 	// Base Types
 	VOID_TYPE,
@@ -440,130 +377,104 @@ enum TokenKind : ushort
 	// $assert
 
 
-
 	CT_CASE,
 	// $case
-
 
 
 	CT_DEFAULT,
 	// $default
 
 
-
 	CT_DEFINED,
 	// $defined
-
 
 
 	CT_ECHO,
 	// $echo
 
 
-
 	CT_ELSE,
 	// $else
-
 
 
 	CT_EMBED,
 	// $embed
 
 
-
 	CT_ENDFOR,
 	// $endfor
-
 
 
 	CT_ENDFOREACH,
 	// $endforeach
 
 
-
 	CT_ENDIF,
 	// $endif
-
 
 
 	CT_ENDSWITCH,
 	// $endswitch
 
 
-
 	CT_EVAL,
 	// $eval
-
 
 
 	CT_ERROR,
 	// $error
 
 
-
 	CT_EXEC,
 	// $exec
-
 
 
 	CT_EXPAND,
 	// $expand
 
 
-
 	CT_FEATURE,
 	// $feature
-
 
 
 	CT_FOR,
 	// $for
 
 
-
 	CT_FOREACH,
 	// $foreach
-
 
 
 	CT_IF,
 	// $if
 
 
-
 	CT_INCLUDE,
 	// $include
-
 
 
 	CT_REFLECT,
 	// $reflect
 
 
-
 	CT_STRINGIFY,
 	// $stringify
-
 
 
 	CT_SWITCH,
 	// $switch
 
 
-
 	CT_TYPEFROM,
 	// $Typefrom
-
 
 
 	CT_TYPEOF,
 	// $Typeof
 
 
-
 	CT_VAARG,
 	// $vaarg,
-
 
 
 	AT_INLINE,
@@ -1025,13 +936,13 @@ fn Token? Lexer.lex_hex_array(Lexer* self, int start_pos)
 			continue;
 		}
 
-		log::error("[Lexer]: Unexpected character '%c' in hex string at index %d", c, self.index);
+		plog::error("[Lexer]: Unexpected character '%c' in hex string at index %d", c, self.index);
 		return INVALID~;
 	}
 
 	if (digit_count % 2 != 0)
 	{
-		log::error("[Lexer]: The hexadecimal string is not an even length");
+		plog::error("[Lexer]: The hexadecimal string is not an even length");
 		return UNEVEN_HEXADECIMAL~;
 	}
 
@@ -1437,7 +1348,7 @@ fn void ContractLexer.init(&self, String contract)
 {
 	// Strip the decorators <* and *>
 	String inner = contract[2:^4];
-	log::debug("ContractLexer - string = %s", inner);
+	plog::debug("ContractLexer - string = %s", inner);
 
 	usz i              = 0;
 	bool line_start    = true;
@@ -1469,7 +1380,7 @@ fn void ContractLexer.init(&self, String contract)
 	self.description = inner[0:first_at_index].trim();
 
 	self.lexer = { .buffer = inner[first_at_index..], .index = 0 };
-	log::debug("ContractLexer - buffer = %s", self.lexer.buffer);
+	plog::debug("ContractLexer - buffer = %s", self.lexer.buffer);
 }
 
 fn Token? ContractLexer.next(&self) => self.lexer.next();

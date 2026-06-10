@@ -596,6 +596,33 @@ fn void err_foreach_missing_colon()
 	test::eq(body_stmt.statements[0].kind, NodeKind.ERROR);
 }
 
+fn void defer_stmt()
+{
+	String path = `
+		module hello; 
+		fn void foo() 
+		{
+			defer io::printn("");
+			defer io::print("A");
+			defer try io::print("X");
+			defer catch io::print("B");
+			defer (catch err) io::printf("%s", err);
+			defer {
+				defer (catch err) io::printf("%s", err);
+			}
+		}
+	`;
+	
+	Workspace ws;
+	ws.init();
+	defer ws.free();
+	ParseResult res = parser::parse(&ws, "defer_stmt", path)!!;
+	test::eq(res.success, true);
+	
+	test::eq(parser_tests::count_kind(s, MODULE_DECL), 1);
+	test::eq(parser_tests::count_kind(s, FN_DECL), 1);
+}
+
 fn void do_while_stmt()
 {
 	String path = `
@@ -616,12 +643,12 @@ fn void do_while_stmt()
 			{
 				a = 0;
 			};
-		}
 	`;
-
+			
 	Workspace ws;
 	ws.init();
 	defer ws.free();
+
 	ParseResult res = parser::parse(&ws, "do_while_stmt", path)!!;
 	test::eq(res.success, true);
 

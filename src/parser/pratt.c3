@@ -8,6 +8,7 @@ module parser::parser;
 import lexer;
 import std::collections;
 import parser::ast;
+import parser::plog;
 
 <*
  Should be aligned to C3C
@@ -164,7 +165,7 @@ fn Node*? parse_expr(ParseContext* ctx, Precedence min_bp = LOWEST)
 		get_binding_power(ctx.current().kind, &lbp, &rbp);
 
 		// debug purposes
-		log::debug("Current Token: %s, LBP: %d, MinBP: %d", ctx.current().kind, lbp, min_bp);
+		plog::debug("Current Token: %s, LBP: %d, MinBP: %d", ctx.current().kind, lbp, min_bp);
 
 		// BREAK if:
 		// 1. Token is not an infix operator (lbp is -1)
@@ -245,7 +246,7 @@ fn Node*? parse_prefix_expr(ParseContext* ctx)
 		case LPAREN:
 			return parse_group_expr(ctx)!;
 		default:
-			log::error(
+			plog::error(
 				"parse_prefix_expr - Expected expression for token: ((%s) %s - %s)",
 				ctx.token_text(ctx.current()),
 				ctx.current()
@@ -299,12 +300,13 @@ fn Node*? parse_infix(ParseContext* ctx, Node* left, Precedence rbp)
 		case RSHIFT_ASSIGN:
 		case LSHIFT_ASSIGN:
 		case QUESTQUEST:
-		case ELVIS:
 		case CT_CONCAT_OP:
 		case CT_CONCAT_ASSIGN:
 		case CT_AND_OP:
 		case CT_OR_OP:
 			return parse_binary_expr(ctx, left, rbp)!;
+		case ELVIS:
+			return parse_elvis_expr(ctx, left)!;
 		case PLUSPLUS:
 		case MINUSMINUS:
 		case BANG:

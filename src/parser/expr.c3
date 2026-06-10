@@ -13,6 +13,7 @@ import std::core::ascii;
 import std::io;
 import std::collections::list;
 import std::encoding;
+import parser::plog;
 
 <*
  Parse an alias-only C3 function pointer type.
@@ -77,7 +78,7 @@ fn Node*? parse_type_expr(ParseContext* ctx, ParseFlags parse_flags = { })
 {
 	int start = ctx.peek(0).pos;
 
-	log::debug("parse_type_expr");
+	plog::debug("parse_type_expr");
 
 	Node* current_type = ctx.ast.alloc_node(TYPE_EXPR, start, ctx.peek().pos);
 	TypeExpr* data     = current_type.as(TYPE_EXPR);
@@ -113,7 +114,7 @@ fn Node*? parse_type_expr(ParseContext* ctx, ParseFlags parse_flags = { })
 		if (t.kind == QUESTION)
 		{
 			advance(ctx)!;
-			log::debug("set type to optional");
+			plog::debug("set type to optional");
 			current_type.as(TYPE_EXPR).optional = true;
 			continue;
 		}
@@ -234,7 +235,7 @@ fn Node*? parse_literal_expr(ParseContext* ctx) => @pool()
 	LiteralExpr* literal = node.as(LITERAL_EXPR);
 	String token_text    = ctx.token_text(token);
 
-	log::debug("literal_expr: %s", token.kind);
+	plog::debug("literal_expr: %s", token.kind);
 
 	switch (token.kind)
 	{
@@ -375,7 +376,7 @@ fn Node*? parse_literal_expr(ParseContext* ctx) => @pool()
 			{
 				String clean = token_text.treplace(" ", "");
 				String final = clean[2:^3];
-				log::debug("%s", final);
+				plog::debug("%s", final);
 				if (final.len % 2 != 0)
 				{
 					ctx.error(
@@ -397,8 +398,53 @@ fn Node*? parse_literal_expr(ParseContext* ctx) => @pool()
 				advance(ctx)!;
 			}
 			break;
+		case CHAR_LITERAL:
+			literal.kind = INT_LITERAL;
+
+			// Slice off the enclosing single quotes: 'c' -> c
+			String clean_char = token_text[1:^2];
+
+			if (clean_char.len == 0)
+			{
+				ctx.error("Empty character literal encountered");
+				advance(ctx)!;
+				return ctx.ast.error(start);
+			}
+
+			// Handle escapes vs plain characters
+			if (clean_char[0] == '\\')
+			{
+				if (clean_char.len < 2)
+				{
+					ctx.error("Malformed escape sequence in character literal");
+					advance(ctx)!;
+					return ctx.ast.error(start);
+				}
+
+				switch (clean_char[1])
+				{
+					case 'n': literal.integer = (long)'\n'; break;
+					case 'r': literal.integer = (long)'\r'; break;
+					case 't': literal.integer = (long)'\t'; break;
+					case '\\': literal.integer = (long)'\\'; break;
+					case '\'': literal.integer = (long)'\''; break;
+					case '"': literal.integer = (long)'"'; break;
+					case '0': literal.integer = (long)'\0'; break;
+					default:
+						ctx.error("Unsupported escape sequence '\\%c'", clean_char[1]);
+						advance(ctx)!;
+						return ctx.ast.error(start);
+				}
+			}
+			else
+			{
+				// Just grab the direct byte values
+				literal.integer = (long)clean_char[0];
+			}
+			advance(ctx)!;
+			break;
 		default:
-			unreachable("Not implemented!");
+			unreachable("Not implemented! (%s)", token.kind.description);
 	}
 
 	return node;
@@ -411,7 +457,7 @@ fn Node*? parse_literal_expr(ParseContext* ctx) => @pool()
 fn Node*? parse_path_expr(ParseContext* ctx, PathExprOptions options = { }) => @pool()
 {
 	int start_pos = ctx.peek(0).pos;
-	log::debug("parse_path_expr");
+	plog::debug("parse_path_expr");
 
 	if (is_type(ctx))
 	{
@@ -594,11 +640,11 @@ fn Node*? parse_call_expr(ParseContext* ctx, Node* callee)
 	CallExpr* call = node.as(CALL_EXPR);
 	call.callee = callee;
 
-	log::debug("call_expr");
+	plog::debug("call_expr");
 
 	if (!ctx.is(RPAREN) && !ctx.eof())
 	{
-		log::debug("call_expr - args");
+		plog::debug("call_expr - args");
 		call.args = parse_arg_list(ctx)!;
 	}
 
@@ -889,7 +935,7 @@ fn Node*? parse_builtin_expr(ParseContext* ctx)
 	StringID name;
 	BuiltinFunction builtin;
 
-	log::debug("builtin");
+	plog::debug("builtin");
 
 	do COND:
 	{
@@ -949,7 +995,7 @@ fn Node*? parse_vasplat_expr(ParseContext* ctx)
 	if (consume(ctx, LBRACKET)!)
 	{
 		ctx.warn("Not implemented!");
-		log::warn("This is not implemented!");
+		plog::warn("This is not implemented!");
 		advance(ctx)!;
 	}
 
@@ -1255,6 +1301,23 @@ fn Node*? parse_access_expr(ParseContext* ctx, Node* left)
 		// HIGHEST bp to avoid consuming downstream infix operators.
 		access.member = parse_expr(ctx, HIGHEST)!;
 	}
+
+	return node;
+}
+
+<*
+ elvis_expr := <left> ?: ternary_prec_expr
+*>
+fn Node*? parse_elvis_expr(ParseContext* ctx, Node* left)
+{
+	int start_pos = ctx.current().pos;
+	Node* node    = ctx.ast.alloc_node(TERNARY_EXPR, start_pos);
+	defer node.end_token = ctx.current().pos;
+	TernaryExpr* ternary = node.as(TERNARY_EXPR);
+
+	ternary.cond = left;
+	expect(ctx, ELVIS)!;
+	ternary.else_expr = parse_expr(ctx, ORELSE + 1)!;
 
 	return node;
 }

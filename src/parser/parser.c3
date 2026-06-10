@@ -10,6 +10,7 @@ import std::io;
 import std::io::path;
 import std::collections::list;
 import std::collections::maybe;
+import parser::plog;
 
 faultdef
 	UNKNOWN, UNEXPECTED_EOS, MODULE_HEADER_FAILED, CONTRACT_NOT_ALLOWED, INVALID_PATH, NOT_A_PATH, PATH_TOO_LONG, EXPECTED_EXPRESSION, UNEXPECTED_TOKEN,
@@ -133,7 +134,7 @@ fn bool ParseContext.can_peek(&self, int offset = 0) @inline
 
 fn void ParseContext.print_current(&self)
 {
-	log::debug("%s", self.token_text(self.peek(0)));
+	plog::debug("%s", self.token_text(self.peek(0)));
 }
 
 fn Token ParseContext.current(&self) => self.peek(0);
@@ -156,7 +157,7 @@ fn void? advance(ParseContext* ctx, int len = 1)
 {
 	if (ctx.eof())
 	{
-		log::debug("parser::advance() : eof");
+		plog::debug("parser::advance() : eof");
 		return io::EOF~;
 	}
 
@@ -186,7 +187,7 @@ macro @expect_else(ParseContext* ctx, TokenKind kind; @body(err))
 	{
 		ctx.error("Expected '%s' got '%s'", kind.description, ctx.current().kind.description);
 		$if $feature(PARSER_LIB):
-			log::error("Error happened here");
+			plog::error("Error happened here");
 		$endif
 		@body(ctx.ast.missing(ctx.current().pos));
 
@@ -215,7 +216,7 @@ macro @expect_some_else(ParseContext* ctx, TokenKind[] kind; @body(err))
 
 	ctx.error("Expected any of '%s' got '%s'", kind, ctx.current().kind.description);
 	$if $feature(PARSER_LIB):
-		log::error("Error happened here");
+		plog::error("Error happened here");
 	$endif
 	@body(ctx.ast.missing(ctx.current().pos));
 	return ctx.peek();
@@ -246,7 +247,7 @@ macro Token? expect(ParseContext* ctx, TokenKind kind) @maydiscard
 	{
 		ctx.error("Expected '%s' got '%s'", kind.description, ctx.current().kind.description);
 		$if $feature(PARSER_CLI):
-			log::error("Error happened here");
+			plog::error("Error happened here");
 		$endif
 		ctx.ast.missing(ctx.current().pos);
 		return ctx.peek();
@@ -265,7 +266,7 @@ macro Node*? unexpected(ParseContext* ctx, String fmt, ...) @maydiscard
 {
 	ctx.error(fmt, ...$vaarg);
 	$if $feature(PARSER_CLI):
-		log::error("Error happened here");
+		plog::error("Error happened here");
 	$endif
 	return ctx.ast.missing(ctx.peek(0).pos);
 }
@@ -274,7 +275,7 @@ macro Node*? unexpected_at(ParseContext* ctx, Token t, String fmt, ...) @maydisc
 {
 	ctx.error_at(t, fmt, ...$vaarg);
 	$if $feature(PARSER_CLI):
-		log::error("Error happened here");
+		plog::error("Error happened here");
 	$endif
 	return ctx.ast.missing(ctx.peek(0).pos);
 }
@@ -360,7 +361,7 @@ fn ParseResult? parse(Workspace* ws, String uri, String src) => @pool()
 	while (try token = lexer.next())
 	{
 		tokens.push(token);
-		log::debug("Added token: <%s> - %s", token.kind, ctx.token_text(token));
+		plog::debug("Added token: <%s> - %s", token.kind, ctx.token_text(token));
 	}
 
 	tokens.push({ .kind = EOF, .pos = (tokens.last().pos + tokens.last().len) ?? 0, .len = 0 });
@@ -374,7 +375,7 @@ fn ParseResult? parse(Workspace* ws, String uri, String src) => @pool()
 	ctx.line_map = &sf.line_map;
 	ctx.line_map.build(src);
 
-	log::info("parsing uri: %s", uri);
+	plog::info("parsing uri: %s", uri);
 
 	String mod_name = peek_module_name(&ctx);
 	if (mod_name == "")
@@ -384,7 +385,7 @@ fn ParseResult? parse(Workspace* ws, String uri, String src) => @pool()
 		Module* mod        = ws.get_or_create_module(mod_name);
 		ModuleSection* sec = ws.get_or_create_section(mod, ctx.sf);
 		ctx.mod = mod;
-		log::info("Inferred module: %s", mod_name);
+		plog::info("Inferred module: %s", mod_name);
 	}
 	else
 	{
@@ -398,7 +399,7 @@ fn ParseResult? parse(Workspace* ws, String uri, String src) => @pool()
 		{
 			if (err == io::EOF)
 			{
-				log::error("EOF!");
+				plog::error("EOF!");
 				break;
 			}
 
@@ -431,11 +432,11 @@ fn ParseResult? parse(Workspace* ws, String uri, String src) => @pool()
 	bool success = ctx.ast.error_nodes.len() == 0;
 	if (success)
 	{
-		log::info("Succesfully parsed: %s", uri);
+		plog::info("Succesfully parsed: %s", uri);
 	}
 	else
 	{
-		log::error("Failed to parsed: %s", uri);
+		plog::error("Failed to parsed: %s", uri);
 	}
 
 	$if $feature(PARSER_LIB):
@@ -460,7 +461,7 @@ fn String? path_to_module_name(String path)
 
 fn void? parse_top_level(ParseContext* ctx, Workspace* ws)
 {
-	log::debug("parse_top_level: %s", ctx.token_text(ctx.peek()));
+	plog::debug("parse_top_level: %s", ctx.token_text(ctx.peek()));
 
 	Node* node;
 	ParseFlags flags = { .is_global = true };

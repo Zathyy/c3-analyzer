@@ -149,3 +149,14 @@ enum AliasDeclKind : char
 	MODULE_ALIAS,
 	IDENT_ALIAS,
 }
+
+enum DeferKind : char
+{
+	NORMAL,
+	TRY,
+	// defer try ...
+	CATCH,
+	// defer catch ...
+	CATCH_VAR
+	// defer (catch var) ...
+}

@@ -3,6 +3,7 @@ module parser::parser;
 import parser::ast;
 import lexer;
 import parser::constants;
+import parser::plog;
 
 import std::collections::list;
 
@@ -28,6 +29,8 @@ fn Node*? parse_stmt(ParseContext* ctx)
 			return parse_nextcase_stmt(ctx)!;
 		case RETURN:
 			return parse_return_stmt(ctx)!;
+		case DEFER:
+			return parse_defer_stmt(ctx)!;
 		case CT_SWITCH:
 			return parse_ct_switch_stmt(ctx)!;
 		case IF:
@@ -105,6 +108,7 @@ fn Node*? parse_stmt(ParseContext* ctx)
 		case TRUE:
 			return parse_expr_stmt(ctx)!;
 		case EOS:
+			advance(ctx)!;
 			return ctx.ast.alloc_node(NOP_STMT, t.pos);
 		default:
 			break;
@@ -153,10 +157,7 @@ fn Node*? parse_decl_stmt(ParseContext* ctx)
 	}
 
 	Node* expr = parse_expr_resuming_with_left(ctx, type, LOWEST)!;
-	@expect_else(ctx, EOS ; err)
-	{
-		return err;
-	}!;
+	expect(ctx, EOS)!;
 	return expr;
 }
 
@@ -247,7 +248,7 @@ fn Node*? parse_case_stmts(ParseContext* ctx, sz row) => @pool()
 		if (next_loc.line > row + 1 && ctx.current().kind != RBRACE)
 		{
 			ctx.error(
-				"Fallthrough cases with empty rows or comments have unclear meaning, " "an explicit 'break' or 'nextcase' is needed (or remove the spacing)."
+				"Fallthrough cases with empty rows or comments have unclear meaning, an explicit 'break' or 'nextcase' is needed (or remove the spacing)."
 			);
 			return ctx.ast.error(ctx.current().pos);
 		}
@@ -523,7 +524,7 @@ fn Node*? parse_ct_switch_stmt(ParseContext* ctx) => @pool()
 	while (!ctx.eof() && !ctx.is(CT_ENDSWITCH))
 	{
 		TokenKind kind = ctx.current().kind;
-		log::debug("parse_ct_switch_stmt - kind: %s", kind.description);
+		plog::debug("parse_ct_switch_stmt - kind: %s", kind.description);
 		switch (kind)
 		{
 			case CT_CASE:
@@ -869,11 +870,11 @@ fn Node*? parse_foreach_var(ParseContext* ctx)
 *>
 fn Node*? parse_foreach_stmt(ParseContext* ctx)
 {
-	int start_pos = ctx.peek(0).pos;
+	int start_pos   = ctx.peek(0).pos;
 	bool is_reverse = ctx.is(FOREACH_R);
 	advance(ctx)!;
 
-	Node* node = ctx.ast.alloc_node(FOREACH_STMT, start_pos);
+	Node* node                = ctx.ast.alloc_node(FOREACH_STMT, start_pos);
 	ForeachStmt* foreach_stmt = node.as(FOREACH_STMT);
 	defer node.end_token = ctx.peek(0).pos;
 	foreach_stmt.is_reverse = is_reverse;
@@ -882,7 +883,7 @@ fn Node*? parse_foreach_stmt(ParseContext* ctx)
 	{
 		foreach_stmt.label = ctx.ast.string_pool.internalize(ctx.current_text());
 		advance(ctx)!;
-		@expect_else_skip(ctx, COLON, { EOS, EOF } ;err)
+		@expect_else_skip(ctx, COLON, { EOS, EOF } ; err)
 		{
 			return err;
 		}!;
@@ -892,14 +893,14 @@ fn Node*? parse_foreach_stmt(ParseContext* ctx)
 		foreach_stmt.label = ast::EMPTY_STR;
 	}
 
-	@expect_else_skip(ctx, LPAREN, { RPAREN, EOS, EOF }; err)
+	@expect_else_skip(ctx, LPAREN, { RPAREN, EOS, EOF } ; err)
 	{
 		return err;
 	}!;
 
-	
+
 	Node* idx_or_variable = parse_foreach_var(ctx)!;
-	VarDecl* var_decl = idx_or_variable.as(VAR_DECL);
+	VarDecl* var_decl     = idx_or_variable.as(VAR_DECL);
 
 	if (consume(ctx, COMMA)!)
 	{
@@ -916,14 +917,14 @@ fn Node*? parse_foreach_stmt(ParseContext* ctx)
 		foreach_stmt.value_by_ref = var_decl.flags.is_ref;
 	}
 
-	@expect_else_skip(ctx, COLON, { RPAREN, EOS, EOF }; err)
+	@expect_else_skip(ctx, COLON, { RPAREN, EOS, EOF } ; err)
 	{
 		return err;
 	}!;
 
 	foreach_stmt.enumeration = parse_expr(ctx)!;
 
-	@expect_else_skip(ctx, RPAREN, { EOS, EOF }; err)
+	@expect_else_skip(ctx, RPAREN, { EOS, EOF } ; err)
 	{
 		return err;
 	}!;
@@ -1005,6 +1006,53 @@ fn Node*? parse_ct_echo_stmt(ParseContext* ctx) => @pool()
 	{
 		return err;
 	}!;
+
+	return node;
+}
+
+<*
+ defer_statement ::= "defer" defer_kind? statement
+ defer_kind      ::= "try"
+                  |  "catch"
+                  |  "(" "catch" IDENTIFIER ")"
+*>
+fn Node*? parse_defer_stmt(ParseContext* ctx)
+{
+	int start_pos = ctx.peek(0).pos;
+	expect(ctx, DEFER)!;
+	Node* node     = ctx.ast.alloc_node(DEFER_STMT, start_pos);
+	DeferStmt* def = node.as(DEFER_STMT);
+
+	DeferKind kind = NORMAL;
+
+	plog::debug("parse_defer");
+
+	if CHECK: (consume(ctx, TRY)!)
+	{
+		kind = TRY;
+	}
+	else if (consume(ctx, CATCH)!)
+	{
+		kind = CATCH;
+	}
+	else if (ctx.is(LPAREN) && ctx.peek(1).kind == CATCH)
+	{
+		advance(ctx, 2)!; // ( and catch
+		Token ident_token = ctx.current();
+		Node* ident       = parse_expr(ctx)!;
+		if (ident.kind != IDENT_EXPR)
+		{
+			unexpected_at(ctx, ident_token, "Expected identifier here")!;
+		}
+
+		def.ident = ident;
+		kind = CATCH_VAR;
+
+		expect(ctx, RPAREN)!;
+	}
+
+	def.kind = kind;
+	def.body = parse_stmt(ctx)!;
 
 	return node;
 }

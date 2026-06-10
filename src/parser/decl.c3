@@ -1,6 +1,7 @@
 module parser::parser;
 import parser::ast;
 import lexer;
+import parser::plog;
 
 import parser::constants;
 import std::collections::list;
@@ -14,7 +15,7 @@ fn Node*? parse_module_decl(ParseContext* ctx, Workspace* ws)
 {
 	int start_pos = ctx.peek(0).pos;
 	expect(ctx, MODULE)!;
-	log::debug("parse_mod");
+	plog::debug("parse_mod");
 	Node* node           = ctx.ast.alloc_node(MODULE_DECL, start_pos);
 	ModuleDecl* mod_decl = node.as(MODULE_DECL);
 	defer node.end_token = ctx.peek(0).pos;
@@ -92,7 +93,7 @@ fn Node*? parse_contract_decl(ParseContext* ctx) => @pool()
 		next.pos += offset;
 		contract_tokens.push(next);
 
-		log::debug("ContractLexer - added: %s", next.kind);
+		plog::debug("ContractLexer - added: %s", next.kind);
 	}
 	contract_tokens.push({ .kind = EOF, .pos = (contract_tokens.last()
 		.pos + contract_tokens.last().len) ?? 0, .len = 0 });
@@ -102,7 +103,7 @@ fn Node*? parse_contract_decl(ParseContext* ctx) => @pool()
 
 	Node* node             = ctx.ast.alloc_node(CONTRACT_DECL, ctx.current().pos);
 	ContractDecl* contract = node.as(CONTRACT_DECL);
-	log::debug("comment : %s", cl.description);
+	plog::debug("comment : %s", cl.description);
 	contract.comment = ctx.ast.string_pool.internalize(cl.description);
 
 	List{Node*} ensures;
@@ -117,18 +118,18 @@ fn Node*? parse_contract_decl(ParseContext* ctx) => @pool()
 	while (!ctx.eof())
 	{
 		String attr = ctx.token_text(ctx.current());
-		log::debug("parse_contract - attribute = %s", attr);
+		plog::debug("parse_contract - attribute = %s", attr);
 
 		if (consume(ctx, AT_IDENT)!)
 		{
 			if (attr == constants::KW_AT_REQUIRE)
 			{
-				log::debug("parse_contract_decl - @require");
+				plog::debug("parse_contract_decl - @require");
 				requires.push(parse_contract_expr(ctx)!);
 			}
 			else if (attr == constants::KW_AT_ENSURE)
 			{
-				log::debug("parse_contract_decl - @ensure");
+				plog::debug("parse_contract_decl - @ensure");
 				ensures.push(parse_contract_expr(ctx)!);
 			}
 			else if (attr == constants::KW_AT_PARAM)
@@ -137,7 +138,7 @@ fn Node*? parse_contract_decl(ParseContext* ctx) => @pool()
 			}
 			else if (attr == constants::KW_AT_DEPRECATED)
 			{
-				log::debug("parse_contract_decl - @deprecated");
+				plog::debug("parse_contract_decl - @deprecated");
 				Node* n = ctx.ast.alloc_node(ATTRIBUTE_DECL, ctx.current().pos);
 				contract.deprecated = n;
 				AttributeDecl* attribute = n.as(ATTRIBUTE_DECL);
@@ -154,7 +155,7 @@ fn Node*? parse_contract_decl(ParseContext* ctx) => @pool()
 					List{Node*} exprs;
 					exprs.tinit(1);
 					exprs.push(parse_expr(ctx)!);
-					log::debug("parser @deprecated string");
+					plog::debug("parser @deprecated string");
 					attribute.exprs = alloc::clone_slice(ctx.arena, exprs.array_view());
 				}
 			}
@@ -436,7 +437,7 @@ fn Node*? parse_fn_decl(ParseContext* ctx, ParseFlags flags = { })
 
 	expect(ctx, FN)!;
 
-	log::debug("parse_fn");
+	plog::debug("parse_fn");
 
 	Node* node   = ctx.ast.alloc_node(FN_DECL, start_pos);
 	FnDecl* func = node.as(FN_DECL);
@@ -535,7 +536,7 @@ fn Node*? parse_macro_decl(ParseContext* ctx, ParseFlags flags = { })
 
 	expect(ctx, MACRO)!;
 
-	log::debug("parse_macro");
+	plog::debug("parse_macro");
 
 	Node* node     = ctx.ast.alloc_node(MACRO_DECL, start_pos);
 	MacroDecl* mac = node.as(MACRO_DECL);
@@ -802,13 +803,13 @@ fn Node*? parse_var_decl(ParseContext* ctx, Node* type = null, ParseFlags flags 
 	{
 		if (flags.is_extern)
 		{
-			ctx.error("A local variable cannot have an 'extern' modifier");
+			unexpected(ctx, "A local variable cannot have an 'extern' modifier");
+			advance(ctx)!;
 			return ctx.ast.alloc_node(ERROR, start_pos);
 		}
 		if (flags.is_inline)
 		{
-			ctx.error("A local variable cannot be 'inline'");
-			return ctx.ast.alloc_node(ERROR, start_pos);
+			unexpected(ctx, "A local variable cannot be 'inline'");
 		}
 	}
 
@@ -819,6 +820,7 @@ fn Node*? parse_var_decl(ParseContext* ctx, Node* type = null, ParseFlags flags 
 		if (flags.is_var)
 		{
 			advance(ctx)!; // Consume 'var'
+			flags.is_comptime = true;
 		}
 		else if (is_type_primitive(ctx.peek(0).kind) || ctx.is(IDENT) || ctx.is(TYPE_IDENT))
 		{
@@ -827,8 +829,7 @@ fn Node*? parse_var_decl(ParseContext* ctx, Node* type = null, ParseFlags flags 
 		}
 		else if (!flags.is_const)
 		{
-			ctx.error("Expected a valid type signature or 'var'");
-			return ctx.ast.alloc_node(ERROR, start_pos);
+			unexpected(ctx, "Expected a valid type signature or 'var'");
 		}
 	}
 
@@ -841,18 +842,19 @@ fn Node*? parse_var_decl(ParseContext* ctx, Node* type = null, ParseFlags flags 
 
 		if (flags.is_const && t.kind != CONST_IDENT)
 		{
-			ctx.error("Constants must use an uppercase CONST_IDENT, found '%s'", ctx.token_text(t));
-			return ctx.ast.error(t.pos);
+			unexpected(ctx, "Constants must use an uppercase CONST_IDENT, found '%s'", ctx.token_text(t));
 		}
 		if (!flags.is_const && t.kind != IDENT && !flags.is_local)
 		{
-			ctx.error("Global variables must use lower-case IDENT, found '%s'", ctx.token_text(t));
-			return ctx.ast.error(t.pos);
+			unexpected(ctx, "Global variables must use lower-case IDENT, found '%s'", ctx.token_text(t));
 		}
-		if (t.kind != IDENT && t.kind != CONST_IDENT)
+		if (t.kind != IDENT && t.kind != CONST_IDENT && !flags.is_comptime)
 		{
-			ctx.error("Expected a variable name identifier, got '%s'", ctx.token_text(t));
-			return ctx.ast.error(t.pos);
+			unexpected(ctx, "Expected a variable name identifier, got '%s'", ctx.token_text(t));
+		}
+		if (t.kind != CT_IDENT && flags.is_comptime)
+		{
+			unexpected(ctx, "name must be a $ident")!;
 		}
 
 		StringID name_id = ctx.ast.string_pool.internalize(ctx.token_text(t));
@@ -861,9 +863,9 @@ fn Node*? parse_var_decl(ParseContext* ctx, Node* type = null, ParseFlags flags 
 		Node* var_node    = ctx.ast.alloc_node(VAR_DECL, t.pos);
 		VarDecl* var_decl = var_node.as(VAR_DECL);
 
-		if (ctx.is(AT_IDENT))
+		if (ctx.is(AT_IDENT) || ctx.is(AT_TYPE_IDENT))
 		{
-			var_decl.attributes = parse_attributes(ctx, var_node)!;
+			var_decl.attributes = parse_attributes(ctx, var_node, { .allow_type_ident = true })!;
 		}
 
 		Node* init_expr = null;
@@ -874,18 +876,15 @@ fn Node*? parse_var_decl(ParseContext* ctx, Node* type = null, ParseFlags flags 
 
 			if (head_node != null)
 			{
-				ctx.error("Initializers are not allowed on multi decleration");
-				return ctx.ast.alloc_node(ERROR, ctx.peek(0).pos);
+				unexpected(ctx, "Initializers are not allowed on multi decleration");
 			}
 			if (flags.is_extern)
 			{
-				ctx.error("An extern declaration cannot contain an initial value assignment expression");
-				return ctx.ast.alloc_node(ERROR, ctx.peek(0).pos);
+				unexpected(ctx, "An extern declaration cannot contain an initial value assignment expression");
 			}
 			if (flags.is_struct)
 			{
-				ctx.error("Fields cannot have an initializer");
-				return ctx.ast.alloc_node(ERROR, ctx.peek(0).pos);
+				unexpected(ctx, "Fields cannot have an initializer");
 			}
 
 			init_expr = parse_expr(ctx)!;
@@ -893,7 +892,7 @@ fn Node*? parse_var_decl(ParseContext* ctx, Node* type = null, ParseFlags flags 
 		}
 		else if (flags.is_const && !flags.is_extern)
 		{
-			ctx.error("Constants must be initialized at their declaration site");
+			unexpected(ctx, "Constants must be initialized at their declaration site")!;
 		}
 
 		var_decl.name = name_id;
@@ -1060,7 +1059,7 @@ fn Node*? parse_struct_union_decl(ParseContext* ctx) => @pool()
 
 	struct_decl.interfaces = parse_interface_type_list(ctx)!;
 	struct_decl.generics = parse_generic_decl(ctx)!;
-	struct_decl.attributes = parse_attributes(ctx, node)!;
+	struct_decl.attributes = parse_attributes(ctx, node, { .allow_type_ident = true })!;
 
 	@expect_else_skip(ctx, LBRACE, { RBRACE } ; brace_err)
 	{
