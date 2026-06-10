@@ -1,33 +1,17 @@
-module buffered_log;
+module parser::log;
 
 import std::collections::list;
 import std::io;
-
-struct Message
-{
-	LogPriority priority;
-	String message;
-}
-
-List{Message} messages;
+import std::core::log;
 
 macro void log(LogPriority priority, String fmt, ...)
 {
-	String msg = string::format(mem, fmt, ...$vaarg);
-	messages.push({ priority, msg });
+	$if !$feature(PARSER_LIB):
+		std::core::log::call_log(priority, std::core::log::default_category, fmt, ...$vaarg);
+	$endif
 }
 
-fn void init()
-{
-	messages.init(mem);
-}
-
-fn void flush()
-{
-	foreach (msg : messages)
-	{
-		mem::free(msg.message);
-	}
-
-	messages.clear();
-}
+macro void debug(String fmt, ...) => log(DEBUG, fmt, ...$vaarg);
+macro void info(String fmt, ...) => log(INFO, fmt, ...$vaarg);
+macro void error(String fmt, ...) => log(ERROR, fmt, ...$vaarg);
+macro void warn(String fmt, ...) => log(WARN, fmt, ...$vaarg);
