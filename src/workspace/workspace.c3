@@ -9,6 +9,7 @@ import std::collections::pair;
 
 import parser::ast @norecurse;
 import parser::ast::pool @norecurse;
+import parser::plog;
 import std::io;
 
 faultdef
