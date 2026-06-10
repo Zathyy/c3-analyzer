@@ -28,6 +28,8 @@ fn Node*? parse_stmt(ParseContext* ctx)
 			return parse_nextcase_stmt(ctx)!;
 		case RETURN:
 			return parse_return_stmt(ctx)!;
+		case DEFER:
+			return parse_defer_stmt(ctx)!;
 		case CT_SWITCH:
 			return parse_ct_switch_stmt(ctx)!;
 		case IF:
@@ -944,6 +946,53 @@ fn Node*? parse_ct_echo_stmt(ParseContext* ctx) => @pool()
 	{
 		return err;
 	}!;
+
+	return node;
+}
+
+<*
+ defer_statement ::= "defer" defer_kind? statement
+ defer_kind      ::= "try"
+                  |  "catch"
+                  |  "(" "catch" IDENTIFIER ")"
+*>
+fn Node*? parse_defer_stmt(ParseContext* ctx)
+{
+	int start_pos = ctx.peek(0).pos;
+	expect(ctx, DEFER)!;
+	Node* node     = ctx.ast.alloc_node(DEFER_STMT, start_pos);
+	DeferStmt* def = node.as(DEFER_STMT);
+
+	DeferKind kind = NORMAL;
+
+	log::debug("parse_defer");
+
+	if CHECK: (consume(ctx, TRY)!)
+	{
+		kind = TRY;
+	}
+	else if (consume(ctx, CATCH)!)
+	{
+		kind = CATCH;
+	}
+	else if (ctx.is(LPAREN) && ctx.peek(1).kind == CATCH)
+	{
+		advance(ctx, 2)!; // ( and catch
+		Token ident_token = ctx.current();
+		Node* ident       = parse_expr(ctx)!;
+		if (ident.kind != IDENT_EXPR)
+		{
+			unexpected_at(ctx, ident_token, "Expected identifier here")!;
+		}
+
+		def.ident = ident;
+		kind = CATCH_VAR;
+
+		expect(ctx, RPAREN)!;
+	}
+
+	def.kind = kind;
+	def.body = parse_stmt(ctx)!;
 
 	return node;
 }

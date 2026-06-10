@@ -129,3 +129,10 @@ struct CtEchoStmt
 {
 	Node* expr;
 }
+
+struct DeferStmt
+{
+	DeferKind kind;
+	Node* ident;
+	Node* body;
+}

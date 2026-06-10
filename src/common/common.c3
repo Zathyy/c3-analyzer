@@ -195,26 +195,26 @@ bitstruct AsmFlags : char
 
 enum AsmArgKind : char
 {
-	ARG_REG, // A register
-	ARG_ADDR, // [...]
-	ARG_REGVAR, // foo - variable in a register, r/=r/+r
+	ARG_REG,     // A register
+	ARG_ADDR,    // [...]
+	ARG_REGVAR,  // foo - variable in a register, r/=r/+r
 	ARG_MEMADDR, // &foo - address to a variable
-	ARG_MEMVAR, // [&foo]
-	ARG_VALUE, // -1, (expr), 1, 3.0
-	ARG_INT, // Converted from VALUE
+	ARG_MEMVAR,  // [&foo]
+	ARG_VALUE,   // -1, (expr), 1, 3.0
+	ARG_INT,     // Converted from VALUE
 }
 
 enum AsmOffsetKind : char
 {
-	SCALE_1, // *
+	SCALE_1,    // *
 	SCALE_2,
 	SCALE_4,
 	SCALE_8,
-	SCALE_SHR, // >>
-	SCALE_SHL, // <<
+	SCALE_SHR,  // >>
+	SCALE_SHL,  // <<
 	SCALE_ASHL, // >>>
-	SCALE_ROR, // ror
-	SCALE_RRX, // rrx
+	SCALE_ROR,  // ror
+	SCALE_RRX,  // rrx
 }
 
 bitstruct AsmArgBits : uint
@@ -238,28 +238,6 @@ enum AsmRegisterKind : char
 	REG_FLOAT,
 	REG_IVEC,
 	REF_FVEC,
-}
-
-enum DeferKind : char
-{
-	NORMAL,
-	// defer ...
-
-
-
-	TRY,
-	// defer try ...
-
-
-
-	CATCH,
-	// defer catch ...
-
-
-
-	CATCH_VAR
-	// defer (catch var) ...
-
 }
 
 enum OverloadKind : char
@@ -341,5 +319,5 @@ enum DesignatorKind : char
 enum AccessKind : char
 {
 	INSTANCE, // field.
-	STATIC // Type::
+	STATIC    // Type::
 }

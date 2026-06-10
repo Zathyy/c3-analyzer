@@ -67,6 +67,7 @@ struct Node
 		CtAssertStmt ct_assert_stmt;
 		CtErrorStmt ct_error_stmt;
 		CtEchoStmt ct_echo_stmt;
+		DeferStmt defer_stmt;
 
 		// EXPR
 		LiteralExpr literal_expr;
@@ -158,9 +159,9 @@ fn sz Ast.next_node_idx(&self) => self.top_level_nodes.len();
 fn void Ast.clear(&self)
 {
 	self.arena.reset();
-	self.string_pool = {};
-	self.top_level_nodes = {};
-	self.error_nodes = {};
+	self.string_pool = { };
+	self.top_level_nodes = { };
+	self.error_nodes = { };
 
 	self.string_pool.init(&self.arena, 128);
 	self.top_level_nodes.init(&self.arena, 32);
