@@ -46,6 +46,10 @@ fn void test_literals()
 		char[*] m = x"4865 6c6c 6f20 776f 726c 6421";                  // Hex with interior spacing
 		char[*] n = x"414243";                          // Hex with single quotes
 		char[*] o = b64"SGVsbG8gV29ybGQ=";              // Base64 chunk
+
+		char char_a = 'a';
+		char char_b = '\n';
+		char char_c = '\\';
 	`;
 
 	Workspace ws;
@@ -180,6 +184,21 @@ fn void test_literals()
 			// "Hello World" decoded from Base64
 			test::eq((char)lit.bytes[0], 'H');
 			test::eq((char)lit.bytes[6], 'W');
+		}
+		else if (var_name == "char_a")
+		{
+			test::eq(lit.kind, LiteralKind.INT_LITERAL);
+			test::eq(lit.integer, 97);
+		}
+		else if (var_name == "char_b")
+		{
+			test::eq(lit.kind, LiteralKind.INT_LITERAL);
+			test::eq(lit.integer, 10);
+		}
+		else if (var_name == "char_c")
+		{
+			test::eq(lit.kind, LiteralKind.INT_LITERAL);
+			test::eq(lit.integer, 92);
 		}
 		else
 		{

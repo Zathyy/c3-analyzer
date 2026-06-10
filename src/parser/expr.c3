@@ -397,8 +397,53 @@ fn Node*? parse_literal_expr(ParseContext* ctx) => @pool()
 				advance(ctx)!;
 			}
 			break;
+		case CHAR_LITERAL:
+			literal.kind = INT_LITERAL;
+
+			// Slice off the enclosing single quotes: 'c' -> c
+			String clean_char = token_text[1:^2];
+
+			if (clean_char.len == 0)
+			{
+				ctx.error("Empty character literal encountered");
+				advance(ctx)!;
+				return ctx.ast.error(start);
+			}
+
+			// Handle escapes vs plain characters
+			if (clean_char[0] == '\\')
+			{
+				if (clean_char.len < 2)
+				{
+					ctx.error("Malformed escape sequence in character literal");
+					advance(ctx)!;
+					return ctx.ast.error(start);
+				}
+
+				switch (clean_char[1])
+				{
+					case 'n': literal.integer = (long)'\n'; break;
+					case 'r': literal.integer = (long)'\r'; break;
+					case 't': literal.integer = (long)'\t'; break;
+					case '\\': literal.integer = (long)'\\'; break;
+					case '\'': literal.integer = (long)'\''; break;
+					case '"': literal.integer = (long)'"'; break;
+					case '0': literal.integer = (long)'\0'; break;
+					default:
+						ctx.error("Unsupported escape sequence '\\%c'", clean_char[1]);
+						advance(ctx)!;
+						return ctx.ast.error(start);
+				}
+			}
+			else
+			{
+				// Just grab the direct byte values
+				literal.integer = (long)clean_char[0];
+			}
+			advance(ctx)!;
+			break;
 		default:
-			unreachable("Not implemented!");
+			unreachable("Not implemented! (%s)", token.kind.description);
 	}
 
 	return node;
