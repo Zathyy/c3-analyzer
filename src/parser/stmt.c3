@@ -245,7 +245,7 @@ fn Node*? parse_case_stmts(ParseContext* ctx, sz row) => @pool()
 		if (next_loc.line > row + 1 && ctx.current().kind != RBRACE)
 		{
 			ctx.error(
-				"Fallthrough cases with empty rows or comments have unclear meaning, " "an explicit 'break' or 'nextcase' is needed (or remove the spacing)."
+				"Fallthrough cases with empty rows or comments have unclear meaning, an explicit 'break' or 'nextcase' is needed (or remove the spacing)."
 			);
 			return ctx.ast.error(ctx.current().pos);
 		}
