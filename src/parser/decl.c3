@@ -1,6 +1,7 @@
 module parser::parser;
 import parser::ast;
 import lexer;
+import parser::plog;
 
 import parser::constants;
 import std::collections::list;
@@ -14,7 +15,7 @@ fn Node*? parse_module_decl(ParseContext* ctx, Workspace* ws)
 {
 	int start_pos = ctx.peek(0).pos;
 	expect(ctx, MODULE)!;
-	log::debug("parse_mod");
+	plog::debug("parse_mod");
 	Node* node           = ctx.ast.alloc_node(MODULE_DECL, start_pos);
 	ModuleDecl* mod_decl = node.as(MODULE_DECL);
 	defer node.end_token = ctx.peek(0).pos;
@@ -92,7 +93,7 @@ fn Node*? parse_contract_decl(ParseContext* ctx) => @pool()
 		next.pos += offset;
 		contract_tokens.push(next);
 
-		log::debug("ContractLexer - added: %s", next.kind);
+		plog::debug("ContractLexer - added: %s", next.kind);
 	}
 	contract_tokens.push({ .kind = EOF, .pos = (contract_tokens.last()
 		.pos + contract_tokens.last().len) ?? 0, .len = 0 });
@@ -102,7 +103,7 @@ fn Node*? parse_contract_decl(ParseContext* ctx) => @pool()
 
 	Node* node             = ctx.ast.alloc_node(CONTRACT_DECL, ctx.current().pos);
 	ContractDecl* contract = node.as(CONTRACT_DECL);
-	log::debug("comment : %s", cl.description);
+	plog::debug("comment : %s", cl.description);
 	contract.comment = ctx.ast.string_pool.internalize(cl.description);
 
 	List{Node*} ensures;
@@ -117,18 +118,18 @@ fn Node*? parse_contract_decl(ParseContext* ctx) => @pool()
 	while (!ctx.eof())
 	{
 		String attr = ctx.token_text(ctx.current());
-		log::debug("parse_contract - attribute = %s", attr);
+		plog::debug("parse_contract - attribute = %s", attr);
 
 		if (consume(ctx, AT_IDENT)!)
 		{
 			if (attr == constants::KW_AT_REQUIRE)
 			{
-				log::debug("parse_contract_decl - @require");
+				plog::debug("parse_contract_decl - @require");
 				requires.push(parse_contract_expr(ctx)!);
 			}
 			else if (attr == constants::KW_AT_ENSURE)
 			{
-				log::debug("parse_contract_decl - @ensure");
+				plog::debug("parse_contract_decl - @ensure");
 				ensures.push(parse_contract_expr(ctx)!);
 			}
 			else if (attr == constants::KW_AT_PARAM)
@@ -137,7 +138,7 @@ fn Node*? parse_contract_decl(ParseContext* ctx) => @pool()
 			}
 			else if (attr == constants::KW_AT_DEPRECATED)
 			{
-				log::debug("parse_contract_decl - @deprecated");
+				plog::debug("parse_contract_decl - @deprecated");
 				Node* n = ctx.ast.alloc_node(ATTRIBUTE_DECL, ctx.current().pos);
 				contract.deprecated = n;
 				AttributeDecl* attribute = n.as(ATTRIBUTE_DECL);
@@ -154,7 +155,7 @@ fn Node*? parse_contract_decl(ParseContext* ctx) => @pool()
 					List{Node*} exprs;
 					exprs.tinit(1);
 					exprs.push(parse_expr(ctx)!);
-					log::debug("parser @deprecated string");
+					plog::debug("parser @deprecated string");
 					attribute.exprs = alloc::clone_slice(ctx.arena, exprs.array_view());
 				}
 			}
@@ -436,7 +437,7 @@ fn Node*? parse_fn_decl(ParseContext* ctx, ParseFlags flags = { })
 
 	expect(ctx, FN)!;
 
-	log::debug("parse_fn");
+	plog::debug("parse_fn");
 
 	Node* node   = ctx.ast.alloc_node(FN_DECL, start_pos);
 	FnDecl* func = node.as(FN_DECL);
@@ -535,7 +536,7 @@ fn Node*? parse_macro_decl(ParseContext* ctx, ParseFlags flags = { })
 
 	expect(ctx, MACRO)!;
 
-	log::debug("parse_macro");
+	plog::debug("parse_macro");
 
 	Node* node     = ctx.ast.alloc_node(MACRO_DECL, start_pos);
 	MacroDecl* mac = node.as(MACRO_DECL);
@@ -855,7 +856,7 @@ fn Node*? parse_var_decl(ParseContext* ctx, Node* type = null, ParseFlags flags 
 		{
 			unexpected(ctx, "name must be a $ident")!;
 		}
-		
+
 		StringID name_id = ctx.ast.string_pool.internalize(ctx.token_text(t));
 		advance(ctx)!;
 

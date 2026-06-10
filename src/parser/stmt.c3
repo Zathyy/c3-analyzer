@@ -3,6 +3,7 @@ module parser::parser;
 import parser::ast;
 import lexer;
 import parser::constants;
+import parser::plog;
 
 import std::collections::list;
 
@@ -521,7 +522,7 @@ fn Node*? parse_ct_switch_stmt(ParseContext* ctx) => @pool()
 	while (!ctx.eof() && !ctx.is(CT_ENDSWITCH))
 	{
 		TokenKind kind = ctx.current().kind;
-		log::debug("parse_ct_switch_stmt - kind: %s", kind.description);
+		plog::debug("parse_ct_switch_stmt - kind: %s", kind.description);
 		switch (kind)
 		{
 			case CT_CASE:
@@ -965,7 +966,7 @@ fn Node*? parse_defer_stmt(ParseContext* ctx)
 
 	DeferKind kind = NORMAL;
 
-	log::debug("parse_defer");
+	plog::debug("parse_defer");
 
 	if CHECK: (consume(ctx, TRY)!)
 	{

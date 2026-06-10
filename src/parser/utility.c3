@@ -1,5 +1,7 @@
 module parser::parser;
 
+import parser::plog;
+
 import std::io;
 import std::collections::list;
 import lexer;

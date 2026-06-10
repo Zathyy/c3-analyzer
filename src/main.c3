@@ -27,17 +27,17 @@ fn int main(String[] args) => @pool()
 {
 	Cli cli = seali::parse(Cli, args)!!;
 
-	if (cli.verbose) log::set_priority_all(LogPriority.VERBOSE);
+	if (cli.verbose) plog::set_priority_all(LogPriority.VERBOSE);
 
-	if (cli.quiet) log::set_logger(&&(NullLogger) { });
+	if (cli.quiet) plog::set_logger(&&(NullLogger) { });
 
-	log::debug("Init...");
+	plog::debug("Init...");
 
 	Workspace ws;
 	ws.init();
 	defer ws.free();
 
-	log::debug("args: %s", args);
+	plog::debug("args: %s", args);
 
 	if (try std = cli.std.get())
 	{
@@ -48,7 +48,7 @@ fn int main(String[] args) => @pool()
 		parser::parse_file(&ws, file_path)!!;
 	}
 
-	log::info("num modules: %s", ws.modules.len());
+	plog::info("num modules: %s", ws.modules.len());
 
 	if (cli.no_invalid)
 	{
@@ -80,7 +80,7 @@ fn int main(String[] args) => @pool()
 
 fn void? test_std_lib(Workspace* ws, String std_path)
 {
-	log::info("Walking std lib at: %s", std_path);
+	plog::info("Walking std lib at: %s", std_path);
 
 	Path path = path::tnew(std_path)!!;
 	PathWalker walker = fn bool? (Path p, bool is_dir, void* data)

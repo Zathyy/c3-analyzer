@@ -8,6 +8,7 @@ module parser::cursor;
 
 import parser::workspace;
 import parser::ast;
+import parser::plog;
 
 import std::io;
 
@@ -179,7 +180,7 @@ fn Node* find_node_from_offset(Node* node, int offset)
 		return null;
 	}
 
-	log::debug("Found node: (%s) - (%s) %s:%s", node.kind, offset, node.start_token, node.end_token);
+	plog::debug("Found node: (%s) - (%s) %s:%s", node.kind, offset, node.start_token, node.end_token);
 
 	return node;
 }

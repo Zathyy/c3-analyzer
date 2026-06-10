@@ -13,6 +13,7 @@ import std::core::ascii;
 import std::io;
 import std::collections::list;
 import std::encoding;
+import parser::plog;
 
 <*
  Parse an alias-only C3 function pointer type.
@@ -77,7 +78,7 @@ fn Node*? parse_type_expr(ParseContext* ctx, ParseFlags parse_flags = { })
 {
 	int start = ctx.peek(0).pos;
 
-	log::debug("parse_type_expr");
+	plog::debug("parse_type_expr");
 
 	Node* current_type = ctx.ast.alloc_node(TYPE_EXPR, start, ctx.peek().pos);
 	TypeExpr* data     = current_type.as(TYPE_EXPR);
@@ -113,7 +114,7 @@ fn Node*? parse_type_expr(ParseContext* ctx, ParseFlags parse_flags = { })
 		if (t.kind == QUESTION)
 		{
 			advance(ctx)!;
-			log::debug("set type to optional");
+			plog::debug("set type to optional");
 			current_type.as(TYPE_EXPR).optional = true;
 			continue;
 		}
@@ -234,7 +235,7 @@ fn Node*? parse_literal_expr(ParseContext* ctx) => @pool()
 	LiteralExpr* literal = node.as(LITERAL_EXPR);
 	String token_text    = ctx.token_text(token);
 
-	log::debug("literal_expr: %s", token.kind);
+	plog::debug("literal_expr: %s", token.kind);
 
 	switch (token.kind)
 	{
@@ -375,7 +376,7 @@ fn Node*? parse_literal_expr(ParseContext* ctx) => @pool()
 			{
 				String clean = token_text.treplace(" ", "");
 				String final = clean[2:^3];
-				log::debug("%s", final);
+				plog::debug("%s", final);
 				if (final.len % 2 != 0)
 				{
 					ctx.error(
@@ -456,7 +457,7 @@ fn Node*? parse_literal_expr(ParseContext* ctx) => @pool()
 fn Node*? parse_path_expr(ParseContext* ctx, PathExprOptions options = { }) => @pool()
 {
 	int start_pos = ctx.peek(0).pos;
-	log::debug("parse_path_expr");
+	plog::debug("parse_path_expr");
 
 	if (is_type(ctx))
 	{
@@ -639,11 +640,11 @@ fn Node*? parse_call_expr(ParseContext* ctx, Node* callee)
 	CallExpr* call = node.as(CALL_EXPR);
 	call.callee = callee;
 
-	log::debug("call_expr");
+	plog::debug("call_expr");
 
 	if (!ctx.is(RPAREN) && !ctx.eof())
 	{
-		log::debug("call_expr - args");
+		plog::debug("call_expr - args");
 		call.args = parse_arg_list(ctx)!;
 	}
 
@@ -934,7 +935,7 @@ fn Node*? parse_builtin_expr(ParseContext* ctx)
 	StringID name;
 	BuiltinFunction builtin;
 
-	log::debug("builtin");
+	plog::debug("builtin");
 
 	do COND:
 	{
@@ -994,7 +995,7 @@ fn Node*? parse_vasplat_expr(ParseContext* ctx)
 	if (consume(ctx, LBRACKET)!)
 	{
 		ctx.warn("Not implemented!");
-		log::warn("This is not implemented!");
+		plog::warn("This is not implemented!");
 		advance(ctx)!;
 	}
 

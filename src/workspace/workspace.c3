@@ -214,7 +214,7 @@ fn Cursor Workspace.find_at_location(&self, String file_path, Location loc)
 	foreach (sec : secs)
 	{
 		sz offset = sec.source_file.line_map.get_offset(sec.source_file.source, loc);
-		log::debug("find_at_location - %s", offset);
+		plog::debug("find_at_location - %s", offset);
 		Cursor candidate = cursor::find_at(sec, (int)offset);
 		if (candidate.node)
 		{

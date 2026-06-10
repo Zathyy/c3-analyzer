@@ -1,4 +1,4 @@
-module parser::log;
+module parser::plog;
 
 import std::collections::list;
 import std::io;
