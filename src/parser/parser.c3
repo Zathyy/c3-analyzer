@@ -29,7 +29,6 @@ struct ParseContext
 
 	int pos;
 	Node* contract;
-	List{ParserError} errors @if($feature(PARSER_LIB));
 
 	// for when using debbugers so i can keep track of what its at
 	Token current_token @if(env::DEBUG_SYMBOLS);
@@ -347,10 +346,6 @@ fn ParseResult? parse(Workspace* ws, String uri, String src) => @pool()
 {
 	ParseContext ctx = { .mod = null, .file_path = uri, .allocator = ws.allocator };
 
-	$if $feature(PARSER_LIB):
-		ctx.errors.init(ws.allocator);
-	$endif
-
 	Lexer lexer = { .buffer = src, .index = 0, };
 	ctx.src = src;
 
@@ -392,6 +387,7 @@ fn ParseResult? parse(Workspace* ws, String uri, String src) => @pool()
 
 	while (!ctx.eof())
 	{
+		sz err_len = lengthof(ctx.ast.error_nodes);
 		if (catch err = parse_top_level(&ctx, ws))
 		{
 			if (err == io::EOF)
@@ -408,7 +404,13 @@ fn ParseResult? parse(Workspace* ws, String uri, String src) => @pool()
 			{
 				advance(&ctx)!!;
 			}
-			continue;
+		}
+		else if (err_len != lengthof(ctx.ast.error_nodes))
+		{
+			if (ctx.ast.error_nodes[^1].end_token == ctx.pos)
+			{
+				advance(&ctx)!!;
+			}
 		}
 	}
 
@@ -426,12 +428,7 @@ fn ParseResult? parse(Workspace* ws, String uri, String src) => @pool()
 		log::error("Failed to parsed: %s", uri);
 	}
 
-	$if $feature(PARSER_LIB):
-		log::info("Result: %s", ctx.errors.len());
-		return { .success = success, .path = uri, .errors = ctx.errors };
-	$else
-		return { .path = uri, .success = success, };
-	$endif
+	return { .success = success, .path = uri };
 }
 
 <*

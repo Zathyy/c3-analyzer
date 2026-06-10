@@ -36,9 +36,7 @@ macro void ParseContext.error_at(&self, Token t, String fmt, ...)
 fn void ParseContext.report(ParseContext* self, Token token, LogPriority level, String color, String fmt, args...)
 {
 	Location loc = self.line_map.resolve(token.pos);
-	$if $feature(PARSER_LIB):
-		self.errors.push({ level, loc, token, string::format(self.allocator, fmt, ...args) });
-	$else
+	$if !$feature(PARSER_LIB):
 		io::printf("%s:%s:%s: %s%s:%s ", self.file_path, loc.line, loc.column, color, level.description, ANSI_RESET);
 		io::printf(fmt, ...args);
 		io::printn("");

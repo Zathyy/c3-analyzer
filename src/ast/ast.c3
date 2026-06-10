@@ -157,15 +157,21 @@ fn sz Ast.next_node_idx(&self) => self.top_level_nodes.len();
 
 fn void Ast.clear(&self)
 {
-	self.string_pool.clear();
-	self.top_level_nodes.clear();
 	self.arena.reset();
+	self.string_pool = {};
+	self.top_level_nodes = {};
+	self.error_nodes = {};
+
+	self.string_pool.init(&self.arena, 128);
+	self.top_level_nodes.init(&self.arena, 32);
+	self.error_nodes.init(&self.arena);
 }
 
 fn void Ast.free(&self)
 {
 	self.top_level_nodes.clear();
 	self.string_pool.clear();
+	self.error_nodes.clear();
 	self.arena.free();
 }
 
