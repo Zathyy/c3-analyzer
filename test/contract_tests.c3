@@ -92,6 +92,38 @@ fn void contract_with_expr_checks()
 	}
 }
 
+fn void module_duplicate_contract_error()
+{
+	String path = `
+		<* first doc *>
+		<* second doc *>
+		module hello;
+
+		fn void foo() {}
+	`;
+	Workspace ws;
+	ws.init();
+	defer ws.free();
+	ParseResult res = parser::parse(&ws, "duplicate_doc_comments_error", path)!!;
+	test::eq(res.success, false);
+}
+
+fn void function_duplicate_contract_error()
+{
+	String path = `
+		module hello;
+
+		<* first doc *>
+		<* second doc *>
+		fn void foo() {}
+	`;
+	Workspace ws;
+	ws.init();
+	defer ws.free();
+	ParseResult res = parser::parse(&ws, "duplicate_function_doc_comments_error", path)!!;
+	test::eq(res.success, false);
+}
+
 fn void contract_with_deprecated()
 {
 	String path = `

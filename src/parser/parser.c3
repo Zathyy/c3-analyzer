@@ -305,12 +305,12 @@ fn String ParseContext.current_text(ParseContext* self) @inline
 
 fn String peek_module_name(ParseContext* ctx) => @pool()
 {
-	if (ctx.tokens[0].kind == MODULE)
+	if (ctx.tokens[0].kind == MODULE || ctx.tokens[0].kind == CONTRACT)
 	{
 		// Start collecting the name after the 'module' keyword
 		String full_name = "";
 
-		sz i = 1;
+		sz i = ctx.tokens[0].kind == CONTRACT ? 2 : 1;
 		while (i < ctx.tokens.len)
 		{
 			Token t = ctx.tokens[i];
@@ -492,6 +492,11 @@ fn void? parse_top_level(ParseContext* ctx, Workspace* ws)
 	switch (ctx.current().kind)
 	{
 		case CONTRACT:
+			if (ctx.contract)
+			{
+				ctx.error("There are more than one doc comment in a row, that is not allowed.");
+				ctx.ast.error(ctx.current().pos);
+			}
 			node = parse_contract_decl(ctx)!;
 			ctx.contract = node;
 		case INTERFACE:
@@ -541,11 +546,11 @@ fn void? parse_top_level(ParseContext* ctx, Workspace* ws)
 	}
 
 	ctx.ast.top_level_nodes.push(node);
-	if (ctx.contract)
+	if (ctx.contract && node.kind != CONTRACT_DECL)
 	{
 		attach_contract(ctx, node, ctx.contract);
+		ctx.contract = null;
 	}
-	ctx.contract = null;
 }
 
 <*

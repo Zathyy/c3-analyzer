@@ -14,6 +14,7 @@ import std::io::path;
 fn void basic_module()
 {
 	String text = `
+		<* doc *>
 		module hello <Type, Second> @local;
 		
 		fn void greet() {}
