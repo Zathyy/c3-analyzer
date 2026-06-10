@@ -250,8 +250,10 @@ fn Node*? parse_prefix_expr(ParseContext* ctx)
 				ctx.token_text(ctx.current()),
 				ctx.current()
 				.kind);
-			ctx.error("Expected expression");
-			return EXPECTED_EXPRESSION~;
+
+			ctx.error("Unexpected expression for token '%s'", t.kind.description);
+			advance(ctx)!;
+			return ctx.ast.error(t.pos);
 	}
 }
 
@@ -334,8 +336,9 @@ fn Node*? parse_infix(ParseContext* ctx, Node* left, Precedence rbp)
 
 			return parse_generic_expr(ctx)!;
 		default:
-			ctx.error("Unexpected infix token: %s", t.kind);
-			return UNEXPECTED_TOKEN~;
+			ctx.error("Unexpected infix token '%s'", t.kind);
+			advance(ctx)!;
+			return ctx.ast.error(t.pos);
 	}
 }
 

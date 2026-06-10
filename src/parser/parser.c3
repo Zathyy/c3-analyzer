@@ -393,7 +393,7 @@ fn ParseResult? parse(Workspace* ws, String uri, String src) => @pool()
 
 	while (!ctx.eof())
 	{
-		int start = ctx.pos;
+		sz err_len = lengthof(ctx.ast.error_nodes);
 		if (catch err = parse_top_level(&ctx, ws))
 		{
 			if (err == io::EOF)
@@ -411,10 +411,16 @@ fn ParseResult? parse(Workspace* ws, String uri, String src) => @pool()
 				advance(&ctx)!!;
 			}
 		}
-
-		if (!ctx.eof() && start == ctx.pos)
+		else if (err_len != lengthof(ctx.ast.error_nodes))
 		{
-			advance(&ctx)!!;
+			int before = ctx.pos;
+			synchronize(&ctx)!;
+			// If synchronize made no progress (stuck on an unhandled keyword),
+			// force-advance one token to guarantee the loop terminates.
+			if (ctx.pos == before && !ctx.eof())
+			{
+				advance(&ctx)!!;
+			}
 		}
 	}
 
