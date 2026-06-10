@@ -108,9 +108,8 @@ fn Node*? parse_stmt(ParseContext* ctx)
 			break;
 	}
 
-	ctx.error("Unexpected '%s' found when expecting a statement", t.kind.description);
 	advance(ctx)!;
-	return ctx.ast.error(t.pos);
+	return unexpected_at(ctx, t, "Unexpected '%s' found when expecting a statement", t.kind.description);
 }
 
 <*
