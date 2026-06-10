@@ -802,15 +802,13 @@ fn Node*? parse_var_decl(ParseContext* ctx, Node* type = null, ParseFlags flags 
 	{
 		if (flags.is_extern)
 		{
-			ctx.error("A local variable cannot have an 'extern' modifier");
+			unexpected(ctx, "A local variable cannot have an 'extern' modifier");
 			advance(ctx)!;
 			return ctx.ast.alloc_node(ERROR, start_pos);
 		}
 		if (flags.is_inline)
 		{
-			ctx.error("A local variable cannot be 'inline'");
-			advance(ctx)!;
-			return ctx.ast.alloc_node(ERROR, start_pos);
+			unexpected(ctx, "A local variable cannot be 'inline'");
 		}
 	}
 
@@ -821,6 +819,7 @@ fn Node*? parse_var_decl(ParseContext* ctx, Node* type = null, ParseFlags flags 
 		if (flags.is_var)
 		{
 			advance(ctx)!; // Consume 'var'
+			flags.is_comptime = true;
 		}
 		else if (is_type_primitive(ctx.peek(0).kind) || ctx.is(IDENT) || ctx.is(TYPE_IDENT))
 		{
@@ -829,9 +828,7 @@ fn Node*? parse_var_decl(ParseContext* ctx, Node* type = null, ParseFlags flags 
 		}
 		else if (!flags.is_const)
 		{
-			ctx.error("Expected a valid type signature or 'var'");
-			advance(ctx)!;
-			return ctx.ast.alloc_node(ERROR, start_pos);
+			unexpected(ctx, "Expected a valid type signature or 'var'");
 		}
 	}
 
@@ -844,23 +841,21 @@ fn Node*? parse_var_decl(ParseContext* ctx, Node* type = null, ParseFlags flags 
 
 		if (flags.is_const && t.kind != CONST_IDENT)
 		{
-			ctx.error("Constants must use an uppercase CONST_IDENT, found '%s'", ctx.token_text(t));
-			advance(ctx)!;
-			return ctx.ast.error(t.pos);
+			unexpected(ctx, "Constants must use an uppercase CONST_IDENT, found '%s'", ctx.token_text(t));
 		}
 		if (!flags.is_const && t.kind != IDENT && !flags.is_local)
 		{
-			ctx.error("Global variables must use lower-case IDENT, found '%s'", ctx.token_text(t));
-			advance(ctx)!;
-			return ctx.ast.error(t.pos);
+			unexpected(ctx, "Global variables must use lower-case IDENT, found '%s'", ctx.token_text(t));
 		}
-		if (t.kind != IDENT && t.kind != CONST_IDENT)
+		if (t.kind != IDENT && t.kind != CONST_IDENT && !flags.is_comptime)
 		{
-			ctx.error("Expected a variable name identifier, got '%s'", ctx.token_text(t));
-			advance(ctx)!;
-			return ctx.ast.error(t.pos);
+			unexpected(ctx, "Expected a variable name identifier, got '%s'", ctx.token_text(t));
 		}
-
+		if (t.kind != CT_IDENT && flags.is_comptime)
+		{
+			unexpected(ctx, "name must be a $ident")!;
+		}
+		
 		StringID name_id = ctx.ast.string_pool.internalize(ctx.token_text(t));
 		advance(ctx)!;
 
@@ -880,21 +875,15 @@ fn Node*? parse_var_decl(ParseContext* ctx, Node* type = null, ParseFlags flags 
 
 			if (head_node != null)
 			{
-				ctx.error("Initializers are not allowed on multi decleration");
-				advance(ctx)!;
-				return ctx.ast.alloc_node(ERROR, ctx.peek(0).pos);
+				unexpected(ctx, "Initializers are not allowed on multi decleration");
 			}
 			if (flags.is_extern)
 			{
-				ctx.error("An extern declaration cannot contain an initial value assignment expression");
-				advance(ctx)!;
-				return ctx.ast.alloc_node(ERROR, ctx.peek(0).pos);
+				unexpected(ctx, "An extern declaration cannot contain an initial value assignment expression");
 			}
 			if (flags.is_struct)
 			{
-				ctx.error("Fields cannot have an initializer");
-				advance(ctx)!;
-				return ctx.ast.alloc_node(ERROR, ctx.peek(0).pos);
+				unexpected(ctx, "Fields cannot have an initializer");
 			}
 
 			init_expr = parse_expr(ctx)!;
