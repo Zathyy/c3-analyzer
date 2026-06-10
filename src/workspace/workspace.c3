@@ -85,20 +85,25 @@ fn SourceFile* Workspace.reset_source_file(&self, PathString path)
 	if (try existing = self.source_files.get(path))
 	{
 		self.ast_pool.release(existing.ast)!!;
+
 		foreach (section : existing.sections)
 		{
-			section.parent_module.sections.remove_using_test(fn (s, ctx)
+			Module* mod = section.parent_module;
+
+			mod.sections.remove_using_test(fn (s, ctx)
 			{
-				Pair{String, Allocator}* args = (Pair{String, Allocator}*)ctx;
-				if ((*s).source_file.file_path == args.first)
-				{
-					alloc::free(args.second, *s);
-					return true;
-				}
-				return false;
-			}, &&(Pair{String, Allocator}) { path, self.allocator });
+				ModuleSection* target = *(ModuleSection**)ctx;
+				return *s == target;
+			}, &section);
 		}
+
+		foreach (section : existing.sections)
+		{
+			alloc::free(self.allocator, section);
+		}
+
 		existing.sections.clear();
+
 		return existing;
 	}
 
@@ -199,6 +204,26 @@ struct LookupOptions
 // ---
 // 	return SYMBOL_NOT_FOUND~;
 // ---
+
+
+fn Cursor Workspace.find_at_location(&self, String file_path, Location loc)
+{
+	List{ModuleSection*} secs = self.find_section_by_path(file_path);
+	if (secs.len() == 0) return { };
+
+	foreach (sec : secs)
+	{
+		sz offset = sec.source_file.line_map.get_offset(sec.source_file.source, loc);
+		log::debug("find_at_location - %s", offset);
+		Cursor candidate = cursor::find_at(sec, (int)offset);
+		if (candidate.node)
+		{
+			return candidate;
+		}
+	}
+
+	return { };
+}
 
 fn Node*? Workspace.lookup(&self, String module_name, String symbol_name) @inline
 {

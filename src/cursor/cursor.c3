@@ -134,3 +134,52 @@ fn bool Cursor.has_error(&self)
 
 	return false;
 }
+
+<*
+
+*>
+fn Cursor find_at(ModuleSection* sec, int offset)
+{
+	SourceFile* sf = sec.source_file;
+
+	if (sf.ast == null || sf.ast.top_level_nodes.len() == 0)
+	{
+		return { };
+	}
+
+	Node* best_match = null;
+
+	foreach (root_node : sf.ast.top_level_nodes)
+	{
+		Node* match = find_node_from_offset(root_node, offset);
+		if (match != null)
+		{
+			best_match = match;
+			break;
+		}
+	}
+
+	if (best_match == null)
+	{
+		return { };
+	}
+
+	return { .node = best_match, .section = sec };
+}
+
+<*
+
+*>
+fn Node* find_node_from_offset(Node* node, int offset)
+{
+	if (node == null) return null;
+
+	if (offset < node.start_token || offset > node.end_token)
+	{
+		return null;
+	}
+
+	log::debug("Found node: (%s) - (%s) %s:%s", node.kind, offset, node.start_token, node.end_token);
+
+	return node;
+}

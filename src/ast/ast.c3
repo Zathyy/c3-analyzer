@@ -126,6 +126,7 @@ fn void Ast.init(&self, Allocator backing_allocator = mem)
 	self.arena.init(backing_allocator, ARENA_PAGE_SIZE);
 	self.string_pool.init(&self.arena, 128);
 	self.top_level_nodes.init(&self.arena, 32);
+	self.error_nodes.init(&self.arena);
 }
 
 macro Node* Ast.error(&self, int start, int end = -1)
@@ -156,11 +157,9 @@ fn sz Ast.next_node_idx(&self) => self.top_level_nodes.len();
 
 fn void Ast.clear(&self)
 {
-	self.arena.reset();
 	self.string_pool.clear();
 	self.top_level_nodes.clear();
-	// self.string_pool.init(&self.arena, 128);
-	// self.top_level_nodes.init(&self.arena, 32);
+	self.arena.reset();
 }
 
 fn void Ast.free(&self)

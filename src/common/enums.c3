@@ -25,7 +25,6 @@ enum OperatorKind
 	// Don't change the ordering for GT to EQ or things will break
 
 
-
 	OP_GT,
 	OP_GE,
 	OP_LT,
@@ -35,7 +34,6 @@ enum OperatorKind
 	// Vec comparisons
 
 
-
 	OP_VEC_GT,
 	OP_VEC_GE,
 	OP_VEC_LT,
@@ -43,7 +41,6 @@ enum OperatorKind
 	OP_VEC_NE,
 	OP_VEC_EQ,
 	// Only "assign" BINOPS after this point
-
 
 
 	OP_ASSIGN,
@@ -71,6 +68,7 @@ fn OperatorKind binaryop_from_token(TokenKind kind)
 		case LSHIFT: return OP_SHL;
 		case RSHIFT: return OP_SHR;
 		case AND: return OP_AND;
+		case OR: return OP_OR;
 		case CT_AND_OP: return OP_CT_AND;
 		case CT_OR_OP: return OP_CT_OR;
 		case CT_CONCAT_OP: return OP_CT_CONCAT;
@@ -106,10 +104,10 @@ enum VarDeclKind
 	VAR_LOCAL,
 	VAR_GLOBAL,
 	VAR_FIELD,
-	VAR_BITFIELD, // bitstruct field
-	VAR_PARAM, // Regular parameter (foo)
-	VAR_PARAM_CT, // Compile-time parameter ($foo)
-	VAR_PARAM_EXPR, // Expression parameter (#foo)
+	VAR_BITFIELD,      // bitstruct field
+	VAR_PARAM,         // Regular parameter (foo)
+	VAR_PARAM_CT,      // Compile-time parameter ($foo)
+	VAR_PARAM_EXPR,    // Expression parameter (#foo)
 	VAR_PARAM_CT_TYPE, // Compile-time type parameter ($Type)
 }
 

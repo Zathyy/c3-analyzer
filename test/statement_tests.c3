@@ -222,8 +222,9 @@ fn void for_stmt()
 	Node* node            = ws.lookup("hello", "foo")!!;
 	FnDecl* func          = node.as(FN_DECL);
 	CompoundStmt* fn_comp = func.body.as(COMPOUND_STMT);
+	ForStmt* for_stmt     = fn_comp.statements[0].as(FOR_STMT);
 
-	test::eq(fn_comp.statements[0].as(FOR_STMT).label, ast::EMPTY_STR);
+	test::eq((sz)for_stmt.label, -1);
 	test::eq(parser_tests::count_kind(s, MODULE_DECL), 1);
 	test::eq(parser_tests::count_kind(s, FN_DECL), 1);
 }
@@ -388,12 +389,12 @@ fn void foreach_stmt()
 	ParseResult res = parser::parse(&ws, "foreach_stmt", path)!!;
 	test::eq(res.success, true);
 
-	Module* mod = ws.modules.get("hello")!!;
+	Module* mod      = ws.modules.get("hello")!!;
 	ModuleSection* s = mod.sections[0];
 	StringPool* pool = &s.source_file.ast.string_pool;
 
-	Node* fn_node = ws.lookup("hello", "foo")!!;
-	FnDecl* fn_decl = fn_node.as(FN_DECL);
+	Node* fn_node           = ws.lookup("hello", "foo")!!;
+	FnDecl* fn_decl         = fn_node.as(FN_DECL);
 	CompoundStmt* body_stmt = fn_decl.body.as(COMPOUND_STMT);
 
 	// foreach LOOP: (x : arr) — labeled, no reverse,  no index, no type, no ref
@@ -408,7 +409,7 @@ fn void foreach_stmt()
 
 	// foreach (x : arr) — no label, no reverse, no index, no type, no ref
 	foreach_stmt = body_stmt.statements[1].as(FOREACH_STMT);
-	test::eq(foreach_stmt.label, ast::EMPTY_STR);
+	test::eq((sz)foreach_stmt.label, -1);
 	test::eq(foreach_stmt.is_reverse, false);
 	test::eq(foreach_stmt.index, null);
 	var_decl = foreach_stmt.variable.as(VAR_DECL);
@@ -523,15 +524,15 @@ fn void err_foreach_missing_name_after_type()
 	ParseResult res = parser::parse(&ws, "err_foreach_missing_name_after_type", path)!!;
 	test::eq(res.success, false);
 
-	Node* fn_node = ws.lookup("hello", "foo")!!;
-	FnDecl* fn_decl = fn_node.as(FN_DECL);
+	Node* fn_node           = ws.lookup("hello", "foo")!!;
+	FnDecl* fn_decl         = fn_node.as(FN_DECL);
 	CompoundStmt* body_stmt = fn_decl.body.as(COMPOUND_STMT);
 
-	// foreach still produces a FOREACH_STMT node; value has type but name = ast::EMPTY_STR
+	// foreach still produces a FOREACH_STMT node; value has type but name = -1
 	ForeachStmt* foreach_stmt = body_stmt.statements[0].as(FOREACH_STMT);
-	VarDecl* var_decl = foreach_stmt.variable.as(VAR_DECL);
+	VarDecl* var_decl         = foreach_stmt.variable.as(VAR_DECL);
 	test::ne(var_decl.type, null);
-	test::eq(var_decl.name, ast::EMPTY_STR);
+	test::eq((sz)var_decl.name, -1);
 }
 
 fn void err_foreach_missing_name_no_type()
@@ -544,24 +545,24 @@ fn void err_foreach_missing_name_no_type()
 			foreach (& : arr) {}
 		}
 	`;
-	
+
 	Workspace ws;
 	ws.init();
 	defer ws.free();
 	ParseResult res = parser::parse(&ws, "err_foreach_missing_name_no_type", path)!!;
 	test::eq(res.success, false);
 
-	Node* node = ws.lookup("hello", "foo")!!;
-	FnDecl* fn_decl = node.as(FN_DECL);
+	Node* node              = ws.lookup("hello", "foo")!!;
+	FnDecl* fn_decl         = node.as(FN_DECL);
 	CompoundStmt* body_stmt = fn_decl.body.as(COMPOUND_STMT);
 
-	// value_by_ref set, no type, name = ast::EMPTY_STR
+	// value_by_ref set, no type, name = -1
 	ForeachStmt* foreach_stmt = body_stmt.statements[0].as(FOREACH_STMT);
-	VarDecl* var_decl = foreach_stmt.variable.as(VAR_DECL);
+	VarDecl* var_decl         = foreach_stmt.variable.as(VAR_DECL);
 	test::eq(var_decl.type == null, true);
 	test::eq(foreach_stmt.value_by_ref, true);
 	test::eq(var_decl.flags.is_ref, true);
-	test::eq(var_decl.name, ast::EMPTY_STR);
+	test::eq((sz)var_decl.name, -1);
 }
 
 fn void err_foreach_missing_colon()
@@ -581,8 +582,8 @@ fn void err_foreach_missing_colon()
 	ParseResult res = parser::parse(&ws, "err_foreach_missing_colon", path)!!;
 	test::eq(res.success, false);
 
-	Node* node            = ws.lookup("hello", "foo")!!;
-	FnDecl* func          = node.as(FN_DECL);
+	Node* node              = ws.lookup("hello", "foo")!!;
+	FnDecl* func            = node.as(FN_DECL);
 	CompoundStmt* body_stmt = func.body.as(COMPOUND_STMT);
 
 	// the foreach node has kind ERROR due to the missing colon
