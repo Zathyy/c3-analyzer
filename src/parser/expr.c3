@@ -1304,20 +1304,3 @@ fn Node*? parse_access_expr(ParseContext* ctx, Node* left)
 
 	return node;
 }
-
-<*
- elvis_expr := <left> ?: ternary_prec_expr
-*>
-fn Node*? parse_elvis_expr(ParseContext* ctx, Node* left)
-{
-	int start_pos = ctx.current().pos;
-	Node* node    = ctx.ast.alloc_node(TERNARY_EXPR, start_pos);
-	defer node.end_token = ctx.current().pos;
-	TernaryExpr* ternary = node.as(TERNARY_EXPR);
-
-	ternary.cond = left;
-	expect(ctx, ELVIS)!;
-	ternary.else_expr = parse_expr(ctx, ORELSE + 1)!;
-
-	return node;
-}

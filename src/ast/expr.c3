@@ -180,7 +180,7 @@ struct TryExpr
 }
 
 <*
- - then_expr: may be null for elvis
+
 *>
 struct TernaryExpr
 {

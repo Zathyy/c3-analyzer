@@ -22,8 +22,6 @@ enum OperatorKind
 	OP_CT_OR,
 	OP_CT_CONCAT,
 	OP_CT_CONCAT_ASSIGN,
-	// Don't change the ordering for GT to EQ or things will break
-
 
 	OP_GT,
 	OP_GE,
@@ -31,18 +29,17 @@ enum OperatorKind
 	OP_LE,
 	OP_NE,
 	OP_EQ,
+
 	// Vec comparisons
-
-
 	OP_VEC_GT,
 	OP_VEC_GE,
 	OP_VEC_LT,
 	OP_VEC_LE,
 	OP_VEC_NE,
 	OP_VEC_EQ,
+
 	// Only "assign" BINOPS after this point
-
-
+	OP_ELVIS,
 	OP_ASSIGN,
 	OP_ADD_ASSIGN,
 	OP_BIT_AND_ASSIGN,
@@ -94,6 +91,7 @@ fn OperatorKind binaryop_from_token(TokenKind kind)
 		case BIT_XOR_ASSIGN: return OP_BIT_XOR_ASSIGN;
 		case RSHIFT_ASSIGN: return OP_SHR_ASSIGN;
 		case LSHIFT_ASSIGN: return OP_SHL_ASSIGN;
+		case ELVIS: return OP_ELVIS;
 		default:
 			unreachable("unknown binaryop kind: %s", kind);
 	}
