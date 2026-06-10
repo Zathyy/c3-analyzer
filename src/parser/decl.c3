@@ -803,11 +803,13 @@ fn Node*? parse_var_decl(ParseContext* ctx, Node* type = null, ParseFlags flags 
 		if (flags.is_extern)
 		{
 			ctx.error("A local variable cannot have an 'extern' modifier");
+			advance(ctx)!;
 			return ctx.ast.alloc_node(ERROR, start_pos);
 		}
 		if (flags.is_inline)
 		{
 			ctx.error("A local variable cannot be 'inline'");
+			advance(ctx)!;
 			return ctx.ast.alloc_node(ERROR, start_pos);
 		}
 	}
@@ -828,6 +830,7 @@ fn Node*? parse_var_decl(ParseContext* ctx, Node* type = null, ParseFlags flags 
 		else if (!flags.is_const)
 		{
 			ctx.error("Expected a valid type signature or 'var'");
+			advance(ctx)!;
 			return ctx.ast.alloc_node(ERROR, start_pos);
 		}
 	}
@@ -842,16 +845,19 @@ fn Node*? parse_var_decl(ParseContext* ctx, Node* type = null, ParseFlags flags 
 		if (flags.is_const && t.kind != CONST_IDENT)
 		{
 			ctx.error("Constants must use an uppercase CONST_IDENT, found '%s'", ctx.token_text(t));
+			advance(ctx)!;
 			return ctx.ast.error(t.pos);
 		}
 		if (!flags.is_const && t.kind != IDENT && !flags.is_local)
 		{
 			ctx.error("Global variables must use lower-case IDENT, found '%s'", ctx.token_text(t));
+			advance(ctx)!;
 			return ctx.ast.error(t.pos);
 		}
 		if (t.kind != IDENT && t.kind != CONST_IDENT)
 		{
 			ctx.error("Expected a variable name identifier, got '%s'", ctx.token_text(t));
+			advance(ctx)!;
 			return ctx.ast.error(t.pos);
 		}
 
@@ -861,7 +867,7 @@ fn Node*? parse_var_decl(ParseContext* ctx, Node* type = null, ParseFlags flags 
 		Node* var_node    = ctx.ast.alloc_node(VAR_DECL, t.pos);
 		VarDecl* var_decl = var_node.as(VAR_DECL);
 
-		if (ctx.is(AT_IDENT))
+		if (ctx.is(AT_IDENT) || ctx.is(AT_TYPE_IDENT))
 		{
 			var_decl.attributes = parse_attributes(ctx, var_node)!;
 		}
@@ -875,16 +881,19 @@ fn Node*? parse_var_decl(ParseContext* ctx, Node* type = null, ParseFlags flags 
 			if (head_node != null)
 			{
 				ctx.error("Initializers are not allowed on multi decleration");
+				advance(ctx)!;
 				return ctx.ast.alloc_node(ERROR, ctx.peek(0).pos);
 			}
 			if (flags.is_extern)
 			{
 				ctx.error("An extern declaration cannot contain an initial value assignment expression");
+				advance(ctx)!;
 				return ctx.ast.alloc_node(ERROR, ctx.peek(0).pos);
 			}
 			if (flags.is_struct)
 			{
 				ctx.error("Fields cannot have an initializer");
+				advance(ctx)!;
 				return ctx.ast.alloc_node(ERROR, ctx.peek(0).pos);
 			}
 
@@ -893,7 +902,7 @@ fn Node*? parse_var_decl(ParseContext* ctx, Node* type = null, ParseFlags flags 
 		}
 		else if (flags.is_const && !flags.is_extern)
 		{
-			ctx.error("Constants must be initialized at their declaration site");
+			unexpected(ctx, "Constants must be initialized at their declaration site")!;
 		}
 
 		var_decl.name = name_id;
