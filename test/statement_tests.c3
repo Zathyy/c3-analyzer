@@ -264,7 +264,7 @@ fn void while_stmt()
 
 	test::eq(parser_tests::count_kind(s, MODULE_DECL), 1);
 	test::eq(parser_tests::count_kind(s, FN_DECL), 1);
-	
+
 	WhileStmt* while_stmt = fn_comp.statements[0].as(WHILE_STMT);
 	test::eq(pool.get(while_stmt.label)!!, "FOO");
 
@@ -612,13 +612,17 @@ fn void defer_stmt()
 			}
 		}
 	`;
-	
+
 	Workspace ws;
 	ws.init();
 	defer ws.free();
 	ParseResult res = parser::parse(&ws, "defer_stmt", path)!!;
 	test::eq(res.success, true);
-	
+
+	Module* mod      = ws.modules.get("hello")!!;
+	ModuleSection* s = mod.sections[0];
+	StringPool* pool = &s.source_file.ast.string_pool;
+
 	test::eq(parser_tests::count_kind(s, MODULE_DECL), 1);
 	test::eq(parser_tests::count_kind(s, FN_DECL), 1);
 }
@@ -643,8 +647,9 @@ fn void do_while_stmt()
 			{
 				a = 0;
 			};
+		}
 	`;
-			
+
 	Workspace ws;
 	ws.init();
 	defer ws.free();
@@ -658,9 +663,9 @@ fn void do_while_stmt()
 
 	test::eq(parser_tests::count_kind(s, MODULE_DECL), 1);
 	test::eq(parser_tests::count_kind(s, FN_DECL), 1);
-	
-	Node* node            = ws.lookup("hello", "foo")!!;
-	FnDecl* fn_decl          = node.as(FN_DECL);
+
+	Node* node              = ws.lookup("hello", "foo")!!;
+	FnDecl* fn_decl         = node.as(FN_DECL);
 	CompoundStmt* func_body = fn_decl.body.as(COMPOUND_STMT);
 	test::eq(func_body.statements.len, 3);
 
