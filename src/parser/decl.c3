@@ -869,7 +869,7 @@ fn Node*? parse_var_decl(ParseContext* ctx, Node* type = null, ParseFlags flags 
 
 		if (ctx.is(AT_IDENT) || ctx.is(AT_TYPE_IDENT))
 		{
-			var_decl.attributes = parse_attributes(ctx, var_node)!;
+			var_decl.attributes = parse_attributes(ctx, var_node, { .allow_type_ident = true })!;
 		}
 
 		Node* init_expr = null;
@@ -1069,7 +1069,7 @@ fn Node*? parse_struct_union_decl(ParseContext* ctx) => @pool()
 
 	struct_decl.interfaces = parse_interface_type_list(ctx)!;
 	struct_decl.generics = parse_generic_decl(ctx)!;
-	struct_decl.attributes = parse_attributes(ctx, node)!;
+	struct_decl.attributes = parse_attributes(ctx, node, { .allow_type_ident = true })!;
 
 	@expect_else_skip(ctx, LBRACE, { RBRACE } ; brace_err)
 	{

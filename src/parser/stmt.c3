@@ -152,10 +152,7 @@ fn Node*? parse_decl_stmt(ParseContext* ctx)
 	}
 
 	Node* expr = parse_expr_resuming_with_left(ctx, type, LOWEST)!;
-	@expect_else(ctx, EOS ; err)
-	{
-		return err;
-	}!;
+	expect(ctx, EOS)!;
 	return expr;
 }
 
