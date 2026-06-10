@@ -1,6 +1,6 @@
 module parser::ast;
 import lexer;
-
+import parser::plog;
 import parser::ast::utils;
 import std::collections::list;
 

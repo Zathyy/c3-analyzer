@@ -300,12 +300,13 @@ fn Node*? parse_infix(ParseContext* ctx, Node* left, Precedence rbp)
 		case RSHIFT_ASSIGN:
 		case LSHIFT_ASSIGN:
 		case QUESTQUEST:
-		case ELVIS:
 		case CT_CONCAT_OP:
 		case CT_CONCAT_ASSIGN:
 		case CT_AND_OP:
 		case CT_OR_OP:
 			return parse_binary_expr(ctx, left, rbp)!;
+		case ELVIS:
+			return parse_elvis_expr(ctx, left)!;
 		case PLUSPLUS:
 		case MINUSMINUS:
 		case BANG:

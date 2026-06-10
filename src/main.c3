@@ -27,9 +27,9 @@ fn int main(String[] args) => @pool()
 {
 	Cli cli = seali::parse(Cli, args)!!;
 
-	if (cli.verbose) plog::set_priority_all(LogPriority.VERBOSE);
+	if (cli.verbose) log::set_priority_all(LogPriority.VERBOSE);
 
-	if (cli.quiet) plog::set_logger(&&(NullLogger) { });
+	if (cli.quiet) log::set_logger(&&(NullLogger) { });
 
 	plog::debug("Init...");
 
