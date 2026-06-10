@@ -103,6 +103,7 @@ fn Node*? parse_stmt(ParseContext* ctx)
 		case TRUE:
 			return parse_expr_stmt(ctx)!;
 		case EOS:
+			advance(ctx)!;
 			return ctx.ast.alloc_node(NOP_STMT, t.pos);
 		default:
 			break;
@@ -810,11 +811,11 @@ fn Node*? parse_foreach_var(ParseContext* ctx)
 *>
 fn Node*? parse_foreach_stmt(ParseContext* ctx)
 {
-	int start_pos = ctx.peek(0).pos;
+	int start_pos   = ctx.peek(0).pos;
 	bool is_reverse = ctx.is(FOREACH_R);
 	advance(ctx)!;
 
-	Node* node = ctx.ast.alloc_node(FOREACH_STMT, start_pos);
+	Node* node                = ctx.ast.alloc_node(FOREACH_STMT, start_pos);
 	ForeachStmt* foreach_stmt = node.as(FOREACH_STMT);
 	defer node.end_token = ctx.peek(0).pos;
 	foreach_stmt.is_reverse = is_reverse;
@@ -823,7 +824,7 @@ fn Node*? parse_foreach_stmt(ParseContext* ctx)
 	{
 		foreach_stmt.label = ctx.ast.string_pool.internalize(ctx.current_text());
 		advance(ctx)!;
-		@expect_else_skip(ctx, COLON, { EOS, EOF } ;err)
+		@expect_else_skip(ctx, COLON, { EOS, EOF } ; err)
 		{
 			return err;
 		}!;
@@ -833,14 +834,14 @@ fn Node*? parse_foreach_stmt(ParseContext* ctx)
 		foreach_stmt.label = ast::EMPTY_STR;
 	}
 
-	@expect_else_skip(ctx, LPAREN, { RPAREN, EOS, EOF }; err)
+	@expect_else_skip(ctx, LPAREN, { RPAREN, EOS, EOF } ; err)
 	{
 		return err;
 	}!;
 
-	
+
 	Node* idx_or_variable = parse_foreach_var(ctx)!;
-	VarDecl* var_decl = idx_or_variable.as(VAR_DECL);
+	VarDecl* var_decl     = idx_or_variable.as(VAR_DECL);
 
 	if (consume(ctx, COMMA)!)
 	{
@@ -857,14 +858,14 @@ fn Node*? parse_foreach_stmt(ParseContext* ctx)
 		foreach_stmt.value_by_ref = var_decl.flags.is_ref;
 	}
 
-	@expect_else_skip(ctx, COLON, { RPAREN, EOS, EOF }; err)
+	@expect_else_skip(ctx, COLON, { RPAREN, EOS, EOF } ; err)
 	{
 		return err;
 	}!;
 
 	foreach_stmt.enumeration = parse_expr(ctx)!;
 
-	@expect_else_skip(ctx, RPAREN, { EOS, EOF }; err)
+	@expect_else_skip(ctx, RPAREN, { EOS, EOF } ; err)
 	{
 		return err;
 	}!;
