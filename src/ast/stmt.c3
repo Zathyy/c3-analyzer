@@ -102,6 +102,13 @@ struct WhileStmt
 	StringID label;
 }
 
+struct DoWhileStmt
+{
+	StringID label;
+	Node* body;
+	Option{Node} cond;
+}
+
 struct ForeachStmt
 {
 	bool is_reverse;
