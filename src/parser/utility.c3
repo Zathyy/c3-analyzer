@@ -370,14 +370,10 @@ fn bool node_ends_with_block(ParseContext* ctx, Node* n)
 {
 	NodeKind kind = n.kind;
 
-	switch (kind)
-	{
-		case CALL_EXPR:
-		case COMPOUND_STMT:
-			return true;
-		default:
-			return false;
-	}
+	if (kind != CALL_EXPR) return true;
+
+	CallExpr* call = n.as(CALL_EXPR);
+	return call.macro_body_expr != null;
 }
 
 fn bool can_start_expression(TokenKind kind)

@@ -44,6 +44,7 @@ fn void function_with_params()
 	String path = `
 		module hello; 
 		fn void greet(int foo, Bar baz) => @pool() {}
+		fn int get_int() => 10;
 		fn void foo(Type... name) {}
 		fn void default_value(Type name = 15) {}
 		fn void untyped_variadic(...) {}
@@ -60,7 +61,7 @@ fn void function_with_params()
 	ModuleSection* s = mod.sections[0];
 
 	test::eq(parser_tests::count_kind(s, MODULE_DECL), 1);
-	test::eq(parser_tests::count_kind(s, FN_DECL), 6);
+	test::eq(parser_tests::count_kind(s, FN_DECL), 7);
 }
 
 fn void method_with_params()

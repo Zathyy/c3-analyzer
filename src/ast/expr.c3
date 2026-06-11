@@ -96,6 +96,7 @@ struct TypeExpr
 
 struct CallExpr
 {
+	bool is_outer_call;
 	Node* callee;
 	Node* macro_body_expr;
 	NodeArray args;

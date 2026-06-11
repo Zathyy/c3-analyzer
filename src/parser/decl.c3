@@ -509,13 +509,7 @@ fn Node*? parse_fn_decl(ParseContext* ctx, ParseFlags flags = { })
 			return ctx.ast.error(start_pos);
 		}
 
-		func.body = parse_expr(ctx)!;
-
-		// Clean statement ending validation
-		if (!node_ends_with_block(ctx, func.body))
-		{
-			expect(ctx, EOS)!;
-		}
+		func.body = parse_short_body(ctx, true)!;
 	}
 	else
 	{
@@ -607,13 +601,7 @@ fn Node*? parse_macro_decl(ParseContext* ctx, ParseFlags flags = { })
 			return ctx.ast.error(start_pos);
 		}
 
-		mac.body = parse_expr(ctx)!;
-
-		// Clean statement ending validation
-		if (!node_ends_with_block(ctx, mac.body))
-		{
-			expect(ctx, EOS)!;
-		}
+		mac.body = parse_short_body(ctx, true)!;
 	}
 	else
 	{

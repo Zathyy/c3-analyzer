@@ -202,3 +202,46 @@ fn NodeArray? parse_arg_list(ParseContext* ctx) => @pool()
 
 	return alloc::clone_slice(ctx.arena, args.array_view());
 }
+
+<*
+ parse short body: =>
+ wraps the short body in a compound and a return
+*>
+fn Node*? parse_short_body(ParseContext* ctx, bool is_regular)
+{
+	int pos         = ctx.current().pos;
+	Node* node_comp = ctx.ast.alloc_node(COMPOUND_STMT, pos);
+	Node* ret_node  = ctx.ast.alloc_node(RETURN_STMT, pos);
+
+	CompoundStmt* comp = node_comp.as(COMPOUND_STMT);
+	ReturnStmt* ret    = ret_node.as(RETURN_STMT);
+
+	comp.statements = alloc::alloc_array(ctx.arena, Node*, 1);
+	comp.statements[0] = ret_node;
+
+	Node* expr = parse_expr(ctx)!;
+
+	if (expr.kind == CALL_EXPR)
+	{
+		CallExpr* call = expr.as(CALL_EXPR);
+		if (call.macro_body_expr)
+		{
+			is_regular = false;
+			call.is_outer_call = true;
+			ret_node.kind = EXPR_STMT;
+			ExprStmt* ex_stmt = ret_node.as(EXPR_STMT);
+			ex_stmt.expr_stmt = expr;
+		}
+	}
+	else
+	{
+		ret.expr = expr;
+	}
+
+	if (is_regular)
+	{
+		expect(ctx, EOS)!;
+	}
+
+	return node_comp;
+}
