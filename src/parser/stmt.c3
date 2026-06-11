@@ -62,6 +62,8 @@ fn Node*? parse_stmt(ParseContext* ctx)
 			return parse_var_decl(ctx, null, { .is_static = true, .is_local = true })!;
 		case ASSERT:
 			return parse_assert_stmt(ctx)!;
+		case CT_EXPAND:
+			return parse_ct_expand_stmt(ctx)!;
 		case HASH_IDENT:
 		case IDENT:
 		case CONST_IDENT:

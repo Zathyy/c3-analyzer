@@ -150,3 +150,8 @@ struct AssertStmt
 	Node* message;
 	NodeArray args;
 }
+
+struct CtExpandStmt
+{
+	Node* expr;
+}

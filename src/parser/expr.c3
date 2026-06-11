@@ -1502,3 +1502,22 @@ fn Node*? parse_lengthof_expr(ParseContext* ctx)
 
 	return node;
 }
+
+<*
+ ct_expand_stmt :: CT_EXPAND '(' expr ')'
+*>
+fn Node*? parse_ct_expand_stmt(ParseContext* ctx)
+{
+	expect(ctx, CT_EXPAND)!;
+
+	int start_pos = ctx.current().pos;
+	Node* node    = ctx.ast.alloc_node(CT_EXPAND_STMT, start_pos);
+	defer node.end_token = ctx.current().pos;
+	CtExpandStmt* exp = node.as(CT_EXPAND_STMT);
+
+	expect(ctx, LPAREN)!;
+	exp.expr = parse_expr(ctx)!;
+	expect(ctx, RPAREN)!;
+	expect(ctx, EOS)!;
+	return node;
+}
