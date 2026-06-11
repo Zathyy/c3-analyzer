@@ -103,6 +103,7 @@ struct Node
 		CompoundLiteralExpr compound_literal_expr;
 		MaybeDeferExpr maybe_deref_expr;
 		AccessExpr access_expr;
+		RangeExpr range_expr;
 
 		// UNIT
 		ContractParam contract_param;

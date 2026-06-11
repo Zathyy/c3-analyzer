@@ -278,12 +278,7 @@ struct DesignatorExpr
 	union
 	{
 		Node* field;
-
-		struct range
-		{
-			Node* start;
-			Node* end;
-		}
+		Node* range;
 	}
 }
 
@@ -313,4 +308,17 @@ struct AccessExpr
 struct MaybeDeferExpr
 {
 	Node* left;
+}
+
+<*
+ - `start_from_end`: True if start had '^' (BIT_XOR)
+ - `end_from_end`: True if end had '^' (BIT_XOR)
+*>
+struct RangeExpr
+{
+	RangeKind kind;
+	bool start_from_end;
+	bool end_from_end;
+	Node* start;
+	Node* end;
 }

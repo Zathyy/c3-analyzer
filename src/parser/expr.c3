@@ -1149,29 +1149,8 @@ fn Node*? parse_designator_expr(ParseContext* ctx)
 		{
 			int start_pos = ctx.current().pos;
 			advance(ctx)!; // consume '['
-
-			Node* start           = parse_expr(ctx)!;
-			Node* end;
-			DesignatorKind d_kind = DesignatorKind.INDEX;
-
-			if (ctx.is(DOTDOT) || ctx.is(COLON))
-			{
-				d_kind = DesignatorKind.RANGE;
-				advance(ctx)!; // consume '..' or ':'
-				end = parse_expr(ctx)!;
-			}
-
-			expect(ctx, RBRACKET)!;
-
-			Node* node = ctx.ast.alloc_node(DESIGNATOR_EXPR, start_pos);
-			node.end_token = ctx.current().pos;
-
-			DesignatorExpr* des = node.as(DESIGNATOR_EXPR);
-			des.kind = d_kind;
-			des.path = path;
-			des.range.start = start;
-			des.range.end = end;
-			path = node;
+			Node* designator_node = parse_range_expr(ctx, path, start_pos)!;
+			path = designator_node;
 			continue;
 		}
 
@@ -1303,4 +1282,109 @@ fn Node*? parse_access_expr(ParseContext* ctx, Node* left)
 	}
 
 	return node;
+}
+
+<*
+ maybe_range ::= range | ('^'? INTEGER)
+ range ::= dot_range | colon_range
+ dot_range ::= ('^'? INTEGER)? .. ('^'? INTEGER)?
+ colon_range ::= ('^'? INTEGER)? : ('^'? INTEGER)?
+*>
+fn Node*? parse_range_expr(ParseContext* ctx, Node* left, int start_pos)
+{
+	Node* start;
+	Node* end;
+	bool is_slice       = false;
+	bool start_from_end = false;
+	bool end_from_end   = false;
+	TokenKind op_kind   = TokenKind.EOS;
+
+	// Check if the start of the range is omitted (e.g., `[:5]` or `[..5]`)
+	if (ctx.is(COLON) || ctx.is(DOTDOT))
+	{
+		is_slice = true;
+		op_kind = ctx.current().kind;
+		advance(ctx)!;
+	}
+	else
+	{
+		// Parse the optional leading index modifier caret '^' (BIT_XOR)
+		if (consume(ctx, BIT_XOR)!)
+		{
+			start_from_end = true;
+		}
+
+		start = parse_expr(ctx, LOWEST)!;
+
+		// Check if an operator separates this from a secondary range bound
+		if (ctx.is(COLON) || ctx.is(DOTDOT))
+		{
+			is_slice = true;
+			op_kind = ctx.current().kind;
+			advance(ctx)!;
+		}
+	}
+
+	// If it is a full range slice, parse the trailing bound component
+	if (is_slice && !ctx.is(RBRACKET))
+	{
+		if (consume(ctx, BIT_XOR)!)
+		{
+			end_from_end = true;
+		}
+
+		end = parse_expr(ctx, LOWEST)!;
+	}
+
+	expect(ctx, RBRACKET)!;
+
+	Node* designator_node = ctx.ast.alloc_node(DESIGNATOR_EXPR, start_pos);
+	designator_node.end_token = ctx.current().pos;
+	DesignatorExpr* des = designator_node.as(DESIGNATOR_EXPR);
+	des.path = left;
+
+	Node* range_node = ctx.ast.alloc_node(RANGE_EXPR, start_pos);
+	range_node.end_token = ctx.current().pos;
+	RangeExpr* range_payload = range_node.as(RANGE_EXPR);
+
+	range_payload.start = start;
+	range_payload.end = end;
+	range_payload.start_from_end = start_from_end;
+	range_payload.end_from_end = end_from_end;
+
+	if (is_slice)
+	{
+		des.kind = DesignatorKind.RANGE;
+
+		if (op_kind == COLON)
+		{
+			// Syntax: [start : len]
+			range_payload.kind = RangeKind.CONST_LEN;
+		}
+		else
+		{
+			// Syntax: [start .. end]
+			if (start && end)
+			{
+				range_payload.kind = RangeKind.CONST_RANGE;
+			}
+			else if (end)
+			{
+				range_payload.kind = RangeKind.CONST_END;
+			}
+			else
+			{
+				range_payload.kind = RangeKind.DYNAMIC;
+			}
+		}
+	}
+	else
+	{
+		// Syntax: [index] (Single lookup access format)
+		des.kind = DesignatorKind.INDEX;
+		range_payload.kind = RangeKind.SINGLE_ELEMENT;
+	}
+
+	des.range = range_node;
+	return designator_node;
 }

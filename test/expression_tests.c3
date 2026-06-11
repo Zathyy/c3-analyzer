@@ -463,3 +463,43 @@ fn void access()
 	test::eq(parser_tests::count_kind(s, MODULE_DECL), 1);
 	test::eq(parser_tests::count_kind(s, FN_DECL), 1);
 }
+
+<*
+ todo: verify with json
+*>
+fn void range()
+{
+	String path = `
+		module hello;
+		
+		fn void foo()
+		{
+			int[5] a = { 1, 20, 50, 100, 200 };
+			int[] b1 = a[1 .. ^1];  // { 20, 50, 100, 200 } a[1 .. (a.len-1)]
+			int[] b2 = a[1 .. ^2];  // { 20, 50, 100 }      a[1 .. (a.len-2)]
+			int[] b3 = a[1 .. ^3];  // { 20, 50 }           a[1 .. (a.len-3)]
+			int[] c1 = a[^1..];     // { 200 }              a[(a.len-1)..]
+			int[] c2 = a[^2..];     // { 100, 200 }         a[(a.len-2)..]
+			int[] c3 = a[^3..];     // { 50, 100, 200 }     a[(a.len-3)..]
+			int[] d = a[^3 : 2];    // { 50, 100 }          a[(a.len-3) : 2]
+			// Slicing a whole array, the inclusive index of : gives the difference
+			int[] e = a[0 .. ^1];   // a[0 .. a.len-1]
+			int[] f = a[0 : ^0];    // a[0 : a.len]
+		}
+	`;
+
+	Workspace ws;
+	ws.init();
+	defer ws.free();
+	ParseResult res = parser::parse(&ws, "range", path)!!;
+	test::eq(res.success, true);
+
+	Module* mod      = ws.modules.get("hello")!!;
+	ModuleSection* s = mod.sections[0];
+
+	FnDecl* func       = s.nodes[1].as(FN_DECL);
+	CompoundStmt* comp = func.body.as(COMPOUND_STMT);
+
+	test::eq(parser_tests::count_kind(s, MODULE_DECL), 1);
+	test::eq(parser_tests::count_kind(s, FN_DECL), 1);
+}

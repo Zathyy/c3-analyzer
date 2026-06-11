@@ -158,3 +158,12 @@ enum DeferKind : char
 	CATCH_VAR
 	// defer (catch var) ...
 }
+
+enum RangeKind : char
+{
+	DYNAMIC,
+	CONST_END,
+	CONST_LEN,
+	CONST_RANGE,
+	SINGLE_ELEMENT,
+}

@@ -333,9 +333,11 @@ fn Node*? parse_infix(ParseContext* ctx, Node* left, Precedence rbp)
 
 				return node;
 			}
-
 			return parse_generic_expr(ctx)!;
-
+		case LBRACKET:
+			int start_pos = t.pos;
+			advance(ctx)!; // Consume the '[' token
+			return parse_range_expr(ctx, left, start_pos)!;
 		default:
 			advance(ctx)!;
 			return unexpected_at(ctx, t, "Unexpected infix token '%s'", t.kind);
