@@ -24,11 +24,11 @@ import parser::plog;
 *>
 fn Node*? parse_fn_type_expr(ParseContext* ctx) => @pool()
 {
-	int start = ctx.peek(0).pos;
+	int start = ctx.current().pos;
 	expect(ctx, FN)!;
 	Node* node        = ctx.ast.alloc_node(TYPE_EXPR, start);
 	TypeExpr* fn_type = node.as(TYPE_EXPR);
-	defer node.end_token = ctx.peek(0).pos;
+	defer node.end_token = ctx.current().pos;
 
 	fn_type.kind = TYPE_FUNCTION;
 	fn_type.func.ret_type = parse_type_expr(ctx)!;
@@ -76,17 +76,17 @@ fn Node*? parse_alias_type_target(ParseContext* ctx) => @pool()
 *>
 fn Node*? parse_type_expr(ParseContext* ctx, Node* path_expr = null, ParseFlags parse_flags = { })
 {
-	int start = ctx.peek(0).pos;
+	int start = ctx.current().pos;
 
 	plog::debug("parse_type_expr");
 
-	Node* current_type = ctx.ast.alloc_node(TYPE_EXPR, start, ctx.peek().pos);
+	Node* current_type = ctx.ast.alloc_node(TYPE_EXPR, start, ctx.current().pos);
 	TypeExpr* data     = current_type.as(TYPE_EXPR);
 
 	// Check for built-in primitive keywords (int, void, double, etc.)
-	if IS_PRIM: (is_type_primitive(ctx.peek(0).kind))
+	if IS_PRIM: (is_type_primitive(ctx.current().kind))
 	{
-		Token t = ctx.peek(0);
+		Token t = ctx.current();
 		advance(ctx)!;
 
 		data.kind = TYPE_IDENTIFIER;
@@ -109,11 +109,11 @@ fn Node*? parse_type_expr(ParseContext* ctx, Node* path_expr = null, ParseFlags 
 		data.unresolved.path = path;
 	}
 
-	current_type.end_token = ctx.peek(0).pos;
+	current_type.end_token = ctx.current().pos;
 
 	while (true)
 	{
-		Token t = ctx.peek(0);
+		Token t = ctx.current();
 
 		if (t.kind == QUESTION)
 		{
@@ -142,7 +142,7 @@ fn Node*? parse_type_expr(ParseContext* ctx, Node* path_expr = null, ParseFlags 
 		{
 			advance(ctx)!;
 
-			Node* vec_node     = ctx.ast.alloc_node(TYPE_EXPR, start, ctx.peek().pos);
+			Node* vec_node     = ctx.ast.alloc_node(TYPE_EXPR, start, ctx.current().pos);
 			TypeExpr* vec_data = vec_node.as(TYPE_EXPR);
 
 			vec_data.kind = TYPE_VECTOR;
@@ -155,7 +155,7 @@ fn Node*? parse_type_expr(ParseContext* ctx, Node* path_expr = null, ParseFlags 
 
 			expect(ctx, RVEC)!;
 
-			vec_node.end_token = ctx.peek(0).pos;
+			vec_node.end_token = ctx.current().pos;
 			current_type = vec_node;
 			continue;
 		}
@@ -164,7 +164,7 @@ fn Node*? parse_type_expr(ParseContext* ctx, Node* path_expr = null, ParseFlags 
 		{
 			advance(ctx)!;
 
-			Node* arr_node     = ctx.ast.alloc_node(TYPE_EXPR, start, ctx.peek().pos);
+			Node* arr_node     = ctx.ast.alloc_node(TYPE_EXPR, start, ctx.current().pos);
 			TypeExpr* arr_data = arr_node.as(TYPE_EXPR);
 
 			if (ctx.is(RBRACKET))
@@ -173,7 +173,7 @@ fn Node*? parse_type_expr(ParseContext* ctx, Node* path_expr = null, ParseFlags 
 				arr_data.kind = TYPE_SLICE;
 				arr_data.modify.base = current_type;
 			}
-			else if (ctx.is(ASTERISK) && ctx.peek(1).kind == RBRACKET)
+			else if (ctx.is(ASTERISK) && ctx.peek(1)!.kind == RBRACKET)
 			{
 				advance(ctx)!; // Consume '*'
 				advance(ctx)!; // Consume ']'
@@ -190,7 +190,7 @@ fn Node*? parse_type_expr(ParseContext* ctx, Node* path_expr = null, ParseFlags 
 				expect(ctx, RBRACKET)!;
 			}
 
-			arr_node.end_token = ctx.peek(0).pos;
+			arr_node.end_token = ctx.current().pos;
 			current_type = arr_node;
 			continue;
 		}
@@ -201,14 +201,14 @@ fn Node*? parse_type_expr(ParseContext* ctx, Node* path_expr = null, ParseFlags 
 			if (parse_flags.no_generics) break;
 			if (parse_flags.type_as_expression) break;
 
-			Node* gen_node     = ctx.ast.alloc_node(TYPE_EXPR, start, ctx.peek().pos);
+			Node* gen_node     = ctx.ast.alloc_node(TYPE_EXPR, start, ctx.current().pos);
 			TypeExpr* gen_data = gen_node.as(TYPE_EXPR);
 
 			gen_data.kind = TYPE_GENERIC;
 			gen_data.generic.base = current_type;
 			gen_data.generic.params = parse_generics_list(ctx)!;
 
-			gen_node.end_token = ctx.peek(0).pos;
+			gen_node.end_token = ctx.current().pos;
 			current_type = gen_node;
 			continue;
 		}
@@ -221,14 +221,14 @@ fn Node*? parse_type_expr(ParseContext* ctx, Node* path_expr = null, ParseFlags 
 
 fn Node*? parse_ident_expr(ParseContext* ctx)
 {
-	int start = ctx.peek(0).pos;
+	int start = ctx.current().pos;
 	Node* path_prefix;
 
-	if (ctx.peek(1).kind == SCOPE)
+	if (ctx.peek(1)!.kind == SCOPE)
 	{
 		path_prefix = parse_path_expr(ctx, { .as_prefix = true })!;
 	}
-	Token t = ctx.peek(0);
+	Token t = ctx.current();
 	switch (t.kind)
 	{
 		case TYPE_IDENT:
@@ -240,7 +240,7 @@ fn Node*? parse_ident_expr(ParseContext* ctx)
 		case HASH_IDENT:
 
 			{
-				Node* node       = ctx.ast.alloc_node(IDENT_EXPR, start, ctx.peek().pos);
+				Node* node       = ctx.ast.alloc_node(IDENT_EXPR, start, ctx.current().pos);
 				IdentExpr* ident = node.as(IDENT_EXPR);
 				ident.ident = ctx.ast.string_pool.internalize(ctx.token_text(t));
 				ident.path_expr = path_prefix;
@@ -485,7 +485,7 @@ fn Node*? parse_literal_expr(ParseContext* ctx) => @pool()
 *>
 fn Node*? parse_path_expr(ParseContext* ctx, PathExprOptions options = { }) => @pool()
 {
-	int start_pos = ctx.peek(0).pos;
+	int start_pos = ctx.current().pos;
 	plog::debug("parse_path_expr");
 
 	if (is_type(ctx))
@@ -498,7 +498,7 @@ fn Node*? parse_path_expr(ParseContext* ctx, PathExprOptions options = { }) => @
 
 	if (!ctx.is(IDENT))
 	{
-		if (ctx.peek(1).kind != SCOPE)
+		if (ctx.peek(1)!.kind != SCOPE)
 		{
 			if (options.as_prefix)
 			{
@@ -510,21 +510,21 @@ fn Node*? parse_path_expr(ParseContext* ctx, PathExprOptions options = { }) => @
 		return ctx.ast.error(start_pos);
 	}
 
-	Node* node     = ctx.ast.alloc_node(PATH_EXPR, start_pos, ctx.peek().pos);
+	Node* node     = ctx.ast.alloc_node(PATH_EXPR, start_pos, ctx.current().pos);
 	PathExpr* path = node.as(PATH_EXPR);
-	defer node.end_token = ctx.peek(0).pos;
+	defer node.end_token = ctx.current().pos;
 
 	List{StringID} temp_segments;
 	temp_segments.init(tmem, 8);
 
 	while (true)
 	{
-		if (options.as_prefix && ctx.peek(1).kind != SCOPE)
+		if (options.as_prefix && ctx.peek(1)!.kind != SCOPE)
 		{
 			break;
 		}
 
-		Token t = ctx.peek(0);
+		Token t = ctx.current();
 		temp_segments.push(ctx.ast.string_pool.internalize(ctx.token_text(t)));
 		advance(ctx)!;
 
@@ -546,12 +546,12 @@ fn Node*? parse_path_expr(ParseContext* ctx, PathExprOptions options = { }) => @
 
 fn Node*? parse_binary_expr(ParseContext* ctx, Node* left, Precedence prec)
 {
-	int start      = ctx.peek(0).pos;
-	TokenKind kind = ctx.peek(0).kind;
+	int start      = ctx.current().pos;
+	TokenKind kind = ctx.current().kind;
 	advance(ctx)!;
 	Node* right = parse_expr(ctx, prec)!;
 
-	Node* node      = ctx.ast.alloc_node(BINARY_EXPR, start, ctx.peek(0).pos);
+	Node* node      = ctx.ast.alloc_node(BINARY_EXPR, start, ctx.current().pos);
 	BinaryExpr* bin = node.as(BINARY_EXPR);
 	bin.left = left;
 	bin.right = right;
@@ -567,7 +567,7 @@ fn Node*? parse_unary_expr(ParseContext* ctx)
 	int start_pos = ctx.current().pos;
 	if (ctx.is(MINUS))
 	{
-		if (ctx.peek(1).kind.is_int_literal())
+		if (ctx.peek(1)!.kind.is_int_literal())
 		{
 			advance(ctx)!;
 			return parse_expr(ctx)!;
@@ -641,9 +641,9 @@ fn Node*? parse_expr_list(ParseContext* ctx) => @pool()
 *>
 fn Node*? parse_contract_expr(ParseContext* ctx)
 {
-	int start_pos = ctx.peek(0).pos;
+	int start_pos = ctx.current().pos;
 	Node* node    = ctx.ast.alloc_node(CONTRACT_EXPR, start_pos);
-	defer node.end_token = ctx.peek(0).pos;
+	defer node.end_token = ctx.current().pos;
 	ContractExpr* expr = node.as(CONTRACT_EXPR);
 
 	expr.exprs = parse_expr_list(ctx)!;
@@ -670,7 +670,7 @@ fn Node*? parse_call_expr(ParseContext* ctx, Node* callee)
 	int start_pos = ctx.current().pos;
 	expect(ctx, LPAREN)!;
 	Node* node = ctx.ast.alloc_node(CALL_EXPR, callee.start_token);
-	defer node.end_token = ctx.peek(0).pos;
+	defer node.end_token = ctx.current().pos;
 	CallExpr* call = node.as(CALL_EXPR);
 	call.callee = callee;
 
@@ -722,7 +722,7 @@ fn Node*? parse_call_expr(ParseContext* ctx, Node* callee)
 		MacroBodyExpr* body_expr = body_node.as(MACRO_BODY_EXPR);
 		body_expr.args = body_args;
 		body_expr.body = body;
-		body_node.end_token = ctx.peek(0).pos;
+		body_node.end_token = ctx.current().pos;
 		call.macro_body_expr = body_node;
 	}
 
@@ -742,7 +742,7 @@ fn Node*? parse_catch_expr(ParseContext* ctx) => @pool()
 	}!;
 
 	Node* node = ctx.ast.alloc_node(CATCH_EXPR, ctx.current().pos);
-	defer node.end_token = ctx.peek(0).pos;
+	defer node.end_token = ctx.current().pos;
 	CatchExpr* catch_expr = node.as(CATCH_EXPR);
 
 	Node* sub_expr = parse_try_chain_expr(ctx)!;
@@ -821,7 +821,7 @@ fn Node*? parse_catch_expr(ParseContext* ctx) => @pool()
 fn Node*? parse_cond_expr(ParseContext* ctx) => @pool()
 {
 	Node* node = ctx.ast.alloc_node(COND_EXPR, ctx.current().pos);
-	defer node.end_token = ctx.peek(0).pos;
+	defer node.end_token = ctx.current().pos;
 	CondExpr* cond = node.as(COND_EXPR);
 
 	List{Node*} exprs;
@@ -866,7 +866,7 @@ fn Node*? parse_try_expr(ParseContext* ctx)
 	}!;
 
 	Node* node = ctx.ast.alloc_node(TRY_EXPR, ctx.current().pos);
-	defer node.end_token = ctx.peek(0).pos;
+	defer node.end_token = ctx.current().pos;
 	TryExpr* try_expr = node.as(TRY_EXPR);
 
 	Node* lhs = parse_try_chain_expr(ctx)!;
@@ -939,7 +939,7 @@ fn Node*? parse_try_unwrap_chain_expr(ParseContext* ctx)
 fn Node*? parse_ternary_expr(ParseContext* ctx, Node* left)
 {
 	Node* node = ctx.ast.alloc_node(TERNARY_EXPR, ctx.current().pos);
-	defer node.end_token = ctx.peek(0).pos;
+	defer node.end_token = ctx.current().pos;
 	TernaryExpr* tern = node.as(TERNARY_EXPR);
 
 	tern.is_const = ctx.is(CT_TERNARY);
@@ -1006,7 +1006,7 @@ fn Node*? parse_builtin_expr(ParseContext* ctx)
 fn Node*? parse_splat_expr(ParseContext* ctx)
 {
 	Node* node = ctx.ast.alloc_node(SPLAT_EXPR, ctx.current().pos);
-	defer node.end_token = ctx.peek(0).pos;
+	defer node.end_token = ctx.current().pos;
 	SplatExpr* spl = node.as(SPLAT_EXPR);
 
 	expect(ctx, ELLIPSIS)!;

@@ -15,7 +15,7 @@ import std::collections::list;
 *>
 fn NodeArray? parse_parameter_list(ParseContext* ctx, ParamParseFlags flags = { }) => @pool()
 {
-	int start_pos = ctx.peek(0).pos;
+	int start_pos = ctx.current().pos;
 
 	if (!flags.is_call)
 	{
@@ -64,7 +64,7 @@ fn void? parse_macro_params(ParseContext* ctx, Node* macro_node)
 
 	if (consume(ctx, EOS)!)
 	{
-		Token at_tok = ctx.peek(0);
+		Token at_tok = ctx.current();
 		expect(ctx, AT_IDENT)!;
 
 		Node* body_param_node     = ctx.ast.alloc_node(BODY_PARAM_DECL, at_tok.pos);
@@ -185,9 +185,9 @@ fn NodeArray? parse_arg_list(ParseContext* ctx) => @pool()
 	while (true)
 	{
 		Node* expr    = null;
-		int start_pos = ctx.peek(0).pos;
+		int start_pos = ctx.current().pos;
 
-		if (ctx.is(ELLIPSIS) && ctx.can_peek(1) && ctx.peek(1).kind == CT_VAARG)
+		if (ctx.is(ELLIPSIS) && ctx.can_peek(1) && ctx.peek(1)!.kind == CT_VAARG)
 		{
 			expr = parse_vasplat_expr(ctx)!;
 		}
@@ -205,7 +205,7 @@ fn NodeArray? parse_arg_list(ParseContext* ctx) => @pool()
 				named.name = arg_name;
 
 				named.value = parse_expr(ctx)!;
-				expr.end_token = ctx.peek(0).pos;
+				expr.end_token = ctx.current().pos;
 			}
 			else if (expr.kind == CT_EVAL_EXPR && consume(ctx, COLON)!)
 			{
@@ -215,7 +215,7 @@ fn NodeArray? parse_arg_list(ParseContext* ctx) => @pool()
 
 				eval_named.name = inner;
 				eval_named.value = parse_expr(ctx)!;
-				expr.end_token = ctx.peek(0).pos;
+				expr.end_token = ctx.current().pos;
 			}
 		}
 

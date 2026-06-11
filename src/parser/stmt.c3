@@ -131,7 +131,7 @@ fn Node*? parse_expr_stmt(ParseContext* ctx)
 	int start_pos = ctx.current().pos;
 	Node* node    = ctx.ast.alloc_node(EXPR_STMT, start_pos);
 	ExprStmt* es  = node.as(EXPR_STMT);
-	defer node.end_token = ctx.peek(0).pos;
+	defer node.end_token = ctx.current().pos;
 	es.expr_stmt = parse_expr(ctx)!;
 	@expect_else(ctx, EOS ; err)
 	{
@@ -170,11 +170,11 @@ fn Node*? parse_decl_stmt(ParseContext* ctx)
 *>
 fn Node*? parse_compound_stmt(ParseContext* ctx) => @pool()
 {
-	int start_pos = ctx.peek(0).pos;
+	int start_pos = ctx.current().pos;
 	expect(ctx, LBRACE)!;
 	Node* node          = ctx.ast.alloc_node(COMPOUND_STMT, start_pos);
 	CompoundStmt* block = node.as(COMPOUND_STMT);
-	defer node.end_token = ctx.peek(0).pos;
+	defer node.end_token = ctx.current().pos;
 
 	List{Node*} temp_stmts;
 	temp_stmts.init(tmem, 8);
@@ -185,7 +185,7 @@ fn Node*? parse_compound_stmt(ParseContext* ctx) => @pool()
 		if (catch stmt)
 		{
 			ctx.error("Malformed statement inside block");
-			Node* err_node = ctx.ast.error(ctx.peek(0).pos);
+			Node* err_node = ctx.ast.error(ctx.current().pos);
 			temp_stmts.push(err_node);
 			ctx.skip_until({ RBRACE, EOS })!;
 			continue;
@@ -209,7 +209,7 @@ fn Node*? parse_compound_stmt(ParseContext* ctx) => @pool()
 *>
 fn bool? parse_switch_body(ParseContext* ctx, List{Node*}* cases)
 {
-	int start_pos = ctx.peek(0).pos;
+	int start_pos = ctx.current().pos;
 	while (!ctx.eof() && !ctx.is(RBRACE))
 	{
 		if (ctx.eof())
@@ -272,7 +272,7 @@ fn Node*? parse_case_stmts(ParseContext* ctx, sz row) => @pool()
 	}
 
 	compound.statements = alloc::clone_slice(ctx.arena, stmts.array_view());
-	compound_node.end_token = ctx.peek(0).pos;
+	compound_node.end_token = ctx.current().pos;
 
 	return compound_node;
 }
@@ -294,7 +294,7 @@ fn Node*? parse_case_stmt(ParseContext* ctx, ParseFlags flags = { }) => @pool()
 	sz case_row  = loc.line;
 
 	Node* node = ctx.ast.alloc_node(CASE_STMT, pos);
-	defer node.end_token = ctx.peek(0).pos;
+	defer node.end_token = ctx.current().pos;
 	CaseStmt* case_stmt = node.as(CASE_STMT);
 
 	case_stmt.expr = parse_expr(ctx)!;
@@ -317,7 +317,7 @@ fn Node*? parse_case_stmt(ParseContext* ctx, ParseFlags flags = { }) => @pool()
 *>
 fn Node*? parse_default_stmt(ParseContext* ctx, ParseFlags flags = { })
 {
-	int start_pos      = ctx.peek(0).pos;
+	int start_pos      = ctx.current().pos;
 	TokenKind expected = flags.is_comptime ? CT_DEFAULT : DEFAULT;
 	@expect_else(ctx, expected ; err)
 	{
@@ -331,7 +331,7 @@ fn Node*? parse_default_stmt(ParseContext* ctx, ParseFlags flags = { })
 
 	Node* node      = ctx.ast.alloc_node(DEFAULT_STMT, start_pos);
 	DefaultStmt* sw = node.as(DEFAULT_STMT);
-	defer node.end_token = ctx.peek(0).pos;
+	defer node.end_token = ctx.current().pos;
 
 	Location loc = ctx.line_map.resolve((sz)start_pos);
 	sz row       = loc.line;
@@ -346,7 +346,7 @@ fn Node*? parse_default_stmt(ParseContext* ctx, ParseFlags flags = { })
 *>
 fn Node*? parse_nextcase_stmt(ParseContext* ctx)
 {
-	int start_pos = ctx.peek(0).pos;
+	int start_pos = ctx.current().pos;
 	@expect_else(ctx, NEXTCASE ; err)
 	{
 		return err;
@@ -354,13 +354,13 @@ fn Node*? parse_nextcase_stmt(ParseContext* ctx)
 
 	Node* node       = ctx.ast.alloc_node(NEXTCASE_STMT, start_pos);
 	NextcaseStmt* nc = node.as(NEXTCASE_STMT);
-	defer node.end_token = ctx.peek(0).pos;
+	defer node.end_token = ctx.current().pos;
 
 	if (consume(ctx, EOS)!)
 	{
 		return node;
 	}
-	if (ctx.is(CONST_IDENT) && ctx.peek(1).kind == COLON)
+	if (ctx.is(CONST_IDENT) && ctx.peek(1)!.kind == COLON)
 	{
 		nc.label = ctx.ast.string_pool.internalize(ctx.current_text());
 		advance(ctx)!;
@@ -385,13 +385,13 @@ fn Node*? parse_nextcase_stmt(ParseContext* ctx)
 *>
 fn Node*? parse_continue_break_stmt(ParseContext* ctx)
 {
-	int start_pos    = ctx.peek(0).pos;
+	int start_pos    = ctx.current().pos;
 	bool is_continue = consume(ctx, CONTINUE)!;
 	if (!is_continue) consume(ctx, BREAK)!;
 
 	Node* node            = ctx.ast.alloc_node(CONTINUE_BREAK_STMT, start_pos);
 	ContinueBreakStmt* cb = node.as(CONTINUE_BREAK_STMT);
-	defer node.end_token = ctx.peek(0).pos;
+	defer node.end_token = ctx.current().pos;
 
 	cb.is_continue = is_continue;
 	cb.label = ast::EMPTY_STR;
@@ -415,7 +415,7 @@ fn Node*? parse_continue_break_stmt(ParseContext* ctx)
 *>
 fn Node*? parse_switch_stmt(ParseContext* ctx) => @pool()
 {
-	int start_pos = ctx.peek(0).pos;
+	int start_pos = ctx.current().pos;
 	@expect_else(ctx, SWITCH ; err)
 	{
 		return err;
@@ -423,11 +423,11 @@ fn Node*? parse_switch_stmt(ParseContext* ctx) => @pool()
 
 	Node* node     = ctx.ast.alloc_node(SWITCH_STMT, start_pos);
 	SwitchStmt* sw = node.as(SWITCH_STMT);
-	defer node.end_token = ctx.peek(0).pos;
+	defer node.end_token = ctx.current().pos;
 
 	if (ctx.is(CONST_IDENT))
 	{
-		Token label_tok = ctx.peek(0);
+		Token label_tok = ctx.current();
 		sw.label = ctx.ast.string_pool.internalize(ctx.token_text(label_tok));
 		advance(ctx)!;
 		expect(ctx, COLON)!;
@@ -468,7 +468,7 @@ fn Node*? parse_switch_stmt(ParseContext* ctx) => @pool()
 *>
 fn Node*? parse_return_stmt(ParseContext* ctx)
 {
-	int start_pos = ctx.peek(0).pos;
+	int start_pos = ctx.current().pos;
 	@expect_else(ctx, RETURN ; err)
 	{
 		return err;
@@ -476,7 +476,7 @@ fn Node*? parse_return_stmt(ParseContext* ctx)
 
 	Node* node      = ctx.ast.alloc_node(RETURN_STMT, start_pos);
 	ReturnStmt* ret = node.as(RETURN_STMT);
-	defer node.end_token = ctx.peek(0).pos;
+	defer node.end_token = ctx.current().pos;
 
 	if (!ctx.is(EOS))
 	{
@@ -497,7 +497,7 @@ fn Node*? parse_return_stmt(ParseContext* ctx)
 *>
 fn Node*? parse_ct_switch_stmt(ParseContext* ctx) => @pool()
 {
-	int start_pos = ctx.peek(0).pos;
+	int start_pos = ctx.current().pos;
 	@expect_else(ctx, CT_SWITCH ; err)
 	{
 		return err;
@@ -505,7 +505,7 @@ fn Node*? parse_ct_switch_stmt(ParseContext* ctx) => @pool()
 
 	Node* node       = ctx.ast.alloc_node(CT_SWITCH_STMT, start_pos);
 	CtSwitchStmt* cs = node.as(CT_SWITCH_STMT);
-	defer node.end_token = ctx.peek(0).pos;
+	defer node.end_token = ctx.current().pos;
 
 	if (!ctx.is(COLON))
 	{
@@ -556,7 +556,7 @@ fn Node*? parse_ct_switch_stmt(ParseContext* ctx) => @pool()
 *>
 fn Node*? parse_if_stmt(ParseContext* ctx)
 {
-	int start_pos = ctx.peek(0).pos;
+	int start_pos = ctx.current().pos;
 	@expect_else(ctx, IF ; err)
 	{
 		return err;
@@ -564,7 +564,7 @@ fn Node*? parse_if_stmt(ParseContext* ctx)
 
 	Node* node      = ctx.ast.alloc_node(IF_STMT, start_pos);
 	IfStmt* if_stmt = node.as(IF_STMT);
-	defer node.end_token = ctx.peek(0).pos;
+	defer node.end_token = ctx.current().pos;
 
 	if (ctx.is(CONST_IDENT))
 	{
@@ -606,7 +606,7 @@ fn Node*? parse_if_stmt(ParseContext* ctx)
 *>
 fn Node*? parse_ct_if_stmt(ParseContext* ctx) => @pool()
 {
-	int start_pos = ctx.peek(0).pos;
+	int start_pos = ctx.current().pos;
 	@expect_else(ctx, CT_IF ; err)
 	{
 		return err;
@@ -614,7 +614,7 @@ fn Node*? parse_ct_if_stmt(ParseContext* ctx) => @pool()
 
 	Node* node        = ctx.ast.alloc_node(CT_IF_STMT, start_pos);
 	CtIfStmt* if_stmt = node.as(CT_IF_STMT);
-	defer node.end_token = ctx.peek(0).pos;
+	defer node.end_token = ctx.current().pos;
 
 	if_stmt.expr = parse_expr(ctx)!;
 	@expect_else(ctx, COLON ; err)
@@ -655,7 +655,7 @@ fn Node*? parse_ct_if_stmt(ParseContext* ctx) => @pool()
 *>
 fn Node*? parse_for_stmt(ParseContext* ctx)
 {
-	int start_pos = ctx.peek(0).pos;
+	int start_pos = ctx.current().pos;
 	@expect_else(ctx, FOR ; err)
 	{
 		return err;
@@ -663,7 +663,7 @@ fn Node*? parse_for_stmt(ParseContext* ctx)
 
 	Node* node        = ctx.ast.alloc_node(FOR_STMT, start_pos);
 	ForStmt* for_stmt = node.as(FOR_STMT);
-	defer node.end_token = ctx.peek(0).pos;
+	defer node.end_token = ctx.current().pos;
 
 	if (ctx.is(CONST_IDENT))
 	{
@@ -730,7 +730,7 @@ fn Node*? parse_for_stmt(ParseContext* ctx)
 *>
 fn Node*? parse_while_stmt(ParseContext* ctx)
 {
-	int start_pos = ctx.peek(0).pos;
+	int start_pos = ctx.current().pos;
 	@expect_else(ctx, WHILE ; err)
 	{
 		return err;
@@ -738,7 +738,7 @@ fn Node*? parse_while_stmt(ParseContext* ctx)
 
 	Node* node            = ctx.ast.alloc_node(WHILE_STMT, start_pos);
 	WhileStmt* while_stmt = node.as(WHILE_STMT);
-	defer node.end_token = ctx.peek(0).pos;
+	defer node.end_token = ctx.current().pos;
 
 	if (ctx.is(CONST_IDENT))
 	{
@@ -781,14 +781,14 @@ fn Node*? parse_while_stmt(ParseContext* ctx)
 *>
 fn Node*? parse_do_while_stmt(ParseContext* ctx)
 {
-	int start_pos = ctx.peek(0).pos;
+	int start_pos = ctx.current().pos;
 	@expect_else(ctx, DO ; err)
 	{
 		return err;
 	}!;
 
 	Node* node = ctx.ast.alloc_node(DO_WHILE_STMT, start_pos);
-	defer node.end_token = ctx.peek(0).pos;
+	defer node.end_token = ctx.current().pos;
 	DoWhileStmt* do_while_stmt = node.as(DO_WHILE_STMT);
 
 	if (ctx.is(CONST_IDENT))
@@ -831,9 +831,9 @@ fn Node*? parse_do_while_stmt(ParseContext* ctx)
 
 fn Node*? parse_foreach_var(ParseContext* ctx)
 {
-	int start_pos  = ctx.peek(0).pos;
+	int start_pos  = ctx.current().pos;
 	Node* var_node = ctx.ast.alloc_node(VAR_DECL, start_pos);
-	defer var_node.end_token = ctx.peek(0).pos;
+	defer var_node.end_token = ctx.current().pos;
 	VarDecl* v = var_node.as(VAR_DECL);
 	v.kind = VAR_LOCAL;
 
@@ -855,13 +855,13 @@ fn Node*? parse_foreach_var(ParseContext* ctx)
 		{
 			ctx.error("Expected an identifier or type.");
 		}
-		ctx.ast.missing(ctx.peek(0).pos);
+		ctx.ast.missing(ctx.current().pos);
 		v.name = ast::EMPTY_STR;
 		ctx.skip_until({ COMMA, COLON, RPAREN })!;
 		return var_node;
 	}
 
-	v.name = ctx.ast.string_pool.internalize(ctx.token_text(ctx.peek(0)));
+	v.name = ctx.ast.string_pool.internalize(ctx.token_text(ctx.current()));
 	advance(ctx)!;
 
 	return var_node;
@@ -874,13 +874,13 @@ fn Node*? parse_foreach_var(ParseContext* ctx)
 *>
 fn Node*? parse_foreach_stmt(ParseContext* ctx)
 {
-	int start_pos   = ctx.peek(0).pos;
+	int start_pos   = ctx.current().pos;
 	bool is_reverse = ctx.is(FOREACH_R);
 	advance(ctx)!;
 
 	Node* node                = ctx.ast.alloc_node(FOREACH_STMT, start_pos);
 	ForeachStmt* foreach_stmt = node.as(FOREACH_STMT);
-	defer node.end_token = ctx.peek(0).pos;
+	defer node.end_token = ctx.current().pos;
 	foreach_stmt.is_reverse = is_reverse;
 
 	if (ctx.is(CONST_IDENT))
@@ -943,7 +943,7 @@ fn Node*? parse_foreach_stmt(ParseContext* ctx)
 *>
 fn Node*? parse_ct_assert_stmt(ParseContext* ctx) => @pool()
 {
-	int start_pos = ctx.peek(0).pos;
+	int start_pos = ctx.current().pos;
 	@expect_else_skip(ctx, CT_ASSERT, { EOS } ; missing)
 	{
 		return missing;
@@ -951,7 +951,7 @@ fn Node*? parse_ct_assert_stmt(ParseContext* ctx) => @pool()
 
 	Node* node                   = ctx.ast.alloc_node(CT_ASSERT_STMT, start_pos);
 	CtAssertStmt* ct_assert_stmt = node.as(CT_ASSERT_STMT);
-	defer node.end_token = ctx.peek(0).pos;
+	defer node.end_token = ctx.current().pos;
 
 	ct_assert_stmt.expr = parse_constant_expr(ctx)!;
 	if (consume(ctx, COLON)!)
@@ -969,7 +969,7 @@ fn Node*? parse_ct_assert_stmt(ParseContext* ctx) => @pool()
 *>
 fn Node*? parse_ct_error_stmt(ParseContext* ctx) => @pool()
 {
-	int start_pos = ctx.peek(0).pos;
+	int start_pos = ctx.current().pos;
 	@expect_else(ctx, CT_ERROR ; err)
 	{
 		return err;
@@ -977,7 +977,7 @@ fn Node*? parse_ct_error_stmt(ParseContext* ctx) => @pool()
 
 	Node* node                 = ctx.ast.alloc_node(CT_ERROR_STMT, start_pos);
 	CtErrorStmt* ct_error_stmt = node.as(CT_ERROR_STMT);
-	defer node.end_token = ctx.peek(0).pos;
+	defer node.end_token = ctx.current().pos;
 
 	ct_error_stmt.expr = parse_constant_expr(ctx)!;
 
@@ -994,7 +994,7 @@ fn Node*? parse_ct_error_stmt(ParseContext* ctx) => @pool()
 *>
 fn Node*? parse_ct_echo_stmt(ParseContext* ctx) => @pool()
 {
-	int start_pos = ctx.peek(0).pos;
+	int start_pos = ctx.current().pos;
 	@expect_else(ctx, CT_ECHO ; err)
 	{
 		return err;
@@ -1002,7 +1002,7 @@ fn Node*? parse_ct_echo_stmt(ParseContext* ctx) => @pool()
 
 	Node* node               = ctx.ast.alloc_node(CT_ECHO_STMT, start_pos);
 	CtEchoStmt* ct_echo_stmt = node.as(CT_ECHO_STMT);
-	defer node.end_token = ctx.peek(0).pos;
+	defer node.end_token = ctx.current().pos;
 
 	ct_echo_stmt.expr = parse_constant_expr(ctx)!;
 
@@ -1022,7 +1022,7 @@ fn Node*? parse_ct_echo_stmt(ParseContext* ctx) => @pool()
 *>
 fn Node*? parse_defer_stmt(ParseContext* ctx)
 {
-	int start_pos = ctx.peek(0).pos;
+	int start_pos = ctx.current().pos;
 	expect(ctx, DEFER)!;
 	Node* node     = ctx.ast.alloc_node(DEFER_STMT, start_pos);
 	DeferStmt* def = node.as(DEFER_STMT);
@@ -1039,7 +1039,7 @@ fn Node*? parse_defer_stmt(ParseContext* ctx)
 	{
 		kind = CATCH;
 	}
-	else if (ctx.is(LPAREN) && ctx.peek(1).kind == CATCH)
+	else if (ctx.is(LPAREN) && ctx.peek(1)!.kind == CATCH)
 	{
 		advance(ctx, 2)!; // ( and catch
 		Token ident_token = ctx.current();
@@ -1066,7 +1066,7 @@ fn Node*? parse_defer_stmt(ParseContext* ctx)
 *>
 fn Node*? parse_assert_stmt(ParseContext* ctx)
 {
-	int start_pos = ctx.peek(0).pos;
+	int start_pos = ctx.current().pos;
 	expect(ctx, ASSERT)!;
 	Node* node      = ctx.ast.alloc_node(ASSERT_STMT, start_pos);
 	AssertStmt* ass = node.as(ASSERT_STMT);

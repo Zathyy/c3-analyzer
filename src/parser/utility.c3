@@ -17,17 +17,17 @@ const String ANSI_BOLD   = "\x1b[1m";
 
 macro void ParseContext.info(&self, String fmt, ...)
 {
-	self.report(self.peek(), INFO, ANSI_CYAN, fmt, ...$vaarg);
+	self.report(self.current(), INFO, ANSI_CYAN, fmt, ...$vaarg);
 }
 
 macro void ParseContext.warn(&self, String fmt, ...)
 {
-	self.report(self.peek(), WARN, ANSI_YELLOW, fmt, ...$vaarg);
+	self.report(self.current(), WARN, ANSI_YELLOW, fmt, ...$vaarg);
 }
 
 macro void ParseContext.error(&self, String fmt, ...)
 {
-	self.report(self.peek(), ERROR, ANSI_RED, fmt, ...$vaarg);
+	self.report(self.current(), ERROR, ANSI_RED, fmt, ...$vaarg);
 }
 
 macro void ParseContext.error_at(&self, Token t, String fmt, ...)
@@ -94,7 +94,7 @@ fn bool is_non_type_ident(TokenKind k)
 
 fn bool is_type(ParseContext* ctx)
 {
-	TokenKind kind = ctx.peek().kind;
+	TokenKind kind = ctx.current().kind;
 
 	if (is_type_primitive(kind)) return true;
 	if (kind == TYPE_IDENT) return true;
@@ -305,11 +305,11 @@ fn OverloadKind get_overload_from_token(TokenKind kind)
 	}
 }
 
-fn bool is_declaration_followup(ParseContext* ctx)
+fn bool? is_declaration_followup(ParseContext* ctx)
 {
 	int i;
 
-	while (ctx.peek(i).kind == IDENT && ctx.peek(i + 1).kind == SCOPE)
+	while (ctx.peek(i)!.kind == IDENT && ctx.peek(i + 1)!.kind == SCOPE)
 	{
 		i += 2;
 	}
@@ -322,16 +322,16 @@ fn bool is_declaration_followup(ParseContext* ctx)
 		int depth = 1;
 		do
 		{
-			if (ctx.peek(i).kind == LPAREN) depth++;
-			if (ctx.peek(i).kind == RPAREN) depth--;
+			if (ctx.peek(i)!.kind == LPAREN) depth++;
+			if (ctx.peek(i)!.kind == RPAREN) depth--;
 
 			i++;
-		} while (depth != 0 && ctx.peek(i).kind != EOF);
+		} while (depth != 0 && ctx.peek(i)!.kind != EOF);
 	}
 
 	while (true)
 	{
-		TokenKind k = ctx.peek(i).kind;
+		TokenKind k = ctx.peek(i)!.kind;
 
 		// Skip over common type modifiers
 		if (k == ASTERISK || k == QUESTION)
@@ -342,20 +342,20 @@ fn bool is_declaration_followup(ParseContext* ctx)
 		{
 			// Skip the entire [ ... ] block
 			i++;
-			while (ctx.peek(i).kind != RBRACKET && ctx.peek(i).kind != EOF) i++;
+			while (ctx.peek(i)!.kind != RBRACKET && ctx.peek(i)!.kind != EOF) i++;
 			i++;
 		}
 		else if (k == LVEC)
 		{
 			// Skip the entire <* ... > block
 			i++;
-			while (ctx.peek(i).kind != RVEC && ctx.peek(i).kind != EOF) i++;
+			while (ctx.peek(i)!.kind != RVEC && ctx.peek(i)!.kind != EOF) i++;
 			i++;
 		}
 		else if (k == LBRACE)
 		{
 			i++;
-			while (ctx.peek(i).kind != RBRACE && ctx.peek(i).kind != EOF) i++;
+			while (ctx.peek(i)!.kind != RBRACE && ctx.peek(i)!.kind != EOF) i++;
 			i++;
 		}
 		else
@@ -365,7 +365,7 @@ fn bool is_declaration_followup(ParseContext* ctx)
 	}
 
 	// After skipping modifiers, do we see a variable name?
-	TokenKind final_k = ctx.peek(i).kind;
+	TokenKind final_k = ctx.peek(i)!.kind;
 	return final_k == IDENT || final_k == CONST_IDENT || final_k == CT_IDENT;
 }
 
@@ -416,8 +416,7 @@ fn bool token_type_ends_case(TokenKind kind)
 
 fn bool check_if_typed_parameter(ParseContext* ctx)
 {
-	TokenKind first  = ctx.peek(0).kind;
-	TokenKind second = ctx.peek(1).kind;
+	TokenKind first  = ctx.current().kind;
 
 	if (is_type_primitive(first) || first == TYPE_IDENT)
 	{
@@ -428,7 +427,7 @@ fn bool check_if_typed_parameter(ParseContext* ctx)
 
 fn Node* alloc_any_type_expr(ParseContext* ctx)
 {
-	int pos = ctx.peek(0).pos;
+	int pos = ctx.current().pos;
 
 	Node* type_node = ctx.ast.alloc_node(TYPE_EXPR, pos, pos);
 	TypeExpr* data  = type_node.as(TYPE_EXPR);

@@ -13,7 +13,7 @@ import std::collections::maybe;
 import parser::plog;
 
 faultdef
-	UNKNOWN, UNEXPECTED_EOS, MODULE_HEADER_FAILED, CONTRACT_NOT_ALLOWED, INVALID_PATH, NOT_A_PATH, PATH_TOO_LONG, EXPECTED_EXPRESSION, UNEXPECTED_TOKEN,
+	UNKNOWN, UNEXPECTED_EOS, MODULE_HEADER_FAILED, CONTRACT_NOT_ALLOWED, INVALID_PATH, NOT_A_PATH, PATH_TOO_LONG, EXPECTED_EXPRESSION, UNEXPECTED_TOKEN, EOT
 ;
 
 struct ParseContext
@@ -66,7 +66,7 @@ fn void? synchronize(ParseContext* ctx)
 
 	while (!ctx.eof())
 	{
-		Token t      = ctx.peek();
+		Token t      = ctx.current();
 		Location loc = ctx.line_map.resolve((sz)t.pos);
 
 		// Track depth to ensure we aren't inside a body
@@ -107,18 +107,14 @@ fn void? synchronize(ParseContext* ctx)
 	}
 }
 
-fn bool ParseContext.eof(&self) @inline
-{
-	if (self.pos >= self.tokens.len) return true;
-	return self.tokens[self.pos].kind == EOF;
-}
+fn bool ParseContext.eof(&self) @inline => self.pos >= self.tokens.len || self.current().is_eof();
 
 fn bool ParseContext.is(&self, TokenKind kind)
 {
 	return self.tokens[self.pos].kind == kind;
 }
 
-fn Token? ParseContext.peek(&self, int pos = 0) @inline
+fn Token? ParseContext.peek(&self, int pos) @inline
 {
 	if (!self.can_peek(pos)) return io::EOF~;
 	return self.tokens[(sz)self.pos + pos];
@@ -163,7 +159,7 @@ fn void? advance(ParseContext* ctx, int len = 1)
 	if (ctx.eof())
 	{
 		plog::debug("parser::advance() : eof");
-		return io::EOF~;
+		return EOT~;
 	}
 
 	ctx.pos += len;
@@ -177,8 +173,8 @@ fn void? advance(ParseContext* ctx, int len = 1)
 	}
 
 	$if env::DEBUG_SYMBOLS:
-		ctx.current_token = ctx.peek();
-		ctx.current_token_string = ctx.token_text(ctx.peek());
+		ctx.current_token = ctx.current();
+		ctx.current_token_string = ctx.token_text(ctx.current());
 	$endif
 }
 
@@ -196,7 +192,7 @@ macro @expect_else(ParseContext* ctx, TokenKind kind; @body(err))
 		$endif
 		@body(ctx.ast.missing(ctx.current().pos));
 
-		return ctx.peek();
+		return ctx.current();
 	}
 	else
 	{
@@ -224,7 +220,7 @@ macro @expect_some_else(ParseContext* ctx, TokenKind[] kind; @body(err))
 		plog::error("Error happened here");
 	$endif
 	@body(ctx.ast.missing(ctx.current().pos));
-	return ctx.peek();
+	return ctx.current();
 }
 
 <*
@@ -255,7 +251,7 @@ macro Token? expect(ParseContext* ctx, TokenKind kind) @maydiscard
 			plog::error("Error happened here");
 		$endif
 		ctx.ast.missing(ctx.current().pos);
-		return ctx.peek();
+		return ctx.current();
 	}
 	else
 	{
@@ -402,9 +398,9 @@ fn ParseResult? parse(Workspace* ws, String uri, String src) => @pool()
 		// sz err_len = lengthof(ctx.ast.error_nodes);
 		if (catch err = parse_top_level(&ctx, ws))
 		{
-			if (err == io::EOF)
+			if (err == EOT)
 			{
-				plog::error("EOF!");
+				plog::error("End of Token!");
 				break;
 			}
 
@@ -466,7 +462,7 @@ fn String? path_to_module_name(String path)
 
 fn void? parse_top_level(ParseContext* ctx, Workspace* ws)
 {
-	plog::debug("parse_top_level: %s", ctx.token_text(ctx.peek()));
+	plog::debug("parse_top_level: %s", ctx.token_text(ctx.current()));
 
 	Node* node;
 	ParseFlags flags = { .is_global = true };

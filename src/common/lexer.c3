@@ -508,6 +508,8 @@ struct Lexer
 	int index;
 }
 
+fn bool Token.is_eof(&self) @inline => self.kind == EOF;
+
 fn bool is_digit(char c) @inline => c >= '0' && c <= '9';
 fn bool is_alpha(char c) @inline => (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
 fn bool is_ident(char c) @inline => is_alpha(c) || is_digit(c) || c == '_';
