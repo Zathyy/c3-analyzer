@@ -43,7 +43,7 @@ fn void? ParseContext.skip_until(ParseContext* ctx, TokenKind[] targets)
 {
 	while (!ctx.eof())
 	{
-		TokenKind current = ctx.peek(0).kind;
+		TokenKind current = ctx.current().kind;
 
 		foreach (t : targets)
 		{
@@ -134,10 +134,10 @@ fn bool ParseContext.can_peek(&self, int offset = 0) @inline
 
 fn void ParseContext.print_current(&self)
 {
-	plog::debug("%s", self.token_text(self.peek(0)));
+	plog::debug("%s", self.token_text(self.current()));
 }
 
-fn Token ParseContext.current(&self) => self.peek(0);
+fn Token ParseContext.current(&self) @inline => self.peek(0)!!;
 
 fn void? reverse(ParseContext* ctx, int position)
 {
@@ -147,7 +147,7 @@ fn void? reverse(ParseContext* ctx, int position)
 
 fn int ParseContext.current_pos(&self)
 {
-	return self.peek(0).pos ?? self.tokens[^1].pos;
+	return self.current().pos;
 }
 
 fn void? ParseContext.advance(ParseContext* ctx, int len = 1)
@@ -273,7 +273,7 @@ macro Node*? unexpected(ParseContext* ctx, String fmt, ...) @maydiscard
 	$if $feature(PARSER_CLI):
 		plog::error("Error happened here");
 	$endif
-	return ctx.ast.missing(ctx.peek(0).pos);
+	return ctx.ast.missing(ctx.current().pos);
 }
 
 macro Node*? unexpected_at(ParseContext* ctx, Token t, String fmt, ...) @maydiscard
@@ -282,7 +282,7 @@ macro Node*? unexpected_at(ParseContext* ctx, Token t, String fmt, ...) @maydisc
 	$if $feature(PARSER_CLI):
 		plog::error("Error happened here");
 	$endif
-	return ctx.ast.missing(ctx.peek(0).pos);
+	return ctx.ast.missing(ctx.current().pos);
 }
 
 <*
@@ -307,7 +307,7 @@ fn String ParseContext.token_text(ParseContext* self, Token t) @inline
 
 fn String ParseContext.current_text(ParseContext* self) @inline
 {
-	return self.token_text(self.peek(0));
+	return self.token_text(self.current());
 }
 
 fn String peek_module_name(ParseContext* ctx) => @pool()
