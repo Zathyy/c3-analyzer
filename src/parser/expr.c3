@@ -1392,3 +1392,22 @@ fn Node*? parse_range_expr(ParseContext* ctx, Node* left, int start_pos)
 	des.range = range_node;
 	return designator_node;
 }
+
+<*
+ @param [&in] left
+*>
+fn Node*? parse_raise_suffix_expr(ParseContext* ctx, Node* left, Token left_token)
+{
+	if (left.kind == TYPE_EXPR)
+	{
+		advance(ctx)!;
+		return unexpected_at(ctx, left_token, "Expected a fault before '~'")!;
+	}
+	expect(ctx, BIT_NOT)!;
+	int start_pos     = ctx.current().pos;
+	Node* node        = ctx.ast.alloc_node(OPTIONAL_EXPR, start_pos);
+	OptionalExpr* opt = node.as(OPTIONAL_EXPR);
+	opt.inner_expr = left;
+	node.end_token = ctx.current().pos;
+	return node;
+}

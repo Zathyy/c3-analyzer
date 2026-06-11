@@ -104,6 +104,7 @@ struct Node
 		MaybeDeferExpr maybe_deref_expr;
 		AccessExpr access_expr;
 		RangeExpr range_expr;
+		OptionalExpr optional_expr;
 
 		// UNIT
 		ContractParam contract_param;

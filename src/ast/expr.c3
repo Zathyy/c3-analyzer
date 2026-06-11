@@ -323,3 +323,8 @@ struct RangeExpr
 	Node* start;
 	Node* end;
 }
+
+struct OptionalExpr
+{
+	Node* inner_expr;
+}

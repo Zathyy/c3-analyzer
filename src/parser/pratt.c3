@@ -314,6 +314,8 @@ fn Node*? parse_infix(ParseContext* ctx, Node* left, Precedence rbp)
 		case QUESTION:
 		case CT_TERNARY:
 			return parse_ternary_expr(ctx, left)!;
+		case BIT_NOT:
+			return parse_raise_suffix_expr(ctx, left, t)!;
 		case DOT:
 		case SCOPE:
 			return parse_access_expr(ctx, left)!;
