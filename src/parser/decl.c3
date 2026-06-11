@@ -577,7 +577,7 @@ fn Node*? parse_macro_decl(ParseContext* ctx, ParseFlags flags = { })
 		mac.name = ctx.ast.string_pool.internalize(ctx.token_text(t));
 	}
 
-	mac.params = parse_parameter_list(ctx)!;
+	parse_macro_params(ctx, node)!;
 
 	if (ctx.is(AT_IDENT))
 	{

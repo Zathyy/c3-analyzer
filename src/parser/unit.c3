@@ -33,6 +33,11 @@ fn NodeArray? parse_parameter_list(ParseContext* ctx, ParamParseFlags flags = { 
 
 	while (true)
 	{
+		if (flags.is_macro && ctx.is(EOS))
+		{
+			break;
+		}
+
 		Node* param = parse_param_decl(ctx, flags)!;
 		temp_params.push(param);
 
@@ -44,11 +49,31 @@ fn NodeArray? parse_parameter_list(ParseContext* ctx, ParamParseFlags flags = { 
 			break;
 		}
 	}
-	if (!flags.is_call)
+	if (!flags.is_call && !flags.is_macro)
 	{
 		expect(ctx, RPAREN)!;
 	}
 	return alloc::clone_slice(ctx.arena, temp_params.array_view());
+}
+
+fn void? parse_macro_params(ParseContext* ctx, Node* macro_node)
+{
+	NodeArray params = parse_parameter_list(ctx, { .is_macro = true })!;
+	MacroDecl* mac   = macro_node.as(MACRO_DECL);
+	mac.params = params;
+
+	if (consume(ctx, EOS)!)
+	{
+		Token at_tok = ctx.peek(0);
+		expect(ctx, AT_IDENT)!;
+
+		Node* body_param_node     = ctx.ast.alloc_node(BODY_PARAM_DECL, at_tok.pos);
+		BodyParamDecl* body_param = body_param_node.as(BODY_PARAM_DECL);
+
+		body_param.params = parse_parameter_list(ctx)!;
+	}
+
+	expect(ctx, RPAREN)!;
 }
 
 <*

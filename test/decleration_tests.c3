@@ -123,6 +123,7 @@ fn void macro_method_with_params()
 		module hello; 
 		macro void Foo.greet(&self, Bar baz) {}
 		macro Foo.wow(&self, Bar bar) {}
+		macro @expect_else_skip(ParseContext* ctx, TokenKind kind, TokenKind[] targets; @body(err)) {}
 	`;
 	Workspace ws;
 	ws.init();
@@ -137,7 +138,7 @@ fn void macro_method_with_params()
 	MacroDecl* mac = node.as(MACRO_DECL);
 
 	test::eq(parser_tests::count_kind(s, MODULE_DECL), 1);
-	test::eq(parser_tests::count_kind(s, MACRO_DECL), 2);
+	test::eq(parser_tests::count_kind(s, MACRO_DECL), 3);
 }
 
 fn void alias_declarations_parse()

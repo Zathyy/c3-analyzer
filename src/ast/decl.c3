@@ -106,6 +106,7 @@ struct MacroDecl
 	Option{Node} ret_type;
 	Node* body;
 	Option{Node} contract;
+	Node* body_params;
 	NodeArray params;
 	NodeArray attributes;
 }
@@ -213,6 +214,11 @@ struct CtAssertDecl
 }
 
 struct GenericDecl
+{
+	NodeArray params;
+}
+
+struct BodyParamDecl
 {
 	NodeArray params;
 }

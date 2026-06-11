@@ -52,6 +52,7 @@ bitstruct ParamParseFlags : uint
 {
 	bool is_attrdef;
 	bool is_call;
+	bool is_macro;
 }
 
 bitstruct AttributeParseFlags : uint
