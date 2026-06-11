@@ -1022,7 +1022,7 @@ fn Node*? parse_expand_decl(ParseContext* ctx)
 <*
  struct_decl ::= "struct | union" TYPE_IDENT ("(" type ("," type)* ")")? attributes? "{" struct_body "}"
 *>
-fn Node*? parse_struct_union_decl(ParseContext* ctx) => @pool()
+fn Node*? parse_struct_union_decl(ParseContext* ctx, bool is_sub = false) => @pool()
 {
 	int start_pos  = ctx.peek(0).pos;
 	bool is_struct = ctx.is(STRUCT);
@@ -1039,11 +1039,27 @@ fn Node*? parse_struct_union_decl(ParseContext* ctx) => @pool()
 	struct_decl.is_union = !is_struct;
 	defer node.end_token = ctx.peek(0).pos;
 
-	@expect_some_else(ctx, { IDENT, TYPE_IDENT } ; err)
+	do NAME_CHECK:
 	{
-		ctx.error("Structs must have a 'Type identifier' or a 'ident' if a sub struct");
-		struct_decl.name = ast::EMPTY_STR;
-	}!;
+		if (!is_sub)
+		{
+			Token t = @expect_some_else(ctx, { TYPE_IDENT } ; err)
+			{
+				ctx.error("Structs must have a 'Type' identifier");
+				struct_decl.name = ast::EMPTY_STR;
+				break NAME_CHECK;
+			}!;
+
+			struct_decl.name = ctx.ast.string_pool.internalize(ctx.token_text(t));
+			break NAME_CHECK;
+		}
+
+		if (ctx.is(IDENT))
+		{
+			struct_decl.name = ctx.ast.string_pool.internalize(ctx.token_text(ctx.current()));
+			advance(ctx)!;
+		}
+	};
 
 	struct_decl.interfaces = parse_interface_type_list(ctx)!;
 	struct_decl.generics = parse_generic_decl(ctx)!;
@@ -1071,7 +1087,7 @@ fn Node*? parse_struct_union_decl(ParseContext* ctx) => @pool()
 			}
 			else
 			{
-				sub_decl = parse_struct_union_decl(ctx)!;
+				sub_decl = parse_struct_union_decl(ctx, true)!;
 			}
 
 			if (sub_decl && sub_decl.kind != ERROR)

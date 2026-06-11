@@ -509,6 +509,16 @@ fn void struct_decl()
 					int faf;
 				}
 			}
+
+			struct
+			{
+				int a;
+			}
+
+			union 
+			{
+				int a;
+			}
 			
 			bitstruct bits
 			{
