@@ -1129,7 +1129,7 @@ fn Node*? parse_group_expr(ParseContext* ctx)
 	expect(ctx, RPAREN)!;
 
 	// can_start_expression might miss some cases
-	if (inner.kind == TYPE_EXPR && can_start_expression(ctx.current().kind))
+	if ((inner.kind == TYPE_EXPR || inner.kind == COMPOUND_LITERAL_EXPR) && can_start_expression(ctx.current().kind))
 	{
 		Node* operand = parse_expr(ctx, UNARY)!;
 
