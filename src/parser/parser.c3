@@ -118,9 +118,9 @@ fn bool ParseContext.is(&self, TokenKind kind)
 	return self.tokens[self.pos].kind == kind;
 }
 
-fn Token ParseContext.peek(&self, int pos = 0) @inline
+fn Token? ParseContext.peek(&self, int pos = 0) @inline
 {
-	assert((sz)self.pos + pos < self.tokens.len);
+	if (!self.can_peek(pos)) return io::EOF~;
 	return self.tokens[(sz)self.pos + pos];
 }
 
@@ -143,6 +143,11 @@ fn void? reverse(ParseContext* ctx, int position)
 {
 	ctx.pos = position;
 	advance(ctx, 0)!;
+}
+
+fn int ParseContext.current_pos(&self)
+{
+	return self.peek(0).pos ?? self.tokens[^1].pos;
 }
 
 fn void? ParseContext.advance(ParseContext* ctx, int len = 1)
