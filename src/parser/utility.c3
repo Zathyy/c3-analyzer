@@ -352,6 +352,12 @@ fn bool is_declaration_followup(ParseContext* ctx)
 			while (ctx.peek(i).kind != RVEC && ctx.peek(i).kind != EOF) i++;
 			i++;
 		}
+		else if (k == LBRACE)
+		{
+			i++;
+			while (ctx.peek(i).kind != RBRACE && ctx.peek(i).kind != EOF) i++;
+			i++;
+		}
 		else
 		{
 			break;

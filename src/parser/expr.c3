@@ -1411,3 +1411,29 @@ fn Node*? parse_raise_suffix_expr(ParseContext* ctx, Node* left, Token left_toke
 	node.end_token = ctx.current().pos;
 	return node;
 }
+
+fn Node*? parse_ct_defined_expr(ParseContext* ctx) => @pool()
+{
+	expect(ctx, CT_DEFINED)!;
+	expect(ctx, LPAREN)!;
+
+	int start_pos = ctx.current().pos;
+	Node* node    = ctx.ast.alloc_node(CT_DEFINED_EXPR, start_pos);
+	defer node.end_token = ctx.current().pos;
+	CtDefinedExpr* def = node.as(CT_DEFINED_EXPR);
+	List{Node*} exprs;
+	exprs.tinit();
+	while (!ctx.eof() && !consume(ctx, RPAREN)!)
+	{
+		exprs.push(parse_decl_or_expr(ctx)!);
+		if (!consume(ctx, COMMA)!)
+		{
+			expect(ctx, RPAREN)!;
+			break;
+		}
+	}
+
+	def.expr_list = alloc::clone_slice(ctx.arena, exprs.array_view());
+
+	return node;
+}

@@ -205,8 +205,9 @@ fn Node*? parse_prefix_expr(ParseContext* ctx)
 			return parse_splat_expr(ctx)!;
 		case BUILTIN:
 			return parse_builtin_expr(ctx)!;
-		case CT_FEATURE:
 		case CT_DEFINED:
+			return parse_ct_defined_expr(ctx)!;
+		case CT_FEATURE:
 		case AT_IDENT:
 		case AT_CONST_IDENT:
 		case AT_TYPE_IDENT:
@@ -356,12 +357,28 @@ fn Node*? parse_decl_or_expr(ParseContext* ctx)
 		return parse_var_decl(ctx, null, { .is_expr = true, .is_local = true, .skip_eos = true, .is_var = true })!;
 	}
 
-	if (is_type(ctx) && is_declaration_followup(ctx))
+	Node* expr = parse_expr(ctx)!;
+
+	plog::debug("parse_decl_or_expr - (%s)", expr.kind.description);
+
+	if (expr.kind != TYPE_EXPR && expr.kind != COMPOUND_LITERAL_EXPR)
 	{
-		return parse_var_decl(ctx, null, { .is_expr = true, .is_local = true, .skip_eos = true })!;
+		return expr;
 	}
 
-	return parse_expr(ctx)!;
+	TokenKind next = ctx.current().kind;
+	switch (next)
+	{
+		case RPAREN:
+		case RBRACKET:
+		case RBRACE:
+		case RVEC:
+			return expr;
+		default:
+			break;
+	}
+
+	return parse_var_decl(ctx, expr, { .is_expr = true, .is_local = true, .skip_eos = true })!;
 }
 
 <*

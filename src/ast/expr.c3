@@ -328,3 +328,8 @@ struct OptionalExpr
 {
 	Node* inner_expr;
 }
+
+struct CtDefinedExpr
+{
+	NodeArray expr_list;
+}
