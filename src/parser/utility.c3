@@ -363,19 +363,6 @@ fn bool is_declaration_followup(ParseContext* ctx)
 	return final_k == IDENT || final_k == CONST_IDENT || final_k == CT_IDENT;
 }
 
-<*
- @param [&in] n
-*>
-fn bool node_ends_with_block(ParseContext* ctx, Node* n)
-{
-	NodeKind kind = n.kind;
-
-	if (kind != CALL_EXPR) return true;
-
-	CallExpr* call = n.as(CALL_EXPR);
-	return call.macro_body_expr != null;
-}
-
 fn bool can_start_expression(TokenKind kind)
 {
 	if (is_keyword_ident(kind) || is_base_type(kind))
@@ -408,6 +395,7 @@ fn bool can_start_expression(TokenKind kind)
 		case BIT_NOT:
 		case AMP:
 		case ASTERISK:
+		case LBRACE:
 			return true;
 		default:
 			return false;

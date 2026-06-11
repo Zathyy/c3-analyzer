@@ -410,6 +410,7 @@ fn void initializers()
 		{
 			String[*] strings = { "Foo", "Bar" };
 			Foo foo = { .foo = "fafsfaf", .bar = "rfasfafa" };
+			Foo foo = (Foo){ .foo = "fafsfaf", .bar = "rfasfafa" };
 		}
 	`;
 
