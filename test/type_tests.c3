@@ -221,3 +221,40 @@ fn void global_generic()
 			assert(false, "Expected root declaration type to be parsed as a TYPE_GENERIC branch");
 	}
 }
+
+fn void global_vec()
+{
+	String text = `
+		module hello;
+		
+		const float[<*>] CHANNELS = { 1.0, 2.0 };
+	`;
+
+	Workspace ws;
+	ws.init();
+	defer ws.free();
+
+	ParseResult res = parser::parse(&ws, "var_decl_generic", text)!!;
+	test::eq(res.success, true);
+
+	Module* mod      = ws.modules.get("hello")!!;
+	ModuleSection* s = mod.sections[0];
+	StringPool* pool = &s.source_file.ast.string_pool;
+
+	VarDecl* decl = s.nodes[1].as(VAR_DECL);
+	test::eq(pool.get(decl.name)!!, "CHANNELS");
+	test::eq(decl.kind, VarDeclKind.VAR_GLOBAL);
+	test::eq(decl.type.kind, NodeKind.TYPE_EXPR);
+	TypeExpr* type_data = decl.type.as(TYPE_EXPR);
+
+	switch (type_data.kind)
+	{
+		case TYPE_VECTOR:
+			test::ne(type_data.array.base, null);
+			test::eq(type_data.array.base.as(TYPE_EXPR).kind, TypeKind.TYPE_IDENTIFIER);
+			test::eq(type_data.array.len_expr, null);
+			break;
+		default:
+			assert(false, "Expected root declaration type to be parsed as a TYPE_VECTOR branch");
+	}
+}

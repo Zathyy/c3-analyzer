@@ -143,7 +143,11 @@ fn Node*? parse_type_expr(ParseContext* ctx, ParseFlags parse_flags = { })
 
 			vec_data.kind = TYPE_VECTOR;
 			vec_data.array.base = current_type;
-			vec_data.array.len_expr = parse_expr(ctx, ADDITIVE)!;
+
+			if (!consume(ctx, ASTERISK)!)
+			{
+				vec_data.array.len_expr = parse_expr(ctx, ADDITIVE)!;
+			}
 
 			expect(ctx, RVEC)!;
 
