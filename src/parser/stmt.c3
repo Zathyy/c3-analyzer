@@ -60,6 +60,8 @@ fn Node*? parse_stmt(ParseContext* ctx)
 		case STATIC:
 			advance(ctx)!;
 			return parse_var_decl(ctx, null, { .is_static = true, .is_local = true })!;
+		case ASSERT:
+			return parse_assert_stmt(ctx)!;
 		case HASH_IDENT:
 		case IDENT:
 		case CONST_IDENT:
@@ -783,7 +785,7 @@ fn Node*? parse_do_while_stmt(ParseContext* ctx)
 		return err;
 	}!;
 
-	Node* node                 = ctx.ast.alloc_node(DO_WHILE_STMT, start_pos);
+	Node* node = ctx.ast.alloc_node(DO_WHILE_STMT, start_pos);
 	defer node.end_token = ctx.peek(0).pos;
 	DoWhileStmt* do_while_stmt = node.as(DO_WHILE_STMT);
 
@@ -1054,5 +1056,39 @@ fn Node*? parse_defer_stmt(ParseContext* ctx)
 	def.kind = kind;
 	def.body = parse_stmt(ctx)!;
 
+	return node;
+}
+
+<*
+ assert_stmt ::= ASSERT '(' assert_expr (',' expr)? ')' ';'
+*>
+fn Node*? parse_assert_stmt(ParseContext* ctx)
+{
+	int start_pos = ctx.peek(0).pos;
+	expect(ctx, ASSERT)!;
+	Node* node      = ctx.ast.alloc_node(ASSERT_STMT, start_pos);
+	AssertStmt* ass = node.as(ASSERT_STMT);
+
+	expect(ctx, LPAREN)!;
+	ass.expr = parse_expr(ctx)!;
+	if (consume(ctx, COMMA)!)
+	{
+		ass.message = parse_constant_expr(ctx)!;
+
+		@pool()
+		{
+			List{Node*} args;
+			args.tinit();
+
+			while (!ctx.eof() && consume(ctx, COMMA)!)
+			{
+				args.push(parse_expr(ctx)!);
+			}
+
+			ass.args = alloc::clone_slice(ctx.arena, args.array_view());
+		};
+	}
+	expect(ctx, RPAREN)!;
+	expect(ctx, EOS)!;
 	return node;
 }

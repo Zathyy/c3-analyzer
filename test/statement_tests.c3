@@ -684,3 +684,29 @@ fn void do_while_stmt()
 	test::eq(do_while_stmt.body.kind, NodeKind.COMPOUND_STMT);
 	test::eq(do_while_stmt.label, ast::EMPTY_STR);
 }
+
+fn void assert_stmt()
+{
+	String path = `
+		module hello;
+		fn void foo(int a)
+		{
+			assert(false, "urmom %s", foo);
+			assert(false, "urmom");
+		}
+	`;
+
+	Workspace ws;
+	ws.init();
+	defer ws.free();
+
+	ParseResult res = parser::parse(&ws, "assert_stmt", path)!!;
+	test::eq(res.success, true);
+
+	Module* mod      = ws.modules.get("hello")!!;
+	ModuleSection* s = mod.sections[0];
+	StringPool* pool = &s.source_file.ast.string_pool;
+
+	test::eq(parser_tests::count_kind(s, MODULE_DECL), 1);
+	test::eq(parser_tests::count_kind(s, FN_DECL), 1);
+}

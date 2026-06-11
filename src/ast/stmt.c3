@@ -143,3 +143,10 @@ struct DeferStmt
 	Node* ident;
 	Node* body;
 }
+
+struct AssertStmt
+{
+	Node* expr;
+	Node* message;
+	NodeArray args;
+}
