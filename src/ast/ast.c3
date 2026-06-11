@@ -109,6 +109,7 @@ struct Node
 		CtDefinedExpr ct_defined_expr;
 		CtFeatureExpr ct_feature_expr;
 		BodyParamDecl body_param_decl;
+		LengthofExpr lengthof_expr;
 
 		// UNIT
 		ContractParam contract_param;

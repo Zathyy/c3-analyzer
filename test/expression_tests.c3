@@ -562,3 +562,30 @@ fn void ct_defined()
 	test::eq(parser_tests::count_kind(s, MODULE_DECL), 1);
 	test::eq(parser_tests::count_kind(s, FN_DECL), 1);
 }
+
+fn void lengthof_expr()
+{
+	String path = `
+		module hello;
+	
+		fn void foo()
+		{
+			sz len = lengthof(foo);
+		}
+	`;
+
+	Workspace ws;
+	ws.init();
+	defer ws.free();
+	ParseResult res = parser::parse(&ws, "range", path)!!;
+	test::eq(res.success, true);
+
+	Module* mod      = ws.modules.get("hello")!!;
+	ModuleSection* s = mod.sections[0];
+
+	FnDecl* func       = s.nodes[1].as(FN_DECL);
+	CompoundStmt* comp = func.body.as(COMPOUND_STMT);
+
+	test::eq(parser_tests::count_kind(s, MODULE_DECL), 1);
+	test::eq(parser_tests::count_kind(s, FN_DECL), 1);
+}

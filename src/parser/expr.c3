@@ -1483,3 +1483,22 @@ fn Node*? parse_ct_feature(ParseContext* ctx)
 
 	return node;
 }
+
+<*
+ lengthof ::= LENGTHOF '(' expr ')'
+*>
+fn Node*? parse_lengthof_expr(ParseContext* ctx)
+{
+	expect(ctx, LENGTHOF)!;
+
+	int start_pos = ctx.current().pos;
+	Node* node    = ctx.ast.alloc_node(LENGTHOF_EXPR, start_pos);
+	defer node.end_token = ctx.current().pos;
+	LengthofExpr* len = node.as(LENGTHOF_EXPR);
+
+	expect(ctx, LPAREN)!;
+	len.inner_expr = parse_expr(ctx)!;
+	expect(ctx, RPAREN)!;
+
+	return node;
+}

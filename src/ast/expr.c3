@@ -339,3 +339,8 @@ struct CtFeatureExpr
 {
 	Node* inner_expr;
 }
+
+struct LengthofExpr
+{
+	Node* inner_expr;
+}

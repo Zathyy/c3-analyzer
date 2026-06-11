@@ -209,6 +209,8 @@ fn Node*? parse_prefix_expr(ParseContext* ctx)
 			return parse_ct_defined_expr(ctx)!;
 		case CT_FEATURE:
 			return parse_ct_feature(ctx)!;
+		case LENGTHOF:
+			return parse_lengthof_expr(ctx)!;
 		case IDENT:
 		case CONST_IDENT:
 		case AT_IDENT:
