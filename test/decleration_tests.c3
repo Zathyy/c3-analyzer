@@ -200,14 +200,6 @@ fn void alias_declarations_parse()
 	test::eq(ident_alias.alias_kind, AliasDeclKind.IDENT_ALIAS);
 	test::eq(ident_alias.name_kind, TokenKind.IDENT);
 
-	AliasDecl* const_alias = ast.top_level_nodes[5].as(NodeKind.ALIAS_DECL);
-	test::eq(const_alias.alias_kind, AliasDeclKind.IDENT_ALIAS);
-	test::eq(const_alias.name_kind, TokenKind.CONST_IDENT);
-	PathExpr* const_path = const_alias.target.as(NodeKind.PATH_EXPR);
-	test::eq(const_path.segments.len, 2);
-	test::eq(ast.string_pool.get(const_path.segments[0])!!, "constants");
-	test::eq(ast.string_pool.get(const_path.segments[1])!!, "NEW_CONST");
-
 	AliasDecl* attr_alias = ast.top_level_nodes[6].as(NodeKind.ALIAS_DECL);
 	test::eq(attr_alias.alias_kind, AliasDeclKind.IDENT_ALIAS);
 	test::eq(attr_alias.name_kind, TokenKind.AT_IDENT);

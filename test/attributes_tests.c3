@@ -94,15 +94,9 @@ fn void module_tag_if()
 	test::eq(attr.kind, AttributeKind.IF);
 	test::eq(attr.exprs.len, 1);
 
-	CallExpr* call               = attr.exprs[0].as(CALL_EXPR);
-	IdentExpr* callee_ident_expr = call.callee.as(IDENT_EXPR);
-
-	test::eq(pool.get(callee_ident_expr.ident)!!, "$feature");
-	test::eq(call.args.len, 1);
-
-	IdentExpr* ident_expr = call.args[0].as(IDENT_EXPR);
-	test::eq(pool.get(ident_expr.ident)!!, "MY_FEATURE");
-	// end @if()
+	CtFeatureExpr* feat          = attr.exprs[0].as(CT_FEATURE_EXPR);
+	IdentExpr* callee_ident_expr = feat.inner_expr.as(IDENT_EXPR);
+	test::eq(pool.get(callee_ident_expr.ident)!!, "MY_FEATURE");
 }
 
 fn void function_if()
@@ -134,14 +128,9 @@ fn void function_if()
 	test::eq(attr.kind, AttributeKind.IF);
 	test::eq(attr.exprs.len, 1);
 
-	CallExpr* call               = attr.exprs[0].as(CALL_EXPR);
-	IdentExpr* callee_ident_expr = call.callee.as(IDENT_EXPR);
-	test::eq(pool.get(callee_ident_expr.ident)!!, "$feature");
-
-	test::eq(call.args.len, 1);
-	IdentExpr* ident_expr = call.args[0].as(IDENT_EXPR);
-	test::eq(pool.get(ident_expr.ident)!!, "MY_FEATURE");
-	// end @if()
+	CtFeatureExpr* feat          = attr.exprs[0].as(CT_FEATURE_EXPR);
+	IdentExpr* callee_ident_expr = feat.inner_expr.as(IDENT_EXPR);
+	test::eq(pool.get(callee_ident_expr.ident)!!, "MY_FEATURE");
 }
 
 fn void const_var_private_if()
@@ -188,14 +177,8 @@ void* my_var @private @if($feature(MY_FEATURE)) = null;
 		test::eq(attr.exprs.len, 1);
 
 		// $feature()
-		CallExpr* call               = attr.exprs[0].as(CALL_EXPR);
-		IdentExpr* callee_ident_expr = call.callee.as(IDENT_EXPR);
-		test::eq(pool.get(callee_ident_expr.ident)!!, "$feature");
-		test::eq(call.args.len, 1);
-
-		// MY_FEATURE
-		IdentExpr* ident_expr = call.args[0].as(IDENT_EXPR);
-		test::eq(pool.get(ident_expr.ident)!!, "MY_FEATURE");
-		// end @if()
+		CtFeatureExpr* call          = attr.exprs[0].as(CT_FEATURE_EXPR);
+		IdentExpr* callee_ident_expr = call.inner_expr.as(IDENT_EXPR);
+		test::eq(pool.get(callee_ident_expr.ident)!!, "MY_FEATURE");
 	}
 }

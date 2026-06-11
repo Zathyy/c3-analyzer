@@ -812,7 +812,7 @@ fn Node*? parse_var_decl(ParseContext* ctx, Node* type = null, ParseFlags flags 
 		}
 		else if (is_type_primitive(ctx.peek(0).kind) || ctx.is(IDENT) || ctx.is(TYPE_IDENT))
 		{
-			type_node = parse_type_expr(ctx, flags)!;
+			type_node = parse_type_expr(ctx, null, flags)!;
 			if (type_node.kind == ERROR) return type_node;
 		}
 		else if (!flags.is_const)
@@ -1143,7 +1143,7 @@ fn Node*? parse_bitstruct_decl(ParseContext* ctx, bool is_nested = false) => @po
 
 	if (consume(ctx, COLON)!)
 	{
-		struct_decl.type = parse_type_expr(ctx, { .no_generics = true })!;
+		struct_decl.type = parse_type_expr(ctx, null, { .no_generics = true })!;
 		struct_decl.attributes = parse_attributes(ctx, node)!;
 	}
 
@@ -1270,7 +1270,7 @@ fn Node*? parse_interface_decl(ParseContext* ctx) => @pool()
 	{
 		do
 		{
-			list.push(parse_type_expr(ctx, { .no_generics = true })!);
+			list.push(parse_type_expr(ctx, null, { .no_generics = true })!);
 		} while (consume(ctx, COMMA)!);
 	}
 
@@ -1379,7 +1379,7 @@ fn Node*? parse_enum_constdef_decl(ParseContext* ctx, ParseFlags flags) => @pool
 
 		if (!ctx.is(LPAREN))
 		{
-			enum_decl.backing_type = parse_type_expr(ctx, { .no_generics = true })!;
+			enum_decl.backing_type = parse_type_expr(ctx, null, { .no_generics = true })!;
 		}
 
 		if (consume(ctx, LPAREN)!)

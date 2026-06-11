@@ -192,7 +192,7 @@ fn Node*? parse_prefix_expr(ParseContext* ctx)
 
 	if (is_type(ctx))
 	{
-		return parse_type_expr(ctx, { .type_as_expression = true })!;
+		return parse_type_expr(ctx, null, { .type_as_expression = true })!;
 	}
 
 	switch (t.kind)
@@ -208,18 +208,13 @@ fn Node*? parse_prefix_expr(ParseContext* ctx)
 		case CT_DEFINED:
 			return parse_ct_defined_expr(ctx)!;
 		case CT_FEATURE:
-		case AT_IDENT:
-		case AT_CONST_IDENT:
-		case AT_TYPE_IDENT:
+			return parse_ct_feature(ctx)!;
 		case IDENT:
 		case CONST_IDENT:
-		case TYPE_IDENT:
+		case AT_IDENT:
 		case CT_IDENT:
-		case CT_CONST_IDENT:
-		case CT_TYPE_IDENT:
 		case HASH_IDENT:
-		case HASH_CONST_IDENT:
-		case HASH_TYPE_IDENT:
+		case TYPE_IDENT:
 			return parse_ident_expr(ctx)!;
 		case STRING_LITERAL:
 		case CHAR_LITERAL:

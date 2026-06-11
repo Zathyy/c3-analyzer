@@ -192,7 +192,7 @@ fn NodeArray? parse_interface_type_list(ParseContext* ctx, ParseFlags flags = { 
 
 	while (!ctx.eof() && !ctx.is(RPAREN))
 	{
-		Node* interface_type = parse_type_expr(ctx, flags)!;
+		Node* interface_type = parse_type_expr(ctx, null, flags)!;
 		interfaces.push(interface_type);
 
 		if (!consume(ctx, COMMA)!) break;

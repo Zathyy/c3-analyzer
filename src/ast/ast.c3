@@ -106,6 +106,7 @@ struct Node
 		RangeExpr range_expr;
 		OptionalExpr optional_expr;
 		CtDefinedExpr ct_defined_expr;
+		CtFeatureExpr ct_feature_expr;
 
 		// UNIT
 		ContractParam contract_param;

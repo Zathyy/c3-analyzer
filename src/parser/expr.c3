@@ -74,7 +74,7 @@ fn Node*? parse_alias_type_target(ParseContext* ctx) => @pool()
  @param [&inout] ctx : "Parser context positioned at the first type token."
  @param parse_flags : "Type-expression options used by declaration and expression parsing."
 *>
-fn Node*? parse_type_expr(ParseContext* ctx, ParseFlags parse_flags = { })
+fn Node*? parse_type_expr(ParseContext* ctx, Node* path_expr = null, ParseFlags parse_flags = { })
 {
 	int start = ctx.peek(0).pos;
 
@@ -95,7 +95,11 @@ fn Node*? parse_type_expr(ParseContext* ctx, ParseFlags parse_flags = { })
 	}
 	else
 	{
-		Node* path = parse_path_expr(ctx, { .as_prefix = true })!;
+		Node* path = path_expr;
+		if (!path)
+		{
+			path = parse_path_expr(ctx, { .as_prefix = true })!;
+		}
 		Token t = @expect_else_skip(ctx, TYPE_IDENT, { EOS, ASTERISK, LBRACE, QUESTION, LVEC } ; err)
 		{
 			break IS_PRIM;
@@ -218,15 +222,36 @@ fn Node*? parse_type_expr(ParseContext* ctx, ParseFlags parse_flags = { })
 fn Node*? parse_ident_expr(ParseContext* ctx)
 {
 	int start = ctx.peek(0).pos;
+	Node* path_prefix;
+
 	if (ctx.peek(1).kind == SCOPE)
 	{
-		return parse_path_expr(ctx, { .as_prefix = true })!;
+		path_prefix = parse_path_expr(ctx, { .as_prefix = true })!;
 	}
-	Node* node       = ctx.ast.alloc_node(IDENT_EXPR, start, ctx.peek().pos);
-	IdentExpr* ident = node.as(IDENT_EXPR);
-	ident.ident = ctx.ast.string_pool.internalize(ctx.token_text(ctx.peek(0)));
-	advance(ctx)!;
-	return node;
+	Token t = ctx.peek(0);
+	switch (t.kind)
+	{
+		case TYPE_IDENT:
+			return parse_type_expr(ctx, path_prefix)!;
+		case IDENT:
+		case CONST_IDENT:
+		case AT_IDENT:
+		case CT_IDENT:
+		case HASH_IDENT:
+
+			{
+				Node* node       = ctx.ast.alloc_node(IDENT_EXPR, start, ctx.peek().pos);
+				IdentExpr* ident = node.as(IDENT_EXPR);
+				ident.ident = ctx.ast.string_pool.internalize(ctx.token_text(t));
+				ident.path_expr = path_prefix;
+
+				advance(ctx)!;
+				return node;
+			}
+		default:
+			advance(ctx)!;
+			return unexpected_at(ctx, t, "Expected type or identifier after path - got: %s", t.kind.description);
+	}
 }
 
 fn Node*? parse_literal_expr(ParseContext* ctx) => @pool()
@@ -494,6 +519,11 @@ fn Node*? parse_path_expr(ParseContext* ctx, PathExprOptions options = { }) => @
 
 	while (true)
 	{
+		if (options.as_prefix && ctx.peek(1).kind != SCOPE)
+		{
+			break;
+		}
+
 		Token t = ctx.peek(0);
 		temp_segments.push(ctx.ast.string_pool.internalize(ctx.token_text(t)));
 		advance(ctx)!;
@@ -1038,7 +1068,7 @@ fn Node*? parse_lambda_expr(ParseContext* ctx)
 	expect(ctx, FN)!;
 	if (!ctx.is(LPAREN))
 	{
-		lambda.return_type = parse_type_expr(ctx, { .no_generics = true })!;
+		lambda.return_type = parse_type_expr(ctx, null, { .no_generics = true })!;
 	}
 	lambda.params = parse_parameter_list(ctx)!;
 	if (ctx.is(AT_IDENT))
@@ -1434,6 +1464,22 @@ fn Node*? parse_ct_defined_expr(ParseContext* ctx) => @pool()
 	}
 
 	def.expr_list = alloc::clone_slice(ctx.arena, exprs.array_view());
+
+	return node;
+}
+
+fn Node*? parse_ct_feature(ParseContext* ctx)
+{
+	expect(ctx, CT_FEATURE)!;
+
+	int start_pos = ctx.current().pos;
+	Node* node    = ctx.ast.alloc_node(CT_FEATURE_EXPR, start_pos);
+	defer node.end_token = ctx.current().pos;
+	CtFeatureExpr* feat = node.as(CT_FEATURE_EXPR);
+
+	expect(ctx, LPAREN)!;
+	feat.inner_expr = parse_expr(ctx)!;
+	expect(ctx, RPAREN)!;
 
 	return node;
 }

@@ -13,6 +13,7 @@ struct BinaryExpr
 struct IdentExpr
 {
 	StringID ident;
+	Node* path_expr;
 }
 
 fn String? IdentExpr.get_ident(&self, StringPool* pool) => pool.get(self.ident);
@@ -332,4 +333,9 @@ struct OptionalExpr
 struct CtDefinedExpr
 {
 	NodeArray expr_list;
+}
+
+struct CtFeatureExpr
+{
+	Node* inner_expr;
 }
