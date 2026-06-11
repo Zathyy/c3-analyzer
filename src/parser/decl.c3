@@ -13,12 +13,12 @@ import std::io;
 *>
 fn Node*? parse_module_decl(ParseContext* ctx, Workspace* ws)
 {
-	int start_pos = ctx.peek(0).pos;
+	int start_pos = ctx.current().pos;
 	expect(ctx, MODULE)!;
 	plog::debug("parse_mod");
 	Node* node           = ctx.ast.alloc_node(MODULE_DECL, start_pos);
 	ModuleDecl* mod_decl = node.as(MODULE_DECL);
-	defer node.end_token = ctx.peek(0).pos;
+	defer node.end_token = ctx.current().pos;
 
 	mod_decl.path = parse_path_expr(ctx)!;
 	mod_decl.generics = parse_generic_decl(ctx)!;
@@ -45,7 +45,7 @@ fn Node*? parse_module_decl(ParseContext* ctx, Workspace* ws)
 *>
 fn Node*? parse_contract_decl(ParseContext* ctx) => @pool()
 {
-	int start_pos = ctx.peek(0).pos;
+	int start_pos = ctx.current().pos;
 	if (!ctx.is(CONTRACT))
 	{
 		ctx.error("Expected contract here");
@@ -145,11 +145,11 @@ fn Node*? parse_contract_decl(ParseContext* ctx) => @pool()
 				attribute.path.set(ctx.ast.alloc_node(MISSING, ctx.current().pos));
 				attribute.name = constants::KW_AT_DEPRECATED;
 				attribute.kind = DEPRECATED;
-				if (ctx.can_peek(1) && ctx.peek(0).kind == EOS && ctx.peek(1).kind == STRING_LITERAL)
+				if (ctx.current().kind == EOS && ctx.peek(1)!.kind == STRING_LITERAL)
 				{
 					advance(ctx)!;
 				}
-				int start = ctx.peek(0).pos;
+				int start = ctx.current().pos;
 				if (ctx.is(STRING_LITERAL))
 				{
 					List{Node*} exprs;
@@ -206,11 +206,11 @@ fn Node*? parse_contract_decl(ParseContext* ctx) => @pool()
 *>
 fn Node*? parse_import_decl(ParseContext* ctx) => @pool()
 {
-	int start_pos = ctx.peek(0).pos;
+	int start_pos = ctx.current().pos;
 	expect(ctx, IMPORT)!;
 	Node* node      = ctx.ast.alloc_node(IMPORT_DECL, start_pos);
 	ImportDecl* imp = node.as(IMPORT_DECL);
-	defer node.end_token = ctx.peek(0).pos;
+	defer node.end_token = ctx.current().pos;
 
 	List{Node*} temp_paths;
 	temp_paths.init(tmem, 4);
@@ -253,7 +253,7 @@ fn StringID[]? parse_alias_generic_decl(ParseContext* ctx) => @pool()
 
 	while (!ctx.eof() && !ctx.is(GREATER))
 	{
-		Token t = ctx.peek(0);
+		Token t = ctx.current();
 		if (t.kind != TYPE_IDENT && t.kind != CONST_IDENT)
 		{
 			ctx.error("Expected generic alias parameter name");
@@ -300,11 +300,11 @@ fn void? skip_alias_attributes(ParseContext* ctx)
 *>
 fn Node*? parse_alias_decl(ParseContext* ctx)
 {
-	int start_pos = ctx.peek(0).pos;
+	int start_pos = ctx.current().pos;
 	expect(ctx, ALIAS)!;
 	Node* node            = ctx.ast.alloc_node(ALIAS_DECL, start_pos);
 	AliasDecl* alias_decl = node.as(ALIAS_DECL);
-	defer node.end_token = ctx.peek(0).pos;
+	defer node.end_token = ctx.current().pos;
 
 	do CHECK_NAME:
 	{
@@ -364,11 +364,11 @@ fn Node*? parse_alias_decl(ParseContext* ctx)
 *>
 fn Node*? parse_typedef_decl(ParseContext* ctx, ParseFlags flags = { })
 {
-	int start_pos = ctx.peek(0).pos;
+	int start_pos = ctx.current().pos;
 	expect(ctx, TYPEDEF)!;
 	Node* node                = ctx.ast.alloc_node(TYPEDEF_DECL, start_pos);
 	TypedefDecl* typedef_decl = node.as(TYPEDEF_DECL);
-	defer node.end_token = ctx.peek(0).pos;
+	defer node.end_token = ctx.current().pos;
 
 	if (flags.is_inline)
 	{
@@ -376,7 +376,7 @@ fn Node*? parse_typedef_decl(ParseContext* ctx, ParseFlags flags = { })
 		node.kind = MISSING;
 	}
 
-	Token name = ctx.peek(0);
+	Token name = ctx.current();
 	if (name.kind != TYPE_IDENT)
 	{
 		ctx.error("Expected typedef type name");
@@ -433,7 +433,7 @@ fn Node*? parse_typedef_decl(ParseContext* ctx, ParseFlags flags = { })
 *>
 fn Node*? parse_fn_decl(ParseContext* ctx, ParseFlags flags = { })
 {
-	int start_pos = ctx.peek(0).pos;
+	int start_pos = ctx.current().pos;
 
 	expect(ctx, FN)!;
 
@@ -441,7 +441,7 @@ fn Node*? parse_fn_decl(ParseContext* ctx, ParseFlags flags = { })
 
 	Node* node   = ctx.ast.alloc_node(FN_DECL, start_pos);
 	FnDecl* func = node.as(FN_DECL);
-	defer node.end_token = ctx.peek(0).pos;
+	defer node.end_token = ctx.current().pos;
 
 	func.ret_type = parse_type_expr(ctx)!;
 
@@ -526,7 +526,7 @@ fn Node*? parse_fn_decl(ParseContext* ctx, ParseFlags flags = { })
 *>
 fn Node*? parse_macro_decl(ParseContext* ctx, ParseFlags flags = { })
 {
-	int start_pos = ctx.peek(0).pos;
+	int start_pos = ctx.current().pos;
 
 	expect(ctx, MACRO)!;
 
@@ -534,9 +534,9 @@ fn Node*? parse_macro_decl(ParseContext* ctx, ParseFlags flags = { })
 
 	Node* node     = ctx.ast.alloc_node(MACRO_DECL, start_pos);
 	MacroDecl* mac = node.as(MACRO_DECL);
-	defer node.end_token = ctx.peek(0).pos;
+	defer node.end_token = ctx.current().pos;
 
-	if (is_type(ctx) && ctx.peek(1).kind != DOT)
+	if (is_type(ctx) && ctx.peek(1)!.kind != DOT)
 	{
 		mac.ret_type.set(parse_type_expr(ctx)!);
 	}
@@ -550,7 +550,7 @@ fn Node*? parse_macro_decl(ParseContext* ctx, ParseFlags flags = { })
 		Token t;
 		if (ctx.is(AT_IDENT))
 		{
-			t = ctx.peek(0);
+			t = ctx.current();
 			advance(ctx)!;
 		}
 		else
@@ -628,11 +628,11 @@ fn Node*? parse_macro_decl(ParseContext* ctx, ParseFlags flags = { })
 *>
 fn Node*? parse_param_decl(ParseContext* ctx, ParamParseFlags flags)
 {
-	int start_pos = ctx.peek(0).pos;
+	int start_pos = ctx.current().pos;
 
 	Node* node     = ctx.ast.alloc_node(VAR_DECL, start_pos);
 	VarDecl* param = node.as(VAR_DECL);
-	defer node.end_token = ctx.peek(0).pos;
+	defer node.end_token = ctx.current().pos;
 
 	if (consume(ctx, ELLIPSIS)!)
 	{
@@ -665,7 +665,7 @@ fn Node*? parse_param_decl(ParseContext* ctx, ParamParseFlags flags)
 
 	param.type = parsed_type;
 
-	Token t = ctx.peek(0);
+	Token t = ctx.current();
 	switch (t.kind)
 	{
 		case CT_CONST_IDENT:
@@ -779,7 +779,7 @@ fn Node*? parse_param_decl(ParseContext* ctx, ParamParseFlags flags)
 *>
 fn Node*? parse_var_decl(ParseContext* ctx, Node* type = null, ParseFlags flags = { })
 {
-	int start_pos = ctx.peek(0).pos;
+	int start_pos = ctx.current().pos;
 
 	Node* contract;
 	if (ctx.is(CONTRACT))
@@ -810,7 +810,7 @@ fn Node*? parse_var_decl(ParseContext* ctx, Node* type = null, ParseFlags flags 
 			advance(ctx)!; // Consume 'var'
 			flags.is_comptime = true;
 		}
-		else if (is_type_primitive(ctx.peek(0).kind) || ctx.is(IDENT) || ctx.is(TYPE_IDENT))
+		else if (is_type_primitive(ctx.current().kind) || ctx.is(IDENT) || ctx.is(TYPE_IDENT))
 		{
 			type_node = parse_type_expr(ctx, null, flags)!;
 			if (type_node.kind == ERROR) return type_node;
@@ -826,7 +826,7 @@ fn Node*? parse_var_decl(ParseContext* ctx, Node* type = null, ParseFlags flags 
 
 	while (true)
 	{
-		Token t = ctx.peek(0);
+		Token t = ctx.current();
 
 		if (flags.is_const && t.kind != CONST_IDENT)
 		{
@@ -908,7 +908,7 @@ fn Node*? parse_var_decl(ParseContext* ctx, Node* type = null, ParseFlags flags 
 			var_decl.kind = VAR_GLOBAL;
 		}
 
-		var_node.end_token = ctx.peek(0).pos;
+		var_node.end_token = ctx.current().pos;
 
 		if (head_node == null)
 		{
@@ -933,7 +933,7 @@ fn Node*? parse_var_decl(ParseContext* ctx, Node* type = null, ParseFlags flags 
 		if (!consume(ctx, EOS)!)
 		{
 			ctx.error("Expected ';' to terminate variable declaration sequence");
-			return ctx.ast.alloc_node(ERROR, ctx.peek(0).pos);
+			return ctx.ast.alloc_node(ERROR, ctx.current().pos);
 		}
 	}
 
@@ -957,11 +957,11 @@ fn NodeArray? parse_attributes(ParseContext* ctx, Node* parent_node, AttributePa
 			unexpected(ctx, "Tried parsing a @TypeIdent when not allowed")!;
 		}
 
-		Token t = ctx.peek(0);
+		Token t = ctx.current();
 		advance(ctx)!;
 
 		Node* attr_node = ctx.ast.alloc_node(ATTRIBUTE_DECL, t.pos);
-		defer attr_node.end_token = ctx.peek(0).pos;
+		defer attr_node.end_token = ctx.current().pos;
 		AttributeDecl* attr = attr_node.as(ATTRIBUTE_DECL);
 		String text         = ctx.token_text(t);
 		attr.name = text.copy(&ctx.ast.arena);
@@ -1003,11 +1003,11 @@ fn NodeArray? parse_attributes(ParseContext* ctx, Node* parent_node, AttributePa
 *>
 fn Node*? parse_expand_decl(ParseContext* ctx)
 {
-	int start_pos = ctx.peek(0).pos;
+	int start_pos = ctx.current().pos;
 	expect(ctx, CT_EXPAND)!;
 	Node* node           = ctx.ast.alloc_node(CT_EXPAND_DECL, start_pos);
 	CtExpandDecl* expand = node.as(CT_EXPAND_DECL);
-	defer node.end_token = ctx.peek(0).pos;
+	defer node.end_token = ctx.current().pos;
 	expect(ctx, LPAREN)!;
 	expand.expr = parse_constant_expr(ctx)!;
 	expect(ctx, RPAREN)!;
@@ -1024,7 +1024,7 @@ fn Node*? parse_expand_decl(ParseContext* ctx)
 *>
 fn Node*? parse_struct_union_decl(ParseContext* ctx, bool is_sub = false) => @pool()
 {
-	int start_pos  = ctx.peek(0).pos;
+	int start_pos  = ctx.current().pos;
 	bool is_struct = ctx.is(STRUCT);
 	if (is_struct)
 	{
@@ -1037,7 +1037,7 @@ fn Node*? parse_struct_union_decl(ParseContext* ctx, bool is_sub = false) => @po
 	Node* node              = ctx.ast.alloc_node(STRUCT_DECL, start_pos);
 	StructDecl* struct_decl = node.as(STRUCT_DECL);
 	struct_decl.is_union = !is_struct;
-	defer node.end_token = ctx.peek(0).pos;
+	defer node.end_token = ctx.current().pos;
 
 	do NAME_CHECK:
 	{
@@ -1121,11 +1121,11 @@ fn Node*? parse_struct_union_decl(ParseContext* ctx, bool is_sub = false) => @po
 *>
 fn Node*? parse_bitstruct_decl(ParseContext* ctx, bool is_nested = false) => @pool()
 {
-	int start_pos = ctx.peek(0).pos;
+	int start_pos = ctx.current().pos;
 	expect(ctx, BITSTRUCT)!;
 	Node* node              = ctx.ast.alloc_node(STRUCT_DECL, start_pos);
 	StructDecl* struct_decl = node.as(STRUCT_DECL);
-	defer node.end_token = ctx.peek(0).pos;
+	defer node.end_token = ctx.current().pos;
 
 	if COND: (true)
 	{
@@ -1157,7 +1157,7 @@ fn Node*? parse_bitstruct_decl(ParseContext* ctx, bool is_nested = false) => @po
 
 	while (!ctx.is(RBRACE) && !ctx.is(EOF))
 	{
-		int field_start  = ctx.peek(0).pos;
+		int field_start  = ctx.current().pos;
 		Node* field_node = ctx.ast.alloc_node(VAR_DECL, field_start);
 		VarDecl* field   = field_node.as(VAR_DECL);
 		field.kind = VAR_BITFIELD;
@@ -1186,7 +1186,7 @@ fn Node*? parse_bitstruct_decl(ParseContext* ctx, bool is_nested = false) => @po
 			}
 		}
 		expect(ctx, EOS)!;
-		field_node.end_token = ctx.peek(0).pos;
+		field_node.end_token = ctx.current().pos;
 		fields.push(field_node);
 	}
 
@@ -1200,11 +1200,11 @@ fn Node*? parse_bitstruct_decl(ParseContext* ctx, bool is_nested = false) => @po
 *>
 fn Node*? parse_faultdef_decl(ParseContext* ctx) => @pool()
 {
-	int start_pos = ctx.peek(0).pos;
+	int start_pos = ctx.current().pos;
 	expect(ctx, FAULTDEF)!;
 	Node* node       = ctx.ast.alloc_node(FAULTDEF_DECL, start_pos);
 	FaultdefDecl* fd = node.as(FAULTDEF_DECL);
-	defer node.end_token = ctx.peek(0).pos;
+	defer node.end_token = ctx.current().pos;
 
 	List{Node*} faults;
 	faults.tinit();
@@ -1246,11 +1246,11 @@ fn Node*? parse_faultdef_decl(ParseContext* ctx) => @pool()
 *>
 fn Node*? parse_interface_decl(ParseContext* ctx) => @pool()
 {
-	int start_pos = ctx.peek(0).pos;
+	int start_pos = ctx.current().pos;
 	expect(ctx, INTERFACE)!;
 	Node* node           = ctx.ast.alloc_node(INTERFACE_DECL, start_pos);
 	InterfaceDecl* inter = node.as(INTERFACE_DECL);
-	defer node.end_token = ctx.peek(0).pos;
+	defer node.end_token = ctx.current().pos;
 
 	if CHECK_NAME: (true)
 	{
@@ -1307,11 +1307,11 @@ fn Node*? parse_interface_decl(ParseContext* ctx) => @pool()
 *>
 fn Node*? parse_attrdef_decl(ParseContext* ctx) => @pool()
 {
-	int start_pos = ctx.peek(0).pos;
+	int start_pos = ctx.current().pos;
 	expect(ctx, ATTRDEF)!;
 	Node* node       = ctx.ast.alloc_node(ATTRDEF_DECL, start_pos);
 	AttrdefDecl* def = node.as(ATTRDEF_DECL);
-	defer node.end_token = ctx.peek(0).pos;
+	defer node.end_token = ctx.current().pos;
 
 	if CHECK_NAME: (true)
 	{
@@ -1351,12 +1351,12 @@ fn Node*? parse_attrdef_decl(ParseContext* ctx) => @pool()
 *>
 fn Node*? parse_enum_constdef_decl(ParseContext* ctx, ParseFlags flags) => @pool()
 {
-	int start_pos = ctx.peek(0).pos;
+	int start_pos = ctx.current().pos;
 
 	expect(ctx, flags.is_constdef ? CONSTDEF : ENUM)!;
 
 	Node* node = ctx.ast.alloc_node(ENUM_DECL, start_pos);
-	defer node.end_token = ctx.peek(0).pos;
+	defer node.end_token = ctx.current().pos;
 	EnumDecl* enum_decl = node.as(ENUM_DECL);
 
 	if CHECK_IDENT: (true)
@@ -1388,19 +1388,19 @@ fn Node*? parse_enum_constdef_decl(ParseContext* ctx, ParseFlags flags) => @pool
 			assoc.init(tmem, 4);
 			while (!ctx.is(RPAREN) && !ctx.eof())
 			{
-				Node* param = ctx.ast.alloc_node(VAR_DECL, ctx.peek(0).pos);
+				Node* param = ctx.ast.alloc_node(VAR_DECL, ctx.current().pos);
 				VarDecl* p  = param.as(VAR_DECL);
 				p.type = parse_type_expr(ctx)!;
 				if (is_non_type_ident(ctx.current().kind))
 				{
-					p.name = ctx.ast.string_pool.internalize(ctx.token_text(ctx.peek(0)));
+					p.name = ctx.ast.string_pool.internalize(ctx.token_text(ctx.current()));
 					advance(ctx)!;
 				}
 				if (ctx.is(AT_IDENT))
 				{
 					parse_attributes(ctx, param)!;
 				}
-				param.end_token = ctx.peek(0).pos;
+				param.end_token = ctx.current().pos;
 				assoc.push(param);
 				if (!consume(ctx, COMMA)!) break;
 			}
@@ -1428,11 +1428,11 @@ fn Node*? parse_enum_constdef_decl(ParseContext* ctx, ParseFlags flags) => @pool
 			continue;
 		}
 
-		Node* variant = ctx.ast.alloc_node(VAR_DECL, ctx.peek(0).pos);
+		Node* variant = ctx.ast.alloc_node(VAR_DECL, ctx.current().pos);
 		VarDecl* v    = variant.as(VAR_DECL);
 		v.kind = VAR_GLOBAL;
 		v.flags.is_const = true;
-		v.name = ctx.ast.string_pool.internalize(ctx.token_text(ctx.peek(0)));
+		v.name = ctx.ast.string_pool.internalize(ctx.token_text(ctx.current()));
 		advance(ctx)!;
 
 		// Optional per-variant attributes: @attr ...  (come before = and {})
@@ -1453,7 +1453,7 @@ fn Node*? parse_enum_constdef_decl(ParseContext* ctx, ParseFlags flags) => @pool
 			v.assoc_values = parse_expr(ctx)!;
 		}
 
-		variant.end_token = ctx.peek(0).pos;
+		variant.end_token = ctx.current().pos;
 		variants.push(variant);
 
 		if (!consume(ctx, COMMA)!) break;
@@ -1484,9 +1484,9 @@ fn Node*? parse_generic_decl(ParseContext* ctx) => @pool()
 
 	expect(ctx, LESS)!;
 
-	int start_pos = ctx.peek(0).pos;
+	int start_pos = ctx.current().pos;
 	Node* node    = ctx.ast.alloc_node(GENERIC_DECL, start_pos);
-	defer node.end_token = ctx.peek(0).pos;
+	defer node.end_token = ctx.current().pos;
 	GenericDecl* gen = node.as(GENERIC_DECL);
 	List{Node*} params;
 	params.tinit();
