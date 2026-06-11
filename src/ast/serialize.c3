@@ -22,7 +22,7 @@ fn void push_newline(JsonOutput* output, int indent, String or = "")
 	}
 }
 
-macro void serialize(JsonOutput* output, item, StringPool spool, int indent, int depth) @local 
+macro void serialize(JsonOutput* output, item, StringPool* spool, int indent, int depth) @local
 {
 	$switch:
 		$case $defined(Option{Node} x = item):
@@ -54,7 +54,7 @@ macro void serialize(JsonOutput* output, item, StringPool spool, int indent, int
 			$endforeach
 			$sw +++= "default: }";
 			$expand($sw);
-			
+
 			output.end_obj(indent, depth);
 
 		$case $Typeof(item)::kind == STRUCT:
@@ -107,7 +107,7 @@ macro void serialize(JsonOutput* output, item, StringPool spool, int indent, int
 	$endswitch
 }
 
-macro void JsonOutput.ser_entry(&self, String key, item, StringPool spool, int indent, int depth)
+macro void JsonOutput.ser_entry(&self, String key, item, StringPool* spool, int indent, int depth)
 {
 	push_indent(self, indent, depth);
 	self.appendf("\"%s\": ", key.treplace("\"", "\\\""));
@@ -137,7 +137,7 @@ fn void JsonOutput.end_obj(&self, int indent, int depth)
 	}
 }
 
-fn void node_serialize(Node* self, JsonOutput* output, StringPool spool, int indent, int depth) @local
+fn void node_serialize(Node* self, JsonOutput* output, StringPool* spool, int indent, int depth) @local
 {
 	if (self == null)
 	{
@@ -168,6 +168,6 @@ fn String Node.serialize(&self, StringPool spool, Allocator allocator = tmem, in
 	JsonOutput output;
 	output = output.init(allocator);
 
-	node_serialize(self, &output, spool, indent, 0);
+	node_serialize(self, &output, &spool, indent, 0);
 	return output.str_view();
 }
