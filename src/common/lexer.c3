@@ -288,6 +288,8 @@ enum TokenKind : ushort
 
 	<* foo *>
 	IDENT,
+	<* '@' *>
+	AT,
 
 	TYPE_IDENT,       // Foo,
 	CONST_IDENT,      // FOO
@@ -1249,6 +1251,11 @@ fn TokenKind Lexer.categorize_identifier(Lexer* self, String text)
 	char prefix     = text[0];
 	String base;
 	bool has_prefix = false;
+
+	if (prefix == '@' && text.len == 1)
+	{
+		return AT;
+	}
 
 	if (prefix == '@' || prefix == '$' || prefix == '#')
 	{
