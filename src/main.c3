@@ -66,7 +66,7 @@ fn int main(String[] args) => @pool()
 		{
 			foreach (node : sf.ast.top_level_nodes) @pool()
 			{
-				io::printn(node.serialize(sf.ast.string_pool, indent: 2));
+				io::printn(node.serialize(&sf.line_map, sf.ast.string_pool, indent: 2));
 			};
 		};
 	}
