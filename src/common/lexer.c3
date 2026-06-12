@@ -1301,8 +1301,13 @@ fn TokenKind Lexer.categorize_identifier(Lexer* self, String text)
 		TokenKind kind = lookup_keyword(base);
 		if (kind != IDENT) return kind;
 	}
+	
+	
 
-	while (base[0] == '_') base = base[1..];
+	while (base.len > 0 && base[0] == '_')
+	{
+		base = base[1..];
+	}
 
 	bool is_type  = false;
 	bool is_const = false;
