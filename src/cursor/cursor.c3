@@ -182,6 +182,8 @@ fn Node* find_node_from_offset(Node* node, int offset)
 
 	plog::debug("Found node: (%s) - (%s) %s:%s", node.kind, offset, node.start_token, node.end_token);
 
+	
+
 	return node;
 }
 
@@ -191,115 +193,103 @@ fn Node* find_node_from_offset(Node* node, int offset)
 fn bool Cursor.is_access_node(&self)
 {
     if (self.node == null) return false;
-    return self.node.kind == ACCESS_EXPR || self.node.kind == PATH_EXPR;
+    return self.node.kind == ACCESS_EXPR || self.node.kind == IDENT_EXPR;
 }
 
 fn Node* find_innermost_node(Node* node, int offset, SourceFile* sf)
 {
-    if (node == null) return null;
+	if (node == null) return null;
 
-	Location cursor_loc = sf.line_map.resolve((sz)offset);
+	if (offset < node.start_token || offset > node.end_token)
+	{
+		return null;
+	}
 
-    switch (node.kind)
-    {
-        case FN_DECL:
-        {
+	switch (node.kind)
+	{
+		case FN_DECL:
+		{
 			return find_innermost_node(node.as(FN_DECL).body, offset, sf);
-        }
-        case COMPOUND_STMT:
-        {
+		}
+		case COMPOUND_STMT:
+		{
 			CompoundStmt* comp = node.as(COMPOUND_STMT);
-			Node* target_stmt = null;
 
-			foreach (i, stmt : comp.statements)
+			// Now we can cleanly check each statement independently!
+			foreach (stmt : comp.statements)
 			{
-				if (offset >= stmt.start_token)
+				Node* inner = find_innermost_node(stmt, offset, sf);
+				if (inner != null)
 				{
-					if (i + 1 < comp.statements.len && offset < comp.statements[i + 1].start_token)
-					{
-						target_stmt = stmt;
-						break;
-					}
-					target_stmt = stmt;
+					return inner;
 				}
 			}
-
-			if (target_stmt != null)
-			{
-				Node* inner = find_innermost_node(target_stmt, offset, sf);
-				return inner != null ? inner : target_stmt;
-			}
-			break;
-        }
-        case IF_STMT:
-        {
-            IfStmt* if_stmt = node.as(IF_STMT);
-
-            Node* cond_inner = find_innermost_node(if_stmt.condition, offset, sf);
-            if (cond_inner) return cond_inner;
-
-            Node* then_inner = find_innermost_node(if_stmt.then_body, offset, sf);
-            if (then_inner) return then_inner;
-
-            if (if_stmt.else_body != null)
-            {
-                Node* else_inner = find_innermost_node(if_stmt.else_body, offset, sf);
-                if (else_inner) return else_inner;
-            }
-            break;
-        }
-		case RETURN_STMT:
-        {
-			Location node_start_loc = sf.line_map.resolve((sz)node.start_token);
-
-            if (cursor_loc.line > node_start_loc.line)
-            {
-                return null;
-            }
-
-            ReturnStmt* ret = node.as(RETURN_STMT);
-            if (ret.expr != null)
-            {
-                return find_innermost_node(ret.expr, offset, sf);
-            }
-            break;
-        }
-        case EXPR_STMT:
-        {
-			Node* inner = find_innermost_node(node.as(EXPR_STMT).expr_stmt, offset, sf);
-			if (!inner) return null;
-			return inner;
-        }
-        case BINARY_EXPR:
-        {
-            BinaryExpr* bin = node.as(BINARY_EXPR);
-            Node* left_inner = find_innermost_node(bin.left, offset, sf);
-            if (left_inner) return left_inner;
-            Node* right_inner = find_innermost_node(bin.right, offset, sf);
-            if (right_inner) return right_inner;
-            break;
-        }
-        case ACCESS_EXPR:
-        {
-            AccessExpr* access = node.as(ACCESS_EXPR);
-            Node* left_inner = find_innermost_node(access.left, offset, sf);
-            if (left_inner) return left_inner;
 			
-			if (access.member != null && access.member.kind != MISSING)
-            {
-                Node* member_inner = find_innermost_node(access.member, offset, sf);
-                if (member_inner) return member_inner;
-            }
-            return node;
-        }
-		case IDENT_EXPR:
-		{
-			IdentExpr* ident = node.as(IDENT_EXPR);
+			// If the cursor is inside the { } block but NOT on any active statement,
+			// return the COMPOUND_STMT node itself (lets completion fall back to statement level)
 			return node;
 		}
-        default:
-            break;
-    }
+		case IF_STMT:
+		{
+			IfStmt* if_stmt = node.as(IF_STMT);
 
-    return node;
+			Node* cond_inner = find_innermost_node(if_stmt.condition, offset, sf);
+			if (cond_inner) return cond_inner;
+
+			Node* then_inner = find_innermost_node(if_stmt.then_body, offset, sf);
+			if (then_inner) return then_inner;
+
+			if (if_stmt.else_body != null)
+			{
+				Node* else_inner = find_innermost_node(if_stmt.else_body, offset, sf);
+				if (else_inner) return else_inner;
+			}
+			return node;
+		}
+		case RETURN_STMT:
+		{
+			ReturnStmt* ret = node.as(RETURN_STMT);
+			if (ret.expr != null)
+			{
+				Node* inner = find_innermost_node(ret.expr, offset, sf);
+				if (inner) return inner;
+			}
+			return node;
+		}
+		case EXPR_STMT:
+		{
+			Node* inner = find_innermost_node(node.as(EXPR_STMT).expr_stmt, offset, sf);
+			return inner != null ? inner : node;
+		}
+		case BINARY_EXPR:
+		{
+			BinaryExpr* bin = node.as(BINARY_EXPR);
+			Node* left_inner = find_innermost_node(bin.left, offset, sf);
+			if (left_inner) return left_inner;
+			Node* right_inner = find_innermost_node(bin.right, offset, sf);
+			if (right_inner) return right_inner;
+			return node;
+		}
+		case ACCESS_EXPR:
+		{
+			AccessExpr* access = node.as(ACCESS_EXPR);
+			Node* left_inner = find_innermost_node(access.left, offset, sf);
+			if (left_inner) return left_inner;
+			
+			if (access.member != null && access.member.kind != MISSING)
+			{
+				Node* member_inner = find_innermost_node(access.member, offset, sf);
+				if (member_inner) return member_inner;
+			}
+			return node;
+		}
+		case IDENT_EXPR:
+		{
+			return node;
+		}
+		default:
+			break;
+	}
+
+	return node;
 }
