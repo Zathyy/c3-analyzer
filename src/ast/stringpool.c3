@@ -5,6 +5,9 @@ import std::io;
 import std::collections::list;
 import std::collections::map;
 
+faultdef
+	OUT_OF_RANGE;
+
 struct StringPool
 {
 	Allocator allocator;
@@ -50,4 +53,8 @@ fn StringID StringPool.internalize(&self, String s)
 	return (StringID) (self.stable_strings.len() - 1);
 }
 
-fn String? StringPool.get(&self, StringID id) => self.stable_strings.get((sz) id);
+fn String? StringPool.get(&self, StringID id) 
+{
+	if ((sz)id >= self.stable_strings.len() || (sz)id < 0) return OUT_OF_RANGE~;
+	return self.stable_strings.get((sz)id);
+}
