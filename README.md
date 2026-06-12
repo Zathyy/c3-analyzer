@@ -43,18 +43,6 @@ c3c build c3_parser_lib
 c3c test
 ```
 
-## Formatting
-
-This repository uses `c3fmt` with the checked-in `.c3fmt` configuration. Format
-the full repository before sending changes:
-
-```sh
-c3fmt --in-place .
-```
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for compiler setup, formatter setup,
-editor integration, and the repository pre-commit hook.
-
 ## Error Nodes
 
 The parser currently distinguishes these recovery node meanings:
@@ -64,11 +52,6 @@ The parser currently distinguishes these recovery node meanings:
 
 ## Contributing
 
-Contributions should follow the setup and formatting workflow in
-[CONTRIBUTING.md](CONTRIBUTING.md). In particular, clone with submodules, use a
-recent pre-release C3 compiler when working on parser behavior, install `c3fmt`,
-and enable the tracked Git hooks with:
-
-```sh
-git config core.hooksPath .githooks
-```
+Contributions should follow the setup workflow in [CONTRIBUTING.md](CONTRIBUTING.md).
+In particular, clone with submodules, use a recent pre-release C3 compiler when
+working on parser behavior, and see the editor plugin suggestions there.
