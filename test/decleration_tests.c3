@@ -237,6 +237,7 @@ fn void typedef_declarations_parse()
 		typedef IntAlign2 = int @align(2);
 		typedef Float4 = float[<4>] @simd;
 		typedef EnumSet (Printable) = EnumSetType;
+		typedef Option<Type> = Type*;
 	`;
 
 	Workspace ws;
@@ -249,7 +250,7 @@ fn void typedef_declarations_parse()
 	Module* mod      = ws.modules.get("hello")!!;
 	ModuleSection* s = mod.sections[0];
 	Ast* ast         = s.source_file.ast;
-	test::eq(ast.top_level_nodes.len(), 7);
+	test::eq(ast.top_level_nodes.len(), 8);
 
 	TypedefDecl* my_id = ast.top_level_nodes[1].as(NodeKind.TYPEDEF_DECL);
 	test::eq(ast.string_pool.get(my_id.name)!!, "MyId");
@@ -286,6 +287,17 @@ fn void typedef_declarations_parse()
 	test::eq(ast.string_pool.get(interface_type.unresolved.name)!!, "Printable");
 	TypeExpr* enum_set_base = enum_set.base_type.as(NodeKind.TYPE_EXPR);
 	test::eq(ast.string_pool.get(enum_set_base.unresolved.name)!!, "EnumSetType");
+
+	TypedefDecl* option = ast.top_level_nodes[7].as(NodeKind.TYPEDEF_DECL);
+	test::eq(ast.string_pool.get(option.name)!!, "Option");
+	GenericDecl* option_generics = option.generics.as(NodeKind.GENERIC_DECL);
+	test::eq(option_generics.params.len, 1);
+	TypeExpr* option_generic_param = option_generics.params[0].as(NodeKind.TYPE_EXPR);
+	test::eq(ast.string_pool.get(option_generic_param.unresolved.name)!!, "Type");
+	TypeExpr* option_base = option.base_type.as(NodeKind.TYPE_EXPR);
+	test::eq(option_base.kind, TypeKind.TYPE_POINTER);
+	TypeExpr* option_inner = option_base.modify.base.as(NodeKind.TYPE_EXPR);
+	test::eq(ast.string_pool.get(option_inner.unresolved.name)!!, "Type");
 }
 
 fn void function_pointer_types_are_alias_only()

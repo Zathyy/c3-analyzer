@@ -392,6 +392,7 @@ fn Node*? parse_typedef_decl(ParseContext* ctx, ParseFlags flags = { })
 		advance(ctx)!;
 	}
 
+	typedef_decl.generics = parse_generic_decl(ctx)!;
 	typedef_decl.interfaces = parse_interface_type_list(ctx)!;
 	foreach (interface_type : typedef_decl.interfaces)
 	{

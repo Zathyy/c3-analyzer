@@ -75,6 +75,7 @@ struct AliasDecl
  Fields:
 - name: The interned typedef type name.
 - base_type: The underlying TYPE_EXPR this distinct type is based on.
+- generics: Optional generic declaration parameters, e.g. Type in `typedef Option<Type> = Type*`.
 - interfaces: Optional interface type list after the typedef name.
 - attributes: Attributes written on the typedef declaration or base type.
 - is_inline: True when the declaration uses '= inline type'.
@@ -83,6 +84,7 @@ struct TypedefDecl
 {
 	StringID name;
 	Node* base_type;
+	Node* generics;
 	NodeArray interfaces;
 	NodeArray attributes;
 	bool is_inline;
