@@ -44,8 +44,7 @@ fn void LineMap.build(LineMap* self, String src)
 }
 
 <*
- returns the Location as 1 based
- @require pos >= 0
+ returns a purely 0-based Location
 *>
 fn Location LineMap.resolve(LineMap* self, sz pos)
 {
@@ -69,45 +68,44 @@ fn Location LineMap.resolve(LineMap* self, sz pos)
 	}
 
 	sz line_start_offset = self.line_offsets[line_idx];
-	return { .line = line_idx + 1, .column = (pos - line_start_offset) + 1 };
+	return { .line = line_idx, .column = (pos - line_start_offset) };
 }
 
+<*
+ expects a purely 0-based Location
+*>
 fn sz LineMap.get_offset(LineMap* self, String src, Location loc)
 {
-	sz line_idx = loc.line - 1;
+	sz line_idx = loc.line; 
 	if (line_idx >= self.line_offsets.len()) return src.len;
 
 	sz line_start = self.line_offsets[line_idx];
-
-	// Find where this line actually ends (\n or EOF)
 	sz next_line_start = (line_idx + 1 < self.line_offsets.len()) ? self.line_offsets[line_idx + 1] : src.len;
 
-	sz offset = line_start + (loc.column - 1);
+	sz offset = line_start + loc.column;
 
-	// Clamp to the end of the current line so we don't bleed into the next one
-	if (offset >= next_line_start) return next_line_start - 1;
+	if (offset >= next_line_start) 
+	{
+		if (next_line_start > line_start)
+		{
+			return next_line_start - 1; // Points to the '\n'
+		}
+		return line_start;
+	}
 
 	return offset;
 }
 
+<*
+ expects a purely 0-based line_num index
+*>
 fn String LineMap.get_line_from_src(&self, String src, sz line_num)
 {
-	if (line_num == 0 || line_num > self.line_offsets.len()) return "";
-
-	sz start = self.line_offsets[line_num - 1];
-	sz end;
-
-	if (line_num < self.line_offsets.len())
-	{
-		end = self.line_offsets[line_num];
-	}
-	else
-	{
-		end = src.len;
-	}
-
-	if (start > src.len || end > src.len || start > end) return "";
-
-	String line = src[start..end - 1];
-	return line.trim_right();
+	if (line_num >= self.line_offsets.len()) return "";
+    sz start = self.line_offsets[line_num];
+    sz end = (line_num + 1 < self.line_offsets.len()) ? self.line_offsets[line_num + 1] : src.len;
+    if (start > src.len || end > src.len || start > end) return "";
+    sz tail = end;
+    if (tail > start && src[tail - 1] == '\n') tail--;
+    return src[start..tail];
 }
