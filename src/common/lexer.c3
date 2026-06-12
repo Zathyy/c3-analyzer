@@ -1312,16 +1312,19 @@ fn TokenKind Lexer.categorize_identifier(Lexer* self, String text)
 	bool is_type  = false;
 	bool is_const = false;
 
-	char first_char = base[0];
-	if (first_char >= 'A' && first_char <= 'Z')
+	if (base.len > 0)
 	{
-		if (is_all_upper(base))
+		char first_char = base[0];
+		if (first_char >= 'A' && first_char <= 'Z')
 		{
-			is_const = true;
-		}
-		else
-		{
-			is_type = true;
+			if (is_all_upper(base))
+			{
+				is_const = true;
+			}
+			else
+			{
+				is_type = true;
+			}
 		}
 	}
 
