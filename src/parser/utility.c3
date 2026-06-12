@@ -41,17 +41,17 @@ fn void ParseContext.report(ParseContext* self, Token token, LogPriority level, 
 	$if $feature(PARSER_LIB):
 		self.errors.push({ level, loc, token, string::format(self.allocator, fmt, ...args) });
 	$else
-		io::printf("%s:%s:%s: %s%s:%s ", self.file_path, loc.line, loc.column, color, level.description, ANSI_RESET);
+		io::printf("%s:%s:%s: %s%s:%s ", self.file_path, loc.line + 1, loc.column + 1, color, level.description, ANSI_RESET);
 		io::printf(fmt, ...args);
 		io::printn("");
 
 		String line_text = self.line_map.get_line_from_src(self.src, loc.line);
-		io::printf(" %4s | %s\n", loc.line, line_text);
+		io::printf(" %4s | %s\n", loc.line + 1, line_text);
 
 		io::printf(" %4s | ", "");
-		for (sz i = 1; i < loc.column; i++)
+		for (sz i = 0; i < loc.column; i++)
 		{
-			if (i - 1 < line_text.len && line_text[i - 1] == '\t')
+			if (i < line_text.len && line_text[i] == '\t')
 			{
 				io::print("\t");
 			}
