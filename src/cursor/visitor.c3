@@ -33,7 +33,6 @@ struct Cursor
 fn bool visit(Cursor child, Cursor parent, CursorVisitor visitor, void* data)
 {
 	ChildVisitResult res = visitor(child, parent, data);
-
 	if (res == ChildVisitResult.BREAK) return false; // Stop the whole walk
 
 	if (res == ChildVisitResult.RECURSE)

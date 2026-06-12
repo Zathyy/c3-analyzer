@@ -243,7 +243,7 @@ fn Node*? parse_short_body(ParseContext* ctx, bool is_regular)
 
 	comp.statements = alloc::alloc_array(ctx.arena, Node*, 1);
 	comp.statements[0] = ret_node;
-
+	
 	Node* expr = parse_expr(ctx)!;
 
 	if (expr.kind == CALL_EXPR)
@@ -262,11 +262,11 @@ fn Node*? parse_short_body(ParseContext* ctx, bool is_regular)
 	{
 		ret.expr = expr;
 	}
-
+	
 	if (is_regular)
 	{
 		expect(ctx, EOS)!;
 	}
-
+	
 	return node_comp;
 }

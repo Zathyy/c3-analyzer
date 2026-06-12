@@ -28,7 +28,6 @@ fn Node*? parse_fn_type_expr(ParseContext* ctx) => @pool()
 	expect(ctx, FN)!;
 	Node* node        = ctx.ast.alloc_node(TYPE_EXPR, start);
 	TypeExpr* fn_type = node.as(TYPE_EXPR);
-	defer node.end_token = ctx.current().pos;
 
 	fn_type.kind = TYPE_FUNCTION;
 	fn_type.func.ret_type = parse_type_expr(ctx)!;
@@ -38,13 +37,7 @@ fn Node*? parse_fn_type_expr(ParseContext* ctx) => @pool()
 	}
 
 	fn_type.func.params = parse_parameter_list(ctx)!;
-	foreach (param : fn_type.func.params)
-	{
-		if (is_error_or_missing_node(param))
-		{
-			node.kind = MISSING;
-		}
-	}
+	node.end_token = ctx.current().pos;
 
 	return node;
 }
@@ -260,7 +253,6 @@ fn Node*? parse_literal_expr(ParseContext* ctx) => @pool()
 	int start   = token.pos;
 
 	Node* node = ctx.ast.alloc_node(LITERAL_EXPR, start);
-	defer node.end_token = ctx.current().pos;
 	LiteralExpr* literal = node.as(LITERAL_EXPR);
 	String token_text    = ctx.token_text(token);
 
@@ -512,7 +504,6 @@ fn Node*? parse_path_expr(ParseContext* ctx, PathExprOptions options = { }) => @
 
 	Node* node     = ctx.ast.alloc_node(PATH_EXPR, start_pos, ctx.current().pos);
 	PathExpr* path = node.as(PATH_EXPR);
-	defer node.end_token = ctx.current().pos;
 
 	List{StringID} temp_segments;
 	temp_segments.init(tmem, 8);
@@ -526,6 +517,7 @@ fn Node*? parse_path_expr(ParseContext* ctx, PathExprOptions options = { }) => @
 
 		Token t = ctx.current();
 		temp_segments.push(ctx.ast.string_pool.internalize(ctx.token_text(t)));
+		node.end_token = ctx.current_pos();
 		advance(ctx)!;
 
 		if (!consume(ctx, SCOPE)!) break;
@@ -534,6 +526,7 @@ fn Node*? parse_path_expr(ParseContext* ctx, PathExprOptions options = { }) => @
 			if (!options.as_prefix)
 			{
 				temp_segments.push(ast::EMPTY_STR);
+				node.end_token = ctx.current_pos();
 				advance(ctx)!;
 			}
 			break;
@@ -551,7 +544,7 @@ fn Node*? parse_binary_expr(ParseContext* ctx, Node* left, Precedence prec)
 	advance(ctx)!;
 	Node* right = parse_expr(ctx, prec)!;
 
-	Node* node      = ctx.ast.alloc_node(BINARY_EXPR, start, ctx.current().pos);
+	Node* node      = ctx.ast.alloc_node(BINARY_EXPR, start, ctx.current_pos());
 	BinaryExpr* bin = node.as(BINARY_EXPR);
 	bin.left = left;
 	bin.right = right;
@@ -575,7 +568,6 @@ fn Node*? parse_unary_expr(ParseContext* ctx)
 	}
 	bool is_bang_bang = ctx.is(BANGBANG);
 	Node* node        = ctx.ast.alloc_node(UNARY_EXPR, start_pos);
-	defer node.end_token = ctx.current().pos;
 	UnaryExpr* unary = node.as(UNARY_EXPR);
 	UnaryOpKind? op  = parser::unaryop_from_token(ctx.current().kind);
 	if (catch op)
@@ -585,6 +577,7 @@ fn Node*? parse_unary_expr(ParseContext* ctx)
 	}
 	advance(ctx)!;
 	unary.expr = parse_expr(ctx, UNARY)!;
+	node.end_token = unary.expr.end_token;
 	if (is_bang_bang)
 	{
 		Node* outer          = ctx.ast.alloc_node(UNARY_EXPR, ctx.current().pos);
@@ -600,7 +593,6 @@ fn Node*? parse_post_unary_expr(ParseContext* ctx, Node* left, Precedence bp)
 {
 	int start_pos = ctx.current().pos;
 	Node* node    = ctx.ast.alloc_node(POST_UNARY_EXPR, start_pos);
-	defer node.end_token = ctx.current().pos;
 	PostUnaryExpr* unary = node.as(POST_UNARY_EXPR);
 	UnaryOpKind? op      = parser::unaryop_from_token(ctx.current().kind);
 	if (catch op)
@@ -610,6 +602,7 @@ fn Node*? parse_post_unary_expr(ParseContext* ctx, Node* left, Precedence bp)
 	}
 	unary.operator = op;
 	unary.expr = left;
+	node.end_token = ctx.current_pos();
 	advance(ctx)!;
 	return node;
 }
@@ -623,7 +616,6 @@ fn Node*? parse_expr_list(ParseContext* ctx) => @pool()
 	int start_pos  = ctx.current().pos;
 	Node* node     = ctx.ast.alloc_node(EXPR_LIST, start_pos);
 	ExprList* list = node.as(EXPR_LIST);
-	defer node.end_token = ctx.current().pos;
 	List{Node*} exprs;
 	exprs.tinit();
 	while (!ctx.eof())
@@ -631,6 +623,8 @@ fn Node*? parse_expr_list(ParseContext* ctx) => @pool()
 		exprs.push(parse_decl_or_expr(ctx)!);
 		if (ctx.eof() || !consume(ctx, COMMA)!) break;
 	}
+
+	node.end_token = exprs.last().end_token ?? start_pos;
 
 	list.exprs = alloc::clone_slice(ctx.arena, exprs.array_view());
 	return node;
@@ -670,7 +664,6 @@ fn Node*? parse_call_expr(ParseContext* ctx, Node* callee)
 	int start_pos = ctx.current().pos;
 	expect(ctx, LPAREN)!;
 	Node* node = ctx.ast.alloc_node(CALL_EXPR, callee.start_token);
-	defer node.end_token = ctx.current().pos;
 	CallExpr* call = node.as(CALL_EXPR);
 	call.callee = callee;
 
@@ -688,6 +681,7 @@ fn Node*? parse_call_expr(ParseContext* ctx, Node* callee)
 		body_args = parse_parameter_list(ctx, { .is_call = true })!;
 	}
 
+	node.end_token = ctx.current_pos();
 	expect(ctx, RPAREN)!;
 
 	if (ctx.is(AT_IDENT))
@@ -714,6 +708,7 @@ fn Node*? parse_call_expr(ParseContext* ctx, Node* callee)
 	if (ctx.is(LBRACE))
 	{
 		body = parse_compound_stmt(ctx)!;
+		node.end_token = body.end_token;
 	}
 
 	if (body || body_args)
@@ -820,8 +815,8 @@ fn Node*? parse_catch_expr(ParseContext* ctx) => @pool()
 *>
 fn Node*? parse_cond_expr(ParseContext* ctx) => @pool()
 {
-	Node* node = ctx.ast.alloc_node(COND_EXPR, ctx.current().pos);
-	defer node.end_token = ctx.current().pos;
+	int start_pos = ctx.current_pos();
+	Node* node = ctx.ast.alloc_node(COND_EXPR, start_pos);
 	CondExpr* cond = node.as(COND_EXPR);
 
 	List{Node*} exprs;
@@ -853,6 +848,8 @@ fn Node*? parse_cond_expr(ParseContext* ctx) => @pool()
 		exprs.push(parse_decl_or_expr(ctx)!);
 		if (!consume(ctx, COMMA)!) break;
 	}
+
+	node.end_token = exprs.last().end_token ?? start_pos;
 
 	cond.exprs = alloc::clone_slice(ctx.arena, exprs.array_view());
 	return node;
@@ -1102,7 +1099,6 @@ fn Node*? parse_generic_expr(ParseContext* ctx) => @pool()
 {
 	int start_pos = ctx.current().pos;
 	Node* node    = ctx.ast.alloc_node(GENERIC_IDENT_EXPR, start_pos);
-	defer node.end_token = ctx.current().pos;
 	GenericIdentExpr* generic = node.as(GENERIC_IDENT_EXPR);
 	expect(ctx, LBRACE)!;
 	List{Node*} exprs;
@@ -1115,7 +1111,9 @@ fn Node*? parse_generic_expr(ParseContext* ctx) => @pool()
 			expect(ctx, RBRACE)!;
 			break;
 		}
-	} while (!consume(ctx, RBRACE)!);
+	} 
+	while (!consume(ctx, RBRACE)!);
+	node.end_token = exprs.last().end_token ?? start_pos;
 	generic.exprs = alloc::clone_slice(ctx.arena, exprs.array_view());
 	return node;
 }
@@ -1126,6 +1124,7 @@ fn Node*? parse_group_expr(ParseContext* ctx)
 
 	expect(ctx, LPAREN)!;
 	Node* inner = parse_expr(ctx)!;
+	int end_pos = ctx.current_pos();
 	expect(ctx, RPAREN)!;
 
 	// can_start_expression might miss some cases
@@ -1133,16 +1132,14 @@ fn Node*? parse_group_expr(ParseContext* ctx)
 	{
 		Node* operand = parse_expr(ctx, UNARY)!;
 
-		Node* node = ctx.ast.alloc_node(CAST_EXPR, start_pos);
-		defer node.end_token = ctx.current().pos;
+		Node* node = ctx.ast.alloc_node(CAST_EXPR, start_pos, end_pos);
 		CastExpr* cast = node.as(CAST_EXPR);
 		cast.inner = inner;
 		cast.operand = operand;
 		return node;
 	}
 
-	Node* node = ctx.ast.alloc_node(GROUP_EXPR, start_pos);
-	defer node.end_token = ctx.current().pos;
+	Node* node = ctx.ast.alloc_node(GROUP_EXPR, start_pos, end_pos);
 	GroupExpr* group = node.as(GROUP_EXPR);
 
 	group.inner = inner;
@@ -1512,12 +1509,12 @@ fn Node*? parse_ct_expand_stmt(ParseContext* ctx)
 
 	int start_pos = ctx.current().pos;
 	Node* node    = ctx.ast.alloc_node(CT_EXPAND_STMT, start_pos);
-	defer node.end_token = ctx.current().pos;
 	CtExpandStmt* exp = node.as(CT_EXPAND_STMT);
 
 	expect(ctx, LPAREN)!;
 	exp.expr = parse_expr(ctx)!;
 	expect(ctx, RPAREN)!;
+	node.end_token = ctx.current_pos();
 	expect(ctx, EOS)!;
 	return node;
 }

@@ -392,7 +392,6 @@ fn Node*? parse_fn_decl(ParseContext* ctx, ParseFlags flags = { })
 
 	Node* node   = ctx.ast.alloc_node(FN_DECL, start_pos);
 	FnDecl* func = node.as(FN_DECL);
-	defer node.end_token = ctx.current().pos;
 
 	func.ret_type = parse_type_expr(ctx)!;
 
@@ -451,6 +450,7 @@ fn Node*? parse_fn_decl(ParseContext* ctx, ParseFlags flags = { })
 		}
 
 		func.body = parse_compound_stmt(ctx)!;
+		node.end_token = func.body.end_token;
 	}
 	else if (consume(ctx, IMPLIES)!)
 	{
@@ -461,10 +461,12 @@ fn Node*? parse_fn_decl(ParseContext* ctx, ParseFlags flags = { })
 		}
 
 		func.body = parse_short_body(ctx, true)!;
+		node.end_token = func.body.end_token;
 	}
 	else
 	{
 		// No body provided
+		node.end_token = ctx.current().pos;
 		expect(ctx, EOS)!;
 	}
 
