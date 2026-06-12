@@ -184,3 +184,61 @@ fn Node* find_node_from_offset(Node* node, int offset)
 
 	return node;
 }
+
+<*
+ Checks if the cursor's current node matches an access or path expression layout
+*>
+fn bool Cursor.is_access_node(&self)
+{
+    if (self.node == null) return false;
+    return self.node.kind == ACCESS_EXPR || self.node.kind == PATH_EXPR;
+}
+
+<*
+
+*>
+fn Node* find_deepest_leaf_node(Node* node, int offset)
+{
+	if (node == null) return null;
+
+	if (offset < node.start_token || offset > node.end_token)
+	{
+		return null;
+	}
+
+	switch (node.kind)
+	{
+		case FN_DECL:
+			FnDecl* func = node.as(FN_DECL);
+			Node* leaf = find_deepest_leaf_node(func.body, offset);
+			if (leaf) return leaf;
+			break;
+
+		case COMPOUND_STMT:
+			CompoundStmt* comp = node.as(COMPOUND_STMT);
+			foreach (stmt : comp.statements)
+			{
+				Node* leaf = find_deepest_leaf_node(stmt, offset);
+				if (leaf) return leaf;
+			}
+			break;
+
+		case BINARY_EXPR:
+			BinaryExpr* bin = node.as(BINARY_EXPR);
+			Node* left_leaf = find_deepest_leaf_node(bin.left, offset);
+			if (left_leaf) return left_leaf;
+			Node* right_leaf = find_deepest_leaf_node(bin.right, offset);
+			if (right_leaf) return right_leaf;
+			break;
+
+		case ACCESS_EXPR:
+			AccessExpr* access = node.as(ACCESS_EXPR);
+			Node* left_leaf = find_deepest_leaf_node(access.left, offset);
+			if (left_leaf) return left_leaf;
+			break;
+		default:
+			break;
+	}
+
+	return node;
+}

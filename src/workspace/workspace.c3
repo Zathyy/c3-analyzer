@@ -97,7 +97,7 @@ fn SourceFile* Workspace.reset_source_file(&self, PathString path)
 				return *s == target;
 			}, &section);
 		}
-
+	
 		foreach (section : existing.sections)
 		{
 			alloc::free(self.allocator, section);
@@ -243,6 +243,39 @@ fn Node*? Workspace.lookup_in_module(&self, String module_name, String symbol_na
 		{
 			Cursor c = { section, node };
 			if (c.spelling(tmem)! == symbol_name) return node;
+		}
+	}
+
+	return SYMBOL_NOT_FOUND~;
+}
+
+<*
+ Global search across all tracked modules to find a type or symbol by its raw spelling.
+ Returns the matching Node* or a fault if not found.
+*>
+fn Node*? Workspace.find_symbol_by_name(&self, String symbol_name) => @pool()
+{
+	foreach (mod : self.modules.value_iter())
+	{
+		foreach (section : mod.sections)
+		{
+			foreach (node : section.nodes)
+			{
+				switch (node.kind)
+				{
+					case MODULE_DECL: continue;
+					case IMPORT_DECL: continue;
+					default: break;
+				}
+
+				Cursor c = { section, node };
+				String spelling = c.spelling(tmem) ?? "";
+
+				if (spelling == symbol_name)
+				{
+					return node;
+				}
+			}
 		}
 	}
 
