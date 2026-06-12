@@ -194,51 +194,107 @@ fn bool Cursor.is_access_node(&self)
     return self.node.kind == ACCESS_EXPR || self.node.kind == PATH_EXPR;
 }
 
-<*
-
-*>
-fn Node* find_deepest_leaf_node(Node* node, int offset)
+fn Node* find_innermost_node(Node* node, int offset)
 {
-	if (node == null) return null;
+    if (node == null) return null;
 
-	if (offset < node.start_token || offset > node.end_token)
-	{
-		return null;
-	}
+    // Guard: If the cursor isn't within this node's overall layout footprint, skip it
+    if (offset < node.start_token || offset > node.end_token)
+    {
+        return null;
+    }
 
-	switch (node.kind)
-	{
-		case FN_DECL:
-			FnDecl* func = node.as(FN_DECL);
-			Node* leaf = find_deepest_leaf_node(func.body, offset);
-			if (leaf) return leaf;
-			break;
+    switch (node.kind)
+    {
+        case FN_DECL:
+        {
+            FnDecl* func = node.as(FN_DECL);
+            Node* inner = find_innermost_node(func.body, offset);
+            if (inner) return inner;
+            break;
+        }
+        case COMPOUND_STMT:
+        {
+            CompoundStmt* comp = node.as(COMPOUND_STMT);
+			Node* best_statement_match = null;
 
-		case COMPOUND_STMT:
-			CompoundStmt* comp = node.as(COMPOUND_STMT);
-			foreach (stmt : comp.statements)
-			{
-				Node* leaf = find_deepest_leaf_node(stmt, offset);
-				if (leaf) return leaf;
-			}
-			break;
+            foreach (stmt : comp.statements)
+            {
+                if (offset >= stmt.start_token)
+                {
+                    Node* inner = find_innermost_node(stmt, offset);
+                    if (inner) 
+                    {
+                        best_statement_match = inner;
+                    }
+                    else
+                    {
+                        best_statement_match = stmt;
+                    }
+                }
+            }
+            
+            if (best_statement_match != null) 
+            {
+                return best_statement_match;
+            }
+			
+            break;
+        }
+        case IF_STMT:
+        {
+            IfStmt* if_stmt = node.as(IF_STMT);
 
-		case BINARY_EXPR:
-			BinaryExpr* bin = node.as(BINARY_EXPR);
-			Node* left_leaf = find_deepest_leaf_node(bin.left, offset);
-			if (left_leaf) return left_leaf;
-			Node* right_leaf = find_deepest_leaf_node(bin.right, offset);
-			if (right_leaf) return right_leaf;
-			break;
+            Node* cond_inner = find_innermost_node(if_stmt.condition, offset);
+            if (cond_inner) return cond_inner;
 
-		case ACCESS_EXPR:
-			AccessExpr* access = node.as(ACCESS_EXPR);
-			Node* left_leaf = find_deepest_leaf_node(access.left, offset);
-			if (left_leaf) return left_leaf;
-			break;
-		default:
-			break;
-	}
+            Node* then_inner = find_innermost_node(if_stmt.then_body, offset);
+            if (then_inner) return then_inner;
 
-	return node;
+            if (if_stmt.else_body != null)
+            {
+                Node* else_inner = find_innermost_node(if_stmt.else_body, offset);
+                if (else_inner) return else_inner;
+            }
+            break;
+        }
+        case EXPR_STMT:
+        {
+            ExprStmt* expr_stmt = node.as(EXPR_STMT);
+            Node* expr = find_innermost_node(expr_stmt.expr_stmt, offset);
+            if (expr) return expr;
+            break;
+        }
+        case BINARY_EXPR:
+        {
+            BinaryExpr* bin = node.as(BINARY_EXPR);
+            Node* left_inner = find_innermost_node(bin.left, offset);
+            if (left_inner) return left_inner;
+            Node* right_inner = find_innermost_node(bin.right, offset);
+            if (right_inner) return right_inner;
+            break;
+        }
+        case ACCESS_EXPR:
+        {
+            AccessExpr* access = node.as(ACCESS_EXPR);
+            Node* left_inner = find_innermost_node(access.left, offset);
+            if (left_inner) return left_inner;
+
+			if (access.member != null && access.member.kind != MISSING)
+            {
+                Node* member_inner = find_innermost_node(access.member, offset);
+                if (member_inner) return member_inner;
+            }
+            return node;
+        }
+		case IDENT_EXPR:
+		{
+			IdentExpr* ident = node.as(IDENT_EXPR);
+			return node;
+		}
+        default:
+            break;
+    }
+
+    return node;
 }
