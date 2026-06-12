@@ -55,17 +55,17 @@ Fields:
 - name: The interned alias name text.
 - name_kind: The token kind used by the alias name.
 - alias_kind: Which alias form was parsed.
+- generics: Optional generic declaration parameters, e.g. Ty in `alias Stack<Ty> = List{Ty};`.
 - target: TYPE_EXPR for TYPE_ALIAS, PATH_EXPR for MODULE_ALIAS and IDENT_ALIAS.
-- generic_params: Generic alias declaration parameters, e.g. Ty in `alias Stack<Ty> = List{Ty};`.
-- attributes: Reserved for alias attributes; parsing currently skips them.
+- attributes: Attributes written on the alias declaration before '='.
 *>
 struct AliasDecl
 {
 	StringID name;
 	TokenKind name_kind;
 	AliasDeclKind alias_kind;
+	Node* generics;
 	Node* target;
-	StringID[] generic_params;
 	NodeArray attributes;
 }
 

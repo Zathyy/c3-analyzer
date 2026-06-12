@@ -241,52 +241,6 @@ fn Node*? parse_import_decl(ParseContext* ctx) => @pool()
 }
 
 <*
- Parse the generic parameter list after an alias name.
- @param [&inout] ctx : "Parser context to consume tokens from."
-*>
-fn StringID[]? parse_alias_generic_decl(ParseContext* ctx) => @pool()
-{
-	List{StringID} temp_params;
-	temp_params.init(tmem, 4);
-
-	expect(ctx, LESS)!;
-
-	while (!ctx.eof() && !ctx.is(GREATER))
-	{
-		Token t = ctx.current();
-		if (t.kind != TYPE_IDENT && t.kind != CONST_IDENT)
-		{
-			ctx.error("Expected generic alias parameter name");
-		}
-		else
-		{
-			temp_params.push(ctx.ast.string_pool.internalize(ctx.token_text(t)));
-		}
-
-		advance(ctx)!;
-		if (ctx.is(GREATER)) break;
-		if (!consume(ctx, COMMA)!)
-		{
-			ctx.error("Expected ',' or '>' in alias generic parameter list");
-		}
-	}
-	expect(ctx, GREATER)!;
-	return alloc::clone_slice(ctx.arena, temp_params.array_view());
-}
-
-fn void? skip_alias_attributes(ParseContext* ctx)
-{
-	while (ctx.is(AT_IDENT) || ctx.is(AT_TYPE_IDENT) || ctx.is(AT_CONST_IDENT))
-	{
-		advance(ctx)!;
-		if (ctx.is(LPAREN))
-		{
-			skip_balanced_group(ctx, LPAREN, RPAREN)!;
-		}
-	}
-}
-
-<*
  alias_type_decl ::= 'alias' TYPE_IDENT generic_decl? attributes? '=' type_expr ';'
  module_alias_decl ::= 'alias' IDENT attributes? '=' 'module' module_path ';'
  alias_decl ::= 'alias' alias_name generic_decl? attributes? '=' alias_source ';'
@@ -294,8 +248,8 @@ fn void? skip_alias_attributes(ParseContext* ctx)
  Alias names are classified by lexer token kind. A TYPE_IDENT name parses a
  type-expression target, `module` after '=' parses a module path target, and
  identifier-style aliases require the target path's final token kind to match
- the alias name kind. Alias attributes are skipped here until attribute parsing
- is represented on AliasDecl.
+ the alias name kind. Alias generics and attributes use the shared declaration
+ parsers and are represented on AliasDecl.
  @param [&inout] ctx : "Parser context positioned at the alias keyword."
 *>
 fn Node*? parse_alias_decl(ParseContext* ctx)
@@ -319,12 +273,8 @@ fn Node*? parse_alias_decl(ParseContext* ctx)
 		alias_decl.name_kind = t.kind;
 	};
 
-	if (ctx.is(LESS))
-	{
-		alias_decl.generic_params = parse_alias_generic_decl(ctx)!;
-	}
-
-	skip_alias_attributes(ctx)!;
+	alias_decl.generics = parse_generic_decl(ctx)!;
+	alias_decl.attributes = parse_attributes(ctx, node, { .allow_type_ident = true })!;
 
 	expect(ctx, EQ)!;
 

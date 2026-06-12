@@ -152,6 +152,7 @@ fn void alias_declarations_parse()
 		alias @old = @new;
 		alias int_map = map::new {String, int};
 		alias ElementPredicate = fn bool(Type *type);
+		alias NamedList @private @AliasAttr = List{int};
 	`;
 
 	Workspace ws;
@@ -164,7 +165,7 @@ fn void alias_declarations_parse()
 	Module* mod      = ws.modules.get("hello")!!;
 	ModuleSection* s = mod.sections[0];
 	Ast* ast         = s.source_file.ast;
-	test::eq(ast.top_level_nodes.len(), 9);
+	test::eq(ast.top_level_nodes.len(), 10);
 
 	Node* type_node = ast.top_level_nodes[1];
 	test::eq(type_node.kind, NodeKind.ALIAS_DECL);
@@ -180,11 +181,14 @@ fn void alias_declarations_parse()
 	test::eq(type_base.kind, TypeKind.TYPE_IDENTIFIER);
 	test::eq(ast.string_pool.get(type_base.unresolved.name)!!, "List");
 
-	AliasDecl* generic_alias = ast.top_level_nodes[2].as(NodeKind.ALIAS_DECL);
-	test::eq(generic_alias.alias_kind, AliasDeclKind.TYPE_ALIAS);
-	test::eq(generic_alias.generic_params.len, 1);
-	test::eq(ast.string_pool.get(generic_alias.generic_params[0])!!, "Ty");
-	test::eq(generic_alias.target.as(NodeKind.TYPE_EXPR).kind, TypeKind.TYPE_GENERIC);
+	AliasDecl* stack_node = ast.top_level_nodes[2].as(NodeKind.ALIAS_DECL);
+	test::eq(stack_node.alias_kind, AliasDeclKind.TYPE_ALIAS);
+	GenericDecl* generic = stack_node.generics.as(NodeKind.GENERIC_DECL);
+	test::eq(generic.params.len, 1);
+	TypeExpr* first_type = generic.params[0].as(NodeKind.TYPE_EXPR);
+	test::eq(first_type.kind, TypeKind.TYPE_IDENTIFIER);
+	test::eq(ast.string_pool.get(first_type.unresolved.name)!!, "Ty");
+	test::eq(stack_node.target.as(NodeKind.TYPE_EXPR).kind, TypeKind.TYPE_GENERIC);
 
 	Node* module_node       = ast.top_level_nodes[3];
 	AliasDecl* module_alias = module_node.as(NodeKind.ALIAS_DECL);
@@ -226,6 +230,16 @@ fn void alias_declarations_parse()
 	test::eq(param_type.kind, TypeKind.TYPE_POINTER);
 	TypeExpr* param_base_type = param_type.modify.base.as(NodeKind.TYPE_EXPR);
 	test::eq(ast.string_pool.get(param_base_type.unresolved.name)!!, "Type");
+
+	Node* node            = ast.top_level_nodes[9];
+	AliasDecl* alias_decl = node.as(NodeKind.ALIAS_DECL);
+	test::eq(alias_decl.alias_kind, AliasDeclKind.TYPE_ALIAS);
+	test::eq(alias_decl.generics, null);
+	test::eq(alias_decl.attributes.len, 2);
+	test::eq(parser_tests::@attr(alias_decl, 0).kind, AttributeKind.PRIVATE);
+	test::eq(parser_tests::@attr(alias_decl, 1).name, "@AliasAttr");
+	test::eq(node.flags.has_attributes, true);
+	test::eq(node.visibility, Visibility.PRIVATE);
 }
 
 fn void typedef_declarations_parse()
