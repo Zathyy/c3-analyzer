@@ -30,10 +30,12 @@ fn void basic_cursor_test()
 	Workspace ws;
 	ws.init();
 	defer ws.free();
-	ParseResult res = parser::parse(&ws, "hello.c3", source_code)!!;
-	test::eq(res.success, true);
-	res = parser::parse(&ws, "foo.c3", source_code)!!;
-	test::eq(res.success, true);
+	ProcessResult res = workspace::process_batch(&ws, mem, { 
+		{ .uri = "hello.c3", .source_text = source_code }, 
+		{ .uri = "foo.c3",   .source_text = source_code_2 }
+	})!!;
+	defer res.free();
+	test::eq(res.has_errors, false);
 
 	Module* mod      = ws.modules.get("hello")!!;
 	ModuleSection* s = mod.sections[0];

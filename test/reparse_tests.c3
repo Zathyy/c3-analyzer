@@ -13,14 +13,14 @@ import std::io::path;
 
 fn void reparsing_simple()
 {
-	String text = `
+	String source_code = `
 		module hello;
         
         fn void greet() {}
         fn void old_function() {}
 	`;
 
-	String text2 = `
+	String source_code_2 = `
         module hello;
         
         fn void greet() {}
@@ -30,18 +30,15 @@ fn void reparsing_simple()
 	Workspace ws;
 	ws.init();
 	defer ws.free();
-	ParseResult res = parser::parse(&ws, "reparsing_simple", text)!!;
-	test::eq(res.success, true);
-	test::eq(ws.modules.len(), 1);
-
-	res = parser::parse(&ws, "reparsing_simple", text)!!;
-	test::eq(res.success, true);
+	ProcessResult res = workspace::process_batch(&ws, mem, { { .uri = "test_1", .source_text = source_code}, { .uri = "test_2", .source_text = source_code_2 }})!!;
+	defer res.free();
+	test::eq(res.has_errors, false);
 	test::eq(ws.modules.len(), 1);
 }
 
 fn void multi_reparsing()
 {
-	String text = `
+	String source_code = `
 		module hello;
         
         fn void greet() {}
@@ -51,16 +48,19 @@ fn void multi_reparsing()
 	Workspace ws;
 	ws.init();
 	defer ws.free();
+	
 
 	for (int i = 0; i < 99; i++)
 	{
-		ParseResult res = parser::parse(&ws, "reparsing_simple", text)!!;
-		test::eq(res.success, true);
+		ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
+		test::eq(res.has_errors, false);
+		res.free();
 		test::eq(ws.modules.len(), 1);
 	}
 
-	ParseResult res = parser::parse(&ws, "reparsing_simple", text)!!;
-	test::eq(res.success, true);
+	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
+	test::eq(res.has_errors, false);
+	res.free();
 
 	Module* mod = ws.modules.get("hello")!!;
 

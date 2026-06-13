@@ -13,7 +13,7 @@ import std::io::path;
 
 fn void basic_module()
 {
-	String text = `
+	String source_code = `
 		<* doc *>
 		module hello <Type, Second> @local;
 		
@@ -22,8 +22,9 @@ fn void basic_module()
 	Workspace ws;
 	ws.init();
 	defer ws.free();
-	ParseResult res = parser::parse(&ws, "basic_module", text)!!;
-	test::eq(res.success, true);
+	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
+	defer res.free();
+	test::eq(res.has_errors, false);
 	test::eq(ws.modules.len(), 1);
 
 	Module* mod = ws.modules.get("hello")!!;
@@ -41,7 +42,7 @@ fn void basic_module()
 
 fn void function_with_params()
 {
-	String path = `
+	String source_code = `
 		module hello; 
 		fn void greet(int foo, Bar baz) => @pool() {}
 		fn int get_int() => 10;
@@ -54,8 +55,9 @@ fn void function_with_params()
 	Workspace ws;
 	ws.init();
 	defer ws.free();
-	ParseResult res = parser::parse(&ws, "function_with_params", path)!!;
-	test::eq(res.success, true);
+	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
+	defer res.free();
+	test::eq(res.has_errors, false);
 
 	Module* mod      = ws.modules.get("hello")!!;
 	ModuleSection* s = mod.sections[0];
@@ -66,7 +68,7 @@ fn void function_with_params()
 
 fn void method_with_params()
 {
-	String path = `
+	String source_code = `
 		module hello; 
 		fn void Foo.greet(&self, Bar baz) {}
 		fn void Foo.greet(self, Bar baz) {}
@@ -74,8 +76,9 @@ fn void method_with_params()
 	Workspace ws;
 	ws.init();
 	defer ws.free();
-	ParseResult res = parser::parse(&ws, "method_with_params", path)!!;
-	test::eq(res.success, true);
+	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
+	defer res.free();
+	test::eq(res.has_errors, false);
 
 	Module* mod      = ws.modules.get("hello")!!;
 	ModuleSection* s = mod.sections[0];
@@ -89,7 +92,7 @@ fn void method_with_params()
 
 fn void macro_with_params()
 {
-	String path = `
+	String source_code = `
 		module hello; 
 		macro void greet(int foo, Bar baz) {}
 		macro foo(int foo, Bar baz) {}
@@ -98,8 +101,9 @@ fn void macro_with_params()
 	Workspace ws;
 	ws.init();
 	defer ws.free();
-	ParseResult res = parser::parse(&ws, "macro_with_params", path)!!;
-	test::eq(res.success, true);
+	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
+	defer res.free();
+	test::eq(res.has_errors, false);
 
 	Module* mod      = ws.modules.get("hello")!!;
 	ModuleSection* s = mod.sections[0];
@@ -119,7 +123,7 @@ fn void macro_with_params()
 
 fn void macro_method_with_params()
 {
-	String path = `
+	String source_code = `
 		module hello; 
 		macro void Foo.greet(&self, Bar baz) {}
 		macro Foo.wow(&self, Bar bar) {}
@@ -128,8 +132,9 @@ fn void macro_method_with_params()
 	Workspace ws;
 	ws.init();
 	defer ws.free();
-	ParseResult res = parser::parse(&ws, "method_with_params", path)!!;
-	test::eq(res.success, true);
+	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
+	defer res.free();
+	test::eq(res.has_errors, false);
 
 	Module* mod      = ws.modules.get("hello")!!;
 	ModuleSection* s = mod.sections[0];
@@ -143,7 +148,7 @@ fn void macro_method_with_params()
 
 fn void alias_declarations_parse()
 {
-	String text = `module hello;
+	String source_code = `module hello;
 		alias IntList = List{int};
 		alias Stack<Ty> = List{Ty};
 		alias mc = module my::collection;
@@ -158,9 +163,9 @@ fn void alias_declarations_parse()
 	Workspace ws;
 	ws.init();
 	defer ws.free();
-
-	ParseResult res = parser::parse(&ws, "alias_decls", text)!!;
-	test::eq(res.success, true);
+	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
+	defer res.free();
+	test::eq(res.has_errors, false);
 
 	Module* mod      = ws.modules.get("hello")!!;
 	ModuleSection* s = mod.sections[0];
@@ -244,7 +249,7 @@ fn void alias_declarations_parse()
 
 fn void typedef_declarations_parse()
 {
-	String text = `module hello;
+	String source_code = `module hello;
 		typedef MyId = int;
 		typedef MyId2 @constinit = int;
 		typedef Bcd @constinit = inline int;
@@ -257,9 +262,9 @@ fn void typedef_declarations_parse()
 	Workspace ws;
 	ws.init();
 	defer ws.free();
-
-	ParseResult res = parser::parse(&ws, "typedef_decls", text)!!;
-	test::eq(res.success, true);
+	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
+	defer res.free();
+	test::eq(res.has_errors, false);
 
 	Module* mod      = ws.modules.get("hello")!!;
 	ModuleSection* s = mod.sections[0];
@@ -316,18 +321,18 @@ fn void typedef_declarations_parse()
 
 fn void function_pointer_types_are_alias_only()
 {
-	String alias_text = `module hello;
+	String source_code = `module hello;
 		alias CallbackDefault = fn void(int value = 0);
 	`;
 
-	Workspace alias_ws;
-	alias_ws.init();
-	defer alias_ws.free();
+	Workspace ws;
+	ws.init();
+	defer ws.free();
+	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
+	defer res.free();
+	test::eq(res.has_errors, false);
 
-	ParseResult alias_res = parser::parse(&alias_ws, "fn_ptr_alias_default", alias_text)!!;
-	test::eq(alias_res.success, true);
-
-	Module* alias_mod      = alias_ws.modules.get("hello")!!;
+	Module* alias_mod      = ws.modules.get("hello")!!;
 	ModuleSection* alias_s = alias_mod.sections[0];
 	Ast* alias_ast         = alias_s.source_file.ast;
 	AliasDecl* alias_decl  = alias_ast.top_level_nodes[1].as(NodeKind.ALIAS_DECL);
@@ -340,7 +345,7 @@ fn void function_pointer_types_are_alias_only()
 
 fn void global_var_const()
 {
-	String text = `
+	String source_code = `
 		module hello;
 		
 		const int[4]* FOO = null;
@@ -349,9 +354,9 @@ fn void global_var_const()
 	Workspace ws;
 	ws.init();
 	defer ws.free();
-
-	ParseResult res = parser::parse(&ws, "var_decl", text)!!;
-	test::eq(res.success, true);
+	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
+	defer res.free();
+	test::eq(res.has_errors, false);
 
 	Module* mod      = ws.modules.get("hello")!!;
 	ModuleSection* s = mod.sections[0];
@@ -365,7 +370,7 @@ fn void global_var_const()
 
 fn void global_var_multi_decl()
 {
-	String text = `
+	String source_code = `
 		module hello;
 		
 		int foo, bar, z;
@@ -374,9 +379,9 @@ fn void global_var_multi_decl()
 	Workspace ws;
 	ws.init();
 	defer ws.free();
-
-	ParseResult res = parser::parse(&ws, "var_decl", text)!!;
-	test::eq(res.success, true);
+	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
+	defer res.free();
+	test::eq(res.has_errors, false);
 
 	Module* mod      = ws.modules.get("hello")!!;
 	ModuleSection* s = mod.sections[0];
@@ -406,7 +411,7 @@ fn void global_var_multi_decl()
 
 fn void global_var()
 {
-	String text = `
+	String source_code = `
 		module hello;
 		
 		int[4] foo;
@@ -415,9 +420,9 @@ fn void global_var()
 	Workspace ws;
 	ws.init();
 	defer ws.free();
-
-	ParseResult res = parser::parse(&ws, "var_decl", text)!!;
-	test::eq(res.success, true);
+	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
+	defer res.free();
+	test::eq(res.has_errors, false);
 
 	Module* mod      = ws.modules.get("hello")!!;
 	ModuleSection* s = mod.sections[0];
@@ -431,7 +436,7 @@ fn void global_var()
 
 fn void global_var_tlocal()
 {
-	String text = `
+	String source_code = `
 		module hello;
 		
 		tlocal int foo = 1;
@@ -440,9 +445,9 @@ fn void global_var_tlocal()
 	Workspace ws;
 	ws.init();
 	defer ws.free();
-
-	ParseResult res = parser::parse(&ws, "var_decl", text)!!;
-	test::eq(res.success, true);
+	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
+	defer res.free();
+	test::eq(res.has_errors, false);
 
 	Module* mod      = ws.modules.get("hello")!!;
 	ModuleSection* s = mod.sections[0];
@@ -456,7 +461,7 @@ fn void global_var_tlocal()
 
 fn void global_var_extern()
 {
-	String text = `
+	String source_code = `
 		module hello;
 		
 		extern int foo;
@@ -465,9 +470,9 @@ fn void global_var_extern()
 	Workspace ws;
 	ws.init();
 	defer ws.free();
-
-	ParseResult res = parser::parse(&ws, "var_decl", text)!!;
-	test::eq(res.success, true);
+	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
+	defer res.free();
+	test::eq(res.has_errors, false);
 
 	Module* mod      = ws.modules.get("hello")!!;
 	ModuleSection* s = mod.sections[0];
@@ -481,7 +486,7 @@ fn void global_var_extern()
 
 fn void expand()
 {
-	String text = `
+	String source_code = `
 		module hello;
 		
 		$expand("fn void foo();");
@@ -490,9 +495,9 @@ fn void expand()
 	Workspace ws;
 	ws.init();
 	defer ws.free();
-
-	ParseResult res = parser::parse(&ws, "expand", text)!!;
-	test::eq(res.success, true);
+	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
+	defer res.free();
+	test::eq(res.has_errors, false);
 
 	Module* mod      = ws.modules.get("hello")!!;
 	ModuleSection* s = mod.sections[0];
@@ -506,7 +511,7 @@ fn void expand()
 
 fn void struct_decl()
 {
-	String text = `
+	String source_code = `
 		module hello;
 		
 		<*
@@ -551,9 +556,9 @@ fn void struct_decl()
 	Workspace ws;
 	ws.init();
 	defer ws.free();
-
-	ParseResult res = parser::parse(&ws, "expand", text)!!;
-	test::eq(res.success, true);
+	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
+	defer res.free();
+	test::eq(res.has_errors, false);
 
 	Module* mod       = ws.modules.get("hello")!!;
 	ModuleSection* s  = mod.sections[0];
@@ -567,7 +572,7 @@ fn void struct_decl()
 
 fn void bitstruct_decl()
 {
-	String text = `
+	String source_code = `
 		module hello;
 		
 		<*
@@ -588,9 +593,9 @@ fn void bitstruct_decl()
 	Workspace ws;
 	ws.init();
 	defer ws.free();
-
-	ParseResult res = parser::parse(&ws, "expand", text)!!;
-	test::eq(res.success, true);
+	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
+	defer res.free();
+	test::eq(res.has_errors, false);
 
 	Module* mod       = ws.modules.get("hello")!!;
 	ModuleSection* s  = mod.sections[0];
@@ -603,7 +608,7 @@ fn void bitstruct_decl()
 
 fn void union_decl()
 {
-	String text = `
+	String source_code = `
 		module hello;
 		
 		union Foo
@@ -628,9 +633,9 @@ fn void union_decl()
 	Workspace ws;
 	ws.init();
 	defer ws.free();
-
-	ParseResult res = parser::parse(&ws, "expand", text)!!;
-	test::eq(res.success, true);
+	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
+	defer res.free();
+	test::eq(res.has_errors, false);
 
 	Module* mod      = ws.modules.get("hello")!!;
 	ModuleSection* s = mod.sections[0];
@@ -644,7 +649,7 @@ fn void union_decl()
 
 fn void faultdef_decl()
 {
-	String text = `
+	String source_code = `
 		module hello;
 		
 		<*
@@ -656,9 +661,9 @@ fn void faultdef_decl()
 	Workspace ws;
 	ws.init();
 	defer ws.free();
-
-	ParseResult res = parser::parse(&ws, "expand", text)!!;
-	test::eq(res.success, true);
+	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
+	defer res.free();
+	test::eq(res.has_errors, false);
 
 	Module* mod      = ws.modules.get("hello")!!;
 	ModuleSection* s = mod.sections[0];
@@ -673,7 +678,7 @@ fn void faultdef_decl()
 
 fn void interface_decl()
 {
-	String text = `
+	String source_code = `
 		module hello;
 		
 		interface MyInterface : Foo, Bar @local
@@ -686,9 +691,9 @@ fn void interface_decl()
 	Workspace ws;
 	ws.init();
 	defer ws.free();
-
-	ParseResult res = parser::parse(&ws, "expand", text)!!;
-	test::eq(res.success, true);
+	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
+	defer res.free();
+	test::eq(res.has_errors, false);
 
 	Module* mod      = ws.modules.get("hello")!!;
 	ModuleSection* s = mod.sections[0];
@@ -702,7 +707,7 @@ fn void interface_decl()
 
 fn void attrdef_decl()
 {
-	String text = `
+	String source_code = `
 		module hello;
 		
 		attrdef @MyAttribute       = @noreturn, @inline;
@@ -714,9 +719,9 @@ fn void attrdef_decl()
 	Workspace ws;
 	ws.init();
 	defer ws.free();
-
-	ParseResult res = parser::parse(&ws, "expand", text)!!;
-	test::eq(res.success, true);
+	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
+	defer res.free();
+	test::eq(res.has_errors, false);
 
 	Module* mod      = ws.modules.get("hello")!!;
 	ModuleSection* s = mod.sections[0];
@@ -730,7 +735,7 @@ fn void attrdef_decl()
 
 fn void ct_assert_decl()
 {
-	String text = `
+	String source_code = `
 		module hello;
 		
 		$assert 2 == 2;
@@ -742,9 +747,9 @@ fn void ct_assert_decl()
 	Workspace ws;
 	ws.init();
 	defer ws.free();
-
-	ParseResult res = parser::parse(&ws, "expand", text)!!;
-	test::eq(res.success, true);
+	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
+	defer res.free();
+	test::eq(res.has_errors, false);
 
 	Module* mod      = ws.modules.get("hello")!!;
 	ModuleSection* s = mod.sections[0];

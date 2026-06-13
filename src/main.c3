@@ -5,6 +5,7 @@ import std::io;
 import parser::workspace;
 import parser::parser;
 import std::collections::maybe;
+import std::collections::list;
 import seali;
 
 struct Cli @Command({ .name = "c3_parser", .help_on_empty = true })
@@ -45,7 +46,7 @@ fn int main(String[] args) => @pool()
 	}
 	else if (try file_path = cli.file.get())
 	{
-		parser::parse_file(&ws, file_path)!!;
+		workspace::process(&ws, tmem, { .path = file_path })!!;
 	}
 
 	plog::info("num modules: %s", ws.modules.len());
@@ -81,18 +82,17 @@ fn int main(String[] args) => @pool()
 fn void? test_std_lib(Workspace* ws, String std_path)
 {
 	plog::info("Walking std lib at: %s", std_path);
+	List{FileInput} paths; paths.tinit();
 
 	Path path = path::tnew(std_path)!!;
 	PathWalker walker = fn bool? (Path p, bool is_dir, void* data)
 	{
 		if (is_dir) return false;
-		if (catch err = parser::parse_file((Workspace*)data, p))
-		{
-			io::printfn("Failed to parse %s: %s", p, err);
-			return true;
-		}
-
+		List{FileInput}* inputs = (List{FileInput}*)data;
+		String sub_path = ((String)p).copy(tmem);
+		inputs.push({ .path = sub_path });
 		return false;
 	};
-	path.walk(walker, ws)!!;
+	path.walk(walker, &paths)!!;
+	workspace::process_batch(ws, tmem, paths.array_view())!!;
 }

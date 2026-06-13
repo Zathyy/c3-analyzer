@@ -7,11 +7,127 @@ import std::collections::list;
 import std::collections::pair;
 
 import parser::diagnostics @norecurse;
+import parser::parser;
+
+import parser::sema;
 
 import parser::ast @norecurse;
 import parser::ast::pool @norecurse;
 import parser::plog;
 import std::io;
+
+struct FileInput
+{
+    PathString path;
+	String uri;
+    String source_text;
+}
+
+<*
+ parse either from a file, or directly from a source string
+ see `process_batch`
+*>
+fn ProcessResult? process(Workspace* self, Allocator allocator, FileInput input)
+{
+	FileInput[] slice = { input };
+	return process_batch(self, allocator, slice);
+}
+
+<*
+ @param allocator : "The allocator to use for the returned `ProccessResult`"
+ @return "`ProcessResult` which needs to be freed"
+*>
+fn ProcessResult? process_batch(Workspace* self, Allocator allocator, FileInput[] inputs) => @pool()
+{
+	ProcessResult result;
+    result.errored_sections.init(allocator, 4);
+    result.has_errors = false;
+
+	HashMap{String, Module*} affected_modules;
+	affected_modules.init(self.allocator, 8);
+	defer affected_modules.free();
+
+	HashMap{sz, bool} reported_sections;
+    reported_sections.init(self.allocator, 8);
+	defer reported_sections.free();
+
+	foreach (input : inputs)
+	{
+		if (!input.path && !input.source_text)
+		{
+			plog::error("No input specified.");
+			continue;
+		}
+
+		if (!input.uri && !input.path)
+		{
+			plog::error("No uri set");
+			return INVALID_URI~;
+		}
+
+		ParseContext ctx;
+		SourceFile* sf = self.reset_source_file(input.uri);
+		ctx.sf = sf;
+		ctx.ast = sf.ast;
+		ctx.arena = &ctx.ast.arena;
+		ctx.allocator = self.allocator;
+		ctx.line_map = &sf.line_map;
+		ctx.uri = input.uri;
+		if (!ctx.uri) ctx.uri = input.path;
+
+		if (input.path)
+		{
+			ctx.src = (String)file::load(tmem, input.path)!;
+			ctx.line_map.build(ctx.src);
+			(void)parser::parse(self, &ctx);
+		}
+		else if (input.source_text)
+		{
+			ctx.src = input.source_text;
+			ctx.line_map.build(ctx.src);
+			(void)parser::parse(self, &ctx);
+		}
+
+		foreach (section : sf.sections)
+		{
+			if (section.parent_module != null)
+			{
+				affected_modules.set(section.parent_module.name, section.parent_module);
+			}
+
+			if (section.diagnostics.len() > 0 && !reported_sections.has_key(section.id))
+			{
+				result.errored_sections.push(section);
+				reported_sections.set(section.id, true);
+				result.has_errors = true;
+			}
+		}
+	}
+
+	if (!self.options.use_sema) return result;
+
+	affected_modules.@each(; mod_name, mod)
+	{
+		foreach (section : mod.sections)
+		{
+			SemaContext sema_ctx = {
+				.section = section,
+				.ws = self
+			};
+
+			sema::run_symbols_pass(&sema_ctx);
+
+			if (section.diagnostics.len() > 0 && !reported_sections.has_key(section.id))
+			{
+				result.errored_sections.push(section);
+				reported_sections.set(section.id, true);
+				result.has_errors = true;
+			}
+		}
+	};
+
+	return result;
+}
 
 fn SourceFile* Workspace.reset_source_file(&self, PathString path)
 {
@@ -43,6 +159,7 @@ fn SourceFile* Workspace.reset_source_file(&self, PathString path)
 	}
 
 	SourceFile* sf = alloc::new(self.allocator, SourceFile);
+	sf.id = next_source_file_id++;
 	sf.file_path = path;
 	sf.sections.init(self.allocator, 4);
 	sf.line_map.init(self.allocator);
@@ -63,6 +180,7 @@ fn Module* Workspace.get_or_create_module(&self, String name)
 	Module* mod = alloc::new(self.allocator, Module);
 	mod.name = name.copy(self.allocator);
 	mod.sections.init(self.allocator, 4);
+	mod.id = next_module_id++;
 
 	self.modules.set(name, mod);
 	return mod;
@@ -79,6 +197,7 @@ fn ModuleSection* Workspace.get_or_create_section(&self, Module* mod, SourceFile
 	}
 
 	ModuleSection* next_section = alloc::new(self.allocator, ModuleSection);
+	next_section.id = next_section_id++;
 	next_section.source_file = sf;
 	next_section.parent_module = mod;
 	next_section.diagnostics.init(self.allocator);

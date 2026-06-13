@@ -13,7 +13,7 @@ import std::io::path;
 
 fn void switch_stmt()
 {
-	String path = `
+	String source_code = `
 		module hello; 
 		fn void foo() 
 		{
@@ -40,8 +40,9 @@ fn void switch_stmt()
 	Workspace ws;
 	ws.init();
 	defer ws.free();
-	ParseResult res = parser::parse(&ws, "method_with_params", path)!!;
-	test::eq(res.success, true);
+	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
+	defer res.free();
+	test::eq(res.has_errors, false);
 
 	Module* mod      = ws.modules.get("hello")!!;
 	ModuleSection* s = mod.sections[0];
@@ -70,7 +71,7 @@ fn void switch_stmt()
 fn void ct_switch_stmt()
 {
 	// uses a function just to get a compound
-	String path = `
+	String source_code = `
 		module hello; 
 		fn void foo() 
 		{
@@ -89,8 +90,9 @@ fn void ct_switch_stmt()
 	Workspace ws;
 	ws.init();
 	defer ws.free();
-	ParseResult res = parser::parse(&ws, "ct_switch_stmt", path)!!;
-	test::eq(res.success, true);
+	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
+	defer res.free();
+	test::eq(res.has_errors, false);
 
 	Module* mod      = ws.modules.get("hello")!!;
 	ModuleSection* s = mod.sections[0];
@@ -110,7 +112,7 @@ fn void ct_switch_stmt()
 fn void if_elseif_else()
 {
 	// uses a function just to get a compound
-	String path = `
+	String source_code = `
 		module hello; 
 		fn void foo(int a) 
 		{
@@ -129,8 +131,9 @@ fn void if_elseif_else()
 	Workspace ws;
 	ws.init();
 	defer ws.free();
-	ParseResult res = parser::parse(&ws, "if_elseif_else", path)!!;
-	test::eq(res.success, true);
+	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
+	defer res.free();
+	test::eq(res.has_errors, false);
 
 	Module* mod      = ws.modules.get("hello")!!;
 	ModuleSection* s = mod.sections[0];
@@ -154,7 +157,7 @@ fn void if_elseif_else()
 fn void ct_if_else()
 {
 	// uses a function just to get a compound
-	String path = `
+	String source_code = `
 		module hello; 
 		fn void foo(int a) 
 		{
@@ -173,8 +176,9 @@ fn void ct_if_else()
 	Workspace ws;
 	ws.init();
 	defer ws.free();
-	ParseResult res = parser::parse(&ws, "if_elseif_else", path)!!;
-	test::eq(res.success, true);
+	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
+	defer res.free();
+	test::eq(res.has_errors, false);
 
 	Module* mod      = ws.modules.get("hello")!!;
 	ModuleSection* s = mod.sections[0];
@@ -191,7 +195,7 @@ fn void ct_if_else()
 fn void for_stmt()
 {
 	// uses a function just to get a compound
-	String path = `
+	String source_code = `
 		module hello; 
 		fn void foo(int a) 
 		{
@@ -212,8 +216,9 @@ fn void for_stmt()
 	Workspace ws;
 	ws.init();
 	defer ws.free();
-	ParseResult res = parser::parse(&ws, "if_elseif_else", path)!!;
-	test::eq(res.success, true);
+	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
+	defer res.free();
+	test::eq(res.has_errors, false);
 
 	Module* mod      = ws.modules.get("hello")!!;
 	ModuleSection* s = mod.sections[0];
@@ -232,7 +237,7 @@ fn void for_stmt()
 fn void while_stmt()
 {
 	// uses a function just to get a compound
-	String path = `
+	String source_code = `
 		module hello; 
 		fn void foo(int a) 
 		{
@@ -251,8 +256,9 @@ fn void while_stmt()
 	Workspace ws;
 	ws.init();
 	defer ws.free();
-	ParseResult res = parser::parse(&ws, "while_stmt", path)!!;
-	test::eq(res.success, true);
+	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
+	defer res.free();
+	test::eq(res.has_errors, false);
 
 	Module* mod      = ws.modules.get("hello")!!;
 	ModuleSection* s = mod.sections[0];
@@ -275,7 +281,7 @@ fn void while_stmt()
 fn void ct_assert_stmt()
 {
 	// uses a function just to get a compound
-	String path = `
+	String source_code = `
 		module hello; 
 		fn void foo(int a) 
 		{
@@ -289,8 +295,9 @@ fn void ct_assert_stmt()
 	Workspace ws;
 	ws.init();
 	defer ws.free();
-	ParseResult res = parser::parse(&ws, "ct_assert_stmt", path)!!;
-	test::eq(res.success, true);
+	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
+	defer res.free();
+	test::eq(res.has_errors, false);
 
 	Module* mod      = ws.modules.get("hello")!!;
 	ModuleSection* s = mod.sections[0];
@@ -307,7 +314,7 @@ fn void ct_assert_stmt()
 fn void ct_error_stmt()
 {
 	// uses a function just to get a compound
-	String path = `
+	String source_code = `
 		module hello; 
 		fn void foo(int a) 
 		{
@@ -319,8 +326,9 @@ fn void ct_error_stmt()
 	Workspace ws;
 	ws.init();
 	defer ws.free();
-	ParseResult res = parser::parse(&ws, "ct_error_stmt", path)!!;
-	test::eq(res.success, true);
+	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
+	defer res.free();
+	test::eq(res.has_errors, false);
 
 	Module* mod      = ws.modules.get("hello")!!;
 	ModuleSection* s = mod.sections[0];
@@ -337,7 +345,7 @@ fn void ct_error_stmt()
 fn void var_decl_stmt()
 {
 	// uses a function just to get a compound
-	String path = `
+	String source_code = `
 		module hello; 
 		fn void foo(int a) 
 		{
@@ -350,8 +358,9 @@ fn void var_decl_stmt()
 	Workspace ws;
 	ws.init();
 	defer ws.free();
-	ParseResult res = parser::parse(&ws, "var_decl_stmt", path)!!;
-	test::eq(res.success, true);
+	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
+	defer res.free();
+	test::eq(res.has_errors, false);
 
 	Module* mod      = ws.modules.get("hello")!!;
 	ModuleSection* s = mod.sections[0];
@@ -367,7 +376,7 @@ fn void var_decl_stmt()
 
 fn void foreach_stmt()
 {
-	String path = `
+	String source_code = `
 		module hello;
 		fn void foo(int[] arr)
 		{
@@ -392,8 +401,9 @@ fn void foreach_stmt()
 	Workspace ws;
 	ws.init();
 	defer ws.free();
-	ParseResult res = parser::parse(&ws, "foreach_stmt", path)!!;
-	test::eq(res.success, true);
+	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
+	defer res.free();
+	test::eq(res.has_errors, false);
 
 	Module* mod      = ws.modules.get("hello")!!;
 	ModuleSection* s = mod.sections[0];
@@ -516,7 +526,7 @@ fn void foreach_stmt()
 
 fn void err_foreach_missing_name_after_type()
 {
-	String path = `
+	String source_code = `
 		module hello;
 		fn void foo(int[] arr)
 		{
@@ -527,8 +537,9 @@ fn void err_foreach_missing_name_after_type()
 	Workspace ws;
 	ws.init();
 	defer ws.free();
-	ParseResult res = parser::parse(&ws, "err_foreach_missing_name_after_type", path)!!;
-	test::eq(res.success, false);
+	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
+	defer res.free();
+	test::eq(res.has_errors, true);
 
 	Node* fn_node           = ws.lookup("hello", "foo")!!;
 	FnDecl* fn_decl         = fn_node.as(FN_DECL);
@@ -544,7 +555,7 @@ fn void err_foreach_missing_name_after_type()
 fn void err_foreach_missing_name_no_type()
 {
 	// '& :' — AMP consumed but no IDENT follows, no type was parsed
-	String path = `
+	String source_code = `
 		module hello;
 		fn void foo(int[] arr)
 		{
@@ -555,8 +566,9 @@ fn void err_foreach_missing_name_no_type()
 	Workspace ws;
 	ws.init();
 	defer ws.free();
-	ParseResult res = parser::parse(&ws, "err_foreach_missing_name_no_type", path)!!;
-	test::eq(res.success, false);
+	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
+	defer res.free();
+	test::eq(res.has_errors, true);
 
 	Node* node              = ws.lookup("hello", "foo")!!;
 	FnDecl* fn_decl         = node.as(FN_DECL);
@@ -574,7 +586,7 @@ fn void err_foreach_missing_name_no_type()
 fn void err_foreach_missing_colon()
 {
 	// missing ':' between vars and collection — foreach node becomes ERROR
-	String path = `
+	String source_code = `
 		module hello;
 		fn void foo(int[] arr)
 		{
@@ -585,8 +597,9 @@ fn void err_foreach_missing_colon()
 	Workspace ws;
 	ws.init();
 	defer ws.free();
-	ParseResult res = parser::parse(&ws, "err_foreach_missing_colon", path)!!;
-	test::eq(res.success, false);
+	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
+	defer res.free();
+	test::eq(res.has_errors, true);
 
 	Node* node              = ws.lookup("hello", "foo")!!;
 	FnDecl* func            = node.as(FN_DECL);
@@ -598,7 +611,7 @@ fn void err_foreach_missing_colon()
 
 fn void defer_stmt()
 {
-	String path = `
+	String source_code = `
 		module hello; 
 		fn void foo() 
 		{
@@ -616,8 +629,9 @@ fn void defer_stmt()
 	Workspace ws;
 	ws.init();
 	defer ws.free();
-	ParseResult res = parser::parse(&ws, "defer_stmt", path)!!;
-	test::eq(res.success, true);
+	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
+	defer res.free();
+	test::eq(res.has_errors, false);
 
 	Module* mod      = ws.modules.get("hello")!!;
 	ModuleSection* s = mod.sections[0];
@@ -629,7 +643,7 @@ fn void defer_stmt()
 
 fn void do_while_stmt()
 {
-	String path = `
+	String source_code = `
 		module hello;
 		fn void foo(int a)
 		{
@@ -653,9 +667,9 @@ fn void do_while_stmt()
 	Workspace ws;
 	ws.init();
 	defer ws.free();
-
-	ParseResult res = parser::parse(&ws, "do_while_stmt", path)!!;
-	test::eq(res.success, true);
+	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
+	defer res.free();
+	test::eq(res.has_errors, false);
 
 	Module* mod      = ws.modules.get("hello")!!;
 	ModuleSection* s = mod.sections[0];
@@ -687,7 +701,7 @@ fn void do_while_stmt()
 
 fn void assert_stmt()
 {
-	String path = `
+	String source_code = `
 		module hello;
 		fn void foo(int a)
 		{
@@ -699,9 +713,9 @@ fn void assert_stmt()
 	Workspace ws;
 	ws.init();
 	defer ws.free();
-
-	ParseResult res = parser::parse(&ws, "assert_stmt", path)!!;
-	test::eq(res.success, true);
+	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
+	defer res.free();
+	test::eq(res.has_errors, false);
 
 	Module* mod      = ws.modules.get("hello")!!;
 	ModuleSection* s = mod.sections[0];
@@ -713,7 +727,7 @@ fn void assert_stmt()
 
 fn void ct_expand_stmt()
 {
-	String path = `
+	String source_code = `
 		module hello;
 		fn void foo(int a)
 		{
@@ -724,9 +738,9 @@ fn void ct_expand_stmt()
 	Workspace ws;
 	ws.init();
 	defer ws.free();
-
-	ParseResult res = parser::parse(&ws, "assert_stmt", path)!!;
-	test::eq(res.success, true);
+	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
+	defer res.free();
+	test::eq(res.has_errors, false);
 
 	Module* mod      = ws.modules.get("hello")!!;
 	ModuleSection* s = mod.sections[0];

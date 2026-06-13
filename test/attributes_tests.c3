@@ -18,8 +18,9 @@ fn void module_private_test_weak_if()
 	Workspace ws;
 	ws.init();
 	defer ws.free();
-	ParseResult res = parser::parse(&ws, "module_atributtes", source_code)!!;
-	test::eq(res.success, true);
+	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
+	defer res.free();
+	test::eq(res.has_errors, false);
 
 	Module* mod      = ws.modules.get("hello")!!;
 	ModuleSection* s = mod.sections[0];
@@ -65,8 +66,9 @@ fn void module_tag_if()
 	Workspace ws;
 	ws.init();
 	defer ws.free();
-	ParseResult res = parser::parse(&ws, "module_tag_if", source_code)!!;
-	test::eq(res.success, true);
+	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
+	defer res.free();
+	test::eq(res.has_errors, false);
 
 	Module* mod      = ws.modules.get("hello")!!;
 	ModuleSection* s = mod.sections[0];
@@ -108,8 +110,9 @@ fn void function_if()
 	Workspace ws;
 	ws.init();
 	defer ws.free();
-	ParseResult res = parser::parse(&ws, "function_if", source_code)!!;
-	test::eq(res.success, true);
+	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
+	defer res.free();
+	test::eq(res.has_errors, false);
 
 	Module* mod      = ws.modules.get("hello")!!;
 	ModuleSection* s = mod.sections[0];
@@ -135,15 +138,18 @@ fn void function_if()
 
 fn void const_var_private_if()
 {
-	String source_code = `module hello;
-const MY_CONST @private @if($feature(MY_FEATURE)) = 1;
-void* my_var @private @if($feature(MY_FEATURE)) = null;
-`;
+	String source_code = `
+		module hello;
+		
+		const MY_CONST @private @if($feature(MY_FEATURE)) = 1;
+		void* my_var @private @if($feature(MY_FEATURE)) = null;
+	`;
 	Workspace ws;
 	ws.init();
 	defer ws.free();
-	ParseResult res = parser::parse(&ws, "const_var_private_if", source_code)!!;
-	test::eq(res.success, true);
+	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
+	defer res.free();
+	test::eq(res.has_errors, false);
 
 	Module* mod      = ws.modules.get("hello")!!;
 	ModuleSection* s = mod.sections[0];

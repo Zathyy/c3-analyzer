@@ -13,21 +13,21 @@ import std::io::path;
 
 fn void type_ident()
 {
-	String text = `
+	String source_code = `
 		module hello; 
 		fn void greet(int foo, Bar baz) {}
 	`;
 	Workspace ws;
 	ws.init();
 	defer ws.free();
-	ParseResult res = parser::parse(&ws, "type_ident", text)!!;
-
-	assert(res.success == true, "Failed to parse");
+	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
+	defer res.free();
+	test::eq(res.has_errors, false);
 }
 
 fn void global_array_pointer()
 {
-	String text = `
+	String source_code = `
 		module hello;
 		
 		const int[4]* FOO = null;
@@ -36,9 +36,9 @@ fn void global_array_pointer()
 	Workspace ws;
 	ws.init();
 	defer ws.free();
-
-	ParseResult res = parser::parse(&ws, "var_decl", text)!!;
-	test::eq(res.success, true);
+	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
+	defer res.free();
+	test::eq(res.has_errors, false);
 
 	Module* mod      = ws.modules.get("hello")!!;
 	ModuleSection* s = mod.sections[0];
@@ -79,7 +79,7 @@ fn void global_array_pointer()
 
 fn void optional()
 {
-	String text = `
+	String source_code = `
 		module hello;
 		
 		int? foo;
@@ -90,9 +90,9 @@ fn void optional()
 	Workspace ws;
 	ws.init();
 	defer ws.free();
-
-	ParseResult res = parser::parse(&ws, "global_array_pointer_optional", text)!!;
-	test::eq(res.success, true);
+	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
+	defer res.free();
+	test::eq(res.has_errors, false);
 
 	Module* mod      = ws.modules.get("hello")!!;
 	ModuleSection* s = mod.sections[0];
@@ -123,7 +123,7 @@ fn void optional()
 
 fn void global_inferred_array_pointer()
 {
-	String text = `
+	String source_code = `
 		module hello;
 		
 		const int[*]* FOO = null;
@@ -132,9 +132,9 @@ fn void global_inferred_array_pointer()
 	Workspace ws;
 	ws.init();
 	defer ws.free();
-
-	ParseResult res = parser::parse(&ws, "var_decl", text)!!;
-	test::eq(res.success, true);
+	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
+	defer res.free();
+	test::eq(res.has_errors, false);
 
 	Module* mod      = ws.modules.get("hello")!!;
 	ModuleSection* s = mod.sections[0];
@@ -172,7 +172,7 @@ fn void global_inferred_array_pointer()
 
 fn void global_generic()
 {
-	String text = `
+	String source_code = `
 		module hello;
 		
 		const List{String} CHANNELS = null;
@@ -181,9 +181,9 @@ fn void global_generic()
 	Workspace ws;
 	ws.init();
 	defer ws.free();
-
-	ParseResult res = parser::parse(&ws, "var_decl_generic", text)!!;
-	test::eq(res.success, true);
+	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
+	defer res.free();
+	test::eq(res.has_errors, false);
 
 	Module* mod      = ws.modules.get("hello")!!;
 	ModuleSection* s = mod.sections[0];
@@ -224,7 +224,7 @@ fn void global_generic()
 
 fn void global_vec()
 {
-	String text = `
+	String source_code = `
 		module hello;
 		
 		const float[<*>] CHANNELS = { 1.0, 2.0 };
@@ -233,9 +233,9 @@ fn void global_vec()
 	Workspace ws;
 	ws.init();
 	defer ws.free();
-
-	ParseResult res = parser::parse(&ws, "var_decl_generic", text)!!;
-	test::eq(res.success, true);
+	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
+	defer res.free();
+	test::eq(res.has_errors, false);
 
 	Module* mod      = ws.modules.get("hello")!!;
 	ModuleSection* s = mod.sections[0];

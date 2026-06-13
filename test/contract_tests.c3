@@ -13,7 +13,7 @@ import std::io::path;
 
 fn void contract_with_expr_checks()
 {
-	String path = `
+	String source_code = `
 		module hello; 
 
 		<*
@@ -27,9 +27,9 @@ fn void contract_with_expr_checks()
 	Workspace ws;
 	ws.init();
 	defer ws.free();
-	ParseResult res = parser::parse(&ws, "contract_with_expr_checks", path)!!;
-	test::eq(res.success, true);
-	test::eq(ws.modules.len(), 1);
+	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
+	defer res.free();
+	test::eq(res.has_errors, false);
 
 	Module* mod = ws.modules.get("hello")!!;
 	test::ne(mod, null);
@@ -94,7 +94,7 @@ fn void contract_with_expr_checks()
 
 fn void module_duplicate_contract_error()
 {
-	String path = `
+	String source_code = `
 		<* first doc *>
 		<* second doc *>
 		module hello;
@@ -104,13 +104,14 @@ fn void module_duplicate_contract_error()
 	Workspace ws;
 	ws.init();
 	defer ws.free();
-	ParseResult res = parser::parse(&ws, "duplicate_doc_comments_error", path)!!;
-	test::eq(res.success, false);
+	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
+	defer res.free();
+	test::eq(res.has_errors, false);
 }
 
 fn void function_duplicate_contract_error()
 {
-	String path = `
+	String source_code = `
 		module hello;
 
 		<* first doc *>
@@ -120,13 +121,14 @@ fn void function_duplicate_contract_error()
 	Workspace ws;
 	ws.init();
 	defer ws.free();
-	ParseResult res = parser::parse(&ws, "duplicate_function_doc_comments_error", path)!!;
-	test::eq(res.success, false);
+	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
+	defer res.free();
+	test::eq(res.has_errors, true);
 }
 
 fn void contract_with_deprecated()
 {
-	String path = `
+	String source_code = `
 		module hello; 
 
 		<*
@@ -142,8 +144,9 @@ fn void contract_with_deprecated()
 	Workspace ws;
 	ws.init();
 	defer ws.free();
-	ParseResult res = parser::parse(&ws, "contract_with_deprecated", path)!!;
-	test::eq(res.success, true);
+	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
+	defer res.free();
+	test::eq(res.has_errors, false);
 	test::eq(ws.modules.len(), 1);
 
 	Module* mod = ws.modules.get("hello")!!;

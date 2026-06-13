@@ -25,14 +25,13 @@ struct ParseContext
 	ModuleSection* section;
 	Token[] tokens;
 	String file_path; // current file being parsed
+	String uri;
 	String src;
 	Allocator allocator;
 	Allocator arena;
 
 	int pos;
 	Node* contract;
-
-	List{ParserError} errors @if($feature(PARSER_LIB));
 
 	// for when using debbugers so i can keep track of what its at
 	Token current_token @if(env::DEBUG_SYMBOLS);
@@ -342,22 +341,17 @@ fn String peek_module_name(ParseContext* ctx) => @pool()
 }
 
 <*
+ DO NOT CALL THIS, only interact via Workspace
  Parse source code at uri
 
  Appends the nodes to the provided Modules Ast
  @param [&inout] ws
+ @require ctx.arena != null
+ @require ctx.allocator != null
 *>
-fn ParseResult? parse(Workspace* ws, String uri, String src) => @pool()
+fn void? parse(Workspace* ws, ParseContext* ctx) => @pool()
 {
-	ParseContext ctx = { .mod = null, .file_path = uri, .allocator = ws.allocator };
-
-	$if $feature(PARSER_LIB):
-		ctx.errors.init(ws.allocator);
-	$endif
-
-	Lexer lexer = { .buffer = src, .index = 0, };
-	ctx.src = src;
-
+	Lexer lexer = { .buffer = ctx.src, .index = 0, };
 	List{Token} tokens;
 	tokens.init(tmem, 1000);
 	while (try token = lexer.next())
@@ -369,20 +363,12 @@ fn ParseResult? parse(Workspace* ws, String uri, String src) => @pool()
 	tokens.push({ .kind = EOF, .pos = (tokens.last().pos + tokens.last().len) ?? 0, .len = 0 });
 	ctx.tokens = tokens.array_view();
 
-	SourceFile* sf = ws.reset_source_file(uri);
-	sf.source = src;
-	ctx.sf = sf;
-	ctx.ast = sf.ast;
-	ctx.arena = &ctx.ast.arena;
-	ctx.line_map = &sf.line_map;
-	ctx.line_map.build(src);
+	plog::info("parsing uri: %s", ctx.uri);
 
-	plog::info("parsing uri: %s", uri);
-
-	String mod_name = peek_module_name(&ctx);
+	String mod_name = peek_module_name(ctx);
 	if (mod_name == "")
 	{
-		mod_name = path_to_module_name(uri)!;
+		mod_name = path_to_module_name(ctx.uri)!;
 
 		Module* mod        = ws.get_or_create_module(mod_name);
 		ModuleSection* sec = ws.get_or_create_section(mod, ctx.sf);
@@ -398,7 +384,7 @@ fn ParseResult? parse(Workspace* ws, String uri, String src) => @pool()
 	while (!ctx.eof())
 	{
 		// sz err_len = lengthof(ctx.ast.error_nodes);
-		if (catch err = parse_top_level(&ctx, ws))
+		if (catch err = parse_top_level(ctx, ws))
 		{
 			if (err == EOT)
 			{
@@ -407,12 +393,12 @@ fn ParseResult? parse(Workspace* ws, String uri, String src) => @pool()
 			}
 
 			int before = ctx.pos;
-			synchronize(&ctx)!;
+			synchronize(ctx)!;
 			// If synchronize made no progress (stuck on an unhandled keyword),
 			// force-advance one token to guarantee the loop terminates.
 			if (ctx.pos == before && !ctx.eof())
 			{
-				advance(&ctx)!!;
+				advance(ctx)!!;
 			}
 		}
 		// else if (err_len != lengthof(ctx.ast.error_nodes))
@@ -432,29 +418,7 @@ fn ParseResult? parse(Workspace* ws, String uri, String src) => @pool()
 	{
 		last_sec.nodes = ctx.ast.top_level_nodes.array_view();
 	}
-	bool success = ctx.ast.error_nodes.len() == 0;
-	if (success)
-	{
-		plog::info("Succesfully parsed: %s", uri);
-	}
-	else
-	{
-		plog::error("Failed to parsed: %s", uri);
-	}
-
-	$if $feature(PARSER_LIB):
-		return { .success = success, .path = uri, .errors = ctx.errors };
-	$else
-		return { .success = success, .path = uri };
-	$endif
 }
-
-<*
- Parse a specific file.
- Appends the nodes to the provided Modules Ast
- @param [&inout] ws
-*>
-fn ParseResult? parse_file(Workspace* ws, String path) => parse(ws, path, (String)file::load(tmem, path)!);
 
 fn String? path_to_module_name(String path)
 {

@@ -16,8 +16,34 @@ import parser::plog;
 import std::io;
 
 faultdef
-	NODE_NOT_FOUND, SYMBOL_NOT_FOUND, MODULE_NOT_FOUND
+	INVALID_URI,
+	NODE_NOT_FOUND, 
+	SYMBOL_NOT_FOUND, 
+	MODULE_NOT_FOUND
 ;
+
+sz next_source_file_id = 1;
+sz next_section_id     = 1;
+sz next_module_id      = 1;
+
+<*
+ - `use_sema`: if true, after parsing sema passes will run
+*>
+struct WorkspaceOptions
+{
+	bool use_sema;
+}
+
+struct ProcessResult
+{
+    List{ModuleSection*} errored_sections;
+    bool has_errors;
+}
+
+fn void ProcessResult.free(&self)
+{
+	self.errored_sections.free();
+}
 
 struct SourceFile
 {
@@ -26,6 +52,7 @@ struct SourceFile
 	LineMap line_map;
 	List{ModuleSection*} sections;
 	Ast* ast;
+	sz id;
 }
 
 struct ModuleSection
@@ -35,6 +62,7 @@ struct ModuleSection
 	NodeArray nodes;
 	List{Diagnostic} diagnostics;
 	HashMap{String, String} resolved_imports;
+	sz id;
 }
 
 struct Module
@@ -42,6 +70,7 @@ struct Module
 	String name;
 	List{ModuleSection*} sections;
 	HashMap{String, Node*} symbols;
+	sz id;
 }
 
 alias PathString = String;
@@ -51,15 +80,17 @@ struct Workspace
 	HashMap{PathString, SourceFile*} source_files;
 	HashMap{String, Module*} modules;
 	AstPool ast_pool;
+	WorkspaceOptions options;
 	Allocator allocator;
 }
 
-fn void Workspace.init(&self, Allocator allocator = mem)
+fn void Workspace.init(&self, WorkspaceOptions options = {}, Allocator allocator = mem)
 {
 	self.allocator = allocator;
 	self.modules.init(allocator, 16);
 	self.source_files.init(allocator, 16);
 	self.ast_pool.init(allocator);
+	self.options = options;
 }
 
 fn void Workspace.free(&self)
