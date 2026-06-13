@@ -22,6 +22,11 @@ struct Cursor
 	Node* node;
 }
 
+fn bool Cursor.is_valid(self) @inline
+{
+	return self.section != null && self.node != null;
+}
+
 <*
  Get the spelling/text for the current node
  @require self.node != null
