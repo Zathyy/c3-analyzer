@@ -6,28 +6,14 @@ import parser::plog;
 
 import std::io;
 
-
 enum ChildVisitResult : int
 {
-	BREAK,
-	// Terminate the entire walk
-
-
-	CONTINUE,
-	// Continue to the next sibling
-
-
-	RECURSE
-	// Dive into the children of the current node
+	BREAK,    // Terminate the entire walk
+	CONTINUE, // Continue to the next sibling
+	RECURSE   // Dive into the children of the current node
 }
 
 alias CursorVisitor = fn ChildVisitResult(Cursor cursor, Cursor parent, void* user_data, args...);
-
-struct Cursor
-{
-	ModuleSection* section;
-	Node* node;
-}
 
 // Helper to visit a node if it's valid
 fn bool visit(Cursor child, Cursor parent, CursorVisitor visitor, void* data)

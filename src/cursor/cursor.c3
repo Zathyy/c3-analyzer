@@ -16,6 +16,12 @@ faultdef
 	INVALID_NODE
 ;
 
+struct Cursor
+{
+	ModuleSection* section;
+	Node* node;
+}
+
 <*
  Get the spelling/text for the current node
  @require self.node != null
@@ -145,7 +151,7 @@ fn Cursor find_at(ModuleSection* sec, int offset)
 
 	if (sf.ast == null || sf.ast.top_level_nodes.len() == 0)
 	{
-		return { };
+		return {};
 	}
 
 	Node* best_match = null;
@@ -162,7 +168,7 @@ fn Cursor find_at(ModuleSection* sec, int offset)
 
 	if (best_match == null)
 	{
-		return { };
+		return {};
 	}
 
 	return { .node = best_match, .section = sec };
@@ -182,8 +188,6 @@ fn Node* find_node_from_offset(Node* node, int offset)
 
 	plog::debug("Found node: (%s) - (%s) %s:%s", node.kind, offset, node.start_token, node.end_token);
 
-	
-
 	return node;
 }
 
@@ -192,8 +196,8 @@ fn Node* find_node_from_offset(Node* node, int offset)
 *>
 fn bool Cursor.is_access_node(&self)
 {
-    if (self.node == null) return false;
-    return self.node.kind == ACCESS_EXPR || self.node.kind == IDENT_EXPR;
+	if (self.node == null) return false;
+	return self.node.kind == ACCESS_EXPR || self.node.kind == IDENT_EXPR;
 }
 
 fn Node* find_innermost_node(Node* node, int offset, SourceFile* sf)
@@ -215,7 +219,6 @@ fn Node* find_innermost_node(Node* node, int offset, SourceFile* sf)
 		{
 			CompoundStmt* comp = node.as(COMPOUND_STMT);
 
-			// Now we can cleanly check each statement independently!
 			foreach (stmt : comp.statements)
 			{
 				Node* inner = find_innermost_node(stmt, offset, sf);
@@ -225,8 +228,6 @@ fn Node* find_innermost_node(Node* node, int offset, SourceFile* sf)
 				}
 			}
 			
-			// If the cursor is inside the { } block but NOT on any active statement,
-			// return the COMPOUND_STMT node itself (lets completion fall back to statement level)
 			return node;
 		}
 		case IF_STMT:
