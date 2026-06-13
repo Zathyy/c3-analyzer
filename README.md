@@ -1,32 +1,8 @@
-# C3 Parser
+# C3 Analyzer
 
-`c3_parser` is a C3 parser library and command-line parser target. The project
+`c3-analyzer` is a C3 parser library and command-line parser target. The project
 tracks active C3 language work, so contributors should develop with a recent C3
 compiler and keep parser changes covered by the C3 test suite.
-
-## Quick Start
-
-Clone the repository with its submodules:
-
-```sh
-git clone --recurse-submodules git@github.com:joshring/c3_parser.git
-cd c3_parser
-```
-
-If you already cloned without submodules, initialize them before building:
-
-```sh
-git submodule update --init --recursive
-```
-
-Install a recent C3 compiler, then run the tests:
-
-```sh
-c3c test
-```
-
-The repository uses the submodules under `lib/` as C3 library dependencies, and
-`project.json` points `dependency-search-paths` at that directory.
 
 ## Build Targets
 
