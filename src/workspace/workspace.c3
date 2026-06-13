@@ -1,85 +1,17 @@
 module parser::workspace;
 
 import parser::cursor;
-import line_map;
 
 import std::collections::map;
 import std::collections::list;
 import std::collections::pair;
 
+import parser::diagnostics @norecurse;
+
 import parser::ast @norecurse;
 import parser::ast::pool @norecurse;
 import parser::plog;
 import std::io;
-
-faultdef
-	NODE_NOT_FOUND, SYMBOL_NOT_FOUND, MODULE_NOT_FOUND
-;
-
-struct SourceFile
-{
-	String file_path;
-	String source;
-	LineMap line_map;
-	List{ModuleSection*} sections;
-	Ast* ast;
-}
-
-struct ModuleSection
-{
-	SourceFile* source_file;
-	Module* parent_module;
-	NodeArray nodes;
-}
-
-struct Module
-{
-	String name;
-	List{ModuleSection*} sections;
-}
-
-alias PathString = String;
-
-struct Workspace
-{
-	HashMap{PathString, SourceFile*} source_files;
-	HashMap{String, Module*} modules;
-	AstPool ast_pool;
-	Allocator allocator;
-}
-
-fn void Workspace.init(&self, Allocator allocator = mem)
-{
-	self.allocator = allocator;
-	self.modules.init(allocator, 16);
-	self.source_files.init(allocator, 16);
-	self.ast_pool.init(allocator);
-}
-
-fn void Workspace.free(&self)
-{
-	self.source_files.@each(; path, sf)
-	{
-		sf.ast.free();
-		sf.line_map.free();
-		foreach (section : sf.sections)
-		{
-			alloc::free(self.allocator, section);
-		}
-		sf.sections.free();
-		alloc::free(self.allocator, sf);
-	};
-	self.source_files.free();
-	self.modules.@each(; name, mod)
-	{
-		mod.sections.free();
-		mod.name.free(self.allocator);
-		alloc::free(self.allocator, mod);
-	};
-	self.modules.free();
-
-	self.ast_pool.free();
-}
 
 fn SourceFile* Workspace.reset_source_file(&self, PathString path)
 {
@@ -100,6 +32,8 @@ fn SourceFile* Workspace.reset_source_file(&self, PathString path)
 	
 		foreach (section : existing.sections)
 		{
+			section.diagnostics.free();
+			section.resolved_imports.free();
 			alloc::free(self.allocator, section);
 		}
 
@@ -147,6 +81,8 @@ fn ModuleSection* Workspace.get_or_create_section(&self, Module* mod, SourceFile
 	ModuleSection* next_section = alloc::new(self.allocator, ModuleSection);
 	next_section.source_file = sf;
 	next_section.parent_module = mod;
+	next_section.diagnostics.init(self.allocator);
+	next_section.resolved_imports.init(self.allocator);
 	mod.sections.push(next_section);
 	sf.sections.push(next_section);
 

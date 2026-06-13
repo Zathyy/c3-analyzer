@@ -35,6 +35,7 @@ fn Node*? parse_module_decl(ParseContext* ctx, Workspace* ws)
 	defer mod_name.free(ctx.allocator);
 	Module* mod        = ws.get_or_create_module(mod_name);
 	ModuleSection* sec = ws.get_or_create_section(mod, ctx.sf);
+	ctx.section = sec;
 	ctx.mod = mod;
 
 	return node;

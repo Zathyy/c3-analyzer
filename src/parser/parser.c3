@@ -22,6 +22,7 @@ struct ParseContext
 	Ast* ast;
 	Module* mod;
 	SourceFile* sf;
+	ModuleSection* section;
 	Token[] tokens;
 	String file_path; // current file being parsed
 	String src;
@@ -385,6 +386,7 @@ fn ParseResult? parse(Workspace* ws, String uri, String src) => @pool()
 
 		Module* mod        = ws.get_or_create_module(mod_name);
 		ModuleSection* sec = ws.get_or_create_section(mod, ctx.sf);
+		ctx.section = sec;
 		ctx.mod = mod;
 		plog::info("Inferred module: %s", mod_name);
 	}

@@ -7,6 +7,7 @@ import std::collections::list;
 import lexer;
 import line_map;
 import parser::ast;
+import parser::diagnostics;
 
 // Colors for the terminal
 const String ANSI_RED    = "\x1b[31;1m";
@@ -37,31 +38,21 @@ macro void ParseContext.error_at(&self, Token t, String fmt, ...)
 
 fn void ParseContext.report(ParseContext* self, Token token, LogPriority level, String color, String fmt, args...)
 {
-	Location loc = self.line_map.resolve(token.pos);
-	$if $feature(PARSER_LIB):
-		self.errors.push({ level, loc, token, string::format(self.allocator, fmt, ...args) });
-	$else
-		io::printf("%s:%s:%s: %s%s:%s ", self.file_path, loc.line + 1, loc.column + 1, color, level.description, ANSI_RESET);
-		io::printf(fmt, ...args);
-		io::printn("");
+	if (!self.section)
+	{
+		log::error("Tried to report an error when parser has no module section set");
+		return;
+	}
 
-		String line_text = self.line_map.get_line_from_src(self.src, loc.line);
-		io::printf(" %4s | %s\n", loc.line + 1, line_text);
-
-		io::printf(" %4s | ", "");
-		for (sz i = 0; i < loc.column; i++)
-		{
-			if (i < line_text.len && line_text[i] == '\t')
-			{
-				io::print("\t");
-			}
-			else
-			{
-				io::print(" ");
-			}
-		}
-		io::printf("%s^%s\n", color, ANSI_RESET);
-	$endif
+	diagnostics::diagnose(
+		self.allocator,
+		self.section,
+		token.pos,
+		token.pos + token.len,
+		level,
+		fmt,
+		...args
+	);
 }
 
 fn bool is_keyword_ident(TokenKind type)
