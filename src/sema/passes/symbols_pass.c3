@@ -1,8 +1,8 @@
-module parser::sema;
+module analyzer::sema;
 
-import parser::plog;
-import parser::workspace @norecurse;
-import parser::ast;
+import analyzer::core::plog;
+import analyzer::workspace @norecurse;
+import analyzer::core;
 
 fn void run_symbols_pass(SemaContext* ctx)
 {
@@ -35,6 +35,8 @@ fn void index_module_declarations(SemaContext* ctx)
 			}
 		}
 	};
+
+	
 }
 
 fn void reindex_module(SemaContext* ctx)

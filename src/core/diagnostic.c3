@@ -1,7 +1,6 @@
-module parser::diagnostics;
+module analyzer::core::diagnostics;
 
-import line_map;
-import parser;
+import analyzer::core::line_map;
 
 import std::io;
 

@@ -1,6 +1,5 @@
-module parser;
+module analyzer::core;
 
-import parser::ast @norecurse;
 import std::collections::list;
 
 typedef FileID = ushort;

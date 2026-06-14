@@ -1,4 +1,4 @@
-module parser::ast::pool;
+module analyzer::core::ast::pool;
 
 import std::collections::list;
 

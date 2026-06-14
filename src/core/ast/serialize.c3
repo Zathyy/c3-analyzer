@@ -1,9 +1,10 @@
-module parser::ast::serialize @if($feature(PARSER_CLI));
+module analyzer::core::ast::serialize @if($feature(PARSER_CLI));
 
-import parser::ast;
-import std::io;
+import analyzer::core::line_map;
+import analyzer::core::string_pool;
+
 import std::collections::maybe;
-import line_map;
+import std::io;
 
 alias JsonOutput @local = DString;
 

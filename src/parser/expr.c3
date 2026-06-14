@@ -4,16 +4,14 @@
 	Resources for Binding power pratt parsing:
 	- https://matklad.github.io/2020/04/13/simple-but-powerful-pratt-parsing.html
 *>
-module parser::parser;
+module analyzer::parser;
 
-import parser::ast;
-import lexer;
 import std::core::ascii;
 
 import std::io;
 import std::collections::list;
 import std::encoding;
-import parser::plog;
+import analyzer::core;
 
 <*
  Parse an alias-only C3 function pointer type.
@@ -525,7 +523,7 @@ fn Node*? parse_path_expr(ParseContext* ctx, PathExprOptions options = { }) => @
 		{
 			if (!options.as_prefix)
 			{
-				temp_segments.push(ast::EMPTY_STR);
+				temp_segments.push(string_pool::EMPTY_STR);
 				node.end_token = ctx.current_pos();
 				advance(ctx)!;
 			}
@@ -548,7 +546,7 @@ fn Node*? parse_binary_expr(ParseContext* ctx, Node* left, Precedence prec)
 	BinaryExpr* bin = node.as(BINARY_EXPR);
 	bin.left = left;
 	bin.right = right;
-	bin.op = parser::binaryop_from_token(kind);
+	bin.op = core::binaryop_from_token(kind);
 	return node;
 }
 
@@ -569,7 +567,7 @@ fn Node*? parse_unary_expr(ParseContext* ctx)
 	bool is_bang_bang = ctx.is(BANGBANG);
 	Node* node        = ctx.ast.alloc_node(UNARY_EXPR, start_pos);
 	UnaryExpr* unary = node.as(UNARY_EXPR);
-	UnaryOpKind? op  = parser::unaryop_from_token(ctx.current().kind);
+	UnaryOpKind? op  = core::unaryop_from_token(ctx.current().kind);
 	if (catch op)
 	{
 		ctx.error("Not a unary operator (%s)", ctx.current().kind);
@@ -594,7 +592,7 @@ fn Node*? parse_post_unary_expr(ParseContext* ctx, Node* left, Precedence bp)
 	int start_pos = ctx.current().pos;
 	Node* node    = ctx.ast.alloc_node(POST_UNARY_EXPR, start_pos);
 	PostUnaryExpr* unary = node.as(POST_UNARY_EXPR);
-	UnaryOpKind? op      = parser::unaryop_from_token(ctx.current().kind);
+	UnaryOpKind? op      = core::unaryop_from_token(ctx.current().kind);
 	if (catch op)
 	{
 		ctx.error("Not a unary operator (%s)", ctx.current().kind);
@@ -972,7 +970,7 @@ fn Node*? parse_builtin_expr(ParseContext* ctx)
 	{
 		Token t = @expect_some_else(ctx, { IDENT, CONST_IDENT, TYPE_IDENT } ; err)
 		{
-			name = ast::EMPTY_STR;
+			name = string_pool::EMPTY_STR;
 			break COND;
 		}!;
 

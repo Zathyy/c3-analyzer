@@ -4,8 +4,6 @@ import std::io;
 import std::encoding::json;
 import std::collections::list;
 
-import parser::ast;
-import lexer;
-import parser::workspace;
+import analyzer::workspace;
 
 import std::collections::maybe;

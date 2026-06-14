@@ -4,11 +4,9 @@
 	Resources for Binding power pratt parsing:
 	- https://matklad.github.io/2020/04/13/simple-but-powerful-pratt-parsing.html
 *>
-module parser::parser;
-import lexer;
+module analyzer::parser;
 import std::collections;
-import parser::ast;
-import parser::plog;
+import analyzer::core;
 
 <*
  Should be aligned to C3C

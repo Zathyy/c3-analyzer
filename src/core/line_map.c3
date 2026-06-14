@@ -1,7 +1,7 @@
 <*
  0 based line-map
 *>
-module line_map;
+module analyzer::core::line_map;
 
 import std::collections::list;
 

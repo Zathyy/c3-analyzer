@@ -1,9 +1,9 @@
-module parser::sema;
+module analyzer::sema;
 
-import parser::ast;
+import analyzer::core;
 
-import parser::workspace @norecurse;
-import parser::diagnostics;
+import analyzer::workspace @norecurse;
+import analyzer::core::diagnostics;
 
 struct SemaContext 
 {

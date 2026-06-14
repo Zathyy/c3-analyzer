@@ -1,5 +1,5 @@
-module parser::parser::error;
-import lexer;
+module analyzer::analyzer::error;
+import analyzer::core::lexer;
 
 struct ParserError
 {

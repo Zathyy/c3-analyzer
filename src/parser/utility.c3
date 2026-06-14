@@ -1,13 +1,8 @@
-module parser::parser;
-
-import parser::plog;
+module analyzer::parser;
 
 import std::io;
 import std::collections::list;
-import lexer;
-import line_map;
-import parser::ast;
-import parser::diagnostics;
+import analyzer::core;
 
 // Colors for the terminal
 const String ANSI_RED    = "\x1b[31;1m";

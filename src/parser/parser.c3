@@ -1,16 +1,12 @@
-module parser::parser;
+module analyzer::parser;
 
-import lexer;
-import line_map;
-
-import parser::ast;
-import parser::workspace @norecurse;
+import analyzer::workspace @norecurse;
 
 import std::io;
 import std::io::path;
 import std::collections::list;
 import std::collections::maybe;
-import parser::plog;
+import analyzer::core;
 
 faultdef
 	UNKNOWN, UNEXPECTED_EOS, MODULE_HEADER_FAILED, CONTRACT_NOT_ALLOWED, INVALID_PATH, NOT_A_PATH, PATH_TOO_LONG, EXPECTED_EXPRESSION, UNEXPECTED_TOKEN, EOT
@@ -158,7 +154,7 @@ fn void? advance(ParseContext* ctx, int len = 1)
 {
 	if (ctx.eof())
 	{
-		plog::debug("parser::advance() : eof");
+		plog::debug("analyzer::advance() : eof");
 		return EOT~;
 	}
 

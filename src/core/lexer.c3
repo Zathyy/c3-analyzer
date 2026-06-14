@@ -1,7 +1,7 @@
-module lexer;
+module analyzer::core::lexer;
 
 import std::io;
-import parser::plog;
+import analyzer::core::plog;
 
 faultdef
 	INVALID, UNEVEN_HEXADECIMAL, CONTRACT_NOT_CLOSED, INVALID_CONTRACT

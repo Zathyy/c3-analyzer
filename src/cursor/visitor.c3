@@ -1,8 +1,7 @@
-module parser::cursor;
+module analyzer::cursor;
 
-import parser::workspace;
-import parser::ast;
-import parser::plog;
+import analyzer::workspace;
+import analyzer::core;
 
 import std::io;
 

@@ -1,9 +1,9 @@
 module parser @if($feature(PARSER_CLI));
-import lexer;
 import utils::ast;
 import std::io;
-import parser::workspace;
-import parser::parser;
+import analyzer::workspace;
+import analyzer::parser;
+import analyzer::core::plog;
 import std::collections::maybe;
 import std::collections::list;
 import seali;

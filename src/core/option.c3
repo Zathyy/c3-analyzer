@@ -1,4 +1,4 @@
-module parser;
+module analyzer::core;
 
 <*
 	Zero-cost Option type

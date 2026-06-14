@@ -1,7 +1,7 @@
 module parser_benchmarks;
-import parser::workspace;
-import parser::parser;
-import parser::ast;
+import analyzer::workspace;
+import analyzer::parser;
+import analyzer::core;
 import std::io;
 import std::collections::list;
 import std::io::file;
@@ -27,7 +27,7 @@ fn void bench() @benchmark
 	ws.init();
 
 	$foreach $file : FILES:
-		parser::parse_file(&ws, @sprintf("bench/std/%s", $file))!!;
+		analyzer::parse_file(&ws, @sprintf("bench/std/%s", $file))!!;
 	$endforeach
 }
 

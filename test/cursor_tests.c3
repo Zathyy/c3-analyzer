@@ -2,10 +2,10 @@ module cursor_tests @test;
 
 import parser_tests;
 
-import parser::workspace;
-import parser::parser;
-import parser::ast;
-import parser::cursor;
+import analyzer::workspace;
+import analyzer::parser;
+import analyzer::core;
+import analyzer::cursor;
 import std::io;
 import std::collections::list;
 import std::io::file;

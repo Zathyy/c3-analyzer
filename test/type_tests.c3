@@ -2,9 +2,10 @@ module type_tests @test;
 
 import parser_tests;
 
-import parser::workspace;
-import parser::parser;
-import parser::ast;
+import analyzer::workspace;
+import analyzer::parser;
+import analyzer::core::ast;
+import analyzer::core::string_pool;
 
 import std::io;
 import std::collections::list;

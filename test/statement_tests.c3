@@ -2,10 +2,10 @@ module stmt_tests @test;
 
 import parser_tests;
 
-import parser::workspace;
-import parser::parser;
-import parser::ast;
-import lexer;
+import analyzer::workspace;
+import analyzer::parser;
+import analyzer::core;
+import analyzer::core::string_pool;
 import std::io;
 import std::collections::list;
 import std::io::file;
@@ -275,7 +275,7 @@ fn void while_stmt()
 	test::eq(pool.get(while_stmt.label)!!, "FOO");
 
 	while_stmt = fn_comp.statements[1].as(WHILE_STMT);
-	test::eq(while_stmt.label, ast::EMPTY_STR);
+	test::eq(while_stmt.label, string_pool::EMPTY_STR);
 }
 
 fn void ct_assert_stmt()
@@ -686,7 +686,7 @@ fn void do_while_stmt()
 	// do { ... } while (cond); — has cond, no label
 	DoWhileStmt* do_while_stmt = func_body.statements[0].as(DO_WHILE_STMT);
 	test::eq(do_while_stmt.body.kind, NodeKind.COMPOUND_STMT);
-	test::eq(do_while_stmt.label, ast::EMPTY_STR);
+	test::eq(do_while_stmt.label, string_pool::EMPTY_STR);
 
 	// do LABEL: { ... } while (cond); — has cond and label
 	do_while_stmt = func_body.statements[1].as(DO_WHILE_STMT);
@@ -696,7 +696,7 @@ fn void do_while_stmt()
 	// do { ... }; — no while clause, parses successfully
 	do_while_stmt = func_body.statements[2].as(DO_WHILE_STMT);
 	test::eq(do_while_stmt.body.kind, NodeKind.COMPOUND_STMT);
-	test::eq(do_while_stmt.label, ast::EMPTY_STR);
+	test::eq(do_while_stmt.label, string_pool::EMPTY_STR);
 }
 
 fn void assert_stmt()

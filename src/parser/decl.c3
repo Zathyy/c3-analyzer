@@ -1,11 +1,7 @@
-module parser::parser;
-import parser::ast;
-import lexer;
-import parser::plog;
-
-import parser::constants;
+module analyzer::parser;
+import analyzer::core;
 import std::collections::list;
-import parser::workspace @norecurse;
+import analyzer::workspace @norecurse;
 import std::io;
 
 <*
@@ -266,7 +262,7 @@ fn Node*? parse_alias_decl(ParseContext* ctx)
 		Token t = @expect_some_else(ctx, { TYPE_IDENT, IDENT, CONST_IDENT, AT_IDENT } ; err)
 		{
 			ctx.error("Expected alias name identifier");
-			alias_decl.name = ast::EMPTY_STR;
+			alias_decl.name = string_pool::EMPTY_STR;
 			break CHECK_NAME;
 		}!;
 
@@ -412,7 +408,7 @@ fn Node*? parse_fn_decl(ParseContext* ctx, ParseFlags flags = { })
 		Token t = @expect_else_skip(ctx, IDENT, { EOS, LPAREN } ; err)
 		{
 			ctx.error("Expected member function name identifier");
-			func.name = ast::EMPTY_STR;
+			func.name = string_pool::EMPTY_STR;
 			break IS_TYPE;
 		}!;
 		func.name = ctx.ast.string_pool.internalize(ctx.token_text(t));
@@ -423,7 +419,7 @@ fn Node*? parse_fn_decl(ParseContext* ctx, ParseFlags flags = { })
 		Token t = @expect_else_skip(ctx, IDENT, { EOS, LPAREN } ; err)
 		{
 			ctx.error("Expected function name identifier");
-			func.name = ast::EMPTY_STR;
+			func.name = string_pool::EMPTY_STR;
 			break IS_TYPE;
 		}!;
 		func.name = ctx.ast.string_pool.internalize(ctx.token_text(t));
@@ -512,7 +508,7 @@ fn Node*? parse_macro_decl(ParseContext* ctx, ParseFlags flags = { })
 			t = @expect_else_skip(ctx, IDENT, { EOS, LPAREN } ; err)
 			{
 				ctx.error("Expected member function name identifier");
-				mac.name = ast::EMPTY_STR;
+				mac.name = string_pool::EMPTY_STR;
 				break IS_TYPE;
 			}!;
 		}
@@ -525,7 +521,7 @@ fn Node*? parse_macro_decl(ParseContext* ctx, ParseFlags flags = { })
 		Token t = @expect_some_else(ctx, { AT_IDENT, IDENT } ; err)
 		{
 			ctx.error("Expected member function name identifier");
-			mac.name = ast::EMPTY_STR;
+			mac.name = string_pool::EMPTY_STR;
 			break IS_TYPE;
 		}!;
 		mac.name = ctx.ast.string_pool.internalize(ctx.token_text(t));
@@ -698,7 +694,7 @@ fn Node*? parse_param_decl(ParseContext* ctx, ParamParseFlags flags)
 				ctx.skip_until({ EOF, EOS, RPAREN, RBRACE })!;
 				return ctx.ast.error(start_pos);
 			}
-			param.name = ast::EMPTY_STR;
+			param.name = string_pool::EMPTY_STR;
 			param.kind = VAR_PARAM;
 			break;
 
@@ -919,7 +915,7 @@ fn NodeArray? parse_attributes(ParseContext* ctx, Node* parent_node, AttributePa
 		AttributeDecl* attr = attr_node.as(ATTRIBUTE_DECL);
 		String text         = ctx.token_text(t);
 		attr.name = text.copy(&ctx.ast.arena);
-		attr.kind = parser::get_attribute_from_string(text);
+		attr.kind = core::get_attribute_from_string(text);
 
 		if (parent_node && attr.kind == AttributeKind.PRIVATE)
 		{
@@ -1000,7 +996,7 @@ fn Node*? parse_struct_union_decl(ParseContext* ctx, bool is_sub = false) => @po
 			Token t = @expect_some_else(ctx, { TYPE_IDENT } ; err)
 			{
 				ctx.error("Structs must have a 'Type' identifier");
-				struct_decl.name = ast::EMPTY_STR;
+				struct_decl.name = string_pool::EMPTY_STR;
 				break NAME_CHECK;
 			}!;
 
@@ -1086,7 +1082,7 @@ fn Node*? parse_bitstruct_decl(ParseContext* ctx, bool is_nested = false) => @po
 		Token t = @expect_some_else(ctx, { IDENT, TYPE_IDENT } ; err)
 		{
 			ctx.error("Bitstructs must have a name identifier");
-			struct_decl.name = ast::EMPTY_STR;
+			struct_decl.name = string_pool::EMPTY_STR;
 			break COND;
 		}!;
 
@@ -1124,7 +1120,7 @@ fn Node*? parse_bitstruct_decl(ParseContext* ctx, bool is_nested = false) => @po
 		{
 			Token t = @expect_else_skip(ctx, IDENT, { COLON, EOS, RBRACE } ; name_err)
 			{
-				field.name = ast::EMPTY_STR;
+				field.name = string_pool::EMPTY_STR;
 				break IF_IDENT;
 			}!;
 
@@ -1176,7 +1172,7 @@ fn Node*? parse_faultdef_decl(ParseContext* ctx) => @pool()
 		{
 			Token t = @expect_else(ctx, CONST_IDENT ; err)
 			{
-				fault_decl.name = ast::EMPTY_STR;
+				fault_decl.name = string_pool::EMPTY_STR;
 				break CHECK_IDENT;
 			}!;
 
@@ -1210,7 +1206,7 @@ fn Node*? parse_interface_decl(ParseContext* ctx) => @pool()
 	{
 		Token t = @expect_else_skip(ctx, TYPE_IDENT, { EOS, AT_IDENT, COLON, LBRACE } ; err)
 		{
-			inter.name = ast::EMPTY_STR;
+			inter.name = string_pool::EMPTY_STR;
 			break CHECK_NAME;
 		}!;
 
@@ -1271,7 +1267,7 @@ fn Node*? parse_attrdef_decl(ParseContext* ctx) => @pool()
 	{
 		Token t = @expect_else_skip(ctx, AT_TYPE_IDENT, { EOS, EQ, LPAREN, RPAREN } ; err)
 		{
-			def.name = ast::EMPTY_STR;
+			def.name = string_pool::EMPTY_STR;
 			break CHECK_NAME;
 		}!;
 
@@ -1317,7 +1313,7 @@ fn Node*? parse_enum_constdef_decl(ParseContext* ctx, ParseFlags flags) => @pool
 	{
 		Token t = @expect_else_skip(ctx, TYPE_IDENT, { COLON, LBRACE, EOS } ; err)
 		{
-			enum_decl.name = ast::EMPTY_STR;
+			enum_decl.name = string_pool::EMPTY_STR;
 			break CHECK_IDENT;
 		}!;
 

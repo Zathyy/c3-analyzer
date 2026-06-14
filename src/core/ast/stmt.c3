@@ -1,7 +1,7 @@
-module parser::ast;
-import lexer;
+module analyzer::core::ast;
 
 import std::collections::list;
+import analyzer::core::string_pool;
 
 struct IfStmt
 {

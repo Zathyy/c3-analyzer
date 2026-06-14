@@ -1,19 +1,13 @@
-module parser::workspace;
+module analyzer::workspace;
 
-import parser::cursor;
+import analyzer::cursor;
+import analyzer::parser;
+import analyzer::sema;
+import analyzer::core;
 
 import std::collections::map;
 import std::collections::list;
 import std::collections::pair;
-
-import parser::diagnostics @norecurse;
-import parser::parser;
-
-import parser::sema;
-
-import parser::ast @norecurse;
-import parser::ast::pool @norecurse;
-import parser::plog;
 import std::io;
 
 struct FileInput

@@ -1,7 +1,7 @@
 module parser_tests;
 
-import parser::workspace;
-import parser::ast;
+import analyzer::workspace;
+import analyzer::core;
 
 import std::io;
 import std::collections::list;

@@ -1,18 +1,9 @@
-module parser::workspace;
-
-import parser::cursor;
-
-import line_map;
+module analyzer::workspace;
+import analyzer::core;
 
 import std::collections::map;
 import std::collections::list;
 import std::collections::pair;
-
-import parser::diagnostics @norecurse;
-
-import parser::ast @norecurse;
-import parser::ast::pool @norecurse;
-import parser::plog;
 import std::io;
 
 faultdef
@@ -44,36 +35,6 @@ fn void ProcessResult.free(&self)
 {
 	self.errored_sections.free();
 }
-
-struct SourceFile
-{
-	String file_path;
-	String source;
-	LineMap line_map;
-	List{ModuleSection*} sections;
-	Ast* ast;
-	sz id;
-}
-
-struct ModuleSection
-{
-	SourceFile* source_file;
-	Module* parent_module;
-	NodeArray nodes;
-	List{Diagnostic} diagnostics;
-	HashMap{String, String} resolved_imports;
-	sz id;
-}
-
-struct Module
-{
-	String name;
-	List{ModuleSection*} sections;
-	HashMap{String, Node*} symbols;
-	sz id;
-}
-
-alias PathString = String;
 
 struct Workspace
 {

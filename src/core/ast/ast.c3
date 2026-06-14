@@ -1,7 +1,8 @@
-module parser::ast;
-import lexer;
-import parser::plog;
-import parser::ast::utils;
+module analyzer::core::ast;
+
+import analyzer::core::plog;
+import analyzer::core::string_pool;
+
 import std::collections::list;
 
 const sz ARENA_PAGE_SIZE = 4096;

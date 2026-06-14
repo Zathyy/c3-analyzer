@@ -1,4 +1,4 @@
-module parser::plog;
+module analyzer::core::plog;
 
 import std::collections::list;
 import std::io;

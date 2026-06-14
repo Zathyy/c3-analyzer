@@ -2,10 +2,9 @@ module reparse_tests @test;
 
 import parser_tests;
 
-import parser::workspace;
-import parser::parser;
-import parser::ast;
-import lexer;
+import analyzer::workspace;
+import analyzer::parser;
+import analyzer::core;
 import std::io;
 import std::collections::list;
 import std::io::file;

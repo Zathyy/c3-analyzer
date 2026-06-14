@@ -1,11 +1,8 @@
 <*
  unit.c3 - parsing things which arent any of (Decl, Stmt, Expr)
 *>
-module parser::parser;
-import parser::plog;
-
-import parser::ast;
-import lexer;
+module analyzer::parser;
+import analyzer::core;
 
 import std::io;
 import std::collections::list;

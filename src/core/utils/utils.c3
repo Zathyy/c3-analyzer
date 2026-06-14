@@ -1,4 +1,4 @@
-module parser::ast::utils;
+module analyzer::core::ast::utils;
 
 const char[256] TO_UPPER @private = { ['a'..'z'] = 'a' - 'A' };
 macro char @to_upper(char $c) => $c - TO_UPPER[$c];

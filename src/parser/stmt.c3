@@ -1,9 +1,6 @@
-module parser::parser;
+module analyzer::parser;
 
-import parser::ast;
-import lexer;
-import parser::constants;
-import parser::plog;
+import analyzer::core;
 
 import std::collections::list;
 
@@ -391,7 +388,7 @@ fn Node*? parse_continue_break_stmt(ParseContext* ctx)
 	ContinueBreakStmt* cb = node.as(CONTINUE_BREAK_STMT);
 
 	cb.is_continue = is_continue;
-	cb.label = ast::EMPTY_STR;
+	cb.label = string_pool::EMPTY_STR;
 
 	if (ctx.is(CONST_IDENT))
 	{
@@ -645,7 +642,7 @@ fn Node*? parse_for_stmt(ParseContext* ctx)
 	}
 	else
 	{
-		for_stmt.label = ast::EMPTY_STR;
+		for_stmt.label = string_pool::EMPTY_STR;
 	}
 
 	@expect_else(ctx, LPAREN ; err)
@@ -720,7 +717,7 @@ fn Node*? parse_while_stmt(ParseContext* ctx)
 	}
 	else
 	{
-		while_stmt.label = ast::EMPTY_STR;
+		while_stmt.label = string_pool::EMPTY_STR;
 	}
 	@expect_else(ctx, LPAREN ; err)
 	{
@@ -771,7 +768,7 @@ fn Node*? parse_do_while_stmt(ParseContext* ctx)
 	}
 	else
 	{
-		do_while_stmt.label = ast::EMPTY_STR;
+		do_while_stmt.label = string_pool::EMPTY_STR;
 	}
 
 	do_while_stmt.body = parse_compound_stmt(ctx)!;
@@ -824,7 +821,7 @@ fn Node*? parse_foreach_var(ParseContext* ctx)
 			ctx.error("Expected an identifier or type.");
 		}
 		ctx.ast.missing(ctx.current().pos);
-		v.name = ast::EMPTY_STR;
+		v.name = string_pool::EMPTY_STR;
 		ctx.skip_until({ COMMA, COLON, RPAREN })!;
 		return var_node;
 	}
@@ -862,7 +859,7 @@ fn Node*? parse_foreach_stmt(ParseContext* ctx)
 	}
 	else
 	{
-		foreach_stmt.label = ast::EMPTY_STR;
+		foreach_stmt.label = string_pool::EMPTY_STR;
 	}
 
 	@expect_else_skip(ctx, LPAREN, { RPAREN, EOS, EOF } ; err)

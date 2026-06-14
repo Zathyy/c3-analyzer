@@ -1,8 +1,5 @@
-module parser::parser;
+module analyzer::parser;
 
-import parser::ast;
-import lexer;
-import parser::constants;
-import parser::plog;
+import analyzer::core;
 
 import std::collections::list;

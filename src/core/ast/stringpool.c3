@@ -1,9 +1,11 @@
-module parser::ast;
+module analyzer::core::string_pool;
 
 import std::io;
 
 import std::collections::list;
 import std::collections::map;
+
+import analyzer::core;
 
 faultdef
 	OUT_OF_RANGE;

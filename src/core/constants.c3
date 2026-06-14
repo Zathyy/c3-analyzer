@@ -1,4 +1,4 @@
-module parser::constants;
+module analyzer::core::constants;
 
 const String KW_AT_DEPRECATED = "@deprecated";
 const String KW_AT_PURE       = "@pure";

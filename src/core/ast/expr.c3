@@ -1,5 +1,6 @@
-module parser::ast;
-import lexer;
+module analyzer::core::ast;
+
+import analyzer::core::string_pool;
 
 import std::collections::list;
 
