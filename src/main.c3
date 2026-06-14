@@ -35,7 +35,7 @@ fn int main(String[] args) => @pool()
 	plog::debug("Init...");
 
 	Workspace ws;
-	ws.init();
+	ws.init(mem, { .use_sema = true });
 	defer ws.free();
 
 	plog::debug("args: %s", args);
