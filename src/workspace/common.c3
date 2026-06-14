@@ -45,7 +45,7 @@ struct Workspace
 	Allocator allocator;
 }
 
-fn void Workspace.init(&self, WorkspaceOptions options = {}, Allocator allocator = mem)
+fn void Workspace.init(&self, Allocator allocator = mem, WorkspaceOptions options = {})
 {
 	self.allocator = allocator;
 	self.modules.init(allocator, 16);
@@ -80,6 +80,7 @@ fn void Workspace.free(&self)
 	self.modules.@each(; name, mod)
 	{
 		mod.sections.free();
+		mod.symbols.free();
 		mod.name.free(self.allocator);
 		alloc::free(self.allocator, mod);
 	};
