@@ -36,6 +36,7 @@ fn bool Cursor.is_valid(self) @inline
 fn String? Cursor.spelling(&self, Allocator allocator) => @pool()
 {
 	StringPool* pool = &self.section.source_file.ast.string_pool;
+	assert(pool != null);
 
 	switch (self.node.kind)
 	{

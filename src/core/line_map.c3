@@ -102,10 +102,10 @@ fn sz LineMap.get_offset(LineMap* self, String src, Location loc)
 fn String LineMap.get_line_from_src(&self, String src, sz line_num)
 {
 	if (line_num >= self.line_offsets.len()) return "";
-    sz start = self.line_offsets[line_num];
-    sz end = (line_num + 1 < self.line_offsets.len()) ? self.line_offsets[line_num + 1] : src.len;
-    if (start > src.len || end > src.len || start > end) return "";
-    sz tail = end;
-    if (tail > start && src[tail - 1] == '\n') tail--;
-    return src[start..tail];
+	sz start = self.line_offsets[line_num];
+	sz end = (line_num + 1 < self.line_offsets.len()) ? self.line_offsets[line_num + 1] : src.len;
+	if (start > src.len || end > src.len || start > end) return "";
+	sz tail = end;
+	if (tail > start && src[tail - 1] == '\n') tail--;
+	return src[start..tail];
 }
