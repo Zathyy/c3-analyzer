@@ -3,40 +3,11 @@ module analyzer::sema;
 import analyzer::core::plog;
 import analyzer::workspace @norecurse;
 import analyzer::core;
+import analyzer::cursor;
 
 fn void run_symbols_pass(SemaContext* ctx)
 {
-	index_module_declarations(ctx);
-}
-
-fn void index_module_declarations(SemaContext* ctx)
-{
-	ctx.ws.modules.@each(; name, mod)
-	{
-		foreach (section : mod.sections)
-		{
-			foreach FOREACH: (node : section.nodes)
-			{
-				if (node.kind == STRUCT_DECL || node.kind == ENUM_DECL)
-				{
-					String type_name = "";
-						
-					if (type_name.len == 0) continue FOREACH;
-
-					Node* existing_decl = mod.symbols.get(type_name) ?? null;
-					if (existing_decl != null)
-					{
-						ctx.error(node, "Redefinition of type '%s' in module '%s'", type_name, mod.name);
-						continue FOREACH;
-					}
-
-					mod.symbols.set(type_name, node);
-				}
-			}
-		}
-	};
-
-	
+	reindex_module(ctx);
 }
 
 fn void reindex_module(SemaContext* ctx)
@@ -50,21 +21,25 @@ fn void reindex_module(SemaContext* ctx)
 	{
 		foreach (node : section.nodes)
 		{
-			if (node.kind == STRUCT_DECL || node.kind == ENUM_DECL)
+			if (!should_index(node.kind)) continue;
+
+			Cursor c = { section, node };
+			String symbol_name = c.spelling(tmem) ?? "";
+			
+			if (symbol_name.len == 0)
 			{
-				String type_name = "";
-					
-				if (type_name.len == 0) continue;
-
-				Node* existing = mod.symbols.get(type_name) ?? null;
-				if (existing != null)
-				{
-					ctx.error(node, "Redefinition of type '%s'", type_name);
-					continue;
-				}
-
-				mod.symbols.set(type_name, node);
+				ctx.warn(node, "Failed to acquire spelling");
+				continue;
 			}
+
+			Node* existing = mod.symbols.get(symbol_name) ?? null;
+			if (existing != null)
+			{
+				ctx.error(node, "Redefinition of symbol '%s' in module '%s'", symbol_name, mod.name);
+				continue;
+			}
+
+			mod.symbols.set(symbol_name, node);
 		}
 	}
 
@@ -82,5 +57,24 @@ fn void refresh_section_imports(SemaContext* ctx)
 			ImportDecl* imp = node.as(IMPORT_DECL);
 			
 		}
+	}
+}
+
+fn bool should_index(NodeKind kind)
+{
+	switch (kind)
+	{
+		case FN_DECL:
+		case MACRO_DECL:
+		case VAR_DECL:
+		case STRUCT_DECL:
+		case ENUM_DECL:
+		case INTERFACE_DECL:
+		case FAULTDEF_DECL:
+		case TYPEDEF_DECL:
+		case ALIAS_DECL:
+			return true;
+		default:
+			return false;
 	}
 }
