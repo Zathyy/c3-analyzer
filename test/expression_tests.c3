@@ -53,7 +53,7 @@ fn void test_literals()
 	`;
 
 	Workspace ws;
-	ws.init();
+	ws.init(mem, { .use_sema = true });
 	defer ws.free();
 	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
 	defer res.free();
@@ -212,16 +212,16 @@ fn void unary()
 {
 	String source_code = `
 		module hello;
-		bool x = !foo;
-        bool x = !!foo;
-        int x = -foo;
-        int x = ~foo;
-        void* x = &foo;
-        void* x = &&foo;
-        int x = *foo;
+		bool a = !foo;
+        bool b = !!foo;
+        int c = -foo;
+        int d = ~foo;
+        void* e = &foo;
+        void* f = &&foo;
+        int g = *foo;
 	`;
 	Workspace ws;
-	ws.init();
+	ws.init(mem, { .use_sema = true });
 	defer ws.free();
 	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
 	defer res.free();
@@ -265,7 +265,7 @@ fn void try_catch()
 	`;
 
 	Workspace ws;
-	ws.init();
+	ws.init(mem, { .use_sema = true });
 	defer ws.free();
 	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
 	defer res.free();
@@ -297,7 +297,7 @@ fn void call()
 	`;
 
 	Workspace ws;
-	ws.init();
+	ws.init(mem, { .use_sema = true });
 	defer ws.free();
 	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
 	defer res.free();
@@ -322,7 +322,7 @@ fn void builtin()
 	`;
 
 	Workspace ws;
-	ws.init();
+	ws.init(mem, { .use_sema = true });
 	defer ws.free();
 	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
 	defer res.free();
@@ -354,7 +354,7 @@ fn void lambda()
 	`;
 
 	Workspace ws;
-	ws.init();
+	ws.init(mem, { .use_sema = true });
 	defer ws.free();
 	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
 	defer res.free();
@@ -380,7 +380,7 @@ fn void group_and_cast()
 	`;
 
 	Workspace ws;
-	ws.init();
+	ws.init(mem, { .use_sema = true });
 	defer ws.free();
 	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
 	defer res.free();
@@ -422,7 +422,7 @@ fn void initializers()
 	`;
 
 	Workspace ws;
-	ws.init();
+	ws.init(mem, { .use_sema = true });
 	defer ws.free();
 	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
 	defer res.free();
@@ -451,7 +451,7 @@ fn void access()
 	`;
 
 	Workspace ws;
-	ws.init();
+	ws.init(mem, { .use_sema = true });
 	defer ws.free();
 	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
 	defer res.free();
@@ -499,7 +499,7 @@ fn void range()
 	`;
 
 	Workspace ws;
-	ws.init();
+	ws.init(mem, { .use_sema = true });
 	defer ws.free();
 	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
 	defer res.free();
@@ -529,7 +529,7 @@ fn void optional_expr()
 	`;
 
 	Workspace ws;
-	ws.init();
+	ws.init(mem, { .use_sema = true });
 	defer ws.free();
 	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
 	defer res.free();
@@ -559,7 +559,7 @@ fn void ct_defined()
 	`;
 
 	Workspace ws;
-	ws.init();
+	ws.init(mem, { .use_sema = true });
 	defer ws.free();
 	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
 	defer res.free();
@@ -587,7 +587,7 @@ fn void lengthof_expr()
 	`;
 
 	Workspace ws;
-	ws.init();
+	ws.init(mem, { .use_sema = true });
 	defer ws.free();
 	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
 	defer res.free();

@@ -1,5 +1,4 @@
-<* first doc *>
-<* second doc *>
 module hello;
 
-fn void foo() {}
+fn void greet() {}
+fn void greet() {}

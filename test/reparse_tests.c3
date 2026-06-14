@@ -20,19 +20,19 @@ fn void reparsing_simple()
 	`;
 
 	String source_code_2 = `
-        module hello;
+        module helloo;
         
         fn void greet() {}
         fn void new_function() {}
     `;
 
 	Workspace ws;
-	ws.init();
+	ws.init(mem, { .use_sema = true });
 	defer ws.free();
 	ProcessResult res = workspace::process_batch(&ws, mem, { { .uri = "test_1", .source_text = source_code}, { .uri = "test_2", .source_text = source_code_2 }})!!;
 	defer res.free();
 	test::eq(res.has_errors, false);
-	test::eq(ws.modules.len(), 1);
+	test::eq(ws.modules.len(), 2);
 }
 
 fn void multi_reparsing()
@@ -45,7 +45,7 @@ fn void multi_reparsing()
 	`;
 
 	Workspace ws;
-	ws.init();
+	ws.init(mem, { .use_sema = true });
 	defer ws.free();
 	
 

@@ -28,7 +28,7 @@ fn void basic_cursor_test()
 	`;
 
 	Workspace ws;
-	ws.init();
+	ws.init(mem, { .use_sema = true });
 	defer ws.free();
 	ProcessResult res = workspace::process_batch(&ws, mem, { 
 		{ .uri = "hello.c3", .source_text = source_code }, 

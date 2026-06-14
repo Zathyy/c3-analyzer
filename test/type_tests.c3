@@ -19,7 +19,7 @@ fn void type_ident()
 		fn void greet(int foo, Bar baz) {}
 	`;
 	Workspace ws;
-	ws.init();
+	ws.init(mem, { .use_sema = true });
 	defer ws.free();
 	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
 	defer res.free();
@@ -35,7 +35,7 @@ fn void global_array_pointer()
 	`;
 
 	Workspace ws;
-	ws.init();
+	ws.init(mem, { .use_sema = true });
 	defer ws.free();
 	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
 	defer res.free();
@@ -84,12 +84,12 @@ fn void optional()
 		module hello;
 		
 		int? foo;
-		int*? foo;
-		int[4]? foo = bar();
+		int*? fooo;
+		int[4]? foooo = bar();
 	`;
 
 	Workspace ws;
-	ws.init();
+	ws.init(mem, { .use_sema = true });
 	defer ws.free();
 	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
 	defer res.free();
@@ -131,7 +131,7 @@ fn void global_inferred_array_pointer()
 	`;
 
 	Workspace ws;
-	ws.init();
+	ws.init(mem, { .use_sema = true });
 	defer ws.free();
 	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
 	defer res.free();
@@ -180,7 +180,7 @@ fn void global_generic()
 	`;
 
 	Workspace ws;
-	ws.init();
+	ws.init(mem, { .use_sema = true });
 	defer ws.free();
 	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
 	defer res.free();
@@ -232,7 +232,7 @@ fn void global_vec()
 	`;
 
 	Workspace ws;
-	ws.init();
+	ws.init(mem, { .use_sema = true });
 	defer ws.free();
 	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
 	defer res.free();

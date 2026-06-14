@@ -16,7 +16,7 @@ fn void module_private_test_weak_if()
 		module hello @private @test @weak @if(1 == 1 && 2 == 2);
 	`;
 	Workspace ws;
-	ws.init();
+	ws.init(mem, { .use_sema = true });
 	defer ws.free();
 	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
 	defer res.free();
@@ -64,7 +64,7 @@ fn void module_tag_if()
 		module hello @tag("my_tag", "my_value") @if($feature(MY_FEATURE));
 	`;
 	Workspace ws;
-	ws.init();
+	ws.init(mem, { .use_sema = true });
 	defer ws.free();
 	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
 	defer res.free();
@@ -108,17 +108,22 @@ fn void function_if()
 		fn void greet() @private @if($feature(MY_FEATURE)) {}
 	`;
 	Workspace ws;
-	ws.init();
+	ws.init(mem, { .use_sema = true });
 	defer ws.free();
 	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
 	defer res.free();
 	test::eq(res.has_errors, false);
-
 	Module* mod      = ws.modules.get("hello")!!;
+	test::ne(mod, null);
 	ModuleSection* s = mod.sections[0];
+	test::ne(s, null);
 	StringPool* pool = &s.source_file.ast.string_pool;
+	test::ne(pool, null);
 
 	Node* node      = ws.lookup("hello", "greet")!!;
+	test::ne(node, null);
+	test::eq(node.kind, NodeKind.FN_DECL);
+
 	FnDecl* fn_decl = node.as(FN_DECL);
 
 	test::eq(node.visibility, Visibility.PRIVATE);
@@ -145,7 +150,7 @@ fn void const_var_private_if()
 		void* my_var @private @if($feature(MY_FEATURE)) = null;
 	`;
 	Workspace ws;
-	ws.init();
+	ws.init(mem, { .use_sema = true });
 	defer ws.free();
 	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
 	defer res.free();
