@@ -76,6 +76,8 @@ fn ProcessResult? process_batch(Workspace* self, Allocator allocator, FileInput[
 			return INVALID_URI~;
 		}
 
+		if (!input.uri) input.uri = input.path;
+
 		ParseContext ctx;
 		SourceFile* sf = self.reset_source_file(input.uri);
 		ctx.ast = sf.ast;
@@ -83,7 +85,6 @@ fn ProcessResult? process_batch(Workspace* self, Allocator allocator, FileInput[
 		ctx.allocator = self.allocator;
 		ctx.line_map = &sf.line_map;
 		ctx.uri = input.uri;
-		if (!ctx.uri) ctx.uri = input.path;
 
 		if (input.path)
 		{
@@ -94,13 +95,15 @@ fn ProcessResult? process_batch(Workspace* self, Allocator allocator, FileInput[
 			ctx.src = input.source_text;
 		}
 
+		sf.source = ctx.src;
+
 		ctx.line_map.build(ctx.src);
 
 		ParserCallbackData callback_bundle = {
 			.ws = self,
 			.sf = sf,
 			.affected_modules = &affected_modules
-		};
+		};	
 
 		ctx.on_new_module = &on_parser_found_module;
 		ctx.user_data = (void*)&callback_bundle;
@@ -109,6 +112,8 @@ fn ProcessResult? process_batch(Workspace* self, Allocator allocator, FileInput[
 
 		foreach (section : sf.sections)
 		{
+			assert(section != null, "section null");
+
 			if (section.parent_module != null)
 			{
 				affected_modules.set(section.parent_module.name, section.parent_module);
@@ -123,12 +128,15 @@ fn ProcessResult? process_batch(Workspace* self, Allocator allocator, FileInput[
 		}
 	}
 
+	$if $feature(SEMA):
 	if (!self.options.use_sema) return result;
-
+	io::printfn("RUNNING SEMA");
 	affected_modules.@each(; mod_name, mod)
 	{
 		foreach (section : mod.sections)
 		{
+			assert(section != null, "section null");
+
 			SemaContext sema_ctx = {
 				.section = section,
 				.ws = self
@@ -144,6 +152,7 @@ fn ProcessResult? process_batch(Workspace* self, Allocator allocator, FileInput[
 			}
 		}
 	};
+	$endif
 
 	return result;
 }
@@ -200,6 +209,7 @@ fn Module* Workspace.get_or_create_module(&self, String name)
 	mod.name = name.copy(self.allocator);
 	mod.sections.init(self.allocator, 4);
 	mod.id = next_module_id++;
+	mod.symbols.init(self.allocator);
 
 	self.modules.set(name, mod);
 	return mod;
@@ -248,39 +258,6 @@ fn List{ModuleSection*} Workspace.find_section_by_path(&self, String file_path)
 	return sections;
 }
 
-enum LookupTarget
-{
-	IDENT,
-	MODULE
-}
-
-struct LookupOptions
-{
-	LookupTarget target;
-	String name;
-}
-
-// ---
-// fn Cursor? Workspace.lookup(&self, String symbol_name, LookupOptions options)
-// {
-// 	Module* mod = self.modules.get(module_name)!;
-// 	if (!mod) return MODULE_NOT_FOUND~;
-// ---
-// 	// Search the module's top-level declarations
-// 	foreach (section : mod.sections)
-// 	{
-// 		foreach (decl_handle : section.source_file.ast.top_level_nodes)
-// 		{
-// 			if (decl_handle < section.start_node_idx || decl_handle >= section.end_node_idx) continue;
-// 			Cursor c = { section, (Node)decl_handle };
-// 			if (c.spelling()! == symbol_name) return c;
-// 		}
-// 	}
-// ---
-// 	return SYMBOL_NOT_FOUND~;
-// ---
-
-
 fn Cursor Workspace.find_at_location(&self, String file_path, Location loc)
 {
 	List{ModuleSection*} secs = self.find_section_by_path(file_path);
@@ -300,7 +277,7 @@ fn Cursor Workspace.find_at_location(&self, String file_path, Location loc)
 	return { };
 }
 
-fn Node*? Workspace.lookup(&self, String module_name, String symbol_name) @inline
+fn Node*? Workspace.lookup(&self, String module_name, String symbol_name)  @inline
 {
 	return self.lookup_in_module(module_name, symbol_name)!;
 }
@@ -308,18 +285,10 @@ fn Node*? Workspace.lookup(&self, String module_name, String symbol_name) @inlin
 fn Node*? Workspace.lookup_in_module(&self, String module_name, String symbol_name) => @pool()
 {
 	Module* mod = self.modules.get(module_name)!;
-	if (!mod) return MODULE_NOT_FOUND~;
+    if (!mod) return MODULE_NOT_FOUND~;
 
-	// Search the module's top-level declarations
-	foreach (section : mod.sections)
-	{
-		foreach (node : section.source_file.ast.top_level_nodes)
-		{
-			Cursor c = { section, node };
-			if (c.spelling(tmem)! == symbol_name) return node;
-		}
-	}
-
+	Node* cached_node = mod.symbols.get(symbol_name) ?? null;
+	if (cached_node != null) return cached_node;
 	return SYMBOL_NOT_FOUND~;
 }
 
@@ -331,27 +300,8 @@ fn Node*? Workspace.find_symbol_by_name(&self, String symbol_name) => @pool()
 {
 	foreach (mod : self.modules.value_iter())
 	{
-		foreach (section : mod.sections)
-		{
-			foreach (node : section.nodes)
-			{
-				switch (node.kind)
-				{
-					case MODULE_DECL: continue;
-					case IMPORT_DECL: continue;
-					default: break;
-				}
-
-				Cursor c = { section, node };
-				String spelling = c.spelling(tmem) ?? "";
-
-				if (spelling == symbol_name)
-				{
-					return node;
-				}
-			}
-		}
+		Node* cached_node = mod.symbols.get(symbol_name) ?? null;
+		if (cached_node != null) return cached_node;
 	}
-
 	return SYMBOL_NOT_FOUND~;
 }
