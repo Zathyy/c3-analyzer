@@ -22,19 +22,20 @@
   "build-dir": "build",
   // Output location, relative to project file.
   "output": "build",
+  "features": ["SEMA"],
   // Architecture and OS target.
   // You can use 'c3c --list-targets' to list all valid targets.
   // "target": "windows-x64",
   // Targets.
   "targets": {
-    "c3_parser": {
+    "c3-analyzer": {
       "type": "executable",
-			"features": [ "PARSER_CLI" ],
+			"features": [ "PARSER_CLI"],
       "dependencies": [ "seali" ]
     },
-    "c3_parser_lib": {
+    "c3-analyzer-lib": {
       "type": "static-lib",
-      "features": ["PARSER_LIB"]
+      "features": [ "PARSER_LIB"]
     }
   },
   // Global settings.
