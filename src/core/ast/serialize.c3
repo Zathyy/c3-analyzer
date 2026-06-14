@@ -1,4 +1,4 @@
-module analyzer::core::ast::serialize @if($feature(PARSER_CLI));
+module analyzer::core::ast::serialize @if($feature(ANALYZER_CLI));
 
 import analyzer::core::line_map;
 import analyzer::core::string_pool;

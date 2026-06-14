@@ -30,12 +30,12 @@
   "targets": {
     "c3-analyzer": {
       "type": "executable",
-			"features": [ "PARSER_CLI"],
+			"features": [ "ANALYZER_CLI"],
       "dependencies": [ "seali" ]
     },
     "c3-analyzer-lib": {
       "type": "static-lib",
-      "features": [ "PARSER_LIB"]
+      "features": [ "ANALYZER_LIB"]
     }
   },
   // Global settings.

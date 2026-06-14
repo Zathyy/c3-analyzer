@@ -1,4 +1,4 @@
-module parser @if($feature(PARSER_CLI));
+module parser @if($feature(ANALYZER_CLI));
 import utils::ast;
 import std::io;
 import analyzer::workspace;

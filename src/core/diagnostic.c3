@@ -35,7 +35,7 @@ fn void diagnose(
 	String msg = string::format(alloc, fmt, ...args);
 	section.diagnostics.push({ level, loc, end_loc, msg, file_path });
 	
-	$if $feature(PARSER_CLI):
+	$if $feature(ANALYZER_CLI):
  		io::printf("%s:%s:%s: %s%s:%s ", file_path, loc.line + 1, loc.column + 1, Ansi.RED, level.description, Ansi.RESET);
 		io::printf(fmt, ...args);
 		io::printn("");

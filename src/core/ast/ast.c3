@@ -145,7 +145,7 @@ macro Node* Ast.error(&self, int start, int end = -1)
 	Node* node = self.alloc_node(ERROR, start, end);
 	self.error_nodes.push(node);
 
-	$if !$feature(PARSER_LIB):
+	$if !$feature(ANALYZER_LIB):
 		plog::error("Error happened here");
 	$endif
 
@@ -157,7 +157,7 @@ macro Node* Ast.missing(&self, int start, int end = -1)
 	Node* node = self.alloc_node(MISSING, start, end);
 	self.error_nodes.push(node);
 
-	$if !$feature(PARSER_LIB):
+	$if !$feature(ANALYZER_LIB):
 		plog::error("Error happened here");
 	$endif
 
