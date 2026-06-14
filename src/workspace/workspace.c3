@@ -54,6 +54,11 @@ fn ProcessResult? process_batch(Workspace* self, Allocator allocator, FileInput[
 	result.errored_sections.init(allocator, 4);
 	result.has_errors = false;
 
+	defer (catch err)
+	{
+		result.free();
+	}
+
 	HashMap{String, Module*} affected_modules;
 	affected_modules.init(self.allocator, 8);
 	defer affected_modules.free();
