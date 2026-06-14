@@ -1,5 +1,5 @@
 {
-	"provides": "c3-analyzer",
+	"provides": "c3_analyzer",
 	"sources": ["src/**"],
 	  "targets" : {
 		"android-aarch64" : {
