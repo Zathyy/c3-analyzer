@@ -1,20 +1,18 @@
 module analyzer::parser;
 import analyzer::core;
 import std::collections::list;
-import analyzer::workspace @norecurse;
 import std::io;
 
 <*
  module_decl ::= module path_expr ';' attributes?
 *>
-fn Node*? parse_module_decl(ParseContext* ctx, Workspace* ws)
+fn Node*? parse_module_decl(ParseContext* ctx)
 {
 	int start_pos = ctx.current().pos;
 	expect(ctx, MODULE)!;
 	plog::debug("parse_mod");
 	Node* node           = ctx.ast.alloc_node(MODULE_DECL, start_pos);
 	ModuleDecl* mod_decl = node.as(MODULE_DECL);
-	defer node.end_token = ctx.current().pos;
 
 	mod_decl.path = parse_path_expr(ctx)!;
 	mod_decl.generics = parse_generic_decl(ctx)!;
@@ -24,15 +22,18 @@ fn Node*? parse_module_decl(ParseContext* ctx, Workspace* ws)
 		mod_decl.attributes = parse_attributes(ctx, node)!;
 	}
 
+	node.end_token = ctx.current_pos();
+
 	expect(ctx, EOS)!;
 
-	PathExpr* path  = mod_decl.path.as(PATH_EXPR);
-	String mod_name = path.full_path(&ctx.ast.string_pool, ctx.allocator)!;
-	defer mod_name.free(ctx.allocator);
-	Module* mod        = ws.get_or_create_module(mod_name);
-	ModuleSection* sec = ws.get_or_create_section(mod, ctx.sf);
-	ctx.section = sec;
-	ctx.mod = mod;
+	PathExpr* path = mod_decl.path.as(PATH_EXPR);
+    String mod_name = path.full_path(&ctx.ast.string_pool, ctx.allocator)!;
+    defer mod_name.free(ctx.allocator);
+
+    if (ctx.on_new_module != null)
+    {
+        ctx.section = ctx.on_new_module(ctx.user_data, mod_name);
+    }
 
 	return node;
 }

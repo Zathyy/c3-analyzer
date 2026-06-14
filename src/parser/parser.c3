@@ -1,7 +1,5 @@
 module analyzer::parser;
 
-import analyzer::workspace @norecurse;
-
 import std::io;
 import std::io::path;
 import std::collections::list;
@@ -9,15 +7,23 @@ import std::collections::maybe;
 import analyzer::core;
 
 faultdef
-	UNKNOWN, UNEXPECTED_EOS, MODULE_HEADER_FAILED, CONTRACT_NOT_ALLOWED, INVALID_PATH, NOT_A_PATH, PATH_TOO_LONG, EXPECTED_EXPRESSION, UNEXPECTED_TOKEN, EOT
-;
+	UNKNOWN, 
+	UNEXPECTED_EOS, 
+	MODULE_HEADER_FAILED, 
+	CONTRACT_NOT_ALLOWED, 
+	INVALID_PATH, 
+	NOT_A_PATH, 
+	PATH_TOO_LONG, 
+	EXPECTED_EXPRESSION, 
+	UNEXPECTED_TOKEN, 
+	EOT;
+
+alias NewSectionCallback = fn ModuleSection* (void* user_data, String module_name);
 
 struct ParseContext
 {
 	LineMap* line_map;
 	Ast* ast;
-	Module* mod;
-	SourceFile* sf;
 	ModuleSection* section;
 	Token[] tokens;
 	String file_path; // current file being parsed
@@ -29,6 +35,9 @@ struct ParseContext
 	int pos;
 	Node* contract;
 
+	NewSectionCallback on_new_module;
+	void* user_data;
+	
 	// for when using debbugers so i can keep track of what its at
 	Token current_token @if(env::DEBUG_SYMBOLS);
 	String current_token_string @if(env::DEBUG_SYMBOLS);
@@ -304,36 +313,61 @@ fn String ParseContext.current_text(ParseContext* self) @inline
 
 fn String peek_module_name(ParseContext* ctx) => @pool()
 {
-	if (ctx.tokens[0].kind == MODULE || ctx.tokens[0].kind == CONTRACT)
+	if (ctx.tokens.len == 0) return "";
+
+	sz i = 0;
+
+	while (i < ctx.tokens.len && ctx.tokens[i].kind == CONTRACT)
 	{
-		// Start collecting the name after the 'module' keyword
-		String full_name = "";
+		i++;
+	}
 
-		sz i = ctx.tokens[0].kind == CONTRACT ? 2 : 1;
-		while (i < ctx.tokens.len)
+	if (i >= ctx.tokens.len || ctx.tokens[i].kind != MODULE)
+	{
+		return "";
+	}
+
+	// Move past 'MODULE' keyword
+	i++;
+
+	String full_name = "";
+	while (i < ctx.tokens.len)
+	{
+		Token t = ctx.tokens[i];
+
+		if (t.kind == IDENT)
 		{
-			Token t = ctx.tokens[i];
-
-			if (t.kind == IDENT)
-			{
-				String part = ctx.token_text(t);
-				full_name = full_name.tconcat(part);
-			}
-			else if (t.kind == SCOPE)
-			{
-				full_name = full_name.tconcat("::");
-			}
-			else if (t.kind == EOS)
-			{
-				break; // End of module declaration
-			}
-
-			i++;
+			String part = ctx.token_text(t);
+			full_name = full_name.tconcat(part);
 		}
+		else if (t.kind == SCOPE)
+		{
+			full_name = full_name.tconcat("::");
+		}
+		else if (t.kind == EOS)
+		{
+			break;
+		}
+		else if (t.kind != LBRACE && t.kind != RBRACE) 
+		{
+			break;
+		}
+
+		i++;
+	}
+
+	if (full_name.len > 0)
+	{
 		return full_name.copy(ctx.allocator);
 	}
 
 	return "";
+}
+
+fn String? path_to_module_name(String path)
+{
+	String base_name = path.file_tbasename()!;
+	return base_name.strip_suffix(".c3");
 }
 
 <*
@@ -341,11 +375,11 @@ fn String peek_module_name(ParseContext* ctx) => @pool()
  Parse source code at uri
 
  Appends the nodes to the provided Modules Ast
- @param [&inout] ws
+ @param [&inout] ctx
  @require ctx.arena != null
  @require ctx.allocator != null
 *>
-fn void? parse(Workspace* ws, ParseContext* ctx) => @pool()
+fn void? parse(ParseContext* ctx) => @pool()
 {
 	Lexer lexer = { .buffer = ctx.src, .index = 0, };
 	List{Token} tokens;
@@ -361,26 +395,27 @@ fn void? parse(Workspace* ws, ParseContext* ctx) => @pool()
 
 	plog::info("parsing uri: %s", ctx.uri);
 
-	String mod_name = peek_module_name(ctx);
-	if (mod_name == "")
+	String explicit_name = peek_module_name(ctx);
+	if (explicit_name != "")
 	{
-		mod_name = path_to_module_name(ctx.uri)!;
-
-		Module* mod        = ws.get_or_create_module(mod_name);
-		ModuleSection* sec = ws.get_or_create_section(mod, ctx.sf);
-		ctx.section = sec;
-		ctx.mod = mod;
-		plog::info("Inferred module: %s", mod_name);
+		if (ctx.on_new_module != null)
+		{
+			ctx.section = ctx.on_new_module(ctx.user_data, explicit_name);
+		}
+		explicit_name.free(ctx.allocator);
 	}
 	else
 	{
-		mod_name.free(ctx.allocator);
+		String fallback_name = path_to_module_name(ctx.uri)!;
+		if (ctx.on_new_module != null)
+		{
+			ctx.section = ctx.on_new_module(ctx.user_data, fallback_name);
+		}
 	}
 
 	while (!ctx.eof())
 	{
-		// sz err_len = lengthof(ctx.ast.error_nodes);
-		if (catch err = parse_top_level(ctx, ws))
+		if (catch err = parse_top_level(ctx))
 		{
 			if (err == EOT)
 			{
@@ -397,32 +432,12 @@ fn void? parse(Workspace* ws, ParseContext* ctx) => @pool()
 				advance(ctx)!!;
 			}
 		}
-		// else if (err_len != lengthof(ctx.ast.error_nodes))
-		// {
-		// 	int before = ctx.pos;
-		// 	synchronize(&ctx)!;
-		// 	// If synchronize made no progress (stuck on an unhandled keyword),
-		// 	// force-advance one token to guarantee the loop terminates.
-		// 	if (ctx.pos == before && !ctx.eof())
-		// 	{
-		// 		advance(&ctx)!!;
-		// 	}
-		// }
 	}
 
-	if (try last_sec = ctx.sf.sections.last())
-	{
-		last_sec.nodes = ctx.ast.top_level_nodes.array_view();
-	}
+	ctx.section.nodes = ctx.ast.top_level_nodes.array_view();
 }
 
-fn String? path_to_module_name(String path)
-{
-	String base_name = path.file_tbasename()!;
-	return base_name.strip_suffix(".c3");
-}
-
-fn void? parse_top_level(ParseContext* ctx, Workspace* ws)
+fn void? parse_top_level(ParseContext* ctx)
 {
 	plog::debug("parse_top_level: %s", ctx.token_text(ctx.current()));
 
@@ -477,7 +492,7 @@ fn void? parse_top_level(ParseContext* ctx, Workspace* ws)
 		case INTERFACE:
 			node = parse_interface_decl(ctx)!;
 		case MODULE:
-			node = parse_module_decl(ctx, ws)!;
+			node = parse_module_decl(ctx)!;
 		case IMPORT:
 			node = parse_import_decl(ctx)!;
 		case FAULTDEF:

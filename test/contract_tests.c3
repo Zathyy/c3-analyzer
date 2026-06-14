@@ -106,7 +106,7 @@ fn void module_duplicate_contract_error()
 	defer ws.free();
 	ProcessResult res = workspace::process(&ws, mem, { .uri = "test", .source_text = source_code})!!;
 	defer res.free();
-	test::eq(res.has_errors, false);
+	test::eq(res.has_errors, true);
 }
 
 fn void function_duplicate_contract_error()

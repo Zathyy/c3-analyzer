@@ -12,9 +12,26 @@ import std::io;
 
 struct FileInput
 {
-    PathString path;
+	PathString path;
 	String uri;
-    String source_text;
+	String source_text;
+}
+
+struct ParserCallbackData
+{
+	Workspace* ws;
+	SourceFile* sf;
+	HashMap{String, Module*}* affected_modules;
+}
+
+fn ModuleSection* on_parser_found_module(void* user_data, String module_name)
+{
+	ParserCallbackData* data = (ParserCallbackData*)user_data;
+
+	Module* mod = data.ws.get_or_create_module(module_name);
+	ModuleSection* sec = data.ws.get_or_create_section(mod, data.sf);
+	data.affected_modules.set(mod.name, mod);
+	return sec;
 }
 
 <*
@@ -34,15 +51,15 @@ fn ProcessResult? process(Workspace* self, Allocator allocator, FileInput input)
 fn ProcessResult? process_batch(Workspace* self, Allocator allocator, FileInput[] inputs) => @pool()
 {
 	ProcessResult result;
-    result.errored_sections.init(allocator, 4);
-    result.has_errors = false;
+	result.errored_sections.init(allocator, 4);
+	result.has_errors = false;
 
 	HashMap{String, Module*} affected_modules;
 	affected_modules.init(self.allocator, 8);
 	defer affected_modules.free();
 
 	HashMap{sz, bool} reported_sections;
-    reported_sections.init(self.allocator, 8);
+	reported_sections.init(self.allocator, 8);
 	defer reported_sections.free();
 
 	foreach (input : inputs)
@@ -61,7 +78,6 @@ fn ProcessResult? process_batch(Workspace* self, Allocator allocator, FileInput[
 
 		ParseContext ctx;
 		SourceFile* sf = self.reset_source_file(input.uri);
-		ctx.sf = sf;
 		ctx.ast = sf.ast;
 		ctx.arena = &ctx.ast.arena;
 		ctx.allocator = self.allocator;
@@ -72,15 +88,24 @@ fn ProcessResult? process_batch(Workspace* self, Allocator allocator, FileInput[
 		if (input.path)
 		{
 			ctx.src = (String)file::load(tmem, input.path)!;
-			ctx.line_map.build(ctx.src);
-			(void)parser::parse(self, &ctx);
 		}
 		else if (input.source_text)
 		{
 			ctx.src = input.source_text;
-			ctx.line_map.build(ctx.src);
-			(void)parser::parse(self, &ctx);
 		}
+
+		ctx.line_map.build(ctx.src);
+
+		ParserCallbackData callback_bundle = {
+			.ws = self,
+			.sf = sf,
+			.affected_modules = &affected_modules
+		};
+
+		ctx.on_new_module = &on_parser_found_module;
+		ctx.user_data = (void*)&callback_bundle;
+
+		(void)parser::parse(&ctx);
 
 		foreach (section : sf.sections)
 		{
