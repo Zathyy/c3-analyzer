@@ -208,7 +208,6 @@ fn Node*? parse_import_decl(ParseContext* ctx) => @pool()
 	expect(ctx, IMPORT)!;
 	Node* node      = ctx.ast.alloc_node(IMPORT_DECL, start_pos);
 	ImportDecl* imp = node.as(IMPORT_DECL);
-	defer node.end_token = ctx.current().pos;
 
 	List{Node*} temp_paths;
 	temp_paths.init(tmem, 4);
@@ -233,6 +232,8 @@ fn Node*? parse_import_decl(ParseContext* ctx) => @pool()
 		imp.attributes = parse_attributes(ctx, node)!;
 	}
 
+	node.end_token = ctx.current_pos();
+	
 	expect(ctx, EOS)!;
 
 	return node;
@@ -256,7 +257,6 @@ fn Node*? parse_alias_decl(ParseContext* ctx)
 	expect(ctx, ALIAS)!;
 	Node* node            = ctx.ast.alloc_node(ALIAS_DECL, start_pos);
 	AliasDecl* alias_decl = node.as(ALIAS_DECL);
-	defer node.end_token = ctx.current().pos;
 
 	do CHECK_NAME:
 	{
@@ -297,6 +297,9 @@ fn Node*? parse_alias_decl(ParseContext* ctx)
 			skip_balanced_group(ctx, LBRACE, RBRACE)!;
 		}
 	}
+
+	node.end_token = ctx.current_pos();
+
 	expect(ctx, EOS)!;
 	return node;
 }
@@ -316,7 +319,6 @@ fn Node*? parse_typedef_decl(ParseContext* ctx, ParseFlags flags = { })
 	expect(ctx, TYPEDEF)!;
 	Node* node                = ctx.ast.alloc_node(TYPEDEF_DECL, start_pos);
 	TypedefDecl* typedef_decl = node.as(TYPEDEF_DECL);
-	defer node.end_token = ctx.current().pos;
 
 	if (flags.is_inline)
 	{
@@ -372,6 +374,7 @@ fn Node*? parse_typedef_decl(ParseContext* ctx, ParseFlags flags = { })
 
 	parse_attributes_into(ctx, node, &attributes)!;
 	typedef_decl.attributes = alloc::clone_slice(ctx.arena, attributes.array_view());
+	node.end_token = ctx.current_pos();
 	expect(ctx, EOS)!;
 	return node;
 }
@@ -487,7 +490,6 @@ fn Node*? parse_macro_decl(ParseContext* ctx, ParseFlags flags = { })
 
 	Node* node     = ctx.ast.alloc_node(MACRO_DECL, start_pos);
 	MacroDecl* mac = node.as(MACRO_DECL);
-	defer node.end_token = ctx.current().pos;
 
 	if (is_type(ctx) && ctx.peek(1)!.kind != DOT)
 	{
@@ -545,6 +547,7 @@ fn Node*? parse_macro_decl(ParseContext* ctx, ParseFlags flags = { })
 			return ctx.ast.error(start_pos);
 		}
 		mac.body = parse_compound_stmt(ctx)!;
+		node.end_token = mac.body.end_token;
 	}
 	else if (consume(ctx, IMPLIES)!)
 	{
@@ -555,10 +558,12 @@ fn Node*? parse_macro_decl(ParseContext* ctx, ParseFlags flags = { })
 		}
 
 		mac.body = parse_short_body(ctx, true)!;
+		node.end_token = mac.body.end_token;		
 	}
 	else
 	{
 		// No body provided
+		node.end_token = ctx.current_pos();
 		expect(ctx, EOS)!;
 	}
 
@@ -585,7 +590,6 @@ fn Node*? parse_param_decl(ParseContext* ctx, ParamParseFlags flags)
 
 	Node* node     = ctx.ast.alloc_node(VAR_DECL, start_pos);
 	VarDecl* param = node.as(VAR_DECL);
-	defer node.end_token = ctx.current().pos;
 
 	if (consume(ctx, ELLIPSIS)!)
 	{
@@ -628,6 +632,7 @@ fn Node*? parse_param_decl(ParseContext* ctx, ParamParseFlags flags)
 		case CT_IDENT:
 			param.name = ctx.ast.string_pool.internalize(ctx.token_text(t));
 			param.kind = VAR_PARAM_CT;
+			node.end_token = ctx.current_pos();
 			advance(ctx)!;
 			if (consume(ctx, ELLIPSIS)!)
 			{
@@ -641,6 +646,7 @@ fn Node*? parse_param_decl(ParseContext* ctx, ParamParseFlags flags)
 			param.name = ctx.ast.string_pool.internalize(token_text);
 			param.kind = VAR_PARAM;
 			param.flags.is_ref = is_ref;
+			node.end_token = ctx.current_pos();
 			advance(ctx)!;
 
 			if (token_text == "self")
@@ -676,6 +682,7 @@ fn Node*? parse_param_decl(ParseContext* ctx, ParamParseFlags flags)
 			}
 			param.name = ctx.ast.string_pool.internalize(ctx.token_text(t));
 			param.kind = VAR_PARAM_EXPR;
+			node.end_token = ctx.current_pos();
 			advance(ctx)!;
 			break;
 		case CT_TYPE_IDENT:
@@ -687,6 +694,7 @@ fn Node*? parse_param_decl(ParseContext* ctx, ParamParseFlags flags)
 			}
 			param.name = ctx.ast.string_pool.internalize(ctx.token_text(t));
 			param.kind = (parsed_type && parsed_type.kind != MISSING) ? VAR_PARAM : VAR_PARAM_CT_TYPE;
+			node.end_token = ctx.current_pos();
 			advance(ctx)!;
 			break;
 		case COMMA:
@@ -721,6 +729,7 @@ fn Node*? parse_param_decl(ParseContext* ctx, ParamParseFlags flags)
 		else
 		{
 			param.init_expr = parse_expr(ctx)!;
+			node.end_token = param.init_expr.end_token;
 		}
 	}
 
@@ -914,7 +923,6 @@ fn NodeArray? parse_attributes(ParseContext* ctx, Node* parent_node, AttributePa
 		advance(ctx)!;
 
 		Node* attr_node = ctx.ast.alloc_node(ATTRIBUTE_DECL, t.pos);
-		defer attr_node.end_token = ctx.current().pos;
 		AttributeDecl* attr = attr_node.as(ATTRIBUTE_DECL);
 		String text         = ctx.token_text(t);
 		attr.name = text.copy(&ctx.ast.arena);
@@ -934,6 +942,7 @@ fn NodeArray? parse_attributes(ParseContext* ctx, Node* parent_node, AttributePa
 				exprs.push(parse_expr(ctx)!);
 				if (!consume(ctx, COMMA)!) break;
 			}
+			attr_node.end_token = ctx.current_pos();
 			expect(ctx, RPAREN)!;
 			attr.exprs = alloc::clone_slice(&ctx.ast.arena, exprs.array_view());
 		}
@@ -942,6 +951,7 @@ fn NodeArray? parse_attributes(ParseContext* ctx, Node* parent_node, AttributePa
 
 		if (flags.use_comma)
 		{
+			attr_node.end_token = ctx.current_pos();
 			consume(ctx, COMMA)!;
 		}
 	}
@@ -960,7 +970,6 @@ fn Node*? parse_expand_decl(ParseContext* ctx)
 	expect(ctx, CT_EXPAND)!;
 	Node* node           = ctx.ast.alloc_node(CT_EXPAND_DECL, start_pos);
 	CtExpandDecl* expand = node.as(CT_EXPAND_DECL);
-	defer node.end_token = ctx.current().pos;
 	expect(ctx, LPAREN)!;
 	expand.expr = parse_constant_expr(ctx)!;
 	expect(ctx, RPAREN)!;
@@ -968,6 +977,7 @@ fn Node*? parse_expand_decl(ParseContext* ctx)
 	{
 		expand.attributes = parse_attributes(ctx, node)!;
 	}
+	node.end_token = ctx.current_pos();
 	expect(ctx, EOS)!;
 	return node;
 }
@@ -990,7 +1000,6 @@ fn Node*? parse_struct_union_decl(ParseContext* ctx, bool is_sub = false) => @po
 	Node* node              = ctx.ast.alloc_node(STRUCT_DECL, start_pos);
 	StructDecl* struct_decl = node.as(STRUCT_DECL);
 	struct_decl.is_union = !is_struct;
-	defer node.end_token = ctx.current().pos;
 
 	do NAME_CHECK:
 	{
@@ -1063,6 +1072,7 @@ fn Node*? parse_struct_union_decl(ParseContext* ctx, bool is_sub = false) => @po
 		}
 	}
 
+	node.end_token = ctx.current_pos();
 	expect(ctx, RBRACE)!;
 
 	struct_decl.fields = alloc::clone_slice(ctx.arena, fields.array_view());
@@ -1078,7 +1088,6 @@ fn Node*? parse_bitstruct_decl(ParseContext* ctx, bool is_nested = false) => @po
 	expect(ctx, BITSTRUCT)!;
 	Node* node              = ctx.ast.alloc_node(STRUCT_DECL, start_pos);
 	StructDecl* struct_decl = node.as(STRUCT_DECL);
-	defer node.end_token = ctx.current().pos;
 
 	if COND: (true)
 	{
@@ -1143,6 +1152,7 @@ fn Node*? parse_bitstruct_decl(ParseContext* ctx, bool is_nested = false) => @po
 		fields.push(field_node);
 	}
 
+	node.end_token = ctx.current_pos();
 	expect(ctx, RBRACE)!;
 	struct_decl.fields = alloc::clone_slice(ctx.arena, fields.array_view());
 	return node;
@@ -1157,7 +1167,6 @@ fn Node*? parse_faultdef_decl(ParseContext* ctx) => @pool()
 	expect(ctx, FAULTDEF)!;
 	Node* node       = ctx.ast.alloc_node(FAULTDEF_DECL, start_pos);
 	FaultdefDecl* fd = node.as(FAULTDEF_DECL);
-	defer node.end_token = ctx.current().pos;
 
 	List{Node*} faults;
 	faults.tinit();
@@ -1184,7 +1193,9 @@ fn Node*? parse_faultdef_decl(ParseContext* ctx) => @pool()
 
 		fault_decl.attributes = parse_attributes(ctx, node)!;
 
+		node.end_token = ctx.current_pos();
 		if (consume(ctx, COMMA)!) continue;
+		node.end_token = ctx.current_pos();
 		expect(ctx, EOS)!;
 		break;
 	}
@@ -1203,7 +1214,6 @@ fn Node*? parse_interface_decl(ParseContext* ctx) => @pool()
 	expect(ctx, INTERFACE)!;
 	Node* node           = ctx.ast.alloc_node(INTERFACE_DECL, start_pos);
 	InterfaceDecl* inter = node.as(INTERFACE_DECL);
-	defer node.end_token = ctx.current().pos;
 
 	if CHECK_NAME: (true)
 	{
@@ -1249,7 +1259,7 @@ fn Node*? parse_interface_decl(ParseContext* ctx) => @pool()
 	}
 
 	inter.methods = alloc::clone_slice(ctx.arena, list.array_view());
-
+	node.end_token = ctx.current_pos();
 	expect(ctx, RBRACE)!;
 
 	return node;
@@ -1264,7 +1274,6 @@ fn Node*? parse_attrdef_decl(ParseContext* ctx) => @pool()
 	expect(ctx, ATTRDEF)!;
 	Node* node       = ctx.ast.alloc_node(ATTRDEF_DECL, start_pos);
 	AttrdefDecl* def = node.as(ATTRDEF_DECL);
-	defer node.end_token = ctx.current().pos;
 
 	if CHECK_NAME: (true)
 	{
@@ -1291,6 +1300,7 @@ fn Node*? parse_attrdef_decl(ParseContext* ctx) => @pool()
 
 	def.attributes = parse_attributes(ctx, node, { .use_comma = true })!;
 
+	node.end_token = ctx.current_pos();
 	expect(ctx, EOS)!;
 
 	return node;
@@ -1309,7 +1319,6 @@ fn Node*? parse_enum_constdef_decl(ParseContext* ctx, ParseFlags flags) => @pool
 	expect(ctx, flags.is_constdef ? CONSTDEF : ENUM)!;
 
 	Node* node = ctx.ast.alloc_node(ENUM_DECL, start_pos);
-	defer node.end_token = ctx.current().pos;
 	EnumDecl* enum_decl = node.as(ENUM_DECL);
 
 	if CHECK_IDENT: (true)
@@ -1412,6 +1421,8 @@ fn Node*? parse_enum_constdef_decl(ParseContext* ctx, ParseFlags flags) => @pool
 		if (!consume(ctx, COMMA)!) break;
 	}
 
+	node.end_token = ctx.current_pos();
+
 	expect(ctx, RBRACE)!;
 
 	enum_decl.variants = alloc::clone_slice(ctx.arena, variants.array_view());
@@ -1439,7 +1450,6 @@ fn Node*? parse_generic_decl(ParseContext* ctx) => @pool()
 
 	int start_pos = ctx.current().pos;
 	Node* node    = ctx.ast.alloc_node(GENERIC_DECL, start_pos);
-	defer node.end_token = ctx.current().pos;
 	GenericDecl* gen = node.as(GENERIC_DECL);
 	List{Node*} params;
 	params.tinit();
@@ -1459,6 +1469,7 @@ fn Node*? parse_generic_decl(ParseContext* ctx) => @pool()
 		params.push(parse_expr(ctx, HIGHEST)!);
 		if (!consume(ctx, COMMA)!) break;
 	}
+	node.end_token = ctx.current_pos();
 	expect(ctx, GREATER)!;
 	gen.params = alloc::clone_slice(ctx.arena, params.array_view());
 	return node;
