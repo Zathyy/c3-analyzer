@@ -4,13 +4,15 @@ import std::collections::map;
 
 import analyzer::core::ast;
 
+alias MethodMap = HashMap{String, HashMap{String, Node*}};
+
 <*
  -`methods`: Maps a type string (e.g., "int", "String") to a sub-map of its methods (Name -> AST Node)
    User defined types will be prefixd with module name
 *>
 struct Registry
 {
-	HashMap{String, HashMap{String, Node*}} methods;
+	MethodMap methods;
 	Allocator allocator;
 }
 
@@ -71,4 +73,34 @@ fn void Registry.remove_method(&self, String type_name, String method_name)
         method_map.free();
         self.methods.remove(type_name);
     }
+}
+
+fn HashMap{String, Node*}*? Registry.get_all_methods(&self, String type_name)
+{
+    HashMap{String, Node*}*? direct_map = self.methods.get_ref(type_name);
+    if (try direct_map)
+    {
+        return direct_map;
+    }
+
+    String suffix = string::tformat("::%s", type_name);
+    
+    HashMap{String, Node*}*? matched_map = null;
+    uint match_count = 0;
+
+	self.methods.@each(; key, sub_map)
+	{
+		if (key.ends_with(suffix))
+        {
+            match_count++;
+            matched_map = self.methods.get_ref(key);
+        }
+	};
+	
+    if (match_count == 1)
+    {
+        return matched_map;
+    }
+    
+    return null;
 }
