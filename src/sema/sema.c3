@@ -9,6 +9,7 @@ struct SemaContext
 {
 	ModuleSection* section;
 	Workspace* ws;
+	Allocator allocator;
 }
 
 <*

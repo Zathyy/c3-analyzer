@@ -19,20 +19,29 @@ fn void reindex_module(SemaContext* ctx)
 
 	plog::debug("SEMA: reindex_module");
 
+	ctx.ws.registry.cleanup_section(ctx.section);
+
 	mod.symbols.clear();
 
 	foreach (section : mod.sections)
 	{
 		if (!section) continue;
 
+		refresh_section_imports(ctx, section);
+
 		foreach (node : section.nodes)
 		{
 			if (!node) continue;
-			if (!should_index(node)) continue;
+		
+			if (!node || !should_index(node)) continue;
+			if (node.kind == FN_DECL)
+			{
+				FnDecl* func = node.as(FN_DECL);
+				if (func.associated_type != null) continue;
+			}
 
 			Cursor c = { section, node };
 			String symbol_name = c.spelling(tmem) ?? "";
-
 
 			plog::debug("symbol_name: %s", symbol_name);
 			
@@ -56,20 +65,60 @@ fn void reindex_module(SemaContext* ctx)
 		}
 	}
 
-	refresh_section_imports(ctx);
+	foreach (section : mod.sections)
+	{
+		if (!section) continue;
+
+		foreach (node : section.nodes)
+		{
+			if (!node || node.kind != FN_DECL) continue;
+			
+			FnDecl* func = node.as(FN_DECL);
+			Node* type = func.associated_type;
+			if (!type) continue;
+
+			Cursor mc = { section, node };
+			String? method_name = mc.spelling(tmem);
+			if (catch method_name) continue;
+
+			String target_type = expr::resolve_type_expr_spelling(ctx, type);
+			if (target_type.len == 0) continue;
+
+			plog::debug("Bound namespaced method: %s.%s", target_type, method_name);
+
+			ctx.ws.registry.register_method(target_type, method_name, node);
+
+			section.declared_methods.push({
+				.type_name = target_type.copy(section.allocator),
+				.method_name = method_name.copy(section.allocator)
+			});
+		}
+	}
 }
 
-fn void refresh_section_imports(SemaContext* ctx)
+<*
+ @param [&in] ctx
+ @param [&in] section
+*>
+fn void refresh_section_imports(SemaContext* ctx, ModuleSection* section)
 {
-	ctx.section.resolved_imports.clear();
+	section.resolved_imports.clear();
 
-	foreach (node : ctx.section.nodes)
+	foreach (node : section.nodes)
 	{
 		if (node.kind == IMPORT_DECL)
 		{
-			ImportDecl* imp = node.as(IMPORT_DECL);
-			
+			Cursor cursor = { section, node };
+			String? path = cursor.spelling(tmem);
+			if (catch path)
+			{
+				ctx.warn(node, "Failed to get import path");
+				continue;
+			}
+			section.resolved_imports.push(path.copy(ctx.allocator));
 		}
+
+		//TODO: resolve alias module
 	}
 }
 
