@@ -402,7 +402,9 @@ fn Node*? parse_fn_decl(ParseContext* ctx, ParseFlags flags = { })
 			break IS_TYPE;
 		}
 
-		func.associated_type.set(parse_type_expr(ctx)!);
+		plog::error("parse_fn - set associated: %s", ctx.token_text(ctx.current()));
+
+		func.associated_type = parse_type_expr(ctx)!;
 
 		expect(ctx, DOT)!;
 

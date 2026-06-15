@@ -9,6 +9,8 @@ module analyzer::cursor;
 import analyzer::workspace;
 import analyzer::core;
 
+import std::collections::list;
+
 import std::io;
 
 faultdef
@@ -299,3 +301,4 @@ fn Node* find_innermost_node(Node* node, int offset, SourceFile* sf)
 
 	return node;
 }
+
