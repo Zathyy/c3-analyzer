@@ -6,7 +6,7 @@ import std::core::log;
 
 macro void log(LogPriority priority, String fmt, ...)
 {
-	$if !$feature(PARSER_LIB):
+	$if !$feature(ANALYZER_LIB):
 		std::core::log::call_log(priority, std::core::log::default_category, fmt, ...$vaarg);
 	$endif
 }
