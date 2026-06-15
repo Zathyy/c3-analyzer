@@ -16,11 +16,13 @@ struct SourceFile
 
 struct ModuleSection
 {
+	List{String} resolved_imports;
+	List{Method} declared_methods;
+	List{Diagnostic} diagnostics;
+	NodeArray nodes;
 	SourceFile* source_file;
 	Module* parent_module;
-	NodeArray nodes;
-	List{Diagnostic} diagnostics;
-	HashMap{String, String} resolved_imports;
+	Allocator allocator;
 	sz id;
 }
 
@@ -34,3 +36,28 @@ struct Module
 
 alias PathString = String;
 
+struct Method
+{
+	String type_name;
+	String method_name;
+}
+
+fn void ModuleSection.free(&self)
+{
+	self.resolved_imports.free();
+
+	foreach (method : self.declared_methods)
+    {
+        method.type_name.free(self.allocator);
+        method.method_name.free(self.allocator);
+    }
+
+    self.declared_methods.free();
+
+	foreach (diag : self.diagnostics)
+	{
+		alloc::free(self.allocator, diag.message);
+	}
+
+	self.diagnostics.free();
+}

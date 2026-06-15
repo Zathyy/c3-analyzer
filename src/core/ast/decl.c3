@@ -95,7 +95,7 @@ struct TypedefDecl
 struct FnDecl
 {
 	StringID name;
-	Option{Node} associated_type;
+	Node* associated_type;
 	Node* ret_type;
 	Node* body;
 	Option{Node} contract;
