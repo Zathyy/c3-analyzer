@@ -68,7 +68,7 @@ fn void function_with_params()
 fn void method_with_params()
 {
 	String source_code = `
-		module hello; 
+		module hello;
 		fn void Foo.greet(&self, Bar baz) {}
 		fn void Foo.greet_2(self, Bar baz) {}
 	`;
@@ -82,7 +82,9 @@ fn void method_with_params()
 	Module* mod      = ws.modules.get("hello")!!;
 	ModuleSection* s = mod.sections[0];
 
-	Node* node   = ws.lookup("hello", "greet")!!;
+	Node* node   = ws.registry.find_method("hello::Foo", "greet");
+	test::ne(node, null);
+
 	FnDecl* func = node.as(FN_DECL);
 
 	test::eq(parser_tests::count_kind(s, MODULE_DECL), 1);
