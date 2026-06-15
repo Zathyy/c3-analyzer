@@ -134,7 +134,6 @@ fn ProcessResult? process_batch(Workspace* self, Allocator allocator, FileInput[
 	}
 
 	if (!self.options.use_sema) return result;
-	io::printfn("RUNNING SEMA");
 	affected_modules.@each(; mod_name, mod)
 	{
 		foreach (section : mod.sections)
