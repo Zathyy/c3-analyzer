@@ -144,7 +144,8 @@ fn ProcessResult? process_batch(Workspace* self, Allocator allocator, FileInput[
 
 			SemaContext sema_ctx = {
 				.section = section,
-				.ws = self
+				.ws = self,
+				.allocator = self.allocator
 			};
 
 			sema::run_symbols_pass(&sema_ctx);
@@ -181,8 +182,8 @@ fn SourceFile* Workspace.reset_source_file(&self, PathString path)
 	
 		foreach (section : existing.sections)
 		{
-			section.diagnostics.free();
-			section.resolved_imports.free();
+			self.registry.cleanup_section(section);
+			section.free();
 			alloc::free(self.allocator, section);
 		}
 
@@ -232,9 +233,11 @@ fn ModuleSection* Workspace.get_or_create_section(&self, Module* mod, SourceFile
 
 	ModuleSection* next_section = alloc::new(self.allocator, ModuleSection);
 	next_section.id = next_section_id++;
+	next_section.allocator = self.allocator;
 	next_section.source_file = sf;
 	next_section.parent_module = mod;
 	next_section.diagnostics.init(self.allocator);
+	next_section.declared_methods.init(self.allocator);
 	next_section.resolved_imports.init(self.allocator);
 	mod.sections.push(next_section);
 	sf.sections.push(next_section);
@@ -287,12 +290,13 @@ fn Node*? Workspace.lookup(&self, String module_name, String symbol_name)  @inli
 	return self.lookup_in_module(module_name, symbol_name)!;
 }
 
-fn Node*? Workspace.lookup_in_module(&self, String module_name, String symbol_name) => @pool()
+fn Node*? Workspace.lookup_in_module(&self, String module_name, String symbol_name)
 {
 	Module* mod = self.modules.get(module_name)!;
     if (!mod) return MODULE_NOT_FOUND~;
 
-	Node* cached_node = mod.symbols.get(symbol_name) ?? null;
+	Node*? cached_node = mod.symbols.get(symbol_name);
+	if (catch cached_node) return SYMBOL_NOT_FOUND~;
 	if (cached_node != null) return cached_node;
 	return SYMBOL_NOT_FOUND~;
 }
@@ -301,7 +305,7 @@ fn Node*? Workspace.lookup_in_module(&self, String module_name, String symbol_na
  Global search across all tracked modules to find a type or symbol by its raw spelling.
  Returns the matching Node* or a fault if not found.
 *>
-fn Node*? Workspace.find_symbol_by_name(&self, String symbol_name) => @pool()
+fn Node*? Workspace.find_symbol_by_name(&self, String symbol_name)
 {
 	foreach (mod : self.modules.value_iter())
 	{
@@ -309,4 +313,26 @@ fn Node*? Workspace.find_symbol_by_name(&self, String symbol_name) => @pool()
 		if (cached_node != null) return cached_node;
 	}
 	return SYMBOL_NOT_FOUND~;
+}
+
+<*
+ @param [&in] section
+*>
+fn List{String} Workspace.lookup_symbol_in_section(&self, ModuleSection* section, String symbol_name)
+{
+	List{String} matching_modules; matching_modules.tinit();
+
+	if (!section) return matching_modules;
+
+	foreach (target_module : section.resolved_imports)
+	{
+		Node* found = self.lookup(target_module, symbol_name) ?? null;
+
+		if (found != null)
+		{
+			matching_modules.push(target_module);
+		}
+	}
+
+	return matching_modules;
 }

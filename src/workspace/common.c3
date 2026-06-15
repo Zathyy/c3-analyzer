@@ -6,6 +6,8 @@ import std::collections::list;
 import std::collections::pair;
 import std::io;
 
+import analyzer::sema::registry @norecurse;
+
 faultdef
 	INVALID_URI,
 	NODE_NOT_FOUND, 
@@ -38,6 +40,7 @@ fn void ProcessResult.free(&self)
 
 struct Workspace
 {
+	Registry registry;
 	HashMap{PathString, SourceFile*} source_files;
 	HashMap{String, Module*} modules;
 	AstPool ast_pool;
@@ -48,6 +51,7 @@ struct Workspace
 fn void Workspace.init(&self, Allocator allocator = mem, WorkspaceOptions options = {})
 {
 	self.allocator = allocator;
+	self.registry.init(allocator);
 	self.modules.init(allocator, 16);
 	self.source_files.init(allocator, 16);
 	self.ast_pool.init(allocator);
@@ -62,13 +66,8 @@ fn void Workspace.free(&self)
 		sf.line_map.free();
 		foreach (section : sf.sections)
 		{
-			foreach (diag : section.diagnostics)
-			{
-				alloc::free(self.allocator, diag.message);
-			}
-
-			section.diagnostics.free();
-			section.resolved_imports.free();
+			self.registry.cleanup_section(section);
+			section.free();
 			alloc::free(self.allocator, section);
 		}
 		sf.sections.free();
@@ -85,6 +84,7 @@ fn void Workspace.free(&self)
 		alloc::free(self.allocator, mod);
 	};
 
+	self.registry.free();
 	self.modules.free();
 	self.ast_pool.free();
 }
