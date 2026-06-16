@@ -206,6 +206,24 @@ fn bool Cursor.is_access_node(&self)
 	return self.node.kind == ACCESS_EXPR || self.node.kind == IDENT_EXPR;
 }
 
+macro Node* find_innermost_from_nodes(SourceFile* sf, int offset, ...) @local 
+{
+	Node* result;
+	$for int $i = 0; $i < $vaarg.len; $i++:
+		$if $Typeof($vaarg[$i]) == NodeArray:
+			foreach (node : $vaarg[$i])
+			{
+				result = find_innermost_node(node, offset, sf);
+				if (result) return result;
+			}
+		$else
+			result = find_innermost_node($vaarg[$i], offset, sf);
+			if (result) return result;
+		$endif
+	$endfor
+	return null;
+}
+
 fn Node* find_innermost_node(Node* node, int offset, SourceFile* sf)
 {
 	if (node == null) return null;
@@ -219,7 +237,8 @@ fn Node* find_innermost_node(Node* node, int offset, SourceFile* sf)
 	{
 		case FN_DECL:
 		{
-			return find_innermost_node(node.as(FN_DECL).body, offset, sf);
+			FnDecl* fndecl = node.as(FN_DECL);
+			return find_innermost_from_nodes(sf, offset, fndecl.associated_type, fndecl.ret_type, fndecl.params, fndecl.attributes, fndecl.body) ?: node;
 		}
 		case COMPOUND_STMT:
 		{
@@ -236,22 +255,13 @@ fn Node* find_innermost_node(Node* node, int offset, SourceFile* sf)
 			
 			return node;
 		}
+		case VAR_DECL:
+			VarDecl* vardecl = node.as(VAR_DECL);
+			return find_innermost_from_nodes(sf, offset, vardecl.type, vardecl.init_expr, vardecl.bit_end, vardecl.attributes, vardecl.assoc_values, vardecl.next) ?: node;
 		case IF_STMT:
 		{
 			IfStmt* if_stmt = node.as(IF_STMT);
-
-			Node* cond_inner = find_innermost_node(if_stmt.condition, offset, sf);
-			if (cond_inner) return cond_inner;
-
-			Node* then_inner = find_innermost_node(if_stmt.then_body, offset, sf);
-			if (then_inner) return then_inner;
-
-			if (if_stmt.else_body != null)
-			{
-				Node* else_inner = find_innermost_node(if_stmt.else_body, offset, sf);
-				if (else_inner) return else_inner;
-			}
-			return node;
+			return find_innermost_from_nodes(sf, offset, if_stmt.condition, if_stmt.then_body, if_stmt.else_body) ?: node;
 		}
 		case RETURN_STMT:
 		{
@@ -271,11 +281,7 @@ fn Node* find_innermost_node(Node* node, int offset, SourceFile* sf)
 		case BINARY_EXPR:
 		{
 			BinaryExpr* bin = node.as(BINARY_EXPR);
-			Node* left_inner = find_innermost_node(bin.left, offset, sf);
-			if (left_inner) return left_inner;
-			Node* right_inner = find_innermost_node(bin.right, offset, sf);
-			if (right_inner) return right_inner;
-			return node;
+			return find_innermost_from_nodes(sf, offset, bin.left, bin.right) ?: node;
 		}
 		case ACCESS_EXPR:
 		{
