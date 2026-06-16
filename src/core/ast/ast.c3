@@ -4,10 +4,12 @@ import analyzer::core::plog;
 import analyzer::core::string_pool;
 
 import std::collections::list;
+import std::collections::nullable;
 
 const sz ARENA_PAGE_SIZE = 4096;
 
 alias NodeArray = Node*[];
+alias NullableNode = Nullable{Node};
 
 bitstruct NodeFlags : ushort
 {

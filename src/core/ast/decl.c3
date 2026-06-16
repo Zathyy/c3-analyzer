@@ -35,7 +35,7 @@ fn String? ContractDecl.get_comment(&self, StringPool* pool) => pool.get(self.co
 struct ModuleDecl
 {
 	Node* path;
-	Option{Node} contract;
+	NullableNode contract;
 	NodeArray attributes;
 	Node* generics;
 }
@@ -98,7 +98,7 @@ struct FnDecl
 	Node* associated_type;
 	Node* ret_type;
 	Node* body;
-	Option{Node} contract;
+	NullableNode contract;
 	NodeArray params;
 	NodeArray attributes;
 }
@@ -106,10 +106,10 @@ struct FnDecl
 struct MacroDecl
 {
 	StringID name;
-	Option{Node} associated_type;
-	Option{Node} ret_type;
+	NullableNode associated_type;
+	NullableNode ret_type;
 	Node* body;
-	Option{Node} contract;
+	NullableNode contract;
 	Node* body_params;
 	NodeArray params;
 	NodeArray attributes;
@@ -127,7 +127,7 @@ struct VarDecl
 	VarDeclKind kind;
 	VarDeclFlags flags;
 	StringID name;
-	Option{Node} contract;
+	NullableNode contract;
 	Node* type;
 	Node* init_expr;
 	Node* bit_end;
@@ -149,7 +149,7 @@ struct EnumDecl
 
 struct AttributeDecl
 {
-	Option{Node} path;
+	NullableNode path;
 	String name;
 	NodeArray exprs;
 	AttributeKind kind;
@@ -168,7 +168,7 @@ struct CtExpandDecl
 *>
 struct StructDecl
 {
-	Option{Node} contract;
+	NullableNode contract;
 	NodeArray interfaces;
 	NodeArray attributes;
 	NodeArray fields;
@@ -182,14 +182,14 @@ struct StructDecl
 
 struct FaultDecl
 {
-	Option{Node} contract;
+	NullableNode contract;
 	NodeArray attributes;
 	StringID name;
 }
 
 struct FaultdefDecl
 {
-	Option{Node} contract;
+	NullableNode contract;
 	NodeArray faults;
 }
 
@@ -198,7 +198,7 @@ struct FaultdefDecl
 *>
 struct InterfaceDecl
 {
-	Option{Node} contract;
+	NullableNode contract;
 	NodeArray interfaces;
 	NodeArray attributes;
 	NodeArray methods;

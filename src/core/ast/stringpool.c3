@@ -18,9 +18,7 @@ struct StringPool
 }
 typedef StringID = sz;
 
-const StringID EMPTY_STR = (StringID) -1;
-
-alias OptStringID = OptionLit{StringID, EMPTY_STR};
+const StringID EMPTY_STR = (StringID)-1;
 
 fn void StringPool.init(&self, Allocator allocator, int capacity)
 {

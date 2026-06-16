@@ -88,9 +88,9 @@ struct ExprStmt
 *>
 struct ForStmt
 {
-	Option{Node} init;
-	Option{Node} cond;
-	Option{Node} incr;
+	NullableNode init;
+	NullableNode cond;
+	NullableNode incr;
 	Node* body;
 	StringID label;
 }
@@ -106,7 +106,7 @@ struct DoWhileStmt
 {
 	StringID label;
 	Node* body;
-	Option{Node} cond;
+	NullableNode cond;
 }
 
 struct ForeachStmt
@@ -124,7 +124,7 @@ struct ForeachStmt
 struct CtAssertStmt
 {
 	Node* expr;
-	Option{Node} msg_expr;
+	NullableNode msg_expr;
 }
 
 struct CtErrorStmt
