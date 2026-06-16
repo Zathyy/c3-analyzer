@@ -681,11 +681,12 @@ fn Node*? parse_call_expr(ParseContext* ctx, Node* callee)
 
 	node.end_token = ctx.current_pos();
 	expect(ctx, RPAREN)!;
-
+	
 	if (ctx.is(AT_IDENT))
 	{
 		Token t = ctx.current();
 		call.attributes = parse_attributes(ctx, node)!;
+		node.end_token = t.pos;
 
 		foreach (attr : call.attributes)
 		{
@@ -715,10 +716,9 @@ fn Node*? parse_call_expr(ParseContext* ctx, Node* callee)
 		MacroBodyExpr* body_expr = body_node.as(MACRO_BODY_EXPR);
 		body_expr.args = body_args;
 		body_expr.body = body;
-		body_node.end_token = ctx.current().pos;
 		call.macro_body_expr = body_node;
 	}
-
+	
 	return node;
 }
 
@@ -737,7 +737,6 @@ fn Node*? parse_catch_expr(ParseContext* ctx) => @pool()
 	Node* node = ctx.ast.alloc_node(CATCH_EXPR, ctx.current().pos);
 	defer node.end_token = ctx.current().pos;
 	CatchExpr* catch_expr = node.as(CATCH_EXPR);
-
 	Node* sub_expr = parse_try_chain_expr(ctx)!;
 	if (sub_expr.kind == ERROR)
 	{
