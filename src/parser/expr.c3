@@ -215,6 +215,8 @@ fn Node*? parse_ident_expr(ParseContext* ctx)
 	int start = ctx.current().pos;
 	Node* path_prefix;
 
+	plog::debug("parse_ident: %s", ctx.current_text());
+
 	if (ctx.peek(1)!.kind == SCOPE)
 	{
 		path_prefix = parse_path_expr(ctx, { .as_prefix = true })!;
@@ -229,7 +231,6 @@ fn Node*? parse_ident_expr(ParseContext* ctx)
 		case AT_IDENT:
 		case CT_IDENT:
 		case HASH_IDENT:
-
 			{
 				Node* node       = ctx.ast.alloc_node(IDENT_EXPR, start, ctx.current().pos);
 				IdentExpr* ident = node.as(IDENT_EXPR);
@@ -254,7 +255,7 @@ fn Node*? parse_literal_expr(ParseContext* ctx) => @pool()
 	LiteralExpr* literal = node.as(LITERAL_EXPR);
 	String token_text    = ctx.token_text(token);
 
-	plog::debug("literal_expr: %s", token.kind);
+	plog::debug("literal_expr: %s", token.kind.description);
 
 	switch (token.kind)
 	{
@@ -555,6 +556,7 @@ fn Node*? parse_binary_expr(ParseContext* ctx, Node* left, Precedence prec)
 *>
 fn Node*? parse_unary_expr(ParseContext* ctx)
 {
+	plog::debug("parse_unary_expr");
 	int start_pos = ctx.current().pos;
 	if (ctx.is(MINUS))
 	{
@@ -665,7 +667,7 @@ fn Node*? parse_call_expr(ParseContext* ctx, Node* callee)
 	CallExpr* call = node.as(CALL_EXPR);
 	call.callee = callee;
 
-	plog::debug("call_expr");
+	plog::debug("call_expr: %s", ctx.current_text());
 
 	if (!ctx.is(RPAREN) && !ctx.eof())
 	{
@@ -1274,7 +1276,7 @@ fn Node*? parse_access_expr(ParseContext* ctx, Node* left)
 	advance(ctx)!;
 	Token member_token = ctx.current();
 
-	log::debug("parse_access_expr");
+	plog::debug("parse_access_expr");
 
 	if (member_token.kind == LBRACKET)
 	{
