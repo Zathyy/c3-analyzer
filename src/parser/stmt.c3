@@ -8,6 +8,8 @@ fn Node*? parse_stmt(ParseContext* ctx)
 {
 	Token t = ctx.current();
 
+	plog::info("parse_stmt: current = %s (%s)", ctx.token_text(t), t.kind.description);
+
 	if (is_type(ctx) || t.kind == TLOCAL || t.kind == STATIC)
 	{
 		return parse_decl_stmt(ctx)!;
@@ -696,10 +698,7 @@ fn Node*? parse_for_stmt(ParseContext* ctx)
 fn Node*? parse_while_stmt(ParseContext* ctx)
 {
 	int start_pos = ctx.current().pos;
-	@expect_else(ctx, WHILE ; err)
-	{
-		return err;
-	}!;
+	expect(ctx, WHILE);
 
 	Node* node            = ctx.ast.alloc_node(WHILE_STMT, start_pos);
 	WhileStmt* while_stmt = node.as(WHILE_STMT);
@@ -709,25 +708,15 @@ fn Node*? parse_while_stmt(ParseContext* ctx)
 	{
 		while_stmt.label = ctx.ast.string_pool.internalize(ctx.current_text());
 		advance(ctx)!;
-		@expect_else(ctx, COLON ; err)
-		{
-			ctx.skip_until({ EOS, EOF })!;
-			return err;
-		}!;
+		expect(ctx, COLON)!;
 	}
 	else
 	{
 		while_stmt.label = string_pool::EMPTY_STR;
 	}
-	@expect_else(ctx, LPAREN ; err)
-	{
-		return err;
-	}!;
+	expect(ctx, LPAREN)!;
 	while_stmt.cond = parse_cond_expr(ctx)!;
-	@expect_else(ctx, RPAREN ; err)
-	{
-		return err;
-	}!;
+	expect(ctx, RPAREN)!;
 
 	Location prev_loc = ctx.line_map.resolve((sz)ctx.current().pos);
 	while_stmt.body = parse_stmt(ctx)!;

@@ -179,10 +179,14 @@ fn NodeArray? parse_arg_list(ParseContext* ctx) => @pool()
 	List{Node*} args;
 	args.tinit();
 
-	while (true)
+	while (!ctx.eof() && !ctx.is(RPAREN))
 	{
+		int pos_before = ctx.pos;
 		Node* expr    = null;
 		int start_pos = ctx.current().pos;
+		if (ctx.is(RPAREN)) break;
+
+		plog::error("parse arg - %s", ctx.current_text());
 
 		if (ctx.is(ELLIPSIS) && ctx.can_peek(1) && ctx.peek(1)!.kind == CT_VAARG)
 		{
@@ -216,7 +220,15 @@ fn NodeArray? parse_arg_list(ParseContext* ctx) => @pool()
 			}
 		}
 
+		plog::error("parse arg AFTER - %s", ctx.current_text());
+
 		args.push(expr);
+
+		if (ctx.pos == pos_before)
+        {
+            plog::error("Parser loop stalled in argument list at token: %s", ctx.current().kind);
+            advance(ctx)!; 
+        }
 
 		if (!consume(ctx, COMMA)!) break;
 		if (ctx.is(RPAREN)) break;
