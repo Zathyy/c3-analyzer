@@ -76,7 +76,7 @@ fn String? Cursor.spelling(&self, Allocator allocator) => @pool()
 <*
  Checks if cursor has a specific attribute
 *>
-fn bool Cursor.has_attribute(&self, AttributeKind kind)
+fn bool Cursor.has_attribute(&self, AttributeKind kind, Node** out_attribute)
 {
 	NodeArray temp;
 	switch (self.node.kind)
@@ -102,6 +102,11 @@ fn bool Cursor.has_attribute(&self, AttributeKind kind)
 		AttributeDecl* attr_decl = attr.as(ATTRIBUTE_DECL);
 		if (attr_decl.kind == kind)
 		{
+			if (out_attribute)
+			{
+				*out_attribute = attr;
+			}
+
 			return true;
 		}
 	}

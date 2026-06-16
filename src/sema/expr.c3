@@ -1,4 +1,4 @@
-module analyzer::sema::expr;
+module analyzer::sema::expr @if($feature(SEMA));
 
 import analyzer::core;
 import analyzer::cursor;

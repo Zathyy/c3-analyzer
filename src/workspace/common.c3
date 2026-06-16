@@ -7,6 +7,7 @@ import std::collections::pair;
 import std::io;
 
 import analyzer::sema::registry @norecurse;
+import analyzer::sema @norecurse;
 
 faultdef
 	INVALID_URI,
@@ -40,7 +41,7 @@ fn void ProcessResult.free(&self)
 
 struct Workspace
 {
-	Registry registry;
+	Registry registry @if($feature(SEMA));
 	HashMap{PathString, SourceFile*} source_files;
 	HashMap{String, Module*} modules;
 	AstPool ast_pool;
@@ -66,7 +67,7 @@ fn void Workspace.free(&self)
 		sf.line_map.free();
 		foreach (section : sf.sections)
 		{ 
-			self.registry.cleanup_section(section);
+			self.registry.cleanup_section(section.id);
 			section.free();
 			alloc::free(self.allocator, section);
 		}

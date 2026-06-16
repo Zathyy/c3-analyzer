@@ -4,6 +4,14 @@ import std::collections::list;
 import std::collections::maybe;
 import std::collections::map;
 
+import analyzer::sema;
+
+alias ModuleSection @if(!$feature(SEMA)) = ModSection;
+alias ModuleSection @if($feature(SEMA)) = SemaModSection;
+
+alias Module @if(!$feature(SEMA)) = Mod;
+alias Module @if($feature(SEMA)) = SemaMod;
+
 struct SourceFile
 {
 	String file_path;
@@ -14,10 +22,8 @@ struct SourceFile
 	sz id;
 }
 
-struct ModuleSection
+struct ModSection
 {
-	List{String} resolved_imports;
-	List{Method} declared_methods;
 	List{Diagnostic} diagnostics;
 	NodeArray nodes;
 	SourceFile* source_file;
@@ -26,39 +32,17 @@ struct ModuleSection
 	sz id;
 }
 
-struct Module
+struct Mod
 {
 	String name;
 	List{ModuleSection*} sections;
-	HashMap{String, Node*} symbols;
 	sz id;
 }
 
 alias PathString = String;
 
-struct Method
-{
-	String type_name;
-	String method_name;
-}
-
 fn void ModuleSection.free(&self)
 {
-	foreach (path : self.resolved_imports)
-	{
-		path.free(self.allocator);
-	}
-
-	self.resolved_imports.free();
-
-	foreach (method : self.declared_methods)
-    {
-        method.type_name.free(self.allocator);
-        method.method_name.free(self.allocator);
-    }
-
-    self.declared_methods.free();
-
 	foreach (diag : self.diagnostics)
 	{
 		alloc::free(self.allocator, diag.message);

@@ -1,10 +1,38 @@
-module analyzer::sema::registry;
+module analyzer::sema::registry @if($feature(SEMA));
 
 import std::collections::map;
+import std::collections::list;
 
 import analyzer::core::ast;
 
-alias MethodMap = HashMap{String, HashMap{String, Node*}};
+struct MethodKey 
+{
+    String type_name;
+    String method_name;
+}
+
+fn uint MethodKey.hash(&self)
+{
+	uint seed;
+	seed ^= (uint)self.type_name.hash();
+	seed ^= (uint)self.method_name.hash();
+	return seed;
+}
+
+fn bool MethodKey.eq(self, MethodKey other) @operator(==)
+{
+	return self.type_name == other.type_name
+		&& self.method_name == other.method_name;
+}
+
+fn void MethodKey.free(&self, Allocator allocator)
+{
+	self.type_name.free(allocator);
+	self.method_name.free(allocator);
+}
+
+// Type -> MethodName -> List of potential candidates
+alias MethodMap = HashMap{MethodKey, List{SymbolEntry}};
 
 <*
  -`methods`: Maps a type string (e.g., "int", "String") to a sub-map of its methods (Name -> AST Node)
@@ -12,96 +40,91 @@ alias MethodMap = HashMap{String, HashMap{String, Node*}};
 *>
 struct Registry
 {
-	MethodMap methods;
+	MethodMap methods;	
 	Allocator allocator;
 }
 
 fn void Registry.init(&self, Allocator allocator)
 {
 	self.allocator = allocator;
-	self.methods.init(allocator, 8);
+	self.methods.init(allocator);
 }
 
 fn void Registry.free(&self)
 {
-	self.methods.@each(; String type_name, HashMap{String, Node*} methods)
+	self.methods.@each(; MethodKey key, List{SymbolEntry} list) 
 	{
-		methods.free();
-	};
+		key.free(self.allocator);
+        list.free(); 
+    };
 	self.methods.free();
 }
 
-fn void Registry.cleanup_section(&self, ModuleSection* section)
+fn void Registry.cleanup_section(&self, sz section_id)
 {
-    foreach (method : section.declared_methods)
-    {
-        self.remove_method(method.type_name, method.method_name);
-		method.type_name.free(section.allocator);
-		method.method_name.free(section.allocator);
-    }
-    
-    section.declared_methods.clear();
+	self.methods.@each(; MethodKey key, List{SymbolEntry} list)
+	{
+		for (sz i = list.len() - 1; i >= 0; i--)
+		{
+			if (list[i].section_id == section_id)
+			{
+				list.remove_at(i);
+			}
+		}
+
+		if (list.len() == 0)
+		{
+			list.free();
+			self.methods.remove(key);
+		}
+	};
 }
 
-fn void Registry.register_method(&self, String type_name, String method_name, Node* node)
-{
-	if (!self.methods.has_key(type_name))
+fn void Registry.register_method(&self, String type_name, String method_name, Node* node, Node* condition)
+{	
+	MethodKey key = { .type_name = type_name, .method_name = method_name };
+
+	List{SymbolEntry}* list = self.methods.get_ref(key) ?? null;
+
+	if (!list)
 	{
-		HashMap{String, Node*} sub_map;
-		sub_map.init(self.allocator, 4);
-		self.methods[type_name] = sub_map;
+		List{SymbolEntry} sub_list;
+		sub_list.init(self.allocator, 4);
+		key.type_name.copy(self.allocator);
+		key.method_name.copy(self.allocator);
+		self.methods[key] = sub_list;
+		list = self.methods.get_ref(key)!!;
 	}
 
-	self.methods[type_name][method_name] = node;
+	list.push({ .node = node, .condition = condition });
 }
 
-fn Node* Registry.find_method(&self, String type_name, String method_name)
+fn List{SymbolEntry}*? Registry.get_candidates(&self, String type_name, String method_name)
 {
-	HashMap{String, Node*}*? sub_map = self.methods.get_ref(type_name);
-	if (catch sub_map) return null;
-	return sub_map.get(method_name) ?? null;
+	MethodKey key = { .type_name = type_name, .method_name = method_name };
+	return self.methods.get_ref(key);
 }
 
 fn void Registry.remove_method(&self, String type_name, String method_name)
 {    
-    HashMap{String, Node*}*? method_map = self.methods.get_ref(type_name);
-	if (catch method_map) return;
-    method_map.remove(method_name);
-    
-    if (method_map.len() == 0)
-    {
-		HashMap{String, Node*} inner_map = *method_map;
-        self.methods.remove(type_name);
-        inner_map.free();
-    }
+	MethodKey key = { .type_name = type_name, .method_name = method_name };
+	List{SymbolEntry}* list = self.methods.get_ref(key) ?? null;
+
+	if (list) 
+	{
+		list.free();
+		self.methods.remove(key);
+	}
 }
 
-fn HashMap{String, Node*}*? Registry.get_all_methods(&self, String type_name)
+fn List{SymbolEntry}*? Registry.get_all_methods(&self, String type_name)
 {
-    HashMap{String, Node*}*? direct_map = self.methods.get_ref(type_name);
-    if (try direct_map)
-    {
-        return direct_map;
-    }
-
-    String suffix = string::tformat("::%s", type_name);
-    
-    HashMap{String, Node*}*? matched_map = null;
-    uint match_count = 0;
-
-	self.methods.@each(; key, sub_map)
+	self.methods.@each(; MethodKey key, List{SymbolEntry} list)
 	{
-		if (key.ends_with(suffix))
-        {
-            match_count++;
-            matched_map = self.methods.get_ref(key);
-        }
+		if (key.type_name == type_name) 
+		{
+			return self.methods.get_ref(key)!;
+		}
 	};
-	
-    if (match_count == 1)
-    {
-        return matched_map;
-    }
-    
-    return null;
+	return null;
 }

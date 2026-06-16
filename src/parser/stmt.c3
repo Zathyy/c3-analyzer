@@ -1,7 +1,6 @@
 module analyzer::parser;
 
 import analyzer::core;
-
 import std::collections::list;
 
 fn Node*? parse_stmt(ParseContext* ctx)

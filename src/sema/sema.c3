@@ -1,58 +1,28 @@
-module analyzer::sema;
+module analyzer::sema @if($feature(SEMA));
 
 import analyzer::core;
 
 import analyzer::workspace @norecurse;
 import analyzer::core::diagnostics;
 
-struct SemaContext 
+import std::collections::map;
+import std::collections::list;
+
+struct SemaContext
 {
 	ModuleSection* section;
 	Workspace* ws;
 	Allocator allocator;
 }
 
-<*
- @param [&in] node
-*>
-fn void SemaContext.error(&self, Node* node, String fmt, args...)
+struct SemaMod
 {
-	diagnostics::diagnose(
-		self.ws.allocator,
-		self.section,
-		node.offset.start,
-		node.offset.end,
-		ERROR,
-		fmt,
-		...args);
+	inline Mod mod;
+	HashMap{String, List{SymbolEntry}} symbols;
 }
 
-<*
- @param [&in] node
-*>
-fn void SemaContext.warn(&self, Node* node, String fmt, args...)
+struct SemaModSection
 {
-	diagnostics::diagnose(
-		self.ws.allocator,
-		self.section,
-		node.offset.start,
-		node.offset.end,
-		WARN,
-		fmt,
-		...args);
-}
-
-<*
- @param [&in] node
-*>
-fn void SemaContext.info(&self, Node* node, String fmt, args...)
-{
-	diagnostics::diagnose(
-		self.ws.allocator,
-		self.section,
-		node.offset.start,
-		node.offset.end,
-		INFO,
-		fmt,
-		...args);
+	inline ModSection section;
+	List{String} resolved_imports;
 }

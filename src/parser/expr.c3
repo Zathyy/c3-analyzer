@@ -674,7 +674,7 @@ fn Node*? parse_call_expr(ParseContext* ctx, Node* callee)
 		plog::debug("call_expr - args");
 		call.args = parse_arg_list(ctx)!;
 	}
-
+	
 	NodeArray body_args;
 	if (consume(ctx, EOS)!)
 	{

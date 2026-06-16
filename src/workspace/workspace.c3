@@ -179,7 +179,7 @@ fn SourceFile* Workspace.reset_source_file(&self, PathString path)
 	
 		foreach (section : existing.sections)
 		{
-			self.registry.cleanup_section(section);
+			self.registry.cleanup_section(section.id);
 			section.free();
 			alloc::free(self.allocator, section);
 		}
@@ -234,7 +234,6 @@ fn ModuleSection* Workspace.get_or_create_section(&self, Module* mod, SourceFile
 	next_section.source_file = sf;
 	next_section.parent_module = mod;
 	next_section.diagnostics.init(self.allocator);
-	next_section.declared_methods.init(self.allocator);
 	next_section.resolved_imports.init(self.allocator);
 	mod.sections.push(next_section);
 	sf.sections.push(next_section);
@@ -263,7 +262,7 @@ fn List{ModuleSection*} Workspace.find_section_by_path(&self, String file_path)
 	return sections;
 }
 
-fn Cursor Workspace.find_top_level_statement_at_location(&self, String file_path, Location loc)
+fn Cursor Workspace.find_top_level_statement_at_location(&self, String file_path, Location loc) @if($feature(SEMA))
 {
     List{ModuleSection*} secs = self.find_section_by_path(file_path);
     if (secs.len() == 0) return {};
@@ -286,7 +285,7 @@ fn Cursor Workspace.find_top_level_statement_at_location(&self, String file_path
     return {};
 }
 
-fn Cursor Workspace.find_leaf_at_location(&self, String file_path, Location loc)
+fn Cursor Workspace.find_leaf_at_location(&self, String file_path, Location loc) @if($feature(SEMA))
 {
 	List{ModuleSection*} secs = self.find_section_by_path(file_path);
 	if (secs.len() == 0) return { };
@@ -305,54 +304,54 @@ fn Cursor Workspace.find_leaf_at_location(&self, String file_path, Location loc)
 	return {};
 }
 
-fn Node*? Workspace.lookup(&self, String module_name, String symbol_name)  @inline
+fn List{SymbolEntry}*? Workspace.lookup(&self, String module_name, String symbol_name) @if($feature(SEMA)) @inline
 {
 	return self.lookup_in_module(module_name, symbol_name)!;
 }
 
-fn Node*? Workspace.lookup_in_module(&self, String module_name, String symbol_name)
+fn List{SymbolEntry}*? Workspace.lookup_in_module(&self, String module_name, String symbol_name) @if($feature(SEMA))
 {
-	Module* mod = self.modules.get(module_name)!;
-    if (!mod) return MODULE_NOT_FOUND~;
+	Module* mod = self.modules.get(module_name) ?? null;
+	if (!mod) return null;
 
-	Node*? cached_node = mod.symbols.get(symbol_name);
-	if (catch cached_node) return SYMBOL_NOT_FOUND~;
-	if (cached_node != null) return cached_node;
-	return SYMBOL_NOT_FOUND~;
+	return mod.symbols.get_ref(symbol_name) ?? null;
 }
 
 <*
  Global search across all tracked modules to find a type or symbol by its raw spelling.
  Returns the matching Node* or a fault if not found.
 *>
-fn Node*? Workspace.find_symbol_by_name(&self, String symbol_name)
+fn List{SymbolEntry} Workspace.find_symbol_by_name(&self, String symbol_name) @if($feature(SEMA))
 {
+	List{SymbolEntry} all_candidates; all_candidates.tinit();
+
 	foreach (mod : self.modules.value_iter())
 	{
-		Node* cached_node = mod.symbols.get(symbol_name) ?? null;
-		if (cached_node != null) return cached_node;
+		List{SymbolEntry}* list = mod.symbols.get_ref(symbol_name) ?? null;
+		if (list != null)
+		{
+			foreach (entry : *list) all_candidates.push(entry);
+		}
 	}
-	return SYMBOL_NOT_FOUND~;
+	return all_candidates;
 }
 
 <*
  @param [&in] section
 *>
-fn List{String} Workspace.lookup_symbol_in_section(&self, ModuleSection* section, String symbol_name)
+fn List{String} Workspace.lookup_symbol_in_section(&self, ModuleSection* section, String symbol_name) @if($feature(SEMA))
 {
 	List{String} matching_modules; matching_modules.tinit();
-
 	if (!section) return matching_modules;
 
 	foreach (target_module : section.resolved_imports)
 	{
-		Node* found = self.lookup(target_module, symbol_name) ?? null;
+		List{SymbolEntry}* list = self.lookup_in_module(target_module, symbol_name) ?? null;
 
-		if (found != null)
+		if (list != null && list.len() > 0)
 		{
 			matching_modules.push(target_module);
 		}
 	}
-
 	return matching_modules;
 }

@@ -1,8 +1,10 @@
-module analyzer::sema;
+module analyzer::sema @if($feature(SEMA));
 
 import analyzer::core::plog;
 import analyzer::core;
 import analyzer::cursor;
+
+import std::collections::list;
 
 fn void run_symbols_pass(SemaContext* ctx)
 {
@@ -19,7 +21,7 @@ fn void reindex_module(SemaContext* ctx)
 
 	plog::debug("SEMA: reindex_module");
 
-	ctx.ws.registry.cleanup_section(ctx.section);
+	ctx.ws.registry.cleanup_section(ctx.section.id);
 
 	mod.symbols.clear();
 
@@ -51,17 +53,20 @@ fn void reindex_module(SemaContext* ctx)
 				continue;
 			}
 
-			Node* existing = mod.symbols.get(symbol_name) ?? null;
-			if (existing != null)
+			Node* guard_expr;
+			decl::node_has_if_attribute(ctx, node, &guard_expr);
+
+			List{SymbolEntry}* list = mod.symbols.get_ref(symbol_name) ?? null;
+			if (list == null)
 			{
-				plog::error("Redefinition of symbol '%s' in module '%s'", symbol_name, mod.name);
-				ctx.error(node, "Redefinition of symbol '%s' in module '%s'", symbol_name, mod.name);
-				ctx.info(existing, "Previous definition of '%s' is here", symbol_name);
-				continue;
+				List{SymbolEntry} new_list;
+				new_list.init(ctx.allocator, 2);
+				mod.symbols.set(symbol_name, new_list);
+				list = mod.symbols.get_ref(symbol_name)!!;
 			}
 
 			plog::debug("reindex_module: Set node: %s in module %s", node.kind.description, mod.name);
-			mod.symbols.set(symbol_name, node);
+			list.push({ .node = node, .condition = guard_expr });
 		}
 	}
 
@@ -81,17 +86,15 @@ fn void reindex_module(SemaContext* ctx)
 			String? method_name = mc.spelling(tmem);
 			if (catch method_name) continue;
 
+			Node* guard_expr = null;
+			decl::node_has_if_attribute(ctx, node, &guard_expr);
+
 			String target_type = expr::resolve_type_expr_spelling(ctx, type);
 			if (target_type.len == 0) continue;
 
 			plog::debug("Bound namespaced method: %s.%s", target_type, method_name);
 
-			ctx.ws.registry.register_method(target_type, method_name, node);
-
-			section.declared_methods.push({
-				.type_name = target_type.copy(section.allocator),
-				.method_name = method_name.copy(section.allocator)
-			});
+			ctx.ws.registry.register_method(target_type, method_name, node, guard_expr);
 		}
 	}
 }

@@ -939,7 +939,7 @@ fn NodeArray? parse_attributes(ParseContext* ctx, Node* parent_node, AttributePa
 			exprs.init(tmem, 4);
 			while (!ctx.is(RPAREN) && !ctx.eof())
 			{
-				exprs.push(parse_expr(ctx)!);
+				exprs.push(parse_constant_expr(ctx)!);
 				if (!consume(ctx, COMMA)!) break;
 			}
 			attr_node.offset.end = ctx.current_pos();
