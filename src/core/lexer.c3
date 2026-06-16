@@ -9,301 +9,256 @@ faultdef
 
 enum TokenKind : ushort
 {
+	<* Invalid *>
 	INVALID,
-	// Invalid
-
 
 	// Operators
+	<* & *>
 	AMP,
-	// &
 
-
+	<* | *>
 	BIT_OR,
-	// |
 
-
+	<* ^ *>
 	BIT_XOR,
-	// ^
 
-
+	<* ~ *>
 	BIT_NOT,
-	// ~
 
-
+	<* ! *>
 	BANG,
-	// !
 
-
+	<* + *>
 	PLUS,
-	// +
 
-
+	<* - *>
 	MINUS,
-	// -
 
-
+	<* * *>
 	ASTERISK,
-	// *
 
-
+	<* / *>
 	DIV,
-	// /
 
-
+	<* % *>
 	MOD,
-	// %
 
-
+	<* ? *>
 	QUESTION,
-	// ?
 
-
+	<* ?? *>
 	QUESTQUEST,
-	// ??
 
-
+	<* ?: *>
 	ELVIS,
-	// ?:
 
-
+	<* !! *>
 	BANGBANG,
-	// !!
 
-
+	<* $$ *>
 	BUILTIN,
-	// $$
 
-
+	<* >> *>
 	RSHIFT,
-	// >>
 
-
+	<* << *>
 	LSHIFT,
-	// <<
 
-
+	<* ++ *>
 	PLUSPLUS,
-	// ++
 
-
+	<* -- *>
 	MINUSMINUS,
-	// --
 
-
+	<* +++ *>
 	CT_CONCAT_OP,
-	// +++
 
-
+	<* ??? *>
 	CT_TERNARY,
-	// ???
-
 
 	// Assignment
+	<* = *>
 	EQ,
-	// =
 
-
+	<* >>= *>
 	RSHIFT_ASSIGN,
-	// >>=
 
-
+	<* <<= *>
 	LSHIFT_ASSIGN,
-	// <<=
 
-
+	<* += *>
 	PLUS_ASSIGN,
-	// +=
 
-
+	<* -= *>
 	MINUS_ASSIGN,
-	// -=
 
-
+	<* *= *>
 	MULT_ASSIGN,
-	// *=
 
-
+	<* /= *>
 	DIV_ASSIGN,
-	// /=
 
-
+	<* %= *>
 	MOD_ASSIGN,
-	// %=
 
-
+	<* &= *>
 	BIT_AND_ASSIGN,
-	// &=
 
-
+	<* ^= *>
 	BIT_XOR_ASSIGN,
-	// ^=
 
-
+	<* |= *>
 	BIT_OR_ASSIGN,
-	// |=
 
-
+	<* +++= *>
 	CT_CONCAT_ASSIGN,
-	// +++=
-
 
 	// Comparison
+	<* < *>
 	LESS,
-	// <
 
-
+	<* > *>
 	GREATER,
-	// >
 
-
+	<* && *>
 	AND,
-	// &&
 
-
+	<* || *>
 	OR,
-	// ||
 
-
+	<* <= *>
 	LESS_EQ,
-	// <=
 
-
+	<* >= *>
 	GREATER_EQ,
-	// >=
 
-
+	<* == *>
 	EQEQ,
-	// ==
 
-
+	<* != *>
 	NOT_EQUAL,
-	// !=
 
-
+	<* &&& *>
 	CT_AND_OP,
-	// &&&
 
-
+	<* ||| *>
 	CT_OR_OP,
-	// |||
-
 
 	// Punctuation
+	<* ; *>
 	EOS,
-	// ;
 
-
+	<* : *>
 	COLON,
-	// :
 
-
+	<* :: *>
 	SCOPE,
-	// ::
 
-
+	<* , *>
 	COMMA,
-	// ,
 
-
+	<* . *>
 	DOT,
-	// .
 
-
+	<* .. *>
 	DOTDOT,
-	// ..
 
-
+	<* ... *>
 	ELLIPSIS,
-	// ...
-
 
 	// Structure
+	<* { *>
 	LBRACE,
-	// {
 
-
+	<* } *>
 	RBRACE,
-	// }
 
-
+	<* [ *>
 	LBRACKET,
-	// [
 
-
+	<* ] *>
 	RBRACKET,
-	// ]
 
-
+	<* ( *>
 	LPAREN,
-	// (
 
-
+	<* ) *>
 	RPAREN,
-	// )
 
-
+	<* -> *>
 	ARROW,
-	// ->
 
-
+	<* => *>
 	IMPLIES,
-	// =>
 
-
+	<* [< *>
 	LVEC,
-	// [<
 
-
+	<* >] *>
 	RVEC,
-	// >]
-
 
 	// Comments and Contracts
+	<*  *>
 	CONTRACT,
-	// <*
 
-
+	<* // *>
 	LINE_COMMENT,
-	// //
 
-
+	<* /* *>
 	BLOCK_COMMENT,
-	// /*
-
 
 	// Literals (Identifiers and Strings)
+ 	<* STRING *>
+	STRING_LITERAL,
 
-	STRING_LITERAL, // STRING
+	<* 'a' 'FO' 'BARS' '\u1232' *>
+	CHAR_LITERAL, 
+	<* Base64 or Hex *>
+	BYTES_LITERAL, 
 
-	CHAR_LITERAL,  // 'a' 'FO' 'BARS' '\u1232'
-	BYTES_LITERAL, // Base64 or Hex
-
-	INT_DECIMAL_LITERAL, // 123
-	INT_HEX_LITERAL,     // 0x23
-	INT_OCTAL_LITERAL,   // 0o327
-	INT_BIN_LITERAL,     // 0b10010
-
-	FLOAT_DECIMAL_LITERAL, // 43.23e23
-	FLOAT_HEX_LITERAL,     // 0x23.2p-2a
+	<* 123 *>
+	INT_DECIMAL_LITERAL, 
+	<* 0x23 *>
+	INT_HEX_LITERAL,  
+	<* 0o327 *>   
+	INT_OCTAL_LITERAL,  
+	<* 0b10010 *> 
+	INT_BIN_LITERAL,    
+	<* 43.23e23 *>
+	FLOAT_DECIMAL_LITERAL, 
+	<* 0x23.2p-2a *>
+	FLOAT_HEX_LITERAL,    
 
 	<* foo *>
 	IDENT,
+
 	<* '@' *>
 	AT,
 
-	TYPE_IDENT,       // Foo,
-	CONST_IDENT,      // FOO
-	AT_IDENT,         // @foo
-	AT_TYPE_IDENT,    // @Foo
-	AT_CONST_IDENT,   // @FOO
-	HASH_IDENT,       // #foo,
-	HASH_TYPE_IDENT,  // #Type
-	HASH_CONST_IDENT, // #CONST_IDENT
-	CT_IDENT,         // $foo
-	CT_TYPE_IDENT,    // $Foo,
-	CT_CONST_IDENT,   // $FOO,
+	<* Foo, *>
+	TYPE_IDENT,      
+	<* FOO *> 
+	CONST_IDENT,    
+	<* @foo *>  
+	AT_IDENT,         
+	<* @Foo *>
+	AT_TYPE_IDENT,   
+	<* @FOO *>
+	AT_CONST_IDENT,   
+	<* #foo, *>
+	HASH_IDENT,       
+	<* #Type *>
+	HASH_TYPE_IDENT,  
+	<* #CONST_IDENT *>
+	HASH_CONST_IDENT, 
+	<* $foo *>
+	CT_IDENT,      
+	<* $Foo, *>   
+	CT_TYPE_IDENT,    
+	<* $FOO, *>
+	CT_CONST_IDENT,   
 
-	// Base Types
+	<* Base Types *>
 	VOID_TYPE,
 	BOOL_TYPE,
 	CHAR_TYPE,
@@ -374,116 +329,89 @@ enum TokenKind : ushort
 	UNION,
 	VAR,
 	WHILE,
-
+	
+	<* $assert *>
 	CT_ASSERT,
-	// $assert
 
-
+	<* $case *>
 	CT_CASE,
-	// $case
 
-
+	<* $default *>
 	CT_DEFAULT,
-	// $default
 
-
+	<* $defined *>
 	CT_DEFINED,
-	// $defined
 
-
+	<* $echo *>
 	CT_ECHO,
-	// $echo
 
-
+	<* $else *>
 	CT_ELSE,
-	// $else
 
-
+	<* $embed *>
 	CT_EMBED,
-	// $embed
 
-
+	<* $endfor *>
 	CT_ENDFOR,
-	// $endfor
 
-
+	<* $endforeach *>
 	CT_ENDFOREACH,
-	// $endforeach
 
-
+	<* $endif *>
 	CT_ENDIF,
-	// $endif
 
-
+	<* $endswitch *>
 	CT_ENDSWITCH,
-	// $endswitch
 
-
+	<* $eval *>
 	CT_EVAL,
-	// $eval
 
-
+	<* $error *>
 	CT_ERROR,
-	// $error
 
-
+	<* $exec *>
 	CT_EXEC,
-	// $exec
 
-
+	<* $expand *>
 	CT_EXPAND,
-	// $expand
 
-
+	<* $feature *>
 	CT_FEATURE,
-	// $feature
 
-
+	<* $for *>
 	CT_FOR,
-	// $for
 
-
+	<* $foreach *>
 	CT_FOREACH,
-	// $foreach
 
-
+	<* $if *>
 	CT_IF,
-	// $if
 
-
+	<* $include *>
 	CT_INCLUDE,
-	// $include
 
-
+	<* $reflect *>
 	CT_REFLECT,
-	// $reflect
 
-
+	<* $stringify *>
 	CT_STRINGIFY,
-	// $stringify
 
-
+	<* $switch *>
 	CT_SWITCH,
-	// $switch
 
-
+	<* $Typefrom *>
 	CT_TYPEFROM,
-	// $Typefrom
 
-
+	<* $Typeof *>
 	CT_TYPEOF,
-	// $Typeof
 
-
+	<* $vaarg, *>
 	CT_VAARG,
-	// $vaarg,
-
 
 	AT_INLINE,
 	AT_PURE,
 	AT_NOINLINE,
 
-	EOL,
 	EOF
 }
 
@@ -498,7 +426,7 @@ fn bool TokenKind.is_float_literal(
 struct Token
 {
 	TokenKind kind;
-	int pos; // Offset in the source buffer
+	int pos; // Offset in the source buffer 
 	int len; // Length of the lexeme
 }
 
@@ -696,7 +624,7 @@ fn Token? Lexer.lex_raw_string(Lexer* self, int start)
 		}
 		self.index++;
 	}
-	return (Token) { INVALID, start, self.index - start };
+	return { INVALID, start, self.index - start };
 }
 
 fn TokenKind lookup_keyword(String text)
@@ -896,7 +824,7 @@ fn Token? Lexer.lex_number(Lexer* self, int start_pos)
 		}
 	}
 
-	// Handle Suffixes (e.g., 1u, 1.0f, 0xFFu64)
+	// Handle Suffixes (e.g., 1u, 1.0f, 0xFFu64) 
 	char c = (char)ascii::to_lower(self.peek());
 	if (c == 'u' || c == 'i' || c == 'f' || c == 'l')
 	{
