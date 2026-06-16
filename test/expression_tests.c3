@@ -293,6 +293,10 @@ fn void call()
 			{
 				Foo foo;
 			};
+
+			foo.@each(; name, mod)
+			{
+			};
 		}
 	`;
 
