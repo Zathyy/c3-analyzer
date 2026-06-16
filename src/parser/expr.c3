@@ -669,7 +669,7 @@ fn Node*? parse_call_expr(ParseContext* ctx, Node* callee)
 
 	plog::debug("call_expr: %s", ctx.current_text());
 
-	if (!ctx.is(RPAREN) && !ctx.eof())
+	if (!ctx.is(RPAREN) && !ctx.is(EOS) && !ctx.eof())
 	{
 		plog::debug("call_expr - args");
 		call.args = parse_arg_list(ctx)!;
