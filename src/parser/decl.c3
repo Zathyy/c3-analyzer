@@ -1352,6 +1352,7 @@ fn Node*? parse_enum_constdef_decl(ParseContext* ctx, ParseFlags flags) => @pool
 			{
 				Node* param = ctx.ast.alloc_node(VAR_DECL, ctx.current().pos);
 				VarDecl* p  = param.as(VAR_DECL);
+
 				p.type = parse_type_expr(ctx)!;
 				if (is_non_type_ident(ctx.current().kind))
 				{
@@ -1382,6 +1383,11 @@ fn Node*? parse_enum_constdef_decl(ParseContext* ctx, ParseFlags flags) => @pool
 	variants.init(tmem, 4);
 	while ENUM_VARIANT: (!ctx.is(RBRACE) && !ctx.eof())
 	{
+		Node* contract;
+		if (ctx.is(CONTRACT))
+		{
+			contract = parse_contract_decl(ctx)!;
+		}
 		if (!ctx.is(CONST_IDENT))
 		{
 			variants.push(unexpected(ctx, "Expected enum variant name")!);
@@ -1393,6 +1399,7 @@ fn Node*? parse_enum_constdef_decl(ParseContext* ctx, ParseFlags flags) => @pool
 		Node* variant = ctx.ast.alloc_node(VAR_DECL, ctx.current().pos);
 		VarDecl* v    = variant.as(VAR_DECL);
 		v.kind = VAR_GLOBAL;
+		v.contract.set(contract);
 		v.flags.is_const = true;
 		v.name = ctx.ast.string_pool.internalize(ctx.token_text(ctx.current()));
 		advance(ctx)!;
