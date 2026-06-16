@@ -129,7 +129,7 @@ fn void get_binding_power(TokenKind type, int* lbp, int* rbp)
 		case LBRACE:
 		case LBRACKET:
 			*lbp = Precedence.CALL;
-			*rbp = Precedence.CALL; // TODO: CALL or None?
+			*rbp = Precedence.CALL + 1; // TODO: CALL or None?
 			break;
 		case BANGBANG:
 		case PLUSPLUS:
