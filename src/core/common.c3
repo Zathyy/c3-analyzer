@@ -16,6 +16,12 @@ struct Range
 	sz end;
 }
 
+struct ByteOffset
+{
+	int start;
+	int end;
+}
+
 enum AttributeKind : char
 {
 	ALIGN,

@@ -25,8 +25,7 @@ struct Node
 	NodeKind kind;
 	Visibility visibility;
 	NodeFlags flags;
-	int start_token;
-	int end_token;
+	ByteOffset offset;
 
 	union
 	{
@@ -198,8 +197,8 @@ fn Node* Ast.alloc_node(&self, NodeKind kind, int start, int end = -1)
 	Node* node = alloc::new(&self.arena, Node);
 
 	node.kind = kind;
-	node.start_token = start;
-	node.end_token = end == -1 ? node.start_token : end;
+	node.offset.start = start;
+	node.offset.end = end == -1 ? node.offset.start : end;
 
 	return node;
 }

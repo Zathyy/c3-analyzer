@@ -70,8 +70,9 @@ fn void Registry.remove_method(&self, String type_name, String method_name)
     
     if (method_map.len() == 0)
     {
-        method_map.free();
+		HashMap{String, Node*} inner_map = *method_map;
         self.methods.remove(type_name);
+        inner_map.free();
     }
 }
 

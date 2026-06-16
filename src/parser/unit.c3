@@ -104,7 +104,7 @@ fn Node*? parse_contract_param(ParseContext* ctx)
 	int start = ctx.current().pos;
 
 	Node* node = ctx.ast.alloc_node(CONTRACT_PARAM, start);
-	defer node.end_token = ctx.current().pos;
+	defer node.offset.end = ctx.current().pos;
 	ContractParam* param = node.as(CONTRACT_PARAM);
 
 	if (consume(ctx, LBRACKET)!)
@@ -202,7 +202,7 @@ fn NodeArray? parse_arg_list(ParseContext* ctx) => @pool()
 				named.name = arg_name;
 
 				named.value = parse_expr(ctx)!;
-				expr.end_token = ctx.current().pos;
+				expr.offset.end = ctx.current().pos;
 			}
 			else if (expr.kind == CT_EVAL_EXPR && consume(ctx, COLON)!)
 			{
@@ -212,7 +212,7 @@ fn NodeArray? parse_arg_list(ParseContext* ctx) => @pool()
 
 				eval_named.name = inner;
 				eval_named.value = parse_expr(ctx)!;
-				expr.end_token = ctx.current().pos;
+				expr.offset.end = ctx.current().pos;
 			}
 		}
 

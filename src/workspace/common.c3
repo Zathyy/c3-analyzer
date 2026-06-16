@@ -65,18 +65,19 @@ fn void Workspace.free(&self)
 		sf.ast.free();
 		sf.line_map.free();
 		foreach (section : sf.sections)
-		{
+		{ 
 			self.registry.cleanup_section(section);
 			section.free();
 			alloc::free(self.allocator, section);
 		}
 		sf.sections.free();
+		sf.file_path.free(self.allocator);
 		alloc::free(self.allocator, sf);
 	};
 
 	self.source_files.free();
 
-	self.modules.@each(; name, mod)
+	self.modules.@each(; name, mod) 
 	{
 		mod.sections.free();
 		mod.symbols.free();

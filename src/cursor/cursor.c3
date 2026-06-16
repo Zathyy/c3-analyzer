@@ -120,8 +120,8 @@ fn bool Cursor.has_error(&self)
 	sz len           = errors.len;
 	if (len == 0) return false;
 
-	sz node_start = self.node.start_token;
-	sz node_end   = self.node.end_token;
+	sz node_start = self.node.offset.start;
+	sz node_end   = self.node.offset.end;
 
 	sz low  = 0;
 	sz high = len - 1;
@@ -131,12 +131,12 @@ fn bool Cursor.has_error(&self)
 		sz mid    = low + (high - low) / 2;
 		Node* err = errors[mid];
 
-		if (node_start <= err.end_token && err.start_token <= node_end)
+		if (node_start <= err.offset.start && err.offset.end <= node_end)
 		{
 			return true;
 		}
 
-		if (err.start_token > node_end)
+		if (err.offset.start > node_end)
 		{
 			high = mid - 1;
 		}
@@ -165,11 +165,10 @@ fn Cursor find_at(ModuleSection* sec, int offset)
 
 	foreach (root_node : sf.ast.top_level_nodes)
 	{
-		Node* match = find_node_from_offset(root_node, offset);
+		Node* match = find_innermost_node(root_node, offset, sf);		
 		if (match != null)
 		{
 			best_match = match;
-			break;
 		}
 	}
 
@@ -188,12 +187,12 @@ fn Node* find_node_from_offset(Node* node, int offset)
 {
 	if (node == null) return null;
 
-	if (offset < node.start_token || offset > node.end_token)
+	if (offset < node.offset.start || offset > node.offset.end)
 	{
 		return null;
 	}
 
-	plog::debug("Found node: (%s) - (%s) %s:%s", node.kind, offset, node.start_token, node.end_token);
+	plog::debug("Found node: (%s) - (%s) %s:%s", node.kind, offset, node.offset.start, node.offset.end);
 
 	return node;
 }
@@ -211,7 +210,7 @@ fn Node* find_innermost_node(Node* node, int offset, SourceFile* sf)
 {
 	if (node == null) return null;
 
-	if (offset < node.start_token || offset > node.end_token)
+	if (offset < node.offset.start || offset > node.offset.end)
 	{
 		return null;
 	}

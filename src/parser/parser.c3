@@ -238,7 +238,7 @@ macro @expect_else_skip(ParseContext* ctx, TokenKind kind, TokenKind[] targets; 
 	{
 		ctx.skip_until(targets)!;
 		err.kind = ERROR;
-		err.end_token = ctx.current().pos;
+		err.offset.end = ctx.current().pos;
 		@body(err);
 	};
 }
@@ -387,7 +387,7 @@ fn void? parse(ParseContext* ctx) => @pool()
 	while (try token = lexer.next())
 	{
 		tokens.push(token);
-		plog::debug("Added token: <%s> - %s", token.kind, ctx.token_text(token));
+		//plog::debug("Added token: <%s> - %s", token.kind, ctx.token_text(token));
 	}
 
 	tokens.push({ .kind = EOF, .pos = (tokens.last().pos + tokens.last().len) ?? 0, .len = 0 });
@@ -527,7 +527,7 @@ fn void? parse_top_level(ParseContext* ctx)
 			int start_pos = ctx.current().pos;
 			Node* stmt = parse_ct_assert_stmt(ctx)!;
 			node = ctx.ast.alloc_node(CT_ASSERT_DECL, start_pos);
-			node.end_token = ctx.current().pos;
+			node.offset.end = ctx.current().pos;
 			CtAssertDecl* ctassert = node.as(CT_ASSERT_DECL);
 			ctassert.stmt = stmt;
 		default:

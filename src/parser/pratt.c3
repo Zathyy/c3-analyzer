@@ -319,11 +319,11 @@ fn Node*? parse_infix(ParseContext* ctx, Node* left, Precedence rbp)
 			NodeKind kind = left.kind;
 			if (kind == TYPE_EXPR)
 			{
-				int start_pos = left.start_token;
+				int start_pos = left.offset.start;
 				Node* init    = parse_initializer_list_expr(ctx)!;
 
 				Node* node = ctx.ast.alloc_node(COMPOUND_LITERAL_EXPR, start_pos);
-				node.end_token = ctx.current().pos;
+				node.offset.end = ctx.current().pos;
 
 				CompoundLiteralExpr* comp = node.as(COMPOUND_LITERAL_EXPR);
 				comp.type_expr = left;

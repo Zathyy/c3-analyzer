@@ -8,7 +8,7 @@ const Nullable EMPTY = {};
 fn sz? Nullable.to_format(Nullable* self, Formatter* f) @dynamic
 {
 	sz? size;
-
+	
 	if (*self)
 	{
 		size += f.printf("%s", *((Type*)self));
@@ -17,7 +17,7 @@ fn sz? Nullable.to_format(Nullable* self, Formatter* f) @dynamic
 	{
 		size += f.print("null");
 	}
-
+	
 	return size;
 }
 

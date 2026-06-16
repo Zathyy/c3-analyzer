@@ -191,7 +191,7 @@ fn SourceFile* Workspace.reset_source_file(&self, PathString path)
 
 	SourceFile* sf = alloc::new(self.allocator, SourceFile);
 	sf.id = next_source_file_id++;
-	sf.file_path = path;
+	sf.file_path = path.copy(self.allocator);
 	sf.sections.init(self.allocator, 4);
 	sf.line_map.init(self.allocator);
 
@@ -263,7 +263,30 @@ fn List{ModuleSection*} Workspace.find_section_by_path(&self, String file_path)
 	return sections;
 }
 
-fn Cursor Workspace.find_at_location(&self, String file_path, Location loc)
+fn Cursor Workspace.find_top_level_statement_at_location(&self, String file_path, Location loc)
+{
+    List{ModuleSection*} secs = self.find_section_by_path(file_path);
+    if (secs.len() == 0) return {};
+
+    foreach (sec : secs)
+    {
+        sz offset = sec.source_file.line_map.get_offset(sec.source_file.source, loc);
+        
+        foreach (global_decl : sec.source_file.ast.top_level_nodes)
+        {
+            if (!global_decl) continue;
+
+            if ((int)offset >= global_decl.offset.start && (int)offset <= global_decl.offset.end)
+            {
+                return { .node = global_decl, .section = sec };
+            }
+        }
+    }
+
+    return {};
+}
+
+fn Cursor Workspace.find_leaf_at_location(&self, String file_path, Location loc)
 {
 	List{ModuleSection*} secs = self.find_section_by_path(file_path);
 	if (secs.len() == 0) return { };
@@ -279,7 +302,7 @@ fn Cursor Workspace.find_at_location(&self, String file_path, Location loc)
 		}
 	}
 
-	return { };
+	return {};
 }
 
 fn Node*? Workspace.lookup(&self, String module_name, String symbol_name)  @inline

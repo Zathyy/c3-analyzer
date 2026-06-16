@@ -2,6 +2,7 @@ module analyzer::core::ast::serialize @if($feature(ANALYZER_CLI));
 
 import analyzer::core::line_map;
 import analyzer::core::string_pool;
+import std::collections::nullable;
 
 import std::collections::maybe;
 import std::io;
@@ -27,7 +28,7 @@ fn void push_newline(JsonOutput* output, int indent, String or = "")
 macro void serialize(JsonOutput* output, item, LineMap* map, StringPool* spool, int indent, int depth) @local
 {
 	$switch:
-		$case $defined(Option{Node} x = item):
+		$case $defined(Nullable{Node} x = item):
 		$case $Typeof(item) == Node*:
 			node_serialize((Node*) item, output, map, spool, indent, depth);
 
@@ -154,8 +155,8 @@ fn void node_serialize(Node* self, JsonOutput* output, LineMap* map, StringPool*
 	output.ser_entry("kind", self.kind, map, spool, indent, depth + 1);
 	output.ser_entry("visibility", self.visibility, map, spool, indent, depth + 1);
 	output.ser_entry("flags", self.flags, map, spool, indent, depth + 1);
-	output.ser_entry("start", map.resolve(self.start_token), map, spool, indent, depth + 1);
-	output.ser_entry("end", map.resolve(self.end_token), map, spool, indent, depth + 1);
+	output.ser_entry("start", map.resolve(self.offset.start), map, spool, indent, depth + 1);
+	output.ser_entry("end", map.resolve(self.offset.end), map, spool, indent, depth + 1);
 
 	var $sw = "switch (self.kind) {";
 	$foreach $m : Node::members[^1].members:
