@@ -45,11 +45,11 @@ fn void basic_cursor_test()
 
 	foreach (node : s.nodes)
 	{
-		Location loc = s.source_file.line_map.resolve((sz)node.start_token);
+		Location loc = s.source_file.line_map.resolve((sz)node.offset.start);
 		io::printfn("Node (%s) - %s:%s", node.kind.description, loc.line, loc.column);
 	}
 
-	Cursor hello_cursor = ws.find_at_location("hello.c3", { .line = 4, .column = 10 });
+	Cursor hello_cursor = ws.find_top_level_statement_at_location("hello.c3", { .line = 4, .column = 10 });
 	test::ne(hello_cursor.node, null);
 	test::eq(hello_cursor.node.kind, NodeKind.FN_DECL);
 }
