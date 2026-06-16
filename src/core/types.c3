@@ -44,6 +44,11 @@ struct Method
 
 fn void ModuleSection.free(&self)
 {
+	foreach (path : self.resolved_imports)
+	{
+		path.free(self.allocator);
+	}
+
 	self.resolved_imports.free();
 
 	foreach (method : self.declared_methods)
