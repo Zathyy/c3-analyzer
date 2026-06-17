@@ -456,7 +456,10 @@ fn void? parse_top_level(ParseContext* ctx)
 	plog::debug("parse_top_level: %s", ctx.token_text(ctx.current()));
 
 	Node* node;
-	ParseFlags flags = { .is_global = true };
+	ContextScope scope = {
+		.ctx = ctx
+	};
+
 
 	// the individual parse functions will check that the modifiers are used appropiately
 	while (true)
@@ -465,18 +468,18 @@ fn void? parse_top_level(ParseContext* ctx)
 
 		if (t.kind == EXTERN)
 		{
-			if (flags.is_extern) ctx.error("Duplicate 'extern' modifier");
-			flags.is_extern = true;
+			if (scope.flags.is_extern) ctx.error("Duplicate 'extern' modifier");
+			scope.flags.is_extern = true;
 		}
 		else if (t.kind == TLOCAL)
 		{
-			if (flags.is_thread_local) ctx.error("Duplicate 'tlocal' modifier");
-			flags.is_thread_local = true;
+			if (scope.flags.is_thread_local) ctx.error("Duplicate 'tlocal' modifier");
+			scope.flags.is_thread_local = true;
 		}
 		else if (t.kind == INLINE)
 		{
-			if (flags.is_inline) ctx.error("Duplicate 'inline' modifier");
-			flags.is_inline = true;
+			if (scope.flags.is_inline) ctx.error("Duplicate 'inline' modifier");
+			scope.flags.is_inline = true;
 		}
 		else
 		{
@@ -492,6 +495,8 @@ fn void? parse_top_level(ParseContext* ctx)
 		ctx.ast.top_level_nodes.push(node);
 		return;
 	}
+
+	ParseFlags flags = scope.flags;
 
 	switch (ctx.current().kind)
 	{
@@ -512,7 +517,7 @@ fn void? parse_top_level(ParseContext* ctx)
 		case FAULTDEF:
 			node = parse_faultdef_decl(ctx)!;
 		case FN:
-			node = parse_fn_decl(ctx, flags)!;
+			node = parse_fn_decl(scope)!;
 		case MACRO:
 			node = parse_macro_decl(ctx, flags)!;
 		case ALIAS:
