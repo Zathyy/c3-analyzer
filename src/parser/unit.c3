@@ -8,6 +8,21 @@ import std::io;
 import std::collections::list;
 
 <*
+ @require ctx.current().kind == IDENT
+*>
+fn StringID parse_identifier(ParseContext* ctx) 
+{   
+	Token t = ctx.current();
+	String name = ctx.token_text(t);
+	if (!constants::is_valid_name(name)) 
+	{
+		unexpected_at(ctx, t, "Reserved identifier");
+		return -1;
+	}
+	return ctx.ast.string_pool.internalize(name);
+}
+
+<*
  parameter_list ::= (param_decl (',' param_decl)*)?
 *>
 fn NodeArray? parse_parameter_list(ParseContext* ctx, ParamParseFlags flags = { }) => @pool()
