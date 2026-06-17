@@ -107,3 +107,9 @@ fn bool is_keyword(String name)
 	return false;
 }
 
+fn bool is_valid_name(String name)
+{
+	if (is_primitive(name)) return false;
+	if (is_keyword(name)) return false;
+	return true;
+}
