@@ -7,7 +7,7 @@ fn Node*? parse_stmt(ParseContext* ctx)
 {
 	Token t = ctx.current();
 
-	plog::info("parse_stmt: current = %s (%s)", ctx.token_text(t), t.kind.description);
+	plog::debug("parse_stmt: current = %s (%s)", ctx.token_text(t), t.kind.description);
 
 	if (is_type(ctx) || t.kind == TLOCAL || t.kind == STATIC)
 	{

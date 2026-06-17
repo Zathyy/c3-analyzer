@@ -186,7 +186,7 @@ fn NodeArray? parse_arg_list(ParseContext* ctx) => @pool()
 		int start_pos = ctx.current().pos;
 		if (ctx.is(RPAREN)) break;
 
-		plog::error("parse arg - %s", ctx.current_text());
+		plog::debug("parse arg - %s", ctx.current_text());
 
 		if (ctx.is(ELLIPSIS) && ctx.can_peek(1) && ctx.peek(1)!.kind == CT_VAARG)
 		{
@@ -220,7 +220,7 @@ fn NodeArray? parse_arg_list(ParseContext* ctx) => @pool()
 			}
 		}
 
-		plog::error("parse arg AFTER - %s", ctx.current_text());
+		plog::debug("parse arg AFTER - %s", ctx.current_text());
 
 		args.push(expr);
 
