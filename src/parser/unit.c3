@@ -145,6 +145,7 @@ fn Node*? parse_contract_param(ParseContext* ctx)
 		case CT_IDENT:
 		case TYPE_IDENT:
 		case CT_TYPE_IDENT:
+		case HASH_IDENT:
 			break;
 		default:
 			ctx.error("Expected parameter name");
