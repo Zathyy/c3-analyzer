@@ -7,6 +7,8 @@ import analyzer::core;
 import std::io;
 import std::collections::list;
 
+import analyzer::core::string_pool;
+
 <*
  @require t.kind == IDENT
 *>
@@ -16,7 +18,7 @@ fn StringID parse_identifier(ParseContext* ctx, Token t)
 	if (!constants::is_valid_name(name)) 
 	{
 		unexpected_at(ctx, t, "Reserved identifier");
-		return -1;
+		return string_pool::EMPTY_STR;
 	}
 	return ctx.ast.string_pool.internalize(name);
 }
