@@ -82,7 +82,9 @@ fn void Registry.cleanup_section(&self, sz section_id)
 
 fn void Registry.register_method(&self, String type_name, String method_name, Node* node, Node* condition)
 {	
-	MethodKey key = { .type_name = type_name, .method_name = method_name };
+	MethodKey key;
+	key.type_name = type_name.copy(self.allocator);
+	key.method_name = method_name.copy(self.allocator);
 
 	List{SymbolEntry}* list = self.methods.get_ref(key) ?? null;
 
@@ -90,10 +92,12 @@ fn void Registry.register_method(&self, String type_name, String method_name, No
 	{
 		List{SymbolEntry} sub_list;
 		sub_list.init(self.allocator, 4);
-		key.type_name.copy(self.allocator);
-		key.method_name.copy(self.allocator);
 		self.methods[key] = sub_list;
 		list = self.methods.get_ref(key)!!;
+	}
+	else
+	{
+		key.free(self.allocator);
 	}
 
 	list.push({ .node = node, .condition = condition });
