@@ -135,7 +135,7 @@ struct LiteralExpr
 
 	union
 	{
-		long integer;
+		ulong integer;
 		double real;
 		StringID string;
 		char[] bytes;
