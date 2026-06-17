@@ -8,11 +8,10 @@ import std::io;
 import std::collections::list;
 
 <*
- @require ctx.current().kind == IDENT
+ @require t.kind == IDENT
 *>
-fn StringID parse_identifier(ParseContext* ctx) 
+fn StringID parse_identifier(ParseContext* ctx, Token t) 
 {   
-	Token t = ctx.current();
 	String name = ctx.token_text(t);
 	if (!constants::is_valid_name(name)) 
 	{
