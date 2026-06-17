@@ -44,6 +44,8 @@ fn Node*? parse_stmt(ParseContext* ctx)
 		case FOREACH:
 		case FOREACH_R:
 			return parse_foreach_stmt(ctx)!;
+		case CT_FOREACH:
+			return parse_ct_foreach_stmt(ctx)!;
 		case CT_ASSERT:
 			return parse_ct_assert_stmt(ctx)!;
 		case CT_ERROR:
@@ -1045,5 +1047,83 @@ fn Node*? parse_assert_stmt(ParseContext* ctx)
 	}
 	expect(ctx, RPAREN)!;
 	expect(ctx, EOS)!;
+	return node;
+}
+
+<*
+ ct_foreach_stmt ::= '$foreach' ct_foreach_vars ':' expression ':' statement* '$endforeach'
+ ct_foreach_vars ::= CT_IDENT (',' CT_IDENT)?
+*>
+fn Node*? parse_ct_foreach_stmt(ParseContext* ctx) => @pool()
+{
+	int start_pos = ctx.current().pos;
+	@expect_else(ctx, CT_FOREACH ; err)
+	{
+		return err;
+	}!;
+
+	Node* node = ctx.ast.alloc_node(CT_FOREACH_STMT, start_pos);
+	defer node.offset.end = ctx.current().pos;
+	CtForeachStmt* ct_foreach_stmt = node.as(CT_FOREACH_STMT);
+
+	Node* idx_or_variable = parse_ct_foreach_var(ctx)!;
+	if (consume(ctx, COMMA)!)
+	{
+		ct_foreach_stmt.index = idx_or_variable;
+		ct_foreach_stmt.value = parse_ct_foreach_var(ctx)!;
+	}
+	else
+	{
+		ct_foreach_stmt.value = idx_or_variable;
+	}
+
+	@expect_else_skip(ctx, COLON, { EOS, EOF, CT_ENDFOREACH } ; err)
+	{
+		return err;
+	}!;
+
+	ct_foreach_stmt.expr = parse_expr(ctx)!;
+
+	@expect_else_skip(ctx, COLON, { EOS, EOF, CT_ENDFOREACH } ; err)
+	{
+		return err;
+	}!;
+
+	List{Node*} stmts;
+	stmts.tinit();
+	while (!ctx.eof() && !ctx.is(CT_ENDFOREACH))
+	{
+		stmts.push(parse_stmt(ctx)!);
+	}
+
+	Node* body = ctx.ast.alloc_node(COMPOUND_STMT, start_pos);
+	body.offset.end = ctx.current().pos;
+	CompoundStmt* block = body.as(COMPOUND_STMT);
+	block.statements = alloc::clone_slice(ctx.arena, stmts.array_view());
+	ct_foreach_stmt.body = body;
+
+	@expect_else(ctx, CT_ENDFOREACH ; err)
+	{
+		return err;
+	}!;
+
+	return node;
+}
+
+fn Node*? parse_ct_foreach_var(ParseContext* ctx)
+{
+	int start_pos  = ctx.current().pos;
+	Node* node = ctx.ast.alloc_node(VAR_DECL, start_pos);
+	defer node.offset.end = ctx.current().pos;
+	VarDecl* var_decl = node.as(VAR_DECL);
+	var_decl.kind = VAR_LOCAL;
+
+	Token token = @expect_else_skip(ctx, CT_IDENT, { COMMA, COLON, EOS, EOF } ; err)
+	{
+		var_decl.name = string_pool::EMPTY_STR;
+		return node;
+	}!;
+
+	var_decl.name = ctx.ast.string_pool.internalize(ctx.token_text(token));
 	return node;
 }

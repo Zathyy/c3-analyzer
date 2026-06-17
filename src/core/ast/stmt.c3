@@ -121,6 +121,14 @@ struct ForeachStmt
 	Node* body;
 }
 
+struct CtForeachStmt
+{
+	Node* index;
+	Node* value;
+	Node* expr;
+	Node* body;
+}
+
 struct CtAssertStmt
 {
 	Node* expr;
