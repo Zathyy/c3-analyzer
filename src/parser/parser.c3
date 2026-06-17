@@ -44,6 +44,20 @@ struct ParseContext
 	// bool allow_submodules;
 }
 
+struct ContextScope
+{
+	ParseContext* ctx;
+	ParseFlags flags;
+}
+
+fn ContextScope ContextScope.with_flags(&self, ParseFlags flags)
+{
+	return { 
+		.ctx = self.ctx, 
+		.flags = self.flags | flags 
+	};
+}
+
 fn void? ParseContext.skip_until(ParseContext* ctx, TokenKind[] targets)
 {
 	while (!ctx.eof())
