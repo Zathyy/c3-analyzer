@@ -8,6 +8,8 @@ bitstruct ParseFlags : ulong
 {
 	bool is_interface; // Skip function bodies, disallow fields
 	bool is_struct;
+	bool is_macro;
+	bool is_function;
 	bool is_global; // Top-level declarations
 	bool is_local; // Inside a function/block
 	bool is_var; // has a 'var'
@@ -24,7 +26,6 @@ bitstruct ParseFlags : ulong
 	bool is_expr;
 	bool is_stmt;
 	bool is_lamda;
-	bool is_macro;
 	bool is_comptime;
 	bool type_as_expression;
 	bool no_generics; // dont allow type parsing to check for generics
