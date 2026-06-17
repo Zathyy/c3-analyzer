@@ -322,7 +322,7 @@ fn Node*? parse_literal_expr(ParseContext* ctx) => @pool()
 				}
 			}
 			String pure_digits = body[0:end_idx];
-			long? value = pure_digits.to_long(base);
+			ulong? value = pure_digits.to_ulong(base);
 			if (catch err = value)
 			{
 				ctx.error("Failed to parse int literal (%s): %s", pure_digits, err);
@@ -440,16 +440,34 @@ fn Node*? parse_literal_expr(ParseContext* ctx) => @pool()
 					advance(ctx)!;
 					return ctx.ast.error(start);
 				}
-
+				
 				switch (clean_char[1])
 				{
-					case 'n': literal.integer = (long)'\n'; break;
-					case 'r': literal.integer = (long)'\r'; break;
-					case 't': literal.integer = (long)'\t'; break;
-					case '\\': literal.integer = (long)'\\'; break;
-					case '\'': literal.integer = (long)'\''; break;
-					case '"': literal.integer = (long)'"'; break;
-					case '0': literal.integer = (long)'\0'; break;
+					case 'n': literal.integer = (ulong)'\n'; break;
+					case 'r': literal.integer = (ulong)'\r'; break;
+					case 't': literal.integer = (ulong)'\t'; break;
+					case '\\': literal.integer = (ulong)'\\'; break;
+					case '\'': literal.integer = (ulong)'\''; break;
+					case '"': literal.integer = (ulong)'"'; break;
+					case '0': literal.integer = (ulong)'\0'; break;
+					case 'a':  literal.integer = (ulong)0x07; break; // Alert
+					case 'b':  literal.integer = (ulong)0x08; break; // Backspace
+					case 'f':  literal.integer = (ulong)0x0C; break; // Form feed
+					case 'v':  literal.integer = (ulong)0x0B; break; // Vertical tab
+					case 'x':
+						if (clean_char.len < 4) 
+						{
+							ctx.error("Malformed hex escape sequence");
+							return ctx.ast.error(start);
+						}
+						
+						char hi = clean_char[2];
+						char lo = clean_char[3];
+						
+						// Combine them into a single byte/integer value
+						// (hi << 4) | lo
+						literal.integer = (ulong)((char.from_hex(hi) << 4) | char.from_hex(lo));
+						break;
 					default:
 						ctx.error("Unsupported escape sequence '\\%c'", clean_char[1]);
 						advance(ctx)!;
