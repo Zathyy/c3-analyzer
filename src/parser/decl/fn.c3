@@ -1,65 +1,83 @@
 module analyzer::parser::decl;
 
+import analyzer::core;
+
 <*
  fn_decl ::= fn type_expr (type_expr '.')? ident '(' parameter_list? ')' attributes?
  fn_body ::= ('=>' short_body) | compound_stmt
 *>
 fn Node*? parse_fn_decl(ContextScope scope)
 {
-	int start_pos = ctx.current().pos;
+	int start_pos = scope.ctx.current_pos();
+	ParseContext* ctx = scope.ctx;
 
 	expect(ctx, FN)!;
 
 	plog::debug("parse_fn");
 
-	Node* node   = ctx.ast.alloc_node(FN_DECL, start_pos);
+	Node* node = scope.ctx.ast.alloc_node(FN_DECL, start_pos);
 	FnDecl* func = node.as(FN_DECL);
 
-	func.ret_type = parse_type_expr(ctx)!;
-
-	if IS_TYPE: (is_type(ctx))
+	if (catch parse_fn_name_and_type(scope, func))
 	{
-		if (flags.is_interface)
-		{
-			unexpected(ctx, "Interfaces cant be methods");
-			advance(ctx)!;
-			break IS_TYPE;
-		}
-
-		plog::error("parse_fn - set associated: %s", ctx.token_text(ctx.current()));
-
-		func.associated_type = parse_type_expr(ctx)!;
-
-		expect(ctx, DOT)!;
-
-		Token t = @expect_else_skip(ctx, IDENT, { EOS, LPAREN } ; err)
-		{
-			ctx.error("Expected member function name identifier");
-			func.name = string_pool::EMPTY_STR;
-			break IS_TYPE;
-		}!;
-		func.name = ctx.ast.string_pool.internalize(ctx.token_text(t));
-	}
-	else
-	{
-		// Standalone Function: No associated type prefix
-		Token t = @expect_else_skip(ctx, IDENT, { EOS, LPAREN } ; err)
-		{
-			ctx.error("Expected function name identifier");
-			func.name = string_pool::EMPTY_STR;
-			break IS_TYPE;
-		}!;
-		func.name = ctx.ast.string_pool.internalize(ctx.token_text(t));
+		ctx.skip_until({ LPAREN, LBRACE, RBRACE, EOS })!;
 	}
 
-	func.params = parse_parameter_list(ctx)!;
+	func.params = parse_parameter_list(scope.with_flags({ .is_function = true }))!;
 
 	if (ctx.is(AT_IDENT))
 	{
 		func.attributes = parse_attributes(ctx, node)!;
 	}
 
-	if (ctx.is(LBRACE))
+	if (catch parse_fn_body(scope, func))
+	{
+		ctx.skip_until({ RBRACE, EOS })!;
+	}
+
+	return node;
+}
+
+fn void? parse_fn_name_and_type(ContextScope scope, FnDecl* func) @local 
+{
+	func.ret_type = parse_type_expr(ctx)!;
+	ParseContext* ctx = scope.ctx;
+
+	if IS_TYPE: (is_type(ctx))
+	{
+		if (flags.is_interface)
+		{
+			unexpected(ctx, "Interfaces cant be methods");
+			return UNEXPECTED_TOKEN~;			
+		}
+
+		plog::debug("parse_fn - set associated: %s", ctx.token_text(ctx.current()));
+
+		func.associated_type = parse_type_expr(ctx)!;
+
+		expect(ctx, DOT)!;
+
+		Token t = @expect_else(ctx, IDENT)
+		{
+			return UNEXPECTED_TOKEN~;
+		};
+
+		func.name = parse_identifier(ctx, t);
+	}
+	else
+	{
+		Token t = @expect_else(ctx, IDENT)
+		{
+			return UNEXPECTED_TOKEN~;
+		};
+
+		func.name = parse_identifier(ctx, t);
+	}
+}
+
+fn void? parse_fn_body(ContextScope scope, FnDecl* func) @local
+{
+	if (scope.ctx.is(LBRACE))
 	{
 		if (flags.is_extern)
 		{
@@ -93,6 +111,4 @@ fn Node*? parse_fn_decl(ContextScope scope)
 		node.offset.end = ctx.current().pos;
 		expect(ctx, EOS)!;
 	}
-
-	return node;
 }
