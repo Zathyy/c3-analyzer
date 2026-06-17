@@ -99,7 +99,7 @@ constdef Keywords : inline String
 *>
 fn bool is_keyword(String name)
 {
-	foreach (member = Keywords::values)
+	foreach (member : Keywords::values)
 	{
 		if (member == name) return true;
 	}
