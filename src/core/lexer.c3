@@ -570,19 +570,27 @@ fn Token? Lexer.lex_char(Lexer* self, int start)
 		if (c == '\'')
 		{
 			self.index++;
-			return (Token) { CHAR_LITERAL, start, self.index - start };
+			return { CHAR_LITERAL, start, self.index - start };
 		}
 
 		if (c == '\\')
-		{
-			self.index += 2;
-			continue;
-		}
+        {
+            char next = self.peek_next();
+            if (next == 'x')
+			{
+                self.index += 4; 
+            } 
+			else 
+			{
+                self.index += 2;
+            }
+            continue;
+        }
 
 		self.index++;
 	}
 
-	return (Token) { INVALID, start, self.index - start };
+	return { INVALID, start, self.index - start };
 }
 
 fn Token? Lexer.lex_string(Lexer* self, int start)
