@@ -47,3 +47,63 @@ fn bool is_primitive(String name)
 
 	return false;
 }
+
+constdef Keywords : inline String
+{
+	KEYW_CONSTDEF   = "constdef",
+	KEYW_ALIAS      = "alias",
+	KEYW_ASSERT     = "assert",
+	KEYW_ASM        = "asm",
+	KEYW_ATTRDEF    = "attrdef",
+	KEYW_BITSTRUCT  = "bitstruct",
+	KEYW_BREAK      = "break",
+	KEYW_CASE       = "case",
+	KEYW_CATCH      = "catch",
+	KEYW_CONST      = "const",
+	KEYW_CONTINUE   = "continue",
+	KEYW_DEFAULT    = "default",
+	KEYW_DEFER      = "defer",
+	KEYW_DO         = "do",
+	KEYW_ELSE       = "else",
+	KEYW_ENUM       = "enum",
+	KEYW_EXTERN     = "extern",
+	KEYW_FALSE      = "false",
+	KEYW_FAULTDEF   = "faultdef",
+	KEYW_FOR        = "for",
+	KEYW_FOREACH    = "foreach",
+	KEYW_FOREACH_R  = "foreach_r",
+	KEYW_FN         = "fn",
+	KEYW_TLOCAL     = "tlocal",
+	KEYW_IF         = "if",
+	KEYW_INLINE     = "inline",
+	KEYW_IMPORT     = "import",
+	KEYW_LENGTHOF   = "lengthof",
+	KEYW_MACRO      = "macro",
+	KEYW_MODULE     = "module",
+	KEYW_NEXTCASE   = "nextcase",
+	KEYW_NULL       = "null",
+	KEYW_INTERFACE  = "interface",
+	KEYW_RETURN     = "return",
+	KEYW_STATIC     = "static",
+	KEYW_STRUCT     = "struct",
+	KEYW_SWITCH     = "switch",
+	KEYW_TRUE       = "true",
+	KEYW_TRY        = "try",
+	KEYW_TYPEDEF    = "typedef",
+	KEYW_UNION      = "union",
+	KEYW_VAR        = "var",
+	KEYW_WHILE      = "while",
+}
+
+<*
+*>
+fn bool is_keyword(String name)
+{
+	foreach (member = Keywords::values)
+	{
+		if (member == name) return true;
+	}
+
+	return false;
+}
+
