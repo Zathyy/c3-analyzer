@@ -1,4 +1,4 @@
-module analyzer::parser::decl;
+module analyzer::parser;
 
 import analyzer::core;
 
@@ -8,8 +8,10 @@ import analyzer::core;
 *>
 fn Node*? parse_fn_decl(ContextScope scope)
 {
-	int start_pos = scope.ctx.current_pos();
 	ParseContext* ctx = scope.ctx;
+	ParseFlags flags = scope.flags;
+
+	int start_pos = ctx.current_pos();
 
 	expect(ctx, FN)!;
 
@@ -27,10 +29,10 @@ fn Node*? parse_fn_decl(ContextScope scope)
 
 	if (ctx.is(AT_IDENT))
 	{
-		func.attributes = parse_attributes(ctx, node)!;
+		func.attributes = parse_attributes(scope, node)!;
 	}
 
-	if (catch parse_fn_body(scope, func))
+	if (catch parse_fn_body(scope, func, node))
 	{
 		ctx.skip_until({ RBRACE, EOS })!;
 	}
@@ -40,8 +42,10 @@ fn Node*? parse_fn_decl(ContextScope scope)
 
 fn void? parse_fn_name_and_type(ContextScope scope, FnDecl* func) @local 
 {
-	func.ret_type = parse_type_expr(ctx)!;
 	ParseContext* ctx = scope.ctx;
+	ParseFlags flags = scope.flags;
+
+	func.ret_type = parse_type_expr(scope)!;
 
 	if IS_TYPE: (is_type(ctx))
 	{
@@ -53,45 +57,51 @@ fn void? parse_fn_name_and_type(ContextScope scope, FnDecl* func) @local
 
 		plog::debug("parse_fn - set associated: %s", ctx.token_text(ctx.current()));
 
-		func.associated_type = parse_type_expr(ctx)!;
+		func.associated_type = parse_type_expr(scope)!;
 
 		expect(ctx, DOT)!;
 
-		Token t = @expect_else(ctx, IDENT)
+		Token t = @expect_else(ctx, IDENT ; err)
 		{
 			return UNEXPECTED_TOKEN~;
-		};
+		}!;
 
-		func.name = parse_identifier(ctx, t);
+		func.name = parse_identifier(scope, t);
 	}
 	else
 	{
-		Token t = @expect_else(ctx, IDENT)
+		Token t = @expect_else(ctx, IDENT ; err)
 		{
 			return UNEXPECTED_TOKEN~;
-		};
+		}!;
 
-		func.name = parse_identifier(ctx, t);
+		func.name = parse_identifier(scope, t);
 	}
 }
 
-fn void? parse_fn_body(ContextScope scope, FnDecl* func) @local
+fn void? parse_fn_body(ContextScope scope, FnDecl* func, Node* node) @local
 {
+	ParseContext* ctx = scope.ctx;
+	ParseFlags flags = scope.flags;
+
+	int start_pos = ctx.current_pos();
 	if (scope.ctx.is(LBRACE))
 	{
 		if (flags.is_extern)
 		{
 			ctx.error("Extern functions cannot have a structural block body");
-			return ctx.ast.error(start_pos);
+			ctx.ast.error(start_pos);
+			return UNEXPECTED_TOKEN~;			
 		}
 
 		if (flags.is_interface)
 		{
 			ctx.error("Interface methods cannot have a body");
-			return ctx.ast.error(start_pos);
+			ctx.ast.error(start_pos);
+			return UNEXPECTED_TOKEN~;			
 		}
 
-		func.body = parse_compound_stmt(ctx)!;
+		func.body = parse_compound_stmt(scope)!;
 		node.offset.end = func.body.offset.end;
 	}
 	else if (consume(ctx, IMPLIES)!)
@@ -99,10 +109,11 @@ fn void? parse_fn_body(ContextScope scope, FnDecl* func) @local
 		if (flags.is_extern)
 		{
 			ctx.error("Extern functions cannot have an expression body");
-			return ctx.ast.error(start_pos);
+			ctx.ast.error(start_pos);
+			return UNEXPECTED_TOKEN~;			
 		}
 
-		func.body = parse_short_body(ctx, true)!;
+		func.body = parse_short_body(scope, true)!;
 		node.offset.end = func.body.offset.end;
 	}
 	else

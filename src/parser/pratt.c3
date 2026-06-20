@@ -150,12 +150,13 @@ fn void get_binding_power(TokenKind type, int* lbp, int* rbp)
 <*
  parse expressions recursively with Pratt parsing
 	using Binding power.
- @param [&inout] ctx
+ @require(scope.ctx != null) 
  @param min_bp : "Starting binding power"
 *>
-fn Node*? parse_expr(ParseContext* ctx, Precedence min_bp = LOWEST)
+fn Node*? parse_expr(ContextScope scope, Precedence min_bp = LOWEST)
 {
-	Node* left = parse_prefix_expr(ctx)!;
+	ParseContext* ctx = scope.ctx;
+	Node* left = parse_prefix_expr(scope)!;
 
 	while (true)
 	{
@@ -173,7 +174,7 @@ fn Node*? parse_expr(ParseContext* ctx, Precedence min_bp = LOWEST)
 			break;
 		}
 
-		left = parse_infix(ctx, left, (Precedence)rbp)!;
+		left = parse_infix(scope, left, (Precedence)rbp)!;
 	}
 
 	return left;
@@ -184,38 +185,39 @@ fn Node*? parse_expr(ParseContext* ctx, Precedence min_bp = LOWEST)
 	Handles tokens that start an expression (e.g., -5, (expr), !true)
 	It has no "left" side to worry about.
 *>
-fn Node*? parse_prefix_expr(ParseContext* ctx)
+fn Node*? parse_prefix_expr(ContextScope scope)
 {
+	ParseContext* ctx = scope.ctx;
 	Token t = ctx.current();
 
 	if (is_type(ctx))
 	{
-		return parse_type_expr(ctx, null, { .type_as_expression = true })!;
+		return parse_type_expr({...scope, .flags = { .type_as_expression = true }}, null)!;
 	}
 
 	switch (t.kind)
 	{
 		case FN:
-			return parse_lambda_expr(ctx)!;
+			return parse_lambda_expr(scope)!;
 		case CT_EVAL:
-			return parse_ct_eval_expr(ctx)!;
+			return parse_ct_eval_expr(scope)!;
 		case ELLIPSIS:
-			return parse_splat_expr(ctx)!;
+			return parse_splat_expr(scope)!;
 		case BUILTIN:
-			return parse_builtin_expr(ctx)!;
+			return parse_builtin_expr(scope)!;
 		case CT_DEFINED:
-			return parse_ct_defined_expr(ctx)!;
+			return parse_ct_defined_expr(scope)!;
 		case CT_FEATURE:
-			return parse_ct_feature(ctx)!;
+			return parse_ct_feature(scope)!;
 		case LENGTHOF:
-			return parse_lengthof_expr(ctx)!;
+			return parse_lengthof_expr(scope)!;
 		case IDENT:
 		case CONST_IDENT:
 		case AT_IDENT:
 		case CT_IDENT:
 		case HASH_IDENT:
 		case TYPE_IDENT:
-			return parse_ident_expr(ctx)!;
+			return parse_ident_expr(scope)!;
 		case STRING_LITERAL:
 		case CHAR_LITERAL:
 		case TRUE:
@@ -228,7 +230,7 @@ fn Node*? parse_prefix_expr(ParseContext* ctx)
 		case INT_OCTAL_LITERAL:
 		case INT_BIN_LITERAL:
 		case BYTES_LITERAL:
-			return parse_literal_expr(ctx)!;
+			return parse_literal_expr(scope)!;
 		case BANG:
 		case BANGBANG:
 		case MINUS:
@@ -236,11 +238,11 @@ fn Node*? parse_prefix_expr(ParseContext* ctx)
 		case AMP:
 		case AND:
 		case ASTERISK:
-			return parse_unary_expr(ctx)!;
+			return parse_unary_expr(scope)!;
 		case LBRACE:
-			return parse_initializer_list_expr(ctx)!;
+			return parse_initializer_list_expr(scope)!;
 		case LPAREN:
-			return parse_group_expr(ctx)!;
+			return parse_group_expr(scope)!;
 		default:
 			plog::error(
 				"parse_prefix_expr - Expected expression for token: ((%s) %s - %s)",
@@ -258,14 +260,15 @@ fn Node*? parse_prefix_expr(ParseContext* ctx)
 	Handles tokens that connect expressions (e.g. 1 + 2, obj.prop, arr[0])
 	It takes a pre-parsed "left" node and attaches a "right" side to it.
 *>
-fn Node*? parse_infix(ParseContext* ctx, Node* left, Precedence rbp)
+fn Node*? parse_infix(ContextScope scope, Node* left, Precedence rbp)
 {
+	ParseContext* ctx = scope.ctx;
 	Token t = ctx.current();
 
 	switch (t.kind)
 	{
 		case LPAREN:
-			return parse_call_expr(ctx, left)!;
+			return parse_call_expr(scope, left)!;
 		case PLUS:
 		case PLUS_ASSIGN:
 		case MINUS:
@@ -301,26 +304,26 @@ fn Node*? parse_infix(ParseContext* ctx, Node* left, Precedence rbp)
 		case CT_CONCAT_ASSIGN:
 		case CT_AND_OP:
 		case CT_OR_OP:
-			return parse_binary_expr(ctx, left, rbp)!;
+			return parse_binary_expr(scope, left, rbp)!;
 		case PLUSPLUS:
 		case MINUSMINUS:
 		case BANG:
 		case BANGBANG:
-			return parse_post_unary_expr(ctx, left, rbp)!;
+			return parse_post_unary_expr(scope, left, rbp)!;
 		case QUESTION:
 		case CT_TERNARY:
-			return parse_ternary_expr(ctx, left)!;
+			return parse_ternary_expr(scope, left)!;
 		case BIT_NOT:
-			return parse_raise_suffix_expr(ctx, left, t)!;
+			return parse_raise_suffix_expr(scope, left, t)!;
 		case DOT:
 		case SCOPE:
-			return parse_access_expr(ctx, left)!;
+			return parse_access_expr(scope, left)!;
 		case LBRACE:
 			NodeKind kind = left.kind;
 			if (kind == TYPE_EXPR)
 			{
 				int start_pos = left.offset.start;
-				Node* init    = parse_initializer_list_expr(ctx)!;
+				Node* init    = parse_initializer_list_expr(scope)!;
 
 				Node* node = ctx.ast.alloc_node(COMPOUND_LITERAL_EXPR, start_pos);
 				node.offset.end = ctx.current().pos;
@@ -331,11 +334,11 @@ fn Node*? parse_infix(ParseContext* ctx, Node* left, Precedence rbp)
 
 				return node;
 			}
-			return parse_generic_expr(ctx)!;
+			return parse_generic_expr(scope)!;
 		case LBRACKET:
 			int start_pos = t.pos;
 			advance(ctx)!; // Consume the '[' token
-			return parse_range_expr(ctx, left, start_pos)!;
+			return parse_range_expr(scope, left, start_pos)!;
 		default:
 			advance(ctx)!;
 			return unexpected_at(ctx, t, "Unexpected infix token '%s'", t.kind);
@@ -345,14 +348,15 @@ fn Node*? parse_infix(ParseContext* ctx, Node* left, Precedence rbp)
 <*
  decl_or_expr ::= var_decl | expr
 *>
-fn Node*? parse_decl_or_expr(ParseContext* ctx)
+fn Node*? parse_decl_or_expr(ContextScope scope)
 {
+	ParseContext* ctx = scope.ctx;
 	if (ctx.is(VAR))
 	{
-		return parse_var_decl(ctx, null, { .is_expr = true, .is_local = true, .skip_eos = true, .is_var = true })!;
+		return parse_var_decl({ .ctx = ctx, .flags =  { .is_expr = true, .is_local = true, .skip_eos = true, .is_var = true }}, null)!;
 	}
 
-	Node* expr = parse_expr(ctx)!;
+	Node* expr = parse_expr(scope)!;
 
 	plog::debug("parse_decl_or_expr - (%s)", expr.kind.description);
 
@@ -373,35 +377,38 @@ fn Node*? parse_decl_or_expr(ParseContext* ctx)
 			break;
 	}
 
-	return parse_var_decl(ctx, expr, { .is_expr = true, .is_local = true, .skip_eos = true })!;
+	return parse_var_decl({ .ctx = ctx, .flags = { .is_expr = true, .is_local = true, .skip_eos = true }}, expr)!;
 }
 
 <*
  "Shortcut" for when a left node has already been parsed (like an identifier) 
  and want to continue building an expression from that specific point without starting over
 *>
-fn Node*? parse_expr_resuming_with_left(ParseContext* ctx, Node* left, Precedence min_bp)
+fn Node*? parse_expr_resuming_with_left(ContextScope scope, Node* left, Precedence min_bp)
 {
+	ParseContext* ctx = scope.ctx;
 	while (true)
 	{
 		int lbp, rbp;
 		get_binding_power(ctx.current().kind, &lbp, &rbp);
 		if (lbp < min_bp) break;
 
-		left = parse_infix(ctx, left, (Precedence)rbp)!;
+		left = parse_infix(scope, left, (Precedence)rbp)!;
 	}
 	return left;
 }
 
-fn Node*? parse_constant_expr(ParseContext* ctx)
+fn Node*? parse_constant_expr(ContextScope scope)
 {
-	return parse_expr(ctx, ASSIGNMENT + 1)!;
+	ParseContext* ctx = scope.ctx;
+	return parse_expr(scope, ASSIGNMENT + 1)!;
 }
 
 <*
  @ensure return != null
 *>
-fn Node*? parse_try_chain_expr(ParseContext* ctx)
+fn Node*? parse_try_chain_expr(ContextScope scope)
 {
-	return parse_expr(ctx, RELATIONAL + 1)!;
+	ParseContext* ctx = scope.ctx;
+	return parse_expr(scope, RELATIONAL + 1)!;
 }

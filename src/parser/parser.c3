@@ -58,6 +58,14 @@ fn ContextScope ContextScope.with_flags(&self, ParseFlags flags)
 	};
 }
 
+fn ContextScope ContextScope.with_only_flags(&self, ParseFlags flags)
+{
+	return { 
+		.ctx = self.ctx, 
+		.flags = flags 
+	};
+}
+
 fn void? ParseContext.skip_until(ParseContext* ctx, TokenKind[] targets)
 {
 	while (!ctx.eof())
@@ -491,12 +499,10 @@ fn void? parse_top_level(ParseContext* ctx)
 
 	if (is_type(ctx))
 	{
-		node = parse_var_decl(ctx, null, flags)!;
+		node = parse_var_decl(scope, null)!;
 		ctx.ast.top_level_nodes.push(node);
 		return;
 	}
-
-	ParseFlags flags = scope.flags;
 
 	switch (ctx.current().kind)
 	{
@@ -506,45 +512,43 @@ fn void? parse_top_level(ParseContext* ctx)
 				ctx.error("There are more than one doc comment in a row, that is not allowed.");
 				ctx.ast.error(ctx.current().pos);
 			}
-			node = parse_contract_decl(ctx)!;
+			node = parse_contract_decl(scope)!;
 			ctx.contract = node;
 		case INTERFACE:
-			node = parse_interface_decl(ctx)!;
+			node = parse_interface_decl(scope)!;
 		case MODULE:
-			node = parse_module_decl(ctx)!;
+			node = parse_module_decl(scope)!;
 		case IMPORT:
-			node = parse_import_decl(ctx)!;
+			node = parse_import_decl(scope)!;
 		case FAULTDEF:
-			node = parse_faultdef_decl(ctx)!;
+			node = parse_faultdef_decl(scope)!;
 		case FN:
 			node = parse_fn_decl(scope)!;
 		case MACRO:
-			node = parse_macro_decl(ctx, flags)!;
+			node = parse_macro_decl(scope)!;
 		case ALIAS:
-			node = parse_alias_decl(ctx)!;
+			node = parse_alias_decl(scope)!;
 		case TYPEDEF:
-			node = parse_typedef_decl(ctx, flags)!;
+			node = parse_typedef_decl(scope)!;
 		case ATTRDEF:
-			node = parse_attrdef_decl(ctx)!;
+			node = parse_attrdef_decl(scope)!;
 		case UNION:
 		case STRUCT:
-			node = parse_struct_union_decl(ctx)!;
+			node = parse_struct_union_decl(scope)!;
 		case BITSTRUCT:
-			node = parse_bitstruct_decl(ctx)!;
+			node = parse_bitstruct_decl(scope)!;
 		case CONSTDEF:
-			flags.is_constdef = true;
-			node = parse_enum_constdef_decl(ctx, flags)!;
+			node = parse_enum_constdef_decl(scope.with_flags({ .is_constdef = true }))!;
 		case ENUM:
-			node = parse_enum_constdef_decl(ctx, flags)!;
+			node = parse_enum_constdef_decl(scope)!;
 		case CONST:
-			flags.is_const = true;
 			advance(ctx)!;
-			node = parse_var_decl(ctx, null, flags)!;
+			node = parse_var_decl(scope.with_flags({ .is_const = true }), null)!;
 		case CT_EXPAND:
-			node = parse_expand_decl(ctx)!;
+			node = parse_expand_decl(scope)!;
 		case CT_ASSERT:
 			int start_pos = ctx.current().pos;
-			Node* stmt = parse_ct_assert_stmt(ctx)!;
+			Node* stmt = parse_ct_assert_stmt(scope)!;
 			node = ctx.ast.alloc_node(CT_ASSERT_DECL, start_pos);
 			node.offset.end = ctx.current().pos;
 			CtAssertDecl* ctassert = node.as(CT_ASSERT_DECL);

@@ -12,8 +12,9 @@ import analyzer::core::string_pool;
 <*
  @require t.kind == IDENT
 *>
-fn StringID parse_identifier(ParseContext* ctx, Token t) 
+fn StringID parse_identifier(ContextScope scope, Token t) 
 {   
+	ParseContext* ctx = scope.ctx;
 	String name = ctx.token_text(t);
 	if (!constants::is_valid_name(name)) 
 	{
@@ -26,8 +27,10 @@ fn StringID parse_identifier(ParseContext* ctx, Token t)
 <*
  parameter_list ::= (param_decl (',' param_decl)*)?
 *>
-fn NodeArray? parse_parameter_list(ParseContext* ctx, ParamParseFlags flags = { }) => @pool()
+fn NodeArray? parse_parameter_list(ContextScope scope) => @pool()
 {
+	ParseContext* ctx = scope.ctx;
+	ParseFlags flags = scope.flags;
 	int start_pos = ctx.current().pos;
 
 	if (!flags.is_call)
@@ -51,7 +54,7 @@ fn NodeArray? parse_parameter_list(ParseContext* ctx, ParamParseFlags flags = { 
 			break;
 		}
 
-		Node* param = parse_param_decl(ctx, flags)!;
+		Node* param = parse_param_decl(scope)!;
 		temp_params.push(param);
 
 		if (!consume(ctx, COMMA)!) break;
@@ -69,9 +72,10 @@ fn NodeArray? parse_parameter_list(ParseContext* ctx, ParamParseFlags flags = { 
 	return alloc::clone_slice(ctx.arena, temp_params.array_view());
 }
 
-fn void? parse_macro_params(ParseContext* ctx, Node* macro_node)
+fn void? parse_macro_params(ContextScope scope, Node* macro_node)
 {
-	NodeArray params = parse_parameter_list(ctx, { .is_macro = true })!;
+	ParseContext* ctx = scope.ctx;
+	NodeArray params = parse_parameter_list(scope.with_flags({ .is_macro = true }))!;
 	MacroDecl* mac   = macro_node.as(MACRO_DECL);
 	mac.params = params;
 
@@ -83,7 +87,7 @@ fn void? parse_macro_params(ParseContext* ctx, Node* macro_node)
 		Node* body_param_node     = ctx.ast.alloc_node(BODY_PARAM_DECL, at_tok.pos);
 		BodyParamDecl* body_param = body_param_node.as(BODY_PARAM_DECL);
 
-		body_param.params = parse_parameter_list(ctx)!;
+		body_param.params = parse_parameter_list(scope)!;
 	}
 
 	expect(ctx, RPAREN)!;
@@ -92,8 +96,9 @@ fn void? parse_macro_params(ParseContext* ctx, Node* macro_node)
 <*
  generic_param_list ::= '{' expr ( ',' expr )* '}'
 *>
-fn NodeArray? parse_generics_list(ParseContext* ctx)
+fn NodeArray? parse_generics_list(ContextScope scope)
 {
+	ParseContext* ctx = scope.ctx;
 	if (!consume(ctx, LBRACE)!) return { };
 	List{Node*} params;
 	params.init(tmem, 4);
@@ -101,7 +106,7 @@ fn NodeArray? parse_generics_list(ParseContext* ctx)
 	while (true)
 	{
 		if (ctx.is(RBRACE)) break;
-		Node* param = parse_expr(ctx)!;
+		Node* param = parse_expr(scope)!;
 		params.push(param);
 		if (!consume(ctx, COMMA)!) break;
 	}
@@ -115,8 +120,9 @@ fn NodeArray? parse_generics_list(ParseContext* ctx)
 	return alloc::clone_slice(ctx.arena, params.array_view());
 }
 
-fn Node*? parse_contract_param(ParseContext* ctx)
+fn Node*? parse_contract_param(ContextScope scope)
 {
+	ParseContext* ctx = scope.ctx;
 	int start = ctx.current().pos;
 
 	Node* node = ctx.ast.alloc_node(CONTRACT_PARAM, start);
@@ -169,7 +175,7 @@ fn Node*? parse_contract_param(ParseContext* ctx)
 			return ctx.ast.error(ctx.current().pos);
 	}
 
-	param.name = parse_expr(ctx)!;
+	param.name = parse_expr(scope)!;
 
 	if (ctx.is(COLON))
 	{
@@ -191,8 +197,9 @@ fn Node*? parse_contract_param(ParseContext* ctx)
  param_list ::= ('...' arg | arg (',' arg)*)?
  parameter ::= ((param_path '=')? expr) | param_path
 *>
-fn NodeArray? parse_arg_list(ParseContext* ctx) => @pool()
+fn NodeArray? parse_arg_list(ContextScope scope) => @pool()
 {
+	ParseContext* ctx = scope.ctx;
 	List{Node*} args;
 	args.tinit();
 
@@ -207,11 +214,11 @@ fn NodeArray? parse_arg_list(ParseContext* ctx) => @pool()
 
 		if (ctx.is(ELLIPSIS) && ctx.can_peek(1) && ctx.peek(1)!.kind == CT_VAARG)
 		{
-			expr = parse_vasplat_expr(ctx)!;
+			expr = parse_vasplat_expr(scope)!;
 		}
 		else
 		{
-			expr = parse_expr(ctx)!;
+			expr = parse_expr(scope)!;
 
 			if (expr.kind == IDENT_EXPR && consume(ctx, COLON)!)
 			{
@@ -222,7 +229,7 @@ fn NodeArray? parse_arg_list(ParseContext* ctx) => @pool()
 				NamedArgExpr* named = expr.as(NAMED_ARG_EXPR);
 				named.name = arg_name;
 
-				named.value = parse_expr(ctx)!;
+				named.value = parse_expr(scope)!;
 				expr.offset.end = ctx.current().pos;
 			}
 			else if (expr.kind == CT_EVAL_EXPR && consume(ctx, COLON)!)
@@ -232,7 +239,7 @@ fn NodeArray? parse_arg_list(ParseContext* ctx) => @pool()
 				EvalNamedArgExpr* eval_named = expr.as(EVAL_NAMED_ARG_EXPR);
 
 				eval_named.name = inner;
-				eval_named.value = parse_expr(ctx)!;
+				eval_named.value = parse_expr(scope)!;
 				expr.offset.end = ctx.current().pos;
 			}
 		}
@@ -258,8 +265,9 @@ fn NodeArray? parse_arg_list(ParseContext* ctx) => @pool()
  parse short body: =>
  wraps the short body in a compound and a return
 *>
-fn Node*? parse_short_body(ParseContext* ctx, bool is_regular)
+fn Node*? parse_short_body(ContextScope scope, bool is_regular)
 {
+	ParseContext* ctx = scope.ctx;
 	int pos         = ctx.current().pos;
 	Node* node_comp = ctx.ast.alloc_node(COMPOUND_STMT, pos);
 	Node* ret_node  = ctx.ast.alloc_node(RETURN_STMT, pos);
@@ -270,7 +278,7 @@ fn Node*? parse_short_body(ParseContext* ctx, bool is_regular)
 	comp.statements = alloc::alloc_array(ctx.arena, Node*, 1);
 	comp.statements[0] = ret_node;
 	
-	Node* expr = parse_expr(ctx)!;
+	Node* expr = parse_expr(scope)!;
 
 	if (expr.kind == CALL_EXPR)
 	{

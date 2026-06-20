@@ -95,6 +95,21 @@ struct ForStmt
 	StringID label;
 }
 
+<*
+ - init: expr_list?
+ - cond: cond_expr?
+ - incr: cond_ist?
+ - body: stmt
+ - label: optional label
+*>
+struct CtForStmt
+{
+	NullableNode init;
+	NullableNode cond;
+	NullableNode incr;
+	Node* body;
+}
+
 struct WhileStmt
 {
 	Node* cond;

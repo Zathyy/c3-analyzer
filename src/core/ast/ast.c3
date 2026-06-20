@@ -63,6 +63,7 @@ struct Node
 		CompoundStmt compound_stmt;
 		ReturnStmt return_stmt;
 		ForStmt for_stmt;
+		CtForStmt ct_for_stmt;
 		WhileStmt while_stmt;
 		DoWhileStmt do_while_stmt;
 		ForeachStmt foreach_stmt;

@@ -148,15 +148,16 @@ fn void append_node_array(List{Node*}* list, NodeArray nodes)
 
 <*
  Parse attributes at the current token and append them into an existing list.
- @param [&inout] ctx : "Parser context to consume attributes from."
+ @require(scope.ctx != null) : "Parser context to consume attributes from."
  @param [&inout] parent_node : "Node receiving visibility and has-attributes side effects."
  @param [&inout] list : "Destination list for parsed ATTRIBUTE_DECL nodes."
 *>
-fn void? parse_attributes_into(ParseContext* ctx, Node* parent_node, List{Node*}* list)
+fn void? parse_attributes_into(ContextScope scope, Node* parent_node, List{Node*}* list)
 {
+	ParseContext* ctx = scope.ctx;
 	if (ctx.is(AT_IDENT))
 	{
-		append_node_array(list, parse_attributes(ctx, parent_node)!);
+		append_node_array(list, parse_attributes(scope, parent_node)!);
 	}
 }
 
@@ -164,10 +165,11 @@ fn void? parse_attributes_into(ParseContext* ctx, Node* parent_node, List{Node*}
  Parse an optional parenthesized list of interface type expressions.
 
  interface_type_list ::= '(' type_expr (',' type_expr)* ')' | empty
- @param [&inout] ctx : "Parser context positioned at '(' when present."
+ @require(scope.ctx != null) : "Parser context positioned at '(' when present."
 *>
-fn NodeArray? parse_interface_type_list(ParseContext* ctx, ParseFlags flags = { }) => @pool()
+fn NodeArray? parse_interface_type_list(ContextScope scope) => @pool()
 {
+	ParseContext* ctx = scope.ctx;
 	List{Node*} interfaces;
 	interfaces.init(tmem, 4);
 
@@ -178,7 +180,7 @@ fn NodeArray? parse_interface_type_list(ParseContext* ctx, ParseFlags flags = { 
 
 	while (!ctx.eof() && !ctx.is(RPAREN))
 	{
-		Node* interface_type = parse_type_expr(ctx, null, flags)!;
+		Node* interface_type = parse_type_expr(scope, null)!;
 		interfaces.push(interface_type);
 
 		if (!consume(ctx, COMMA)!) break;

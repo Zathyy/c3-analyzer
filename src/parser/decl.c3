@@ -6,20 +6,21 @@ import std::io;
 <*
  module_decl ::= module path_expr ';' attributes?
 *>
-fn Node*? parse_module_decl(ParseContext* ctx)
+fn Node*? parse_module_decl(ContextScope scope)
 {
+	ParseContext* ctx = scope.ctx;
 	int start_pos = ctx.current().pos;
 	expect(ctx, MODULE)!;
 	plog::debug("parse_mod");
 	Node* node           = ctx.ast.alloc_node(MODULE_DECL, start_pos);
 	ModuleDecl* mod_decl = node.as(MODULE_DECL);
 
-	mod_decl.path = parse_path_expr(ctx)!;
-	mod_decl.generics = parse_generic_decl(ctx)!;
+	mod_decl.path = parse_path_expr(scope)!;
+	mod_decl.generics = parse_generic_decl(scope)!;
 
 	if (ctx.is(AT_IDENT))
 	{
-		mod_decl.attributes = parse_attributes(ctx, node)!;
+		mod_decl.attributes = parse_attributes(scope, node)!;
 	}
 
 	node.offset.end = ctx.current_pos();
@@ -41,8 +42,9 @@ fn Node*? parse_module_decl(ParseContext* ctx)
 <*
 
 *>
-fn Node*? parse_contract_decl(ParseContext* ctx) => @pool()
+fn Node*? parse_contract_decl(ContextScope scope) => @pool()
 {
+	ParseContext* ctx = scope.ctx;
 	int start_pos = ctx.current().pos;
 	if (!ctx.is(CONTRACT))
 	{
@@ -123,16 +125,16 @@ fn Node*? parse_contract_decl(ParseContext* ctx) => @pool()
 			if (attr == constants::KW_AT_REQUIRE)
 			{
 				plog::debug("parse_contract_decl - @require");
-				requires.push(parse_contract_expr(ctx)!);
+				requires.push(parse_contract_expr(scope)!);
 			}
 			else if (attr == constants::KW_AT_ENSURE)
 			{
 				plog::debug("parse_contract_decl - @ensure");
-				ensures.push(parse_contract_expr(ctx)!);
+				ensures.push(parse_contract_expr(scope)!);
 			}
 			else if (attr == constants::KW_AT_PARAM)
 			{
-				params.push(parse_contract_param(ctx))!;
+				params.push(parse_contract_param(scope))!;
 			}
 			else if (attr == constants::KW_AT_DEPRECATED)
 			{
@@ -152,7 +154,7 @@ fn Node*? parse_contract_decl(ParseContext* ctx) => @pool()
 				{
 					List{Node*} exprs;
 					exprs.tinit(1);
-					exprs.push(parse_expr(ctx)!);
+					exprs.push(parse_expr(scope)!);
 					plog::debug("parser @deprecated string");
 					attribute.exprs = alloc::clone_slice(ctx.arena, exprs.array_view());
 				}
@@ -168,7 +170,7 @@ fn Node*? parse_contract_decl(ParseContext* ctx) => @pool()
 					advance(ctx)!;
 					while (!ctx.eof())
 					{
-						returns.push(parse_expr(ctx)!);
+						returns.push(parse_expr(scope)!);
 						if (!consume(ctx, COMMA)!)
 						{
 							break;
@@ -177,7 +179,7 @@ fn Node*? parse_contract_decl(ParseContext* ctx) => @pool()
 				}
 				else
 				{
-					contract.return_desc = parse_expr(ctx)!;
+					contract.return_desc = parse_expr(scope)!;
 				}
 			}
 			else
@@ -202,8 +204,9 @@ fn Node*? parse_contract_decl(ParseContext* ctx) => @pool()
 <*
  import_decl ::= import path_expr (',' path_expr)* ';' attributes?
 *>
-fn Node*? parse_import_decl(ParseContext* ctx) => @pool()
+fn Node*? parse_import_decl(ContextScope scope) => @pool()
 {
+	ParseContext* ctx = scope.ctx;
 	int start_pos = ctx.current().pos;
 	expect(ctx, IMPORT)!;
 	Node* node      = ctx.ast.alloc_node(IMPORT_DECL, start_pos);
@@ -214,7 +217,7 @@ fn Node*? parse_import_decl(ParseContext* ctx) => @pool()
 
 	while (true)
 	{
-		Node* path_node = parse_path_expr(ctx)!;
+		Node* path_node = parse_path_expr(scope)!;
 		temp_paths.push(path_node);
 
 		if (!consume(ctx, COMMA)!) break;
@@ -229,7 +232,7 @@ fn Node*? parse_import_decl(ParseContext* ctx) => @pool()
 
 	if (ctx.is(AT_IDENT))
 	{
-		imp.attributes = parse_attributes(ctx, node)!;
+		imp.attributes = parse_attributes(scope, node)!;
 	}
 
 	node.offset.end = ctx.current_pos();
@@ -249,10 +252,11 @@ fn Node*? parse_import_decl(ParseContext* ctx) => @pool()
  identifier-style aliases require the target path's final token kind to match
  the alias name kind. Alias generics and attributes use the shared declaration
  parsers and are represented on AliasDecl.
- @param [&inout] ctx : "Parser context positioned at the alias keyword."
+ @require(scope.ctx != null) : "Parser context positioned at the alias keyword."
 *>
-fn Node*? parse_alias_decl(ParseContext* ctx)
+fn Node*? parse_alias_decl(ContextScope scope)
 {
+	ParseContext* ctx = scope.ctx;
 	int start_pos = ctx.current().pos;
 	expect(ctx, ALIAS)!;
 	Node* node            = ctx.ast.alloc_node(ALIAS_DECL, start_pos);
@@ -271,8 +275,8 @@ fn Node*? parse_alias_decl(ParseContext* ctx)
 		alias_decl.name_kind = t.kind;
 	};
 
-	alias_decl.generics = parse_generic_decl(ctx)!;
-	alias_decl.attributes = parse_attributes(ctx, node, { .allow_type_ident = true })!;
+	alias_decl.generics = parse_generic_decl(scope)!;
+	alias_decl.attributes = parse_attributes(scope, node, { .allow_type_ident = true })!;
 
 	expect(ctx, EQ)!;
 
@@ -280,17 +284,17 @@ fn Node*? parse_alias_decl(ParseContext* ctx)
 	{
 		alias_decl.alias_kind = MODULE_ALIAS;
 		advance(ctx)!;
-		alias_decl.target = parse_path_expr(ctx)!;
+		alias_decl.target = parse_path_expr(scope)!;
 	}
 	else if (alias_decl.name_kind == TYPE_IDENT)
 	{
 		alias_decl.alias_kind = TYPE_ALIAS;
-		alias_decl.target = parse_alias_type_target(ctx)!;
+		alias_decl.target = parse_alias_type_target(scope)!;
 	}
 	else
 	{
 		alias_decl.alias_kind = IDENT_ALIAS;
-		alias_decl.target = parse_expr(ctx)!;
+		alias_decl.target = parse_expr(scope)!;
 		if (ctx.is(LBRACE))
 		{
 			// TODO: represent generic target arguments for identifier aliases.
@@ -310,11 +314,11 @@ fn Node*? parse_alias_decl(ParseContext* ctx)
  Typedef declarations create distinct types. Function pointer syntax is
  alias-only in C3, so a typedef base beginning with `fn` is consumed only for
  recovery and an ERROR node is returned.
- @param [&inout] ctx : "Parser context positioned at the typedef keyword."
- @param flags : "Top-level modifiers consumed before the typedef keyword."
 *>
-fn Node*? parse_typedef_decl(ParseContext* ctx, ParseFlags flags = { })
+fn Node*? parse_typedef_decl(ContextScope scope)
 {
+	ParseContext* ctx = scope.ctx;
+	ParseFlags flags = scope.flags;
 	int start_pos = ctx.current().pos;
 	expect(ctx, TYPEDEF)!;
 	Node* node                = ctx.ast.alloc_node(TYPEDEF_DECL, start_pos);
@@ -342,8 +346,8 @@ fn Node*? parse_typedef_decl(ParseContext* ctx, ParseFlags flags = { })
 		advance(ctx)!;
 	}
 
-	typedef_decl.generics = parse_generic_decl(ctx)!;
-	typedef_decl.interfaces = parse_interface_type_list(ctx)!;
+	typedef_decl.generics = parse_generic_decl(scope)!;
+	typedef_decl.interfaces = parse_interface_type_list(scope)!;
 	foreach (interface_type : typedef_decl.interfaces)
 	{
 		if (is_error_or_missing_node(interface_type))
@@ -354,7 +358,7 @@ fn Node*? parse_typedef_decl(ParseContext* ctx, ParseFlags flags = { })
 
 	List{Node*} attributes;
 	attributes.init(tmem, 4);
-	parse_attributes_into(ctx, node, &attributes)!;
+	parse_attributes_into(scope, node, &attributes)!;
 
 	expect(ctx, EQ)!;
 
@@ -369,10 +373,10 @@ fn Node*? parse_typedef_decl(ParseContext* ctx, ParseFlags flags = { })
 	}
 	else
 	{
-		typedef_decl.base_type = parse_type_expr(ctx)!;
+		typedef_decl.base_type = parse_type_expr(scope)!;
 	}
 
-	parse_attributes_into(ctx, node, &attributes)!;
+	parse_attributes_into(scope, node, &attributes)!;
 	typedef_decl.attributes = alloc::clone_slice(ctx.arena, attributes.array_view());
 	node.offset.end = ctx.current_pos();
 	expect(ctx, EOS)!;
@@ -383,8 +387,10 @@ fn Node*? parse_typedef_decl(ParseContext* ctx, ParseFlags flags = { })
  macro_decl ::= macro type_expr? (type_expr '.')? ident '(' parameter_list? ')' attributes?
  fn_body ::= ('=>' short_body) | compound_stmt
 *>
-fn Node*? parse_macro_decl(ParseContext* ctx, ParseFlags flags = { })
+fn Node*? parse_macro_decl(ContextScope scope)
 {
+	ParseContext* ctx = scope.ctx;
+	ParseFlags flags = scope.flags;
 	int start_pos = ctx.current().pos;
 
 	expect(ctx, MACRO)!;
@@ -396,12 +402,12 @@ fn Node*? parse_macro_decl(ParseContext* ctx, ParseFlags flags = { })
 
 	if (is_type(ctx) && ctx.peek(1)!.kind != DOT)
 	{
-		mac.ret_type.set(parse_type_expr(ctx)!);
+		mac.ret_type.set(parse_type_expr(scope)!);
 	}
 
 	if IS_TYPE: (is_type(ctx))
 	{
-		mac.associated_type.set(parse_type_expr(ctx)!);
+		mac.associated_type.set(parse_type_expr(scope)!);
 
 		expect(ctx, DOT)!;
 
@@ -435,11 +441,11 @@ fn Node*? parse_macro_decl(ParseContext* ctx, ParseFlags flags = { })
 		mac.name = ctx.ast.string_pool.internalize(ctx.token_text(t));
 	}
 
-	parse_macro_params(ctx, node)!;
+	parse_macro_params(scope, node)!;
 
 	if (ctx.is(AT_IDENT))
 	{
-		mac.attributes = parse_attributes(ctx, node)!;
+		mac.attributes = parse_attributes(scope, node)!;
 	}
 
 	if (ctx.is(LBRACE))
@@ -449,7 +455,7 @@ fn Node*? parse_macro_decl(ParseContext* ctx, ParseFlags flags = { })
 			ctx.error("Extern functions cannot have a structural block body");
 			return ctx.ast.error(start_pos);
 		}
-		mac.body = parse_compound_stmt(ctx)!;
+		mac.body = parse_compound_stmt(scope)!;
 		node.offset.end = mac.body.offset.end;
 	}
 	else if (consume(ctx, IMPLIES)!)
@@ -460,7 +466,7 @@ fn Node*? parse_macro_decl(ParseContext* ctx, ParseFlags flags = { })
 			return ctx.ast.error(start_pos);
 		}
 
-		mac.body = parse_short_body(ctx, true)!;
+		mac.body = parse_short_body(scope, true)!;
 		node.offset.end = mac.body.offset.end;		
 	}
 	else
@@ -485,10 +491,11 @@ fn Node*? parse_macro_decl(ParseContext* ctx, ParseFlags flags = { })
 					| IDENTIFIER "..."? attributes?
 					| CT_IDENT
 					| CT_IDENT "..."
- @param [&inout] ctx
+ @require (scope.ctx != null)
 *>
-fn Node*? parse_param_decl(ParseContext* ctx, ParamParseFlags flags)
+fn Node*? parse_param_decl(ContextScope scope, ParamParseFlags flags = {})
 {
+	ParseContext* ctx = scope.ctx;
 	int start_pos = ctx.current().pos;
 
 	Node* node     = ctx.ast.alloc_node(VAR_DECL, start_pos);
@@ -508,7 +515,7 @@ fn Node*? parse_param_decl(ParseContext* ctx, ParamParseFlags flags)
 
 	if (!is_ref && check_if_typed_parameter(ctx))
 	{
-		parsed_type = parse_type_expr(ctx)!;
+		parsed_type = parse_type_expr(scope)!;
 		if (parsed_type.kind == ERROR) return parsed_type;
 		if (parsed_type.as(TYPE_EXPR).optional)
 		{
@@ -620,7 +627,7 @@ fn Node*? parse_param_decl(ParseContext* ctx, ParamParseFlags flags)
 
 	if (ctx.is(AT_IDENT))
 	{
-		param.attributes = parse_attributes(ctx, node)!;
+		param.attributes = parse_attributes(scope, node)!;
 	}
 
 	if (consume(ctx, EQ)!)
@@ -631,7 +638,7 @@ fn Node*? parse_param_decl(ParseContext* ctx, ParamParseFlags flags)
 		}
 		else
 		{
-			param.init_expr = parse_expr(ctx)!;
+			param.init_expr = parse_expr(scope)!;
 			node.offset.end = param.init_expr.offset.end;
 		}
 	}
@@ -642,14 +649,16 @@ fn Node*? parse_param_decl(ParseContext* ctx, ParamParseFlags flags)
 <*
  var_decl ::= ('var' | type_expr) decl_element (',' decl_element)* ';'
 *>
-fn Node*? parse_var_decl(ParseContext* ctx, Node* type = null, ParseFlags flags = { })
+fn Node*? parse_var_decl(ContextScope scope, Node* type = null)
 {
+	ParseContext* ctx = scope.ctx;
+	ParseFlags flags = scope.flags;
 	int start_pos = ctx.current().pos;
 
 	Node* contract;
 	if (ctx.is(CONTRACT))
 	{
-		contract = parse_contract_decl(ctx)!;
+		contract = parse_contract_decl(scope)!;
 	}
 
 	if (flags.is_local)
@@ -677,7 +686,7 @@ fn Node*? parse_var_decl(ParseContext* ctx, Node* type = null, ParseFlags flags 
 		}
 		else if (is_type_primitive(ctx.current().kind) || ctx.is(IDENT) || ctx.is(TYPE_IDENT))
 		{
-			type_node = parse_type_expr(ctx, null, flags)!;
+			type_node = parse_type_expr(scope.with_only_flags(flags), null)!;
 			if (type_node.kind == ERROR) return type_node;
 		}
 		else if (!flags.is_const)
@@ -718,7 +727,7 @@ fn Node*? parse_var_decl(ParseContext* ctx, Node* type = null, ParseFlags flags 
 
 		if (ctx.is(AT_IDENT) || ctx.is(AT_TYPE_IDENT))
 		{
-			var_decl.attributes = parse_attributes(ctx, var_node, { .allow_type_ident = true })!;
+			var_decl.attributes = parse_attributes(scope, var_node, { .allow_type_ident = true })!;
 		}
 
 		Node* init_expr = null;
@@ -740,7 +749,7 @@ fn Node*? parse_var_decl(ParseContext* ctx, Node* type = null, ParseFlags flags 
 				unexpected(ctx, "Fields cannot have an initializer");
 			}
 
-			init_expr = parse_expr(ctx)!;
+			init_expr = parse_expr(scope)!;
 			if (init_expr.kind == ERROR) return init_expr;
 		}
 		else if (flags.is_const && !flags.is_extern)
@@ -808,10 +817,11 @@ fn Node*? parse_var_decl(ParseContext* ctx, Node* type = null, ParseFlags flags 
 <*
  attributes ::= attribute attribute*
   attribute  ::= AT_IDENT ("(" expression_list? ")")?
- @param [&inout] ctx
+ @require(scope.ctx != null)
 *>
-fn NodeArray? parse_attributes(ParseContext* ctx, Node* parent_node, AttributeParseFlags flags = { }) => @pool()
+fn NodeArray? parse_attributes(ContextScope scope, Node* parent_node, AttributeParseFlags flags = { }) => @pool()
 {
+	ParseContext* ctx = scope.ctx;
 	List{Node*} nodes;
 	nodes.init(tmem, 4);
 
@@ -842,7 +852,7 @@ fn NodeArray? parse_attributes(ParseContext* ctx, Node* parent_node, AttributePa
 			exprs.init(tmem, 4);
 			while (!ctx.is(RPAREN) && !ctx.eof())
 			{
-				exprs.push(parse_constant_expr(ctx)!);
+				exprs.push(parse_constant_expr(scope)!);
 				if (!consume(ctx, COMMA)!) break;
 			}
 			attr_node.offset.end = ctx.current_pos();
@@ -867,18 +877,19 @@ fn NodeArray? parse_attributes(ParseContext* ctx, Node* parent_node, AttributePa
 <*
  ct_expand_decl ::= $expand '(' expr ')' attributes? ';'
 *>
-fn Node*? parse_expand_decl(ParseContext* ctx)
+fn Node*? parse_expand_decl(ContextScope scope)
 {
+	ParseContext* ctx = scope.ctx;
 	int start_pos = ctx.current().pos;
 	expect(ctx, CT_EXPAND)!;
 	Node* node           = ctx.ast.alloc_node(CT_EXPAND_DECL, start_pos);
 	CtExpandDecl* expand = node.as(CT_EXPAND_DECL);
 	expect(ctx, LPAREN)!;
-	expand.expr = parse_constant_expr(ctx)!;
+	expand.expr = parse_constant_expr(scope)!;
 	expect(ctx, RPAREN)!;
 	if (ctx.is(AT_IDENT))
 	{
-		expand.attributes = parse_attributes(ctx, node)!;
+		expand.attributes = parse_attributes(scope, node)!;
 	}
 	node.offset.end = ctx.current_pos();
 	expect(ctx, EOS)!;
@@ -888,8 +899,11 @@ fn Node*? parse_expand_decl(ParseContext* ctx)
 <*
  struct_decl ::= "struct | union" TYPE_IDENT ("(" type ("," type)* ")")? attributes? "{" struct_body "}"
 *>
-fn Node*? parse_struct_union_decl(ParseContext* ctx, bool is_sub = false) => @pool()
+fn Node*? parse_struct_union_decl(ContextScope scope, bool is_sub = false) => @pool()
 {
+	ParseContext* ctx = scope.ctx;
+	ParseFlags flags = scope.flags;
+
 	int start_pos  = ctx.current().pos;
 	bool is_struct = ctx.is(STRUCT);
 	if (is_struct)
@@ -926,9 +940,9 @@ fn Node*? parse_struct_union_decl(ParseContext* ctx, bool is_sub = false) => @po
 		}
 	};
 
-	struct_decl.interfaces = parse_interface_type_list(ctx)!;
-	struct_decl.generics = parse_generic_decl(ctx)!;
-	struct_decl.attributes = parse_attributes(ctx, node, { .allow_type_ident = true })!;
+	struct_decl.interfaces = parse_interface_type_list(scope)!;
+	struct_decl.generics = parse_generic_decl(scope)!;
+	struct_decl.attributes = parse_attributes(scope, node, { .allow_type_ident = true })!;
 
 	@expect_else_skip(ctx, LBRACE, { RBRACE } ; brace_err)
 	{
@@ -948,11 +962,11 @@ fn Node*? parse_struct_union_decl(ParseContext* ctx, bool is_sub = false) => @po
 
 			if (ctx.is(BITSTRUCT))
 			{
-				sub_decl = parse_bitstruct_decl(ctx, true)!;
+				sub_decl = parse_bitstruct_decl(scope, true)!;
 			}
 			else
 			{
-				sub_decl = parse_struct_union_decl(ctx, true)!;
+				sub_decl = parse_struct_union_decl(scope, true)!;
 			}
 
 			if (sub_decl && sub_decl.kind != ERROR)
@@ -967,10 +981,10 @@ fn Node*? parse_struct_union_decl(ParseContext* ctx, bool is_sub = false) => @po
 		}
 		else
 		{
-			ParseFlags flags;
-			flags.is_struct = true;
-			flags.is_inline = consume(ctx, INLINE)!;
-			Node* field = parse_var_decl(ctx, null, flags)!;
+			ParseFlags struct_flags;
+			struct_flags.is_struct = true;
+			struct_flags.is_inline = consume(ctx, INLINE)!;
+			Node* field = parse_var_decl(scope.with_only_flags(struct_flags), null)!;
 			fields.push(field);
 		}
 	}
@@ -985,8 +999,9 @@ fn Node*? parse_struct_union_decl(ParseContext* ctx, bool is_sub = false) => @po
 <*
  bitstruct_decl ::= "bitstruct" TYPE_IDENT ("(" type ("," type)* ")")? ":" type attributes? "{" bitstruct_body "}"
 *>
-fn Node*? parse_bitstruct_decl(ParseContext* ctx, bool is_nested = false) => @pool()
+fn Node*? parse_bitstruct_decl(ContextScope scope, bool is_nested = false) => @pool()
 {
+	ParseContext* ctx = scope.ctx;
 	int start_pos = ctx.current().pos;
 	expect(ctx, BITSTRUCT)!;
 	Node* node              = ctx.ast.alloc_node(STRUCT_DECL, start_pos);
@@ -1004,12 +1019,12 @@ fn Node*? parse_bitstruct_decl(ParseContext* ctx, bool is_nested = false) => @po
 		struct_decl.name = ctx.ast.string_pool.internalize(ctx.token_text(t));
 	}
 
-	struct_decl.interfaces = parse_interface_type_list(ctx, { .no_generics = true })!;
+	struct_decl.interfaces = parse_interface_type_list(scope.with_only_flags({ .no_generics = true }))!;
 
 	if (consume(ctx, COLON)!)
 	{
-		struct_decl.type = parse_type_expr(ctx, null, { .no_generics = true })!;
-		struct_decl.attributes = parse_attributes(ctx, node)!;
+		struct_decl.type = parse_type_expr(scope.with_only_flags({ .no_generics = true }), null)!;
+		struct_decl.attributes = parse_attributes(scope, node)!;
 	}
 
 	@expect_else_skip(ctx, LBRACE, { RBRACE } ; brace_err)
@@ -1027,9 +1042,9 @@ fn Node*? parse_bitstruct_decl(ParseContext* ctx, bool is_nested = false) => @po
 		VarDecl* field   = field_node.as(VAR_DECL);
 		field.kind = VAR_BITFIELD;
 
-		if (ctx.is(CONTRACT)) field.contract.set(parse_contract_decl(ctx)!);
-		field.type = parse_type_expr(ctx)!;
-		field.attributes = parse_attributes(ctx, field_node)!;
+		if (ctx.is(CONTRACT)) field.contract.set(parse_contract_decl(scope)!);
+		field.type = parse_type_expr(scope)!;
+		field.attributes = parse_attributes(scope, field_node)!;
 
 		if IF_IDENT: (true)
 		{
@@ -1044,10 +1059,10 @@ fn Node*? parse_bitstruct_decl(ParseContext* ctx, bool is_nested = false) => @po
 
 		if (consume(ctx, COLON)!)
 		{
-			field.init_expr = parse_constant_expr(ctx)!;
+			field.init_expr = parse_constant_expr(scope)!;
 			if (consume(ctx, DOTDOT)!)
 			{
-				field.bit_end = parse_constant_expr(ctx)!;
+				field.bit_end = parse_constant_expr(scope)!;
 			}
 		}
 		expect(ctx, EOS)!;
@@ -1064,8 +1079,9 @@ fn Node*? parse_bitstruct_decl(ParseContext* ctx, bool is_nested = false) => @po
 <*
  faultdef_decl ::= FAULTDEF CONST_IDENT (',' CONST_IDENT)* ','? ';'
 *>
-fn Node*? parse_faultdef_decl(ParseContext* ctx) => @pool()
+fn Node*? parse_faultdef_decl(ContextScope scope) => @pool()
 {
+	ParseContext* ctx = scope.ctx;
 	int start_pos = ctx.current().pos;
 	expect(ctx, FAULTDEF)!;
 	Node* node       = ctx.ast.alloc_node(FAULTDEF_DECL, start_pos);
@@ -1080,7 +1096,7 @@ fn Node*? parse_faultdef_decl(ParseContext* ctx) => @pool()
 		FaultDecl* fault_decl = fault_node.as(FAULT_DECL);
 		if (ctx.is(AT_IDENT))
 		{
-			fault_decl.contract.set(parse_contract_decl(ctx)!);
+			fault_decl.contract.set(parse_contract_decl(scope)!);
 		}
 
 		if CHECK_IDENT: (true)
@@ -1094,7 +1110,7 @@ fn Node*? parse_faultdef_decl(ParseContext* ctx) => @pool()
 			fault_decl.name = ctx.ast.string_pool.internalize(ctx.token_text(t));
 		}
 
-		fault_decl.attributes = parse_attributes(ctx, node)!;
+		fault_decl.attributes = parse_attributes(scope, node)!;
 
 		node.offset.end = ctx.current_pos();
 		if (consume(ctx, COMMA)!) continue;
@@ -1111,8 +1127,9 @@ fn Node*? parse_faultdef_decl(ParseContext* ctx) => @pool()
 <*
  interface_decl ::= 'interface' TYPE_IDENT ':' (TYPE_IDENT (',' TYPE_IDENT) interface_body
 *>
-fn Node*? parse_interface_decl(ParseContext* ctx) => @pool()
+fn Node*? parse_interface_decl(ContextScope scope) => @pool()
 {
+	ParseContext* ctx = scope.ctx;
 	int start_pos = ctx.current().pos;
 	expect(ctx, INTERFACE)!;
 	Node* node           = ctx.ast.alloc_node(INTERFACE_DECL, start_pos);
@@ -1136,13 +1153,13 @@ fn Node*? parse_interface_decl(ParseContext* ctx) => @pool()
 	{
 		do
 		{
-			list.push(parse_type_expr(ctx, null, { .no_generics = true })!);
+			list.push(parse_type_expr(scope, null, { .no_generics = true })!);
 		} while (consume(ctx, COMMA)!);
 	}
 
 	inter.interfaces = alloc::clone_slice(ctx.arena, list.array_view());
 	list.clear();
-	inter.attributes = parse_attributes(ctx, node)!;
+	inter.attributes = parse_attributes(scope, node)!;
 
 	expect(ctx, LBRACE)!;
 
@@ -1151,9 +1168,9 @@ fn Node*? parse_interface_decl(ParseContext* ctx) => @pool()
 		Node* contract;
 		if (ctx.is(CONTRACT))
 		{
-			contract = parse_contract_decl(ctx)!;
+			contract = parse_contract_decl(scope)!;
 		}
-		Node* func_node = parse_fn_decl(ctx, { .is_interface = true })!;
+		Node* func_node = parse_fn_decl(scope.with_only_flags({ .is_interface = true }))!;
 		FnDecl* func    = func_node.as(FN_DECL);
 		if (contract)
 		{
@@ -1171,8 +1188,9 @@ fn Node*? parse_interface_decl(ParseContext* ctx) => @pool()
 <*
  attrdef_decl ::= "attrdef" AT_IDENT ("(" parameter_list? ")")? ("=" attribute_list)? ";"
 *>
-fn Node*? parse_attrdef_decl(ParseContext* ctx) => @pool()
+fn Node*? parse_attrdef_decl(ContextScope scope) => @pool()
 {
+	ParseContext* ctx = scope.ctx;
 	int start_pos = ctx.current().pos;
 	expect(ctx, ATTRDEF)!;
 	Node* node       = ctx.ast.alloc_node(ATTRDEF_DECL, start_pos);
@@ -1191,7 +1209,7 @@ fn Node*? parse_attrdef_decl(ParseContext* ctx) => @pool()
 
 	if (ctx.is(LPAREN))
 	{
-		def.params = parse_parameter_list(ctx, { .is_attrdef = true })!;
+		def.params = parse_parameter_list(scope)!;//, { .is_attrdef = true })!;
 	}
 
 	if (consume(ctx, EOS)!)
@@ -1201,7 +1219,7 @@ fn Node*? parse_attrdef_decl(ParseContext* ctx) => @pool()
 
 	expect(ctx, EQ)!;
 
-	def.attributes = parse_attributes(ctx, node, { .use_comma = true })!;
+	def.attributes = parse_attributes(scope, node, { .use_comma = true })!;
 
 	node.offset.end = ctx.current_pos();
 	expect(ctx, EOS)!;
@@ -1213,10 +1231,11 @@ fn Node*? parse_attrdef_decl(ParseContext* ctx) => @pool()
  enum_decl ::= "enum" TYPE_IDENT ("(" type ("," type)* ")")? (":" type? enum_param_list?)? attributes? "{" enum_body "}"
 
     constdef_decl ::= "constdef" TYPE_IDENT ("(" type ("," type)* ")")? (":" "inline"? type)? attributes? "{" constdef_body "}"
- @param [&inout] ctx
 *>
-fn Node*? parse_enum_constdef_decl(ParseContext* ctx, ParseFlags flags) => @pool()
+fn Node*? parse_enum_constdef_decl(ContextScope scope) => @pool()
 {
+	ParseContext* ctx = scope.ctx;
+	ParseFlags flags = scope.flags;
 	int start_pos = ctx.current().pos;
 
 	expect(ctx, flags.is_constdef ? CONSTDEF : ENUM)!;
@@ -1235,7 +1254,7 @@ fn Node*? parse_enum_constdef_decl(ParseContext* ctx, ParseFlags flags) => @pool
 		enum_decl.name = ctx.ast.string_pool.internalize(ctx.token_text(t));
 	}
 
-	enum_decl.interfaces = parse_interface_type_list(ctx)!;
+	enum_decl.interfaces = parse_interface_type_list(scope)!;
 
 	// Optional backing type and/or associated value parameters: ":" "inline"? type? enum_param_list?
 	if (consume(ctx, COLON)!)
@@ -1244,7 +1263,7 @@ fn Node*? parse_enum_constdef_decl(ParseContext* ctx, ParseFlags flags) => @pool
 
 		if (!ctx.is(LPAREN))
 		{
-			enum_decl.backing_type = parse_type_expr(ctx, null, { .no_generics = true })!;
+			enum_decl.backing_type = parse_type_expr(scope, null, { .no_generics = true })!;
 		}
 
 		if (consume(ctx, LPAREN)!)
@@ -1256,7 +1275,7 @@ fn Node*? parse_enum_constdef_decl(ParseContext* ctx, ParseFlags flags) => @pool
 				Node* param = ctx.ast.alloc_node(VAR_DECL, ctx.current().pos);
 				VarDecl* p  = param.as(VAR_DECL);
 
-				p.type = parse_type_expr(ctx)!;
+				p.type = parse_type_expr(scope)!;
 				if (is_non_type_ident(ctx.current().kind))
 				{
 					p.name = ctx.ast.string_pool.internalize(ctx.token_text(ctx.current()));
@@ -1264,7 +1283,7 @@ fn Node*? parse_enum_constdef_decl(ParseContext* ctx, ParseFlags flags) => @pool
 				}
 				if (ctx.is(AT_IDENT))
 				{
-					parse_attributes(ctx, param)!;
+					parse_attributes(scope, param)!;
 				}
 				param.offset.end = ctx.current().pos;
 				assoc.push(param);
@@ -1277,7 +1296,7 @@ fn Node*? parse_enum_constdef_decl(ParseContext* ctx, ParseFlags flags) => @pool
 
 	if (ctx.is(AT_IDENT))
 	{
-		enum_decl.attributes = parse_attributes(ctx, node)!;
+		enum_decl.attributes = parse_attributes(scope, node)!;
 	}
 
 	expect(ctx, LBRACE)!;
@@ -1289,7 +1308,7 @@ fn Node*? parse_enum_constdef_decl(ParseContext* ctx, ParseFlags flags) => @pool
 		Node* contract;
 		if (ctx.is(CONTRACT))
 		{
-			contract = parse_contract_decl(ctx)!;
+			contract = parse_contract_decl(scope)!;
 		}
 		if (!ctx.is(CONST_IDENT))
 		{
@@ -1310,19 +1329,19 @@ fn Node*? parse_enum_constdef_decl(ParseContext* ctx, ParseFlags flags) => @pool
 		// Optional per-variant attributes: @attr ...  (come before = and {})
 		if (ctx.is(AT_IDENT))
 		{
-			v.attributes = parse_attributes(ctx, variant)!;
+			v.attributes = parse_attributes(scope, variant)!;
 		}
 
 		// Optional ordinal: "=" expr
 		if (consume(ctx, EQ)!)
 		{
-			v.init_expr = parse_expr(ctx)!;
+			v.init_expr = parse_expr(scope)!;
 		}
 
 		// Optional associated values: "{" expr ("," expr)* "}"
 		if (ctx.is(LBRACE))
 		{
-			v.assoc_values = parse_expr(ctx)!;
+			v.assoc_values = parse_expr(scope)!;
 		}
 
 		variant.offset.end = ctx.current().pos;
@@ -1344,8 +1363,9 @@ fn Node*? parse_enum_constdef_decl(ParseContext* ctx, ParseFlags flags) => @pool
  generic_decl ::= '<' (type_expr | ident_expr)* '>'
  @return "null if no generics are present"
 *>
-fn Node*? parse_generic_decl(ParseContext* ctx) => @pool()
+fn Node*? parse_generic_decl(ContextScope scope) => @pool()
 {
+	ParseContext* ctx = scope.ctx;
 	if (!ctx.is(LESS))
 	{
 		return null;
@@ -1376,7 +1396,7 @@ fn Node*? parse_generic_decl(ParseContext* ctx) => @pool()
 		}
 
 		// so it only parses the prefix
-		params.push(parse_expr(ctx, HIGHEST)!);
+		params.push(parse_expr(scope, HIGHEST)!);
 		if (!consume(ctx, COMMA)!) break;
 	}
 	node.offset.end = ctx.current_pos();
