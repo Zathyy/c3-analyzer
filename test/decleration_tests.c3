@@ -5,6 +5,7 @@ import parser_tests;
 import analyzer::workspace;
 import analyzer::parser;
 import analyzer::core;
+import analyzer::sema;
 import std::io;
 import std::collections::list;
 import std::io::file;
@@ -82,7 +83,8 @@ fn void method_with_params()
 	Module* mod      = ws.modules.get("hello")!!;
 	ModuleSection* s = mod.sections[0];
 
-	Node* node   = ws.registry.find_method("hello::Foo", "greet");
+	List{SymbolEntry} entries = *ws.registry.get_candidates("hello::Foo", "greet")!!;
+	Node* node = entries[0].node;
 	test::ne(node, null);
 
 	FnDecl* func = node.as(FN_DECL);
@@ -109,13 +111,13 @@ fn void macro_with_params()
 	Module* mod      = ws.modules.get("hello")!!;
 	ModuleSection* s = mod.sections[0];
 
-	Node* node      = ws.lookup("hello", "greet")!!;
+	Node* node = parser_tests::@node(ws.lookup("hello", "greet")!!);
 	MacroDecl* func = node.as(MACRO_DECL);
 
-	Node* node_2      = ws.lookup("hello", "foo")!!;
+	Node* node_2      = parser_tests::@node(ws.lookup("hello", "foo")!!);
 	MacroDecl* func_2 = node_2.as(MACRO_DECL);
 
-	Node* node_3      = ws.lookup("hello", "bar")!!;
+	Node* node_3      = parser_tests::@node(ws.lookup("hello", "bar")!!);
 	MacroDecl* func_3 = node_3.as(MACRO_DECL);
 
 	test::eq(parser_tests::count_kind(s, MODULE_DECL), 1);
@@ -140,7 +142,7 @@ fn void macro_method_with_params()
 	Module* mod      = ws.modules.get("hello")!!;
 	ModuleSection* s = mod.sections[0];
 
-	Node* node     = ws.lookup("hello", "greet")!!;
+	Node* node     = parser_tests::@node(ws.lookup("hello", "greet")!!);
 	MacroDecl* mac = node.as(MACRO_DECL);
 
 	test::eq(parser_tests::count_kind(s, MODULE_DECL), 1);

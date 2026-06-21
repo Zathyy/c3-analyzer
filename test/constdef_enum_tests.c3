@@ -267,7 +267,7 @@ fn void constdef_interfaces_inline_backing()
 	test::ne(var_decl.init_expr, null);
 	LiteralExpr* enum_value = var_decl.init_expr.as(LITERAL_EXPR);
 	test::eq(enum_value.kind, LiteralKind.INT_LITERAL);
-	test::eq(enum_value.integer, 69);
+	test::eq(enum_value.integer, 69u);
 }
 
 fn void basic_constdef()
@@ -306,7 +306,7 @@ fn void basic_constdef()
 	test::eq(pool.get(var_decl.name)!!, "AAA");
 	test::ne(var_decl.init_expr, null);
 	LiteralExpr* value = var_decl.init_expr.as(LITERAL_EXPR);
-	test::eq(value.integer, 1);
+	test::eq(value.integer, 1u);
 
 	var_decl = enum_decl.variants[1].as(VAR_DECL);
 	test::eq(pool.get(var_decl.name)!!, "BBB");
@@ -352,7 +352,7 @@ fn void constdef_backing_type_and_attributes()
 	test::eq(var_decl.attributes.len, 1);
 	test::eq(parser_tests::@attr(var_decl, 0).kind, AttributeKind.TAG);
 	LiteralExpr* value = var_decl.init_expr.as(LITERAL_EXPR);
-	test::eq(value.integer, 10);
+	test::eq(value.integer, 10u);
 }
 
 fn void enum_interfaces_backing_type()

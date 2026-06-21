@@ -180,6 +180,11 @@ fn SourceFile* Workspace.reset_source_file(&self, PathString path)
 		foreach (section : existing.sections)
 		{
 			self.registry.cleanup_section(section.id);
+			foreach (imp : section.resolved_imports)
+			{
+				imp.free(self.allocator);
+			}
+			section.resolved_imports.free();
 			section.free();
 			alloc::free(self.allocator, section);
 		}

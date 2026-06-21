@@ -2,6 +2,7 @@ module parser_tests;
 
 import analyzer::workspace;
 import analyzer::core;
+import analyzer::sema;
 
 import std::io;
 import std::collections::list;
@@ -9,6 +10,14 @@ import std::collections::list;
 macro AttributeDecl* @attr(self, int idx)
 {
 	return self.attributes[idx].as(ATTRIBUTE_DECL) @inline;
+}
+
+<*
+ @require $Typeof(*entries) == List{SymbolEntry}
+*>
+macro Node* @node(entries)
+{
+	return (*entries)[0].node;
 }
 
 <*

@@ -23,6 +23,10 @@ fn void reindex_module(SemaContext* ctx)
 
 	ctx.ws.registry.cleanup_section(ctx.section.id);
 
+	mod.symbols.@each(; n, entries)
+	{
+		entries.free();
+	};
 	mod.symbols.clear();
 
 	foreach (section : mod.sections)
@@ -105,6 +109,10 @@ fn void reindex_module(SemaContext* ctx)
 *>
 fn void refresh_section_imports(SemaContext* ctx, ModuleSection* section)
 {
+	foreach (imp : section.resolved_imports)
+	{
+		imp.free(ctx.allocator);
+	}
 	section.resolved_imports.clear();
 
 	foreach (node : section.nodes)

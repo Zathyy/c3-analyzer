@@ -119,22 +119,22 @@ fn void test_literals()
 		else if (var_name == "d")
 		{
 			test::eq(lit.kind, LiteralKind.INT_LITERAL);
-			test::eq(lit.integer, 1000000);
+			test::eq(lit.integer, 1000000u);
 		}
 		else if (var_name == "e")
 		{
 			test::eq(lit.kind, LiteralKind.INT_LITERAL);
-			test::eq(lit.integer, 0xFFAA); // 65450
+			test::eq(lit.integer, 0xFFAAu); // 65450
 		}
 		else if (var_name == "f")
 		{
 			test::eq(lit.kind, LiteralKind.INT_LITERAL);
-			test::eq(lit.integer, 0b10110101); // 181
+			test::eq(lit.integer, 0b10110101u); // 181
 		}
 		else if (var_name == "g")
 		{
 			test::eq(lit.kind, LiteralKind.INT_LITERAL);
-			test::eq(lit.integer, 0o755); // 493
+			test::eq(lit.integer, 0o755u); // 493
 		}
 		else if (var_name == "h")
 		{
@@ -189,17 +189,17 @@ fn void test_literals()
 		else if (var_name == "char_a")
 		{
 			test::eq(lit.kind, LiteralKind.INT_LITERAL);
-			test::eq(lit.integer, 97);
+			test::eq(lit.integer, 97u);
 		}
 		else if (var_name == "char_b")
 		{
 			test::eq(lit.kind, LiteralKind.INT_LITERAL);
-			test::eq(lit.integer, 10);
+			test::eq(lit.integer, 10u);
 		}
 		else if (var_name == "char_c")
 		{
 			test::eq(lit.kind, LiteralKind.INT_LITERAL);
-			test::eq(lit.integer, 92);
+			test::eq(lit.integer, 92u);
 		}
 		else
 		{

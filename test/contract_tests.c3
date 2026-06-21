@@ -64,7 +64,7 @@ fn void contract_with_expr_checks()
 				BinaryExpr* bin    = list.exprs[0].as(BINARY_EXPR);
 				test::eq(bin.left.as(IDENT_EXPR).get_ident(pool)!!, "a");
 				test::eq(bin.op, OperatorKind.OP_GT);
-				test::eq(bin.right.as(LITERAL_EXPR).integer, 0);
+				test::eq(bin.right.as(LITERAL_EXPR).integer, 0u);
 			}
 
 
@@ -76,7 +76,7 @@ fn void contract_with_expr_checks()
 				BinaryExpr* bin    = list.exprs[0].as(BINARY_EXPR);
 				test::eq(bin.left.as(IDENT_EXPR).get_ident(pool)!!, "return");
 				test::eq(bin.op, OperatorKind.OP_GT);
-				test::eq(bin.right.as(LITERAL_EXPR).integer, 0);
+				test::eq(bin.right.as(LITERAL_EXPR).integer, 0u);
 			}
 
 
@@ -187,7 +187,7 @@ fn void contract_with_deprecated()
 				BinaryExpr* bin    = list.exprs[0].as(BINARY_EXPR);
 				test::eq(bin.left.as(IDENT_EXPR).get_ident(pool)!!, "a");
 				test::eq(bin.op, OperatorKind.OP_GT);
-				test::eq(bin.right.as(LITERAL_EXPR).integer, 0);
+				test::eq(bin.right.as(LITERAL_EXPR).integer, 0u);
 			}
 
 
@@ -199,7 +199,7 @@ fn void contract_with_deprecated()
 				BinaryExpr* bin    = list.exprs[0].as(BINARY_EXPR);
 				test::eq(bin.left.as(IDENT_EXPR).get_ident(pool)!!, "return");
 				test::eq(bin.op, OperatorKind.OP_GT);
-				test::eq(bin.right.as(LITERAL_EXPR).integer, 0);
+				test::eq(bin.right.as(LITERAL_EXPR).integer, 0u);
 			}
 
 

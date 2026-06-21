@@ -4,6 +4,7 @@ import parser_tests;
 
 import analyzer::workspace;
 import analyzer::parser;
+import analyzer::sema;
 import analyzer::core;
 import analyzer::core::string_pool;
 import std::io;
@@ -48,7 +49,7 @@ fn void switch_stmt()
 	ModuleSection* s = mod.sections[0];
 	StringPool* pool = &s.source_file.ast.string_pool;
 
-	Node* node            = ws.lookup("hello", "foo")!!;
+	Node* node = parser_tests::@node(ws.lookup("hello", "foo")!!);
 	FnDecl* func          = node.as(FN_DECL);
 	CompoundStmt* fn_comp = func.body.as(COMPOUND_STMT);
 	SwitchStmt* sw        = fn_comp.statements[1].as(SWITCH_STMT);
@@ -98,7 +99,7 @@ fn void ct_switch_stmt()
 	ModuleSection* s = mod.sections[0];
 	StringPool* pool = &s.source_file.ast.string_pool;
 
-	Node* node            = ws.lookup("hello", "foo")!!;
+	Node* node = parser_tests::@node(ws.lookup("hello", "foo")!!);
 	FnDecl* func          = node.as(FN_DECL);
 	CompoundStmt* fn_comp = func.body.as(COMPOUND_STMT);
 	CtSwitchStmt* sw      = fn_comp.statements[0].as(CT_SWITCH_STMT);
@@ -139,7 +140,7 @@ fn void if_elseif_else()
 	ModuleSection* s = mod.sections[0];
 	StringPool* pool = &s.source_file.ast.string_pool;
 
-	Node* node            = ws.lookup("hello", "foo")!!;
+	Node* node            = parser_tests::@node(ws.lookup("hello", "foo")!!);
 	FnDecl* func          = node.as(FN_DECL);
 	CompoundStmt* fn_comp = func.body.as(COMPOUND_STMT);
 	IfStmt* if_stmt       = fn_comp.statements[0].as(IF_STMT);
@@ -180,12 +181,12 @@ fn void ct_if_else()
 	defer res.free();
 	test::eq(res.has_errors, false);
 
-	Module* mod      = ws.modules.get("hello")!!;
+	Module* mod = ws.modules.get("hello")!!;
 	ModuleSection* s = mod.sections[0];
 	StringPool* pool = &s.source_file.ast.string_pool;
 
-	Node* node            = ws.lookup("hello", "foo")!!;
-	FnDecl* func          = node.as(FN_DECL);
+	Node* node = parser_tests::@node(ws.lookup("hello", "foo")!!);
+	FnDecl* func = node.as(FN_DECL);
 	CompoundStmt* fn_comp = func.body.as(COMPOUND_STMT);
 
 	test::eq(parser_tests::count_kind(s, MODULE_DECL), 1);
@@ -224,7 +225,7 @@ fn void for_stmt()
 	ModuleSection* s = mod.sections[0];
 	StringPool* pool = &s.source_file.ast.string_pool;
 
-	Node* node            = ws.lookup("hello", "foo")!!;
+	Node* node            = parser_tests::@node(ws.lookup("hello", "foo")!!);
 	FnDecl* func          = node.as(FN_DECL);
 	CompoundStmt* fn_comp = func.body.as(COMPOUND_STMT);
 	ForStmt* for_stmt     = fn_comp.statements[0].as(FOR_STMT);
@@ -264,7 +265,7 @@ fn void while_stmt()
 	ModuleSection* s = mod.sections[0];
 	StringPool* pool = &s.source_file.ast.string_pool;
 
-	Node* node            = ws.lookup("hello", "foo")!!;
+	Node* node            = parser_tests::@node(ws.lookup("hello", "foo")!!);
 	FnDecl* func          = node.as(FN_DECL);
 	CompoundStmt* fn_comp = func.body.as(COMPOUND_STMT);
 
@@ -303,7 +304,7 @@ fn void ct_assert_stmt()
 	ModuleSection* s = mod.sections[0];
 	StringPool* pool = &s.source_file.ast.string_pool;
 
-	Node* node            = ws.lookup("hello", "foo")!!;
+	Node* node            = parser_tests::@node(ws.lookup("hello", "foo")!!);
 	FnDecl* func          = node.as(FN_DECL);
 	CompoundStmt* fn_comp = func.body.as(COMPOUND_STMT);
 
@@ -334,7 +335,7 @@ fn void ct_error_stmt()
 	ModuleSection* s = mod.sections[0];
 	StringPool* pool = &s.source_file.ast.string_pool;
 
-	Node* node            = ws.lookup("hello", "foo")!!;
+	Node* node            = parser_tests::@node(ws.lookup("hello", "foo")!!);
 	FnDecl* func          = node.as(FN_DECL);
 	CompoundStmt* fn_comp = func.body.as(COMPOUND_STMT);
 
@@ -366,7 +367,7 @@ fn void var_decl_stmt()
 	ModuleSection* s = mod.sections[0];
 	StringPool* pool = &s.source_file.ast.string_pool;
 
-	Node* node            = ws.lookup("hello", "foo")!!;
+	Node* node            = parser_tests::@node(ws.lookup("hello", "foo")!!);
 	FnDecl* func          = node.as(FN_DECL);
 	CompoundStmt* fn_comp = func.body.as(COMPOUND_STMT);
 
@@ -409,7 +410,7 @@ fn void foreach_stmt()
 	ModuleSection* s = mod.sections[0];
 	StringPool* pool = &s.source_file.ast.string_pool;
 
-	Node* fn_node           = ws.lookup("hello", "foo")!!;
+	Node* fn_node           = parser_tests::@node(ws.lookup("hello", "foo")!!);
 	FnDecl* fn_decl         = fn_node.as(FN_DECL);
 	CompoundStmt* body_stmt = fn_decl.body.as(COMPOUND_STMT);
 
@@ -541,7 +542,7 @@ fn void err_foreach_missing_name_after_type()
 	defer res.free();
 	test::eq(res.has_errors, true);
 
-	Node* fn_node           = ws.lookup("hello", "foo")!!;
+	Node* fn_node           = parser_tests::@node(ws.lookup("hello", "foo")!!);
 	FnDecl* fn_decl         = fn_node.as(FN_DECL);
 	CompoundStmt* body_stmt = fn_decl.body.as(COMPOUND_STMT);
 
@@ -570,7 +571,7 @@ fn void err_foreach_missing_name_no_type()
 	defer res.free();
 	test::eq(res.has_errors, true);
 
-	Node* node              = ws.lookup("hello", "foo")!!;
+	Node* node              = parser_tests::@node(ws.lookup("hello", "foo")!!);
 	FnDecl* fn_decl         = node.as(FN_DECL);
 	CompoundStmt* body_stmt = fn_decl.body.as(COMPOUND_STMT);
 
@@ -601,7 +602,7 @@ fn void err_foreach_missing_colon()
 	defer res.free();
 	test::eq(res.has_errors, true);
 
-	Node* node              = ws.lookup("hello", "foo")!!;
+	Node* node              = parser_tests::@node(ws.lookup("hello", "foo")!!);
 	FnDecl* func            = node.as(FN_DECL);
 	CompoundStmt* body_stmt = func.body.as(COMPOUND_STMT);
 
@@ -678,7 +679,7 @@ fn void do_while_stmt()
 	test::eq(parser_tests::count_kind(s, MODULE_DECL), 1);
 	test::eq(parser_tests::count_kind(s, FN_DECL), 1);
 
-	Node* node              = ws.lookup("hello", "foo")!!;
+	Node* node              = parser_tests::@node(ws.lookup("hello", "foo")!!);
 	FnDecl* fn_decl         = node.as(FN_DECL);
 	CompoundStmt* func_body = fn_decl.body.as(COMPOUND_STMT);
 	test::eq(func_body.statements.len, 3);
@@ -797,8 +798,8 @@ fn void ct_foreach_stmt()
 	test::eq(parser_tests::count_kind(s, MACRO_DECL), 2);
 	test::eq(parser_tests::count_kind(s, FN_DECL), 1);
 
-	Node* node = ws.lookup("hello", "@create_set")!!;
-	MacroDecl* macro_decl = node.as(MACRO_DECL);
+	List{SymbolEntry} node = *ws.lookup("hello", "@create_set")!!;
+	MacroDecl* macro_decl = node[0].node.as(MACRO_DECL);
 	CompoundStmt* macro_body = macro_decl.body.as(COMPOUND_STMT);
 	CtForeachStmt* foreach_stmt = macro_body.statements[0].as(CT_FOREACH_STMT);
 	VarDecl* foreach_value_decl = foreach_stmt.value.as(VAR_DECL);
@@ -809,8 +810,8 @@ fn void ct_foreach_stmt()
 	test::eq(foreach_body.statements.len, 1);
 	test::eq(foreach_body.statements[0].kind, NodeKind.EXPR_STMT);
 
-	node = ws.lookup("hello", "format_members")!!;
-	macro_decl = node.as(MACRO_DECL);
+	node = *ws.lookup("hello", "format_members")!!;
+	macro_decl = node[0].node.as(MACRO_DECL);
 	macro_body = macro_decl.body.as(COMPOUND_STMT);
 	foreach_stmt = macro_body.statements[0].as(CT_FOREACH_STMT);
 	VarDecl* foreach_index_decl = foreach_stmt.index.as(VAR_DECL);
@@ -823,8 +824,8 @@ fn void ct_foreach_stmt()
 	test::eq(foreach_body.statements[0].kind, NodeKind.CT_IF_STMT);
 	test::eq(foreach_body.statements[1].kind, NodeKind.EXPR_STMT);
 
-	node = ws.lookup("hello", "inline_foreach")!!;
-	FnDecl* fn_decl = node.as(FN_DECL);
+	node = *ws.lookup("hello", "inline_foreach")!!;
+	FnDecl* fn_decl = node[0].node.as(FN_DECL);
 	CompoundStmt* fn_body = fn_decl.body.as(COMPOUND_STMT);
 	foreach_stmt = fn_body.statements[0].as(CT_FOREACH_STMT);
 	foreach_index_decl = foreach_stmt.index.as(VAR_DECL);

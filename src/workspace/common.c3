@@ -68,6 +68,11 @@ fn void Workspace.free(&self)
 		foreach (section : sf.sections)
 		{ 
 			self.registry.cleanup_section(section.id);
+			foreach (imp : section.resolved_imports)
+			{
+				imp.free(self.allocator);
+			}
+			section.resolved_imports.free();
 			section.free();
 			alloc::free(self.allocator, section);
 		}
@@ -81,6 +86,12 @@ fn void Workspace.free(&self)
 	self.modules.@each(; name, mod) 
 	{
 		mod.sections.free();
+
+		mod.symbols.@each(; n, entries)
+		{
+			entries.free();
+		};
+
 		mod.symbols.free();
 		mod.name.free(self.allocator);
 		alloc::free(self.allocator, mod);

@@ -65,11 +65,11 @@ fn Node*? parse_alias_type_target(ContextScope scope) => @pool()
  Handles primitive and named type identifiers plus postfix pointer, array,
  slice, vector, and generic type forms.
  @require(scope.ctx != null) : "Parser context positioned at the first type token."
- @param parse_flags : "Type-expression options used by declaration and expression parsing."
 *>
-fn Node*? parse_type_expr(ContextScope scope, Node* path_expr = null, ParseFlags parse_flags = { })
+fn Node*? parse_type_expr(ContextScope scope, Node* path_expr = null)
 {
 	ParseContext* ctx = scope.ctx;
+	ParseFlags flags = scope.flags;
 	int start = ctx.current().pos;
 
 	plog::debug("parse_type_expr");
@@ -192,8 +192,8 @@ fn Node*? parse_type_expr(ContextScope scope, Node* path_expr = null, ParseFlags
 		// Handle Generics: '{' ... '}'
 		if (t.kind == LBRACE)
 		{
-			if (parse_flags.no_generics) break;
-			if (parse_flags.type_as_expression) break;
+			if (flags.no_generics) break;
+			if (flags.type_as_expression) break;
 
 			Node* gen_node     = ctx.ast.alloc_node(TYPE_EXPR, start, ctx.current().pos);
 			TypeExpr* gen_data = gen_node.as(TYPE_EXPR);

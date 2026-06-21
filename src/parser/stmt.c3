@@ -292,9 +292,10 @@ fn Node*? parse_case_stmts(ContextScope scope, sz row) => @pool()
  case_stmt ::= 'case' expr ('..' expr)? ':' stmt*
 
 *>
-fn Node*? parse_case_stmt(ContextScope scope, ParseFlags flags = { }) => @pool()
+fn Node*? parse_case_stmt(ContextScope scope) => @pool()
 {
 	ParseContext* ctx = scope.ctx;
+	ParseFlags flags = scope.flags;
 
 	int pos            = ctx.current().pos;
 	TokenKind expected = flags.is_comptime ? CT_CASE : CASE;
@@ -508,10 +509,7 @@ fn Node*? parse_ct_switch_stmt(ContextScope scope) => @pool()
 	ParseContext* ctx = scope.ctx;
 
 	int start_pos = ctx.current().pos;
-	@expect_else(ctx, CT_SWITCH ; err)
-	{
-		return err;
-	}!;
+	expect(ctx, CT_SWITCH)!;
 
 	Node* node       = ctx.ast.alloc_node(CT_SWITCH_STMT, start_pos);
 	CtSwitchStmt* cs = node.as(CT_SWITCH_STMT);
@@ -528,10 +526,7 @@ fn Node*? parse_ct_switch_stmt(ContextScope scope) => @pool()
 		cs.cond = parse_constant_expr(scope)!;
 	}
 
-	@expect_else(ctx, COLON ; err)
-	{
-		return err;
-	}!;
+	expect(ctx, COLON)!;
 
 	List{Node*} stmts;
 	stmts.tinit();
@@ -547,14 +542,11 @@ fn Node*? parse_ct_switch_stmt(ContextScope scope) => @pool()
 				stmts.push(parse_default_stmt(scope.with_only_flags({ .is_comptime = true }))!);
 			default:
 				ctx.error("'$case' or '$default' expected");
-				return ctx.ast.error(ctx.current().pos);
+				return ctx.ast.error(ctx.current().pos - 1);
 		}
 	}
 
-	@expect_else(ctx, CT_ENDSWITCH ; err)
-	{
-		return err;
-	}!;
+	expect(ctx, CT_ENDSWITCH)!;
 
 	cs.cases = alloc::clone_slice(ctx.arena, stmts.array_view());
 	return node;

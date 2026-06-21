@@ -1153,7 +1153,7 @@ fn Node*? parse_interface_decl(ContextScope scope) => @pool()
 	{
 		do
 		{
-			list.push(parse_type_expr(scope, null, { .no_generics = true })!);
+			list.push(parse_type_expr(scope.with_only_flags({ .no_generics = true }), null)!);
 		} while (consume(ctx, COMMA)!);
 	}
 
@@ -1263,7 +1263,7 @@ fn Node*? parse_enum_constdef_decl(ContextScope scope) => @pool()
 
 		if (!ctx.is(LPAREN))
 		{
-			enum_decl.backing_type = parse_type_expr(scope, null, { .no_generics = true })!;
+			enum_decl.backing_type = parse_type_expr(scope.with_only_flags({ .no_generics = true }), null)!;
 		}
 
 		if (consume(ctx, LPAREN)!)

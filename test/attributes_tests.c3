@@ -5,6 +5,7 @@ import parser_tests;
 import analyzer::workspace;
 import analyzer::parser;
 import analyzer::core;
+import analyzer::sema;
 import std::io;
 import std::collections::list;
 import std::io::file;
@@ -49,13 +50,13 @@ fn void module_private_test_weak_if()
 
 	// 1 == 1
 	BinaryExpr* left_eq_expr = and_expr.left.as(BINARY_EXPR);
-	test::eq(left_eq_expr.left.as(LITERAL_EXPR).integer, 1);
-	test::eq(left_eq_expr.right.as(LITERAL_EXPR).integer, 1);
+	test::eq(left_eq_expr.left.as(LITERAL_EXPR).integer, 1u);
+	test::eq(left_eq_expr.right.as(LITERAL_EXPR).integer, 1u);
 
 	// 2 == 2
 	BinaryExpr* right_eq_expr = and_expr.right.as(BINARY_EXPR);
-	test::eq(right_eq_expr.left.as(LITERAL_EXPR).integer, 2);
-	test::eq(right_eq_expr.right.as(LITERAL_EXPR).integer, 2);
+	test::eq(right_eq_expr.left.as(LITERAL_EXPR).integer, 2u);
+	test::eq(right_eq_expr.right.as(LITERAL_EXPR).integer, 2u);
 }
 
 fn void module_tag_if()
@@ -120,7 +121,8 @@ fn void function_if()
 	StringPool* pool = &s.source_file.ast.string_pool;
 	test::ne(pool, null);
 
-	Node* node      = ws.lookup("hello", "greet")!!;
+	List{SymbolEntry} entries      = *ws.lookup("hello", "greet")!!;
+	Node* node = entries[0].node;
 	test::ne(node, null);
 	test::eq(node.kind, NodeKind.FN_DECL);
 
