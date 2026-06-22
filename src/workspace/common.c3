@@ -11,14 +11,13 @@ import analyzer::sema @norecurse;
 
 faultdef
 	INVALID_URI,
-	NODE_NOT_FOUND, 
+	NODE_NOT_FOUND,
 	SYMBOL_NOT_FOUND, 
-	MODULE_NOT_FOUND
-;
+	MODULE_NOT_FOUND;
 
-sz next_source_file_id = 1;
-sz next_section_id     = 1;
-sz next_module_id      = 1;
+ulong next_source_file_id = 1;
+ulong next_section_id     = 1;
+ulong next_module_id      = 1;
 
 <*
  - `use_sema`: if true, after parsing sema passes will run
@@ -100,4 +99,11 @@ fn void Workspace.free(&self)
 	self.registry.free();
 	self.modules.free();
 	self.ast_pool.free();
+}
+
+fn void Workspace.invalidate_module(&self, Module* mod)
+{
+	mod.arena.reset();
+	mod.symbols.clear();
+	mod.version++;
 }

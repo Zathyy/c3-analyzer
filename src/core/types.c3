@@ -19,7 +19,7 @@ struct SourceFile
 	LineMap line_map;
 	List{ModuleSection*} sections;
 	Ast* ast;
-	sz id;
+	ulong id;
 }
 
 struct ModSection
@@ -29,14 +29,15 @@ struct ModSection
 	SourceFile* source_file;
 	Module* parent_module;
 	Allocator allocator;
-	sz id;
+	ulong id;
 }
 
 struct Mod
 {
 	String name;
 	List{ModuleSection*} sections;
-	sz id;
+	ulong id;
+	ulong version;
 }
 
 alias PathString = String;

@@ -18,6 +18,7 @@ struct SemaContext
 struct SemaMod
 {
 	inline Mod mod;
+	DynamicArenaAllocator arena;
 	HashMap{String, List{SymbolEntry}} symbols;
 }
 
