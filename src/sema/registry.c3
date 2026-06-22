@@ -25,12 +25,6 @@ fn bool MethodKey.eq(self, MethodKey other) @operator(==)
 		&& self.method_name == other.method_name;
 }
 
-fn void MethodKey.free(&self, Allocator allocator)
-{
-	self.type_name.free(allocator);
-	self.method_name.free(allocator);
-}
-
 // Type -> MethodName -> List of potential candidates
 alias MethodMap = HashMap{MethodKey, List{SymbolEntry}};
 
@@ -50,34 +44,9 @@ fn void Registry.init(&self, Allocator allocator)
 	self.methods.init(allocator);
 }
 
-fn void Registry.free(&self)
+fn void Registry.reset(&self)
 {
-	self.methods.@each(; MethodKey key, List{SymbolEntry} list) 
-	{
-		key.free(self.allocator);
-        list.free(); 
-    };
-	self.methods.free();
-}
-
-fn void Registry.cleanup_section(&self, sz section_id)
-{
-	self.methods.@each(; MethodKey key, List{SymbolEntry} list)
-	{
-		for (sz i = list.len() - 1; i >= 0; i--)
-		{
-			if (list[i].section_id == section_id)
-			{
-				list.remove_at(i);
-			}
-		}
-
-		if (list.len() == 0)
-		{
-			list.free();
-			self.methods.remove(key);
-		}
-	};
+	self.methods.clear();
 }
 
 fn void Registry.register_method(&self, String type_name, String method_name, Node* node, Node* condition)
@@ -95,10 +64,6 @@ fn void Registry.register_method(&self, String type_name, String method_name, No
 		self.methods[key] = sub_list;
 		list = self.methods.get_ref(key)!!;
 	}
-	else
-	{
-		key.free(self.allocator);
-	}
 
 	list.push({ .node = node, .condition = condition });
 }
@@ -107,18 +72,6 @@ fn List{SymbolEntry}*? Registry.get_candidates(&self, String type_name, String m
 {
 	MethodKey key = { .type_name = type_name, .method_name = method_name };
 	return self.methods.get_ref(key);
-}
-
-fn void Registry.remove_method(&self, String type_name, String method_name)
-{    
-	MethodKey key = { .type_name = type_name, .method_name = method_name };
-	List{SymbolEntry}* list = self.methods.get_ref(key) ?? null;
-
-	if (list) 
-	{
-		list.free();
-		self.methods.remove(key);
-	}
 }
 
 fn List{SymbolEntry}*? Registry.get_all_methods(&self, String type_name)

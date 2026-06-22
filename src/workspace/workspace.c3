@@ -10,6 +10,8 @@ import std::collections::list;
 import std::collections::pair;
 import std::io;
 
+const ARENA_PAGE_SIZE = 4096;
+
 struct FileInput
 {
 	PathString path;
@@ -63,7 +65,7 @@ fn ProcessResult? process_batch(Workspace* self, Allocator allocator, FileInput[
 	affected_modules.init(self.allocator, 8);
 	defer affected_modules.free();
 
-	HashMap{sz, bool} reported_sections;
+	HashMap{ulong, bool} reported_sections;
 	reported_sections.init(self.allocator, 8);
 	defer reported_sections.free();
 
@@ -179,12 +181,6 @@ fn SourceFile* Workspace.reset_source_file(&self, PathString path)
 	
 		foreach (section : existing.sections)
 		{
-			self.registry.cleanup_section(section.id);
-			foreach (imp : section.resolved_imports)
-			{
-				imp.free(self.allocator);
-			}
-			section.resolved_imports.free();
 			section.free();
 			alloc::free(self.allocator, section);
 		}
@@ -195,7 +191,7 @@ fn SourceFile* Workspace.reset_source_file(&self, PathString path)
 	}
 
 	SourceFile* sf = alloc::new(self.allocator, SourceFile);
-	sf.id = next_source_file_id++;
+	sf.id = core::next_source_file_id++;
 	sf.file_path = path.copy(self.allocator);
 	sf.sections.init(self.allocator, 4);
 	sf.line_map.init(self.allocator);
@@ -214,11 +210,7 @@ fn Module* Workspace.get_or_create_module(&self, String name)
 	}
 
 	Module* mod = alloc::new(self.allocator, Module);
-	mod.name = name.copy(self.allocator);
-	mod.sections.init(self.allocator, 4);
-	mod.id = next_module_id++;
-	mod.symbols.init(self.allocator);
-
+	mod.init(name, self.allocator);
 	self.modules.set(name, mod);
 	return mod;
 }
@@ -234,12 +226,7 @@ fn ModuleSection* Workspace.get_or_create_section(&self, Module* mod, SourceFile
 	}
 
 	ModuleSection* next_section = alloc::new(self.allocator, ModuleSection);
-	next_section.id = next_section_id++;
-	next_section.allocator = self.allocator;
-	next_section.source_file = sf;
-	next_section.parent_module = mod;
-	next_section.diagnostics.init(self.allocator);
-	next_section.resolved_imports.init(self.allocator);
+	next_section.init(mod, sf, self.allocator);
 	mod.sections.push(next_section);
 	sf.sections.push(next_section);
 

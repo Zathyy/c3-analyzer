@@ -21,8 +21,6 @@ fn void reindex_module(SemaContext* ctx)
 
 	plog::debug("SEMA: reindex_module");
 
-	ctx.ws.registry.cleanup_section(ctx.section.id);
-
 	mod.symbols.@each(; n, entries)
 	{
 		entries.free();
@@ -98,7 +96,7 @@ fn void reindex_module(SemaContext* ctx)
 
 			plog::debug("Bound namespaced method: %s.%s", target_type, method_name);
 
-			ctx.ws.registry.register_method(target_type, method_name, node, guard_expr);
+			mod.registry.register_method(target_type, method_name, node, guard_expr);
 		}
 	}
 }

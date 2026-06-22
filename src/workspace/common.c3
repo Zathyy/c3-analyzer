@@ -15,10 +15,6 @@ faultdef
 	SYMBOL_NOT_FOUND, 
 	MODULE_NOT_FOUND;
 
-ulong next_source_file_id = 1;
-ulong next_section_id     = 1;
-ulong next_module_id      = 1;
-
 <*
  - `use_sema`: if true, after parsing sema passes will run
 *>
@@ -40,7 +36,6 @@ fn void ProcessResult.free(&self)
 
 struct Workspace
 {
-	Registry registry @if($feature(SEMA));
 	HashMap{PathString, SourceFile*} source_files;
 	HashMap{String, Module*} modules;
 	AstPool ast_pool;
@@ -51,7 +46,6 @@ struct Workspace
 fn void Workspace.init(&self, Allocator allocator = mem, WorkspaceOptions options = {})
 {
 	self.allocator = allocator;
-	self.registry.init(allocator);
 	self.modules.init(allocator, 16);
 	self.source_files.init(allocator, 16);
 	self.ast_pool.init(allocator);
@@ -66,12 +60,6 @@ fn void Workspace.free(&self)
 		sf.line_map.free();
 		foreach (section : sf.sections)
 		{ 
-			self.registry.cleanup_section(section.id);
-			foreach (imp : section.resolved_imports)
-			{
-				imp.free(self.allocator);
-			}
-			section.resolved_imports.free();
 			section.free();
 			alloc::free(self.allocator, section);
 		}
@@ -93,10 +81,10 @@ fn void Workspace.free(&self)
 
 		mod.symbols.free();
 		mod.name.free(self.allocator);
+		mod.arena.free();
 		alloc::free(self.allocator, mod);
 	};
 
-	self.registry.free();
 	self.modules.free();
 	self.ast_pool.free();
 }

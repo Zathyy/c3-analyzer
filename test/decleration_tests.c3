@@ -83,7 +83,7 @@ fn void method_with_params()
 	Module* mod      = ws.modules.get("hello")!!;
 	ModuleSection* s = mod.sections[0];
 
-	List{SymbolEntry} entries = *ws.registry.get_candidates("hello::Foo", "greet")!!;
+	List{SymbolEntry} entries = *ws.lookup_method("hello::Foo", "greet")!!;
 	Node* node = entries[0].node;
 	test::ne(node, null);
 
