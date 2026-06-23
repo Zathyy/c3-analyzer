@@ -13,7 +13,9 @@ macro AttributeDecl* @attr(self, int idx)
 }
 
 <*
+ @require entries != null
  @require $Typeof(*entries) == List{SymbolEntry}
+ @require entries.len() > 0
 *>
 macro Node* @node(entries)
 {

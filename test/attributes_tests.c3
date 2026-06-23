@@ -121,8 +121,7 @@ fn void function_if()
 	StringPool* pool = &s.source_file.ast.string_pool;
 	test::ne(pool, null);
 
-	List{SymbolEntry} entries      = *ws.lookup("hello", "greet")!!;
-	Node* node = entries[0].node;
+	Node* node = parser_tests::@node(ws.lookup("hello", "greet")!!);
 	test::ne(node, null);
 	test::eq(node.kind, NodeKind.FN_DECL);
 

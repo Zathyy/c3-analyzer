@@ -35,13 +35,18 @@ alias MethodMap = HashMap{MethodKey, List{SymbolEntry}};
 struct Registry
 {
 	MethodMap methods;	
-	Allocator allocator;
+	Allocator arena;
 }
 
-fn void Registry.init(&self, Allocator allocator)
+fn void Registry.init(&self, Allocator arena)
 {
-	self.allocator = allocator;
-	self.methods.init(allocator);
+	self.arena = arena;
+	self.methods.init(mem);
+}
+
+fn void Registry.free(&self)
+{
+	self.methods.free();
 }
 
 fn void Registry.reset(&self)
@@ -52,15 +57,15 @@ fn void Registry.reset(&self)
 fn void Registry.register_method(&self, String type_name, String method_name, Node* node, Node* condition)
 {	
 	MethodKey key;
-	key.type_name = type_name.copy(self.allocator);
-	key.method_name = method_name.copy(self.allocator);
+	key.type_name = type_name.copy(self.arena);
+	key.method_name = method_name.copy(self.arena);
 
 	List{SymbolEntry}* list = self.methods.get_ref(key) ?? null;
 
 	if (!list)
 	{
 		List{SymbolEntry} sub_list;
-		sub_list.init(self.allocator, 4);
+		sub_list.init(self.arena, 4);
 		self.methods[key] = sub_list;
 		list = self.methods.get_ref(key)!!;
 	}

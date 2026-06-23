@@ -28,13 +28,16 @@ fn void SemaMod.init(&self, String name, Allocator backing_allocator)
 	Mod.init(self, name, backing_allocator);
 
 	self.arena.init(backing_allocator, 4096);
-	self.symbols.init(&self.arena);
+	self.symbols.init(backing_allocator);
 	self.registry.init(&self.arena);
 }
 
 fn void SemaMod.free(&self, Allocator allocator)
 {
 	Mod.free(self, allocator);
+
+	self.symbols.free();
+	self.registry.free();
 
 	self.arena.free();
 }

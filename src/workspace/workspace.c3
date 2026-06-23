@@ -145,7 +145,7 @@ fn ProcessResult? process_batch(Workspace* self, Allocator allocator, FileInput[
 			SemaContext sema_ctx = {
 				.section = section,
 				.ws = self,
-				.allocator = self.allocator
+				.allocator = &mod.arena
 			};
 
 			sema::run_symbols_pass(&sema_ctx);
@@ -167,17 +167,20 @@ fn SourceFile* Workspace.reset_source_file(&self, PathString path)
 	if (try existing = self.source_files.get(path))
 	{
 		self.ast_pool.release(existing.ast)!!;
-
+		Module* mod;
 		foreach (section : existing.sections)
 		{
-			Module* mod = section.parent_module;
-
+			if (!mod)
+			{
+				mod = section.parent_module;
+			}
 			mod.sections.remove_using_test(fn (s, ctx)
 			{
 				ModuleSection* target = *(ModuleSection**)ctx;
 				return *s == target;
 			}, &section);
 		}
+		self.invalidate_module(mod);
 	
 		foreach (section : existing.sections)
 		{

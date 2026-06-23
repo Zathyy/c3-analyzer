@@ -83,8 +83,10 @@ fn void method_with_params()
 	Module* mod      = ws.modules.get("hello")!!;
 	ModuleSection* s = mod.sections[0];
 
-	List{SymbolEntry} entries = *ws.lookup_method("hello::Foo", "greet")!!;
-	Node* node = entries[0].node;
+	List{SymbolEntry}* entries = ws.lookup_method("hello::Foo", "greet")!!;
+	test::ne(entries, null);
+	test::eq(entries.len(), 1);
+	Node* node = (*entries)[0].node;
 	test::ne(node, null);
 
 	FnDecl* func = node.as(FN_DECL);

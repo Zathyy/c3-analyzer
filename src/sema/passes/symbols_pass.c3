@@ -21,11 +21,9 @@ fn void reindex_module(SemaContext* ctx)
 
 	plog::debug("SEMA: reindex_module");
 
-	mod.symbols.@each(; n, entries)
-	{
-		entries.free();
-	};
 	mod.symbols.clear();
+	mod.registry.reset();
+	mod.arena.reset();
 
 	foreach (section : mod.sections)
 	{
@@ -49,7 +47,7 @@ fn void reindex_module(SemaContext* ctx)
 
 			plog::debug("symbol_name: %s", symbol_name);
 			
-			if (symbol_name.len == 0)
+			if (symbol_name == "")
 			{
 				plog::debug("Failed to acquire spelling");
 				continue;
@@ -58,13 +56,10 @@ fn void reindex_module(SemaContext* ctx)
 			Node* guard_expr;
 			decl::node_has_if_attribute(ctx, node, &guard_expr);
 
-			List{SymbolEntry}* list = mod.symbols.get_ref(symbol_name) ?? null;
-			if (list == null)
+			List{SymbolEntry}* list = mod.symbols.get_or_create_ref(symbol_name);
+			if (!list.is_initialized())
 			{
-				List{SymbolEntry} new_list;
-				new_list.init(ctx.allocator, 2);
-				mod.symbols.set(symbol_name, new_list);
-				list = mod.symbols.get_ref(symbol_name)!!;
+				list.init(ctx.allocator, 2);
 			}
 
 			plog::debug("reindex_module: Set node: %s in module %s", node.kind.description, mod.name);
@@ -107,10 +102,6 @@ fn void reindex_module(SemaContext* ctx)
 *>
 fn void refresh_section_imports(SemaContext* ctx, ModuleSection* section)
 {
-	foreach (imp : section.resolved_imports)
-	{
-		imp.free(ctx.allocator);
-	}
 	section.resolved_imports.clear();
 
 	foreach (node : section.nodes)

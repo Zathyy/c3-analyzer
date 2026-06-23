@@ -72,16 +72,7 @@ fn void Workspace.free(&self)
 
 	self.modules.@each(; name, mod) 
 	{
-		mod.sections.free();
-
-		mod.symbols.@each(; n, entries)
-		{
-			entries.free();
-		};
-
-		mod.symbols.free();
-		mod.name.free(self.allocator);
-		mod.arena.free();
+		mod.free(self.allocator);
 		alloc::free(self.allocator, mod);
 	};
 
@@ -91,7 +82,5 @@ fn void Workspace.free(&self)
 
 fn void Workspace.invalidate_module(&self, Module* mod)
 {
-	mod.arena.reset();
-	mod.symbols.clear();
 	mod.version++;
 }
