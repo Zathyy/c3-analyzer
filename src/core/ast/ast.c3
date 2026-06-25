@@ -127,6 +127,11 @@ macro Node.as(&self, NodeKind $kind)
 	return &self.$eval(utils::@str_to_lower($kind.description));
 }
 
+fn bool Node.is_valid(&self) @inline
+{
+	return self.kind != ERROR && self.kind != MISSING; 
+}
+
 struct Ast
 {
 	DynamicArenaAllocator arena;
