@@ -15,7 +15,8 @@ fn String resolve_type_expr_spelling(SemaContext* ctx, Node* type)
 	if (!type) return "";
 	if (type.kind == ERROR || type.kind == MISSING) return "";
 
-	String name_str = cursor.spelling(tmem) ?? "<not-found>";
+	String name_str = cursor.spelling(tmem) ?? "";
+	if (!name_str) return "";
 
 	if (constants::is_primitive(name_str))
 	{

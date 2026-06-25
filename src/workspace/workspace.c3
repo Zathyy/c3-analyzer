@@ -304,8 +304,13 @@ fn List{SymbolEntry}*? Workspace.lookup(&self, String module_name, String symbol
 	return self.lookup_in_module(module_name, symbol_name)!;
 }
 
+<*
+ @param [in] module_name
+ @param [in] symbol_name
+*>
 fn List{SymbolEntry}*? Workspace.lookup_in_module(&self, String module_name, String symbol_name) @if($feature(SEMA))
 {
+	if (!module_name || !symbol_name) return null;
 	Module* mod = self.modules.get(module_name) ?? null;
 	if (!mod) return null;
 
@@ -333,6 +338,7 @@ fn List{SymbolEntry} Workspace.find_symbol_by_name(&self, String symbol_name) @i
 
 <*
  @param [&in] section
+ @require symbol_name.len > 0
 *>
 fn List{String} Workspace.lookup_symbol_in_section(&self, ModuleSection* section, String symbol_name) @if($feature(SEMA))
 {
@@ -341,6 +347,7 @@ fn List{String} Workspace.lookup_symbol_in_section(&self, ModuleSection* section
 
 	foreach (target_module : section.resolved_imports)
 	{
+		if (!target_module) continue;
 		List{SymbolEntry}* list = self.lookup_in_module(target_module, symbol_name) ?? null;
 
 		if (list != null && list.len() > 0)
