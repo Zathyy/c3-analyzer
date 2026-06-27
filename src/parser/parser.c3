@@ -261,7 +261,6 @@ macro @expect_else_skip(ParseContext* ctx, TokenKind kind, TokenKind[] targets; 
 		ctx.skip_until(targets)!;
 		err.kind = ERROR;
 		err.offset.end = ctx.current().pos;
-		@body(err);
 	};
 }
 
@@ -554,7 +553,7 @@ fn void? parse_top_level(ParseContext* ctx)
 			CtAssertDecl* ctassert = node.as(CT_ASSERT_DECL);
 			ctassert.stmt = stmt;
 		default:
-			ctx.error("Couldn't find any matching top level declaration: %s", string::from_struct(tmem, ctx.current()));
+			ctx.error("Couldn't find any matching top level declaration: \"%s\" %s", ctx.token_text(ctx.current()), string::from_struct(tmem, ctx.current()));
 			return UNEXPECTED_TOKEN~;
 	}
 
