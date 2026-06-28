@@ -8,6 +8,7 @@ import std::collections::list;
 <*
  @param [&in] ctx
  @param [&inout] type
+ @require ctx.section != null
 *>
 fn String resolve_type_expr_spelling(SemaContext* ctx, Node* type)
 {
