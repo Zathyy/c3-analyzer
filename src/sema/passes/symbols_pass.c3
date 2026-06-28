@@ -102,8 +102,8 @@ fn void reindex_module(SemaContext* ctx)
 *>
 fn void refresh_section_imports(SemaContext* ctx, ModuleSection* section)
 {
-	section.resolved_imports.clear();
-
+	section.resolved_imports.init(ctx.allocator, 4);
+	
 	foreach (node : section.nodes)
 	{
 		if (node.kind == IMPORT_DECL)
