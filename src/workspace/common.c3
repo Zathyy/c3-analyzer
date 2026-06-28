@@ -65,6 +65,7 @@ fn void Workspace.free(&self)
 		}
 		sf.sections.free();
 		sf.file_path.free(self.allocator);
+		sf.source.free(self.allocator);
 		alloc::free(self.allocator, sf);
 	};
 

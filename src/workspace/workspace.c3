@@ -95,11 +95,11 @@ fn ProcessResult? process_batch(Workspace* self, Allocator allocator, FileInput[
 
 		if (input.path)
 		{
-			ctx.src = (String)file::load(tmem, input.path)!;
+			ctx.src = (String)file::load(self.allocator, input.path)!;
 		}
 		else if (input.source_text)
 		{
-			ctx.src = input.source_text;
+			ctx.src = input.source_text.copy(self.allocator);
 		}
 
 		sf.source = ctx.src;
@@ -167,6 +167,12 @@ fn SourceFile* Workspace.reset_source_file(&self, PathString path)
 	if (try existing = self.source_files.get(path))
 	{
 		self.ast_pool.release(existing.ast)!!;
+
+		if (existing.source)
+        {
+            existing.source.free(self.allocator);
+        }
+
 		Module* mod;
 		foreach (section : existing.sections)
 		{
