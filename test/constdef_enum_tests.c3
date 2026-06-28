@@ -558,7 +558,7 @@ fn void err_missing_name()
 
 	Node* enum_node     = s.nodes[1];
 	EnumDecl* enum_decl = enum_node.as(ENUM_DECL);
-	test::eq(enum_decl.name, (StringID)-1);
+	test::eq(enum_decl.name, string_pool::EMPTY_STR);
 	test::eq(enum_decl.variants.len, 2);
 }
 
