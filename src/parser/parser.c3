@@ -77,8 +77,6 @@ fn void? ParseContext.skip_until(ParseContext* ctx, TokenKind[] targets)
 			if (current == t) return;
 		}
 
-		if (current == EOS || current == RBRACE) return;
-
 		advance(ctx)!;
 	}
 }
@@ -261,6 +259,7 @@ macro @expect_else_skip(ParseContext* ctx, TokenKind kind, TokenKind[] targets; 
 		ctx.skip_until(targets)!;
 		err.kind = ERROR;
 		err.offset.end = ctx.current().pos;
+		@body(err);
 	};
 }
 
