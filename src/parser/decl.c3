@@ -1248,6 +1248,7 @@ fn Node*? parse_enum_constdef_decl(ContextScope scope) => @pool()
 		Token t = @expect_else_skip(ctx, TYPE_IDENT, { COLON, LBRACE, EOS } ; err)
 		{
 			enum_decl.name = string_pool::EMPTY_STR;
+			log::error("Set enum to empty");
 			break CHECK_IDENT;
 		}!;
 
@@ -1313,8 +1314,8 @@ fn Node*? parse_enum_constdef_decl(ContextScope scope) => @pool()
 		if (!ctx.is(CONST_IDENT))
 		{
 			variants.push(unexpected(ctx, "Expected enum variant name")!);
-			ctx.skip_until({ COMMA, RBRACE, EOS })!;
-			consume(ctx, COMMA)!;
+			ctx.skip_until({ COMMA, RBRACE, CONTRACT, CONST_IDENT })!;
+            consume(ctx, COMMA)!;
 			continue;
 		}
 
