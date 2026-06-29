@@ -3,8 +3,6 @@ module analyzer::cursor;
 import analyzer::workspace;
 import analyzer::core;
 
-import std::io;
-
 enum ChildVisitResult : int
 {
 	BREAK,    // Terminate the entire walk
@@ -29,7 +27,6 @@ fn bool visit(Cursor child, Cursor parent, CursorVisitor visitor, void* data)
 	return true; // Continue to next sibling
 }
 
-
 <*
  Visit children
  returns false if a break was requested
@@ -40,5 +37,76 @@ fn bool visit(Cursor child, Cursor parent, CursorVisitor visitor, void* data)
 *>
 fn bool visit_children(Cursor parent, CursorVisitor visitor, void* data)
 {
+	if (!parent.is_valid()) return true;
+	Node* node = parent.node;
+	ModuleSection* sec = parent.section;
+
+	switch (node.kind)
+	{
+		case FN_DECL:
+		{
+			FnDecl* fndecl = node.as(FN_DECL);
+			if (fndecl.associated_type && !visit({sec, fndecl.associated_type}, parent, visitor, data)) return false;
+			if (fndecl.ret_type && !visit({sec, fndecl.ret_type}, parent, visitor, data)) return false;
+			foreach (param : fndecl.params)
+			{
+				if (!visit({sec, param}, parent, visitor, data)) return false;
+			}
+			if (fndecl.body && !visit({sec, fndecl.body}, parent, visitor, data)) return false;
+			break;
+		}
+		
+		case COMPOUND_STMT:
+		{
+			CompoundStmt* comp = node.as(COMPOUND_STMT);
+			foreach (stmt : comp.statements)
+			{
+				if (!visit({sec, stmt}, parent, visitor, data)) return false;
+			}
+			break;
+		}
+
+		case EXPR_STMT:
+		{
+			ExprStmt* expr = node.as(EXPR_STMT);
+			if (expr.expr_stmt && !visit({sec, expr.expr_stmt}, parent, visitor, data)) return false;
+			break;
+		}
+
+		case ACCESS_EXPR:
+		{
+			AccessExpr* access = node.as(ACCESS_EXPR);
+			if (access.left && !visit({sec, access.left}, parent, visitor, data)) return false;
+			if (access.member && !visit({sec, access.member}, parent, visitor, data)) return false;
+			break;
+		}
+
+		case BINARY_EXPR:
+		{
+			BinaryExpr* bin = node.as(BINARY_EXPR);
+			if (bin.left && !visit({sec, bin.left}, parent, visitor, data)) return false;
+			if (bin.right && !visit({sec, bin.right}, parent, visitor, data)) return false;
+			break;
+		}
+
+		case VAR_DECL:
+		{
+			VarDecl* vardecl = node.as(VAR_DECL);
+			if (vardecl.type && !visit({sec, vardecl.type}, parent, visitor, data)) return false;
+			if (vardecl.init_expr && !visit({sec, vardecl.init_expr}, parent, visitor, data)) return false;
+			break;
+		}
+
+		case RETURN_STMT:
+		{
+			ReturnStmt* stmt = node.as(RETURN_STMT);
+			if (stmt.expr && !visit({sec, stmt.expr}, parent, visitor, data)) return false;
+			break;
+		}
+
+		default:
+			break;
+	}
+
 	return true;
 }
