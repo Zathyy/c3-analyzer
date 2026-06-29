@@ -6,6 +6,7 @@ import analyzer::sema;
 import analyzer::core;
 
 import std::collections::map;
+import std::collections::set;
 import std::collections::list;
 import std::collections::pair;
 import std::io;
@@ -364,4 +365,51 @@ fn List{String} Workspace.lookup_symbol_in_section(&self, ModuleSection* section
 		}
 	}
 	return matching_modules;
+}
+
+<*
+ @param [&in] ws
+ @param [&in] node
+*>
+fn ModuleSection* get_section_from_node(Workspace* ws, Node* node) => @pool()
+{
+	sz target_id = node.id;
+
+	HashSet{void*} visited_files; visited_files.tinit();
+
+	ws.modules.@each(; name, mod)
+	{
+		foreach (section : mod.sections)
+		{
+			SourceFile* sf = section.source_file;
+			if (visited_files.contains(sf)) continue;
+			visited_files.add(sf);
+				
+			List{sz}* ids = &sf.ast.node_ids;
+
+			sz low = 0;
+			sz high = ids.len() - 1;
+
+			while (low <= high)
+			{
+				sz mid = low + (high - low) / 2;
+				sz current_id = ids.get(mid);
+
+				if (current_id == target_id) 
+				{
+					return section;
+				}
+				else if (current_id < target_id) 
+				{
+					low = mid + 1;
+				}
+				else 
+				{
+					high = mid - 1;
+				}
+			}
+		}
+	};
+
+	return null;
 }
