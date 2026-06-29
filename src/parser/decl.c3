@@ -721,6 +721,7 @@ fn Node*? parse_var_decl(ContextScope scope, Node* type = null)
 
 
 		StringID name_id = ctx.ast.string_pool.internalize(ctx.token_text(t));
+		log::debug("var name: %s", ctx.token_text(t));
 		advance(ctx)!;
 
 		Node* var_node    = ctx.ast.alloc_node(VAR_DECL, t.pos);
