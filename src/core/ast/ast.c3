@@ -8,6 +8,8 @@ import std::collections::nullable;
 
 const sz ARENA_PAGE_SIZE = 4096;
 
+sz next_node_id = 1;
+
 alias NodeArray = Node*[];
 alias NullableNode = Nullable{Node};
 
@@ -26,6 +28,7 @@ struct Node
 	Visibility visibility;
 	NodeFlags flags;
 	ByteOffset offset;
+	sz id;
 
 	union
 	{
@@ -138,6 +141,7 @@ struct Ast
 	StringPool string_pool;
 	List{Node*} top_level_nodes;
 	List{Node*} error_nodes;
+	List{sz} node_ids;
 }
 
 fn void Ast.init(&self, Allocator backing_allocator = mem)
@@ -146,6 +150,7 @@ fn void Ast.init(&self, Allocator backing_allocator = mem)
 	self.string_pool.init(&self.arena, 128);
 	self.top_level_nodes.init(&self.arena, 32);
 	self.error_nodes.init(&self.arena);
+	self.node_ids.init(&self.arena);
 }
 
 macro Node* Ast.error(&self, int start, int end = -1)
@@ -180,10 +185,12 @@ fn void Ast.clear(&self)
 	self.string_pool = { };
 	self.top_level_nodes = { };
 	self.error_nodes = { };
+	self.node_ids = { };
 
 	self.string_pool.init(&self.arena, 128);
 	self.top_level_nodes.init(&self.arena, 32);
 	self.error_nodes.init(&self.arena);
+	self.node_ids.init(&self.arena);
 }
 
 fn void Ast.free(&self)
@@ -194,7 +201,7 @@ fn void Ast.free(&self)
 	self.arena.free();
 }
 
-<*
+<*parse_var_decl
  Allocates and initializes a strongly typed AST node inside the AST arena.
  @param kind : "The NodeKind enum tag (e.g., IMPORT_DECL, VAR_DECL)"
  @param start : "The starting token index/position"
@@ -206,6 +213,9 @@ fn Node* Ast.alloc_node(&self, NodeKind kind, int start, int end = -1)
 	node.kind = kind;
 	node.offset.start = start;
 	node.offset.end = end == -1 ? node.offset.start : end;
+	node.id = next_node_id++;
+
+	self.node_ids.push(node.id);
 
 	return node;
 }
