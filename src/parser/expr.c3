@@ -236,7 +236,7 @@ fn Node*? parse_ident_expr(ContextScope scope)
 		case CT_IDENT:
 		case HASH_IDENT:
 			{
-				Node* node       = ctx.ast.alloc_node(IDENT_EXPR, start, ctx.current().pos);
+				Node* node       = ctx.ast.alloc_node(IDENT_EXPR, start, ctx.current().end_pos());
 				IdentExpr* ident = node.as(IDENT_EXPR);
 				ident.ident = ctx.ast.string_pool.internalize(ctx.token_text(t));
 				ident.path_expr = path_prefix;
@@ -1315,7 +1315,7 @@ fn Node*? parse_initializer_list_expr(ContextScope scope) => @pool()
 fn Node*? parse_access_expr(ContextScope scope, Node* left)
 {
 	ParseContext* ctx = scope.ctx;
-	int start_pos          = ctx.current().pos;
+	int start_pos          = left.offset.start;
 	TokenKind op_kind      = ctx.current().kind;
 	AccessKind access_kind = (op_kind == TokenKind.SCOPE) ? AccessKind.STATIC : AccessKind.INSTANCE;
 	advance(ctx)!;
