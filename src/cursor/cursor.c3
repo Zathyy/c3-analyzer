@@ -1,20 +1,23 @@
 <*
  Cursor is basically a pointer to a specific node
-    with the ability to walk and get out data from it.
+	with the ability to walk and get out data from it.
 
-    represents some Node in the abstract syntax tree for a module
+	represents some Node in the abstract syntax tree for a module
 *>
 module analyzer::cursor;
 
 import analyzer::workspace;
 import analyzer::core;
+import analyzer::sema;
 
 import std::collections::list;
 
 import std::io;
 
 faultdef
-	INVALID_NODE
+	INVALID_NODE,
+	UNEXPECTED_KIND,
+	NOT_FOUND
 ;
 
 struct Cursor
@@ -68,6 +71,9 @@ fn String? Cursor.spelling(&self, Allocator allocator) => @pool()
 				return type_name;
 			}
 			return "";
+		case IDENT_EXPR:
+			IdentExpr* ident = self.node.as(IDENT_EXPR);
+			return pool.get(ident.ident);
 		default:
 			return "";
 	}
@@ -152,37 +158,6 @@ fn bool Cursor.has_error(&self)
 	}
 
 	return false;
-}
-
-<*
-
-*>
-fn Cursor find_at(ModuleSection* sec, int offset)
-{
-	SourceFile* sf = sec.source_file;
-
-	if (sf.ast == null || sf.ast.top_level_nodes.len() == 0)
-	{
-		return {};
-	}
-
-	Node* best_match = null;
-
-	foreach (root_node : sf.ast.top_level_nodes)
-	{
-		Node* match = find_innermost_node(root_node, offset, sf);		
-		if (match != null)
-		{
-			best_match = match;
-		}
-	}
-
-	if (best_match == null)
-	{
-		return {};
-	}
-
-	return { .node = best_match, .section = sec };
 }
 
 <*
@@ -299,6 +274,12 @@ fn Node* find_innermost_node(Node* node, int offset, SourceFile* sf)
 				Node* member_inner = find_innermost_node(access.member, offset, sf);
 				if (member_inner) return member_inner;
 			}
+			
+			if (offset >= (int)access.left.offset.end)
+			{
+				return find_innermost_node(access.left, (int)access.left.offset.end, sf) ?: access.left;
+			}
+
 			return node;
 		}
 		case IDENT_EXPR:
@@ -312,3 +293,142 @@ fn Node* find_innermost_node(Node* node, int offset, SourceFile* sf)
 	return node;
 }
 
+<*
+ Resolves the cursor down to its fundamental type definition node (e.g., a STRUCT_DECL).
+ Returns an invalid/empty Cursor if the type cannot be resolved semantically.
+*>
+fn Cursor Cursor.get_type(&self, Workspace* ws)
+{
+	if (!self.is_valid()) return {};
+
+	switch (self.node.kind)
+	{
+		case IDENT_EXPR:
+		{
+			Module* mod = self.section.parent_module;
+			if (!mod) return {};
+
+			// Find the local variable declaration node
+			Node*? local_decl = mod.registry.get_local_resolution(self.node);
+			if (try decl = local_decl)
+			{
+				Cursor decl_cursor = { .section = self.section, .node = decl };
+				return decl_cursor.get_type(ws);
+			}
+
+			return {};
+		}
+
+		case VAR_DECL:
+		{
+			Module* mod = self.section.parent_module;
+			if (!mod) return {};
+
+			Node*? type_decl = mod.registry.get_var_type(self.node);
+			if (try decl = type_decl)
+			{
+				return { .section = self.section, .node = decl };
+			}
+			return {};
+		}
+
+		default:
+			return {};
+	}
+}
+
+<*
+ Extracts the raw, un-prefixed identifier string from a TYPE_EXPR node.
+ Example: 'List*' -> 'List'
+*>
+fn String? Cursor.raw_type_identifier(&self)
+{
+	if (!self.is_valid() || self.node.kind != TYPE_EXPR) return NOT_FOUND~;
+
+	Node* current = self.node;
+
+	while (current && current.kind == TYPE_EXPR)
+	{
+		TypeExpr* data = current.as(TYPE_EXPR);
+
+		switch (data.kind)
+		{
+			case TYPE_IDENTIFIER:
+			{
+				StringPool* pool = &self.section.source_file.ast.string_pool;
+				return pool.get(data.unresolved.name)!;
+			}
+			case TYPE_POINTER:
+			case TYPE_SLICE:
+				current = data.modify.base;
+				break;
+			case TYPE_ARRAY:
+			case TYPE_VECTOR:
+				current = data.array.base;
+				break;
+			case TYPE_GENERIC:
+				current = data.generic.base;
+				break;
+			default:
+		}
+	}
+
+	return NOT_FOUND~;
+}
+
+struct FindAtContext
+{
+	int target_offset;
+	Cursor best_match;
+	sz best_span;
+}
+
+fn ChildVisitResult find_at_callback(Cursor cursor, Cursor parent, void* user_data)
+{
+	if (!cursor.is_valid()) return CONTINUE;
+
+	FindAtContext* ctx = (FindAtContext*)user_data;
+	Node* node = cursor.node;
+
+	if (ctx.target_offset >= (int)node.offset.start && ctx.target_offset <= (int)node.offset.end)
+	{
+		sz current_span = (sz)node.offset.end - node.offset.start;
+
+		if (ctx.best_match.node == null || current_span <= ctx.best_span)
+		{
+			ctx.best_match = cursor;
+			ctx.best_span = current_span;
+		}
+
+		return RECURSE;
+	}
+
+	return CONTINUE;
+}
+
+fn Cursor find_at(ModuleSection* sec, int offset)
+{
+	SourceFile* sf = sec.source_file;
+	if (sf.ast == null || sf.ast.top_level_nodes.len() == 0)
+	{
+		return {};
+	}
+
+	FindAtContext ctx = {
+		.target_offset = offset,
+		.best_match = {},
+		.best_span = 99999999 // Start with a massive fallback span
+	};
+
+	foreach (root_node : sf.ast.top_level_nodes)
+	{
+		Cursor root_cursor = { .section = sec, .node = root_node };
+		
+		if (!visit(root_cursor, {}, (CursorVisitor)&find_at_callback, &ctx)) 
+		{
+			break;
+		}
+	}
+	
+	return ctx.best_match;
+}
