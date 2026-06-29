@@ -294,50 +294,6 @@ fn Node* find_innermost_node(Node* node, int offset, SourceFile* sf)
 }
 
 <*
- Resolves the cursor down to its fundamental type definition node (e.g., a STRUCT_DECL).
- Returns an invalid/empty Cursor if the type cannot be resolved semantically.
-*>
-fn Cursor Cursor.get_type(&self, Workspace* ws)
-{
-	if (!self.is_valid()) return {};
-
-	switch (self.node.kind)
-	{
-		case IDENT_EXPR:
-		{
-			Module* mod = self.section.parent_module;
-			if (!mod) return {};
-
-			// Find the local variable declaration node
-			Node*? local_decl = mod.registry.get_local_resolution(self.node);
-			if (try decl = local_decl)
-			{
-				Cursor decl_cursor = { .section = self.section, .node = decl };
-				return decl_cursor.get_type(ws);
-			}
-
-			return {};
-		}
-
-		case VAR_DECL:
-		{
-			Module* mod = self.section.parent_module;
-			if (!mod) return {};
-
-			Node*? type_decl = mod.registry.get_var_type(self.node);
-			if (try decl = type_decl)
-			{
-				return { .section = self.section, .node = decl };
-			}
-			return {};
-		}
-
-		default:
-			return {};
-	}
-}
-
-<*
  Extracts the raw, un-prefixed identifier string from a TYPE_EXPR node.
  Example: 'List*' -> 'List'
 *>
