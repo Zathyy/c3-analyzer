@@ -15,24 +15,31 @@ struct SemaLocalContext @local
 
 fn void run_variable_pass(SemaContext* ctx)
 {
-	SemaModSection* sema_section = (SemaModSection*)ctx.section;
-	SemaMod* sema_mod = (SemaMod*)sema_section.section.parent_module;
+	SemaModSection* section = ctx.section;
+	SemaMod* mod = section.section.parent_module;
 
-	if (!sema_section || !sema_mod) return;
+	if (!section || !mod) return;
+
+	String source = section.source_file.source;
+
+    section.scope.range = {
+        .start = 0,
+        .end = (int)source.len - 1,
+    };
 
 	SemaLocalContext build_ctx = {
-		.current_scope = &sema_section.scope,
-		.section = sema_section,
-		.arena = &sema_mod.arena
+		.current_scope = &section.scope,
+		.section = section,
+		.arena = &mod.arena
 	};
 
-	foreach (root_node : sema_section.section.nodes)
+	foreach (root_node : section.section.nodes)
 	{
 		if (!root_node) continue;
 		
-		build_ctx.current_scope = &sema_section.scope;
+		build_ctx.current_scope = &section.scope;
 		
-		Cursor root_cursor = { .section = (ModuleSection*)sema_section, .node = root_node };
+		Cursor root_cursor = { .section = (ModuleSection*)section, .node = root_node };
 		cursor::visit(root_cursor, {}, (CursorVisitor)&build_section_scopes_callback, &build_ctx);
 	}
 }
@@ -61,7 +68,7 @@ fn ChildVisitResult build_section_scopes_callback(Cursor cursor, Cursor parent, 
 
 			ctx.current_scope.children.push(sub_scope);
 			ctx.current_scope = sub_scope;
-
+			
 			if (parent.node && parent.node.kind == FN_DECL)
 			{
 				FnDecl* func = parent.node.as(FN_DECL);
@@ -78,12 +85,13 @@ fn ChildVisitResult build_section_scopes_callback(Cursor cursor, Cursor parent, 
 					sub_scope.variables.push(param_entry);
 				}
 			}
-
+			
 			break;
 		}
 
 		case VAR_DECL:
 		{
+			if (parent.node && parent.node.kind == FN_DECL) break;
 			SemaVar var_entry = {
 				.def = node,
 				.lifetime = { 
