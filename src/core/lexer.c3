@@ -430,6 +430,11 @@ struct Token
 	int len; // Length of the lexeme
 }
 
+fn int Token.end_pos(self)
+{
+	return self.pos + self.len;
+}
+
 bool is_in_contract = false;
 
 struct Lexer
