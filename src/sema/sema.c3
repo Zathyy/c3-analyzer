@@ -46,6 +46,7 @@ struct SemaModSection
 {
 	inline ModSection section;
 	List{String} resolved_imports;
+	SemaScope scope;
 }
 
 fn void SemaModSection.init(&self, Module* mod, SourceFile* sf, Allocator alloc)
@@ -58,4 +59,52 @@ fn void SemaModSection.init(&self, Module* mod, SourceFile* sf, Allocator alloc)
 fn void SemaModSection.free(&self)
 {
 	ModSection.free(self);
+}
+
+struct SemaVar
+{
+	Node* def;
+	ByteOffset lifetime;
+}
+
+<*
+ - `parent`: can be null
+ - `children`: list of all children defined in this scope
+*>
+struct SemaScope
+{
+	SemaScope* parent; // can be null
+	ByteOffset range;
+	List{SemaScope*} children; // a list of all children defined in this scope
+
+	List{SemaVar} variables;
+}
+
+fn List{SemaVar} SemaModSection.get_active_vars(&self, int offset) => get_active_vars(offset, &self.scope);
+
+fn List{SemaVar} get_active_vars(int offset, SemaScope* scope)
+{
+	List{SemaVar} active_vars; active_vars.tinit();
+	SemaScope* current = scope;
+	while LOOP: (true)
+	{
+		foreach (v : current.variables)
+		{
+			if (v.lifetime.start <= offset && v.lifetime.end >= offset)
+			{
+				active_vars.push(v);
+			}
+		}
+		foreach (sub_scope : current.children) 
+		{
+			if (sub_scope.range.start <= offset && sub_scope.range.end >= offset) 
+			{
+				current = sub_scope;
+				continue LOOP;
+			}
+		}
+		break;
+	}
+
+	return active_vars;
 }
