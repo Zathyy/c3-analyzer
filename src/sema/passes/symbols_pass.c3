@@ -21,10 +21,6 @@ fn void reindex_module(SemaContext* ctx)
 
 	plog::debug("SEMA: reindex_module");
 
-	mod.symbols.clear();
-	mod.registry.reset();
-	mod.arena.reset();
-
 	foreach (section : mod.sections)
 	{
 		if (!section) continue;
@@ -102,8 +98,6 @@ fn void reindex_module(SemaContext* ctx)
 *>
 fn void refresh_section_imports(SemaContext* ctx, ModuleSection* section)
 {
-	section.resolved_imports.init(ctx.allocator, 4);
-	
 	foreach (node : section.nodes)
 	{
 		if (node.kind == IMPORT_DECL)

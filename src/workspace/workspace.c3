@@ -148,6 +148,8 @@ fn ProcessResult? process_batch(Workspace* self, Allocator allocator, FileInput[
 				.allocator = &mod.arena
 			};
 
+			sema::run_cleanup_pass(&sema_ctx);
+			sema::run_variable_pass(&sema_ctx);
 			sema::run_symbols_pass(&sema_ctx);
 
 			if (section.diagnostics.len() > 0 && !reported_sections.has_key(section.id))
