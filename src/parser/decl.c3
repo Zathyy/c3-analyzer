@@ -704,20 +704,21 @@ fn Node*? parse_var_decl(ContextScope scope, Node* type = null)
 
 		if (flags.is_const && t.kind != CONST_IDENT)
 		{
-			unexpected(ctx, "Constants must use an uppercase CONST_IDENT, found '%s'", ctx.token_text(t));
+			unexpected(ctx, "Constants must use an uppercase CONST_IDENT, found '%s'", ctx.current().kind.description);
 		}
 		if (!flags.is_const && t.kind != IDENT && !flags.is_local)
 		{
-			unexpected(ctx, "Global variables must use lower-case IDENT, found '%s'", ctx.token_text(t));
+			unexpected(ctx, "Global variables must use lower-case IDENT, found '%s'", ctx.current().kind.description);
 		}
 		if (t.kind != IDENT && t.kind != CONST_IDENT && !flags.is_comptime)
 		{
-			unexpected(ctx, "Expected a variable name identifier, got '%s'", ctx.token_text(t));
+			unexpected(ctx, "Expected a variable name identifier, got '%s'", ctx.current().kind.description);
 		}
 		if (t.kind != CT_IDENT && t.kind != CT_TYPE_IDENT && flags.is_comptime)
 		{
 			unexpected(ctx, "name must be a $ident")!;
 		}
+
 
 		StringID name_id = ctx.ast.string_pool.internalize(ctx.token_text(t));
 		advance(ctx)!;
